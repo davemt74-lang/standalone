@@ -44,3 +44,41 @@ Run `php worker/transcription-worker.php` from cron/supervisor/your queue runner
 - `/teams.php` — create teams and add researchers for Team Live access
 
 Source changes now create a `source_change_events` ledger and can notify annotation authors/watchers when a later captured version changes previously annotated passages.
+
+## V1 beta account, privacy, and search
+
+Migration `20260917_003_profiles_settings_search_collections.sql` adds public/private profile controls, search visibility, default annotation visibility, notification preferences, Saved collections, and the account fields used by the beta identity surfaces.
+
+Website surfaces now include `/profile.php`, `/settings.php`, `/connected-accounts.php`, `/saved.php`, `/collection.php`, and `/search.php`. OAuth identities can be linked while signed in, but an identity already owned by another Annotated user cannot be reassigned through the linking flow. Extension sessions are individually revocable.
+
+GitHub Actions in `.github/workflows/ci.yml` gates PHP syntax on PHP 8.1/8.3, Chrome extension JavaScript syntax, Manifest V3, migration ordering, the 90-second media contract, and the required public `File a claim` surface.
+
+## AI / LLM backend
+
+Annotated now includes a provider-neutral AI layer for system administration and Pro research. Configure providers and model IDs in **Admin → AI**; API keys are encrypted before database storage using `app.encryption_key` from `config.php`.
+
+Supported adapters:
+
+- OpenAI Responses API
+- Anthropic Messages API
+- Google Gemini `generateContent`
+- generic OpenAI-compatible chat-completions endpoints
+
+The system administrator can independently route models for admin operations, Pro users, source monitoring, moderation triage, research synthesis, and future transcript cleanup. Pro access is explicitly granted per user and only models marked **Pro** are available to non-admin users.
+
+AI is intentionally advisory around moderation and legal/rightsholder claims. It can summarize and triage, but only human admins can resolve claims or restrict content.
+
+### Workers
+
+Run these under cron/Supervisor in addition to the existing media/transcription workers:
+
+```bash
+php worker/source-monitor-worker.php 5
+php worker/ai-worker.php 5
+```
+
+The source worker only fetches public HTTP(S) destinations, blocks private/reserved network targets, creates immutable Source Versions, and detects whether previously captured passages disappeared. When a source-change AI model is configured, the verified deterministic change event is queued for AI summarization after detection.
+
+### Pro research AI
+
+Pro users get **Ask Annotated** inside research projects. The model receives only project material the user is authorized to access and is instructed to cite Annotated Source/Annotation IDs. AI run records retain task, model, scope, token counts and provenance references.
