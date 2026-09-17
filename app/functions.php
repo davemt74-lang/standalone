@@ -31,3 +31,27 @@ function ensure_source(PDO $pdo,string $url,?string $title=null,?string $mediaTy
 function save_data_url_image(string $dataUrl,string $prefix): ?string { if($dataUrl==='')return null;if(!preg_match('#^data:image/(png|jpeg);base64,(.+)$#s',$dataUrl,$m))throw new InvalidArgumentException('Invalid screenshot format.');$bytes=base64_decode($m[2],true);if($bytes===false||strlen($bytes)>8*1024*1024)throw new InvalidArgumentException('Screenshot is too large.');$ext=$m[1]==='jpeg'?'jpg':'png';$rel='storage/uploads/'.date('Y/m').'/'.$prefix.'-'.bin2hex(random_bytes(12)).'.'.$ext;$abs=dirname(__DIR__).'/'.$rel;if(!is_dir(dirname($abs)))mkdir(dirname($abs),0775,true);if(file_put_contents($abs,$bytes)===false)throw new RuntimeException('Unable to save screenshot.');return '/'.$rel; }
 function is_blocked(PDO $pdo,int $a,int $b): bool { if($a===$b)return false;try{$q=$pdo->prepare('SELECT 1 FROM blocks WHERE (blocker_user_id=? AND blocked_user_id=?) OR (blocker_user_id=? AND blocked_user_id=?) LIMIT 1');$q->execute([$a,$b,$b,$a]);return (bool)$q->fetchColumn();}catch(PDOException $e){return false;} }
 function post_login_destination(): string { $next=$_SESSION['after_login']??'/'; unset($_SESSION['after_login']); return is_string($next)&&str_starts_with($next,'/')&&!str_starts_with($next,'//')?$next:'/'; }
+
+function save_data_url_audio(string $dataUrl): ?string {
+    if ($dataUrl==='') return null;
+    if (!preg_match('#^data:audio/(webm|ogg|mp4|mpeg|wav|x-wav);base64,(.+)$#s',$dataUrl,$m)) throw new InvalidArgumentException('Invalid audio commentary format.');
+    $bytes=base64_decode($m[2],true);
+    if($bytes===false||strlen($bytes)>16*1024*1024) throw new InvalidArgumentException('Audio commentary is too large.');
+    $ext=match($m[1]){'webm'=>'webm','ogg'=>'ogg','mp4'=>'m4a','mpeg'=>'mp3','wav','x-wav'=>'wav',default=>'bin'};
+    $rel='storage/uploads/'.date('Y/m').'/commentary-'.bin2hex(random_bytes(12)).'.'.$ext;
+    $abs=dirname(__DIR__).'/'.$rel;
+    if(!is_dir(dirname($abs)))mkdir(dirname($abs),0775,true);
+    if(file_put_contents($abs,$bytes)===false)throw new RuntimeException('Unable to save audio commentary.');
+    return '/'.$rel;
+}
+function notify_user(PDO $pdo,int $userId,?int $actorUserId,string $type,?string $objectType,?string $objectPublicId,?string $body): void {
+    try{$q=$pdo->prepare('INSERT INTO notifications(user_id,actor_user_id,notification_type,object_type,object_public_id,body) VALUES(?,?,?,?,?,?)');$q->execute([$userId,$actorUserId,$type,$objectType,$objectPublicId,$body]);}catch(PDOException $e){}
+}
+function simple_text_diff(string $old,string $new,int $maxLines=400): array {
+    $a=array_slice(preg_split('/\R/u',$old)?:[],0,$maxLines);$b=array_slice(preg_split('/\R/u',$new)?:[],0,$maxLines);
+    $n=count($a);$m=count($b);$dp=array_fill(0,$n+1,array_fill(0,$m+1,0));
+    for($i=$n-1;$i>=0;$i--)for($j=$m-1;$j>=0;$j--)$dp[$i][$j]=$a[$i]===$b[$j]?1+$dp[$i+1][$j+1]:max($dp[$i+1][$j],$dp[$i][$j+1]);
+    $out=[];$i=0;$j=0;while($i<$n&&$j<$m){if($a[$i]===$b[$j]){$out[]=['type'=>'same','text'=>$a[$i]];$i++;$j++;}elseif($dp[$i+1][$j]>=$dp[$i][$j+1]){$out[]=['type'=>'removed','text'=>$a[$i++]];}else{$out[]=['type'=>'added','text'=>$b[$j++]];}}
+    while($i<$n)$out[]=['type'=>'removed','text'=>$a[$i++]];while($j<$m)$out[]=['type'=>'added','text'=>$b[$j++]];return $out;
+}
+function normalize_match_text(string $text): string { return mb_strtolower(trim((string)preg_replace('/\s+/u',' ',$text))); }
