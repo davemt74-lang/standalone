@@ -52,6 +52,21 @@ $need('bin/migrate-private-evidence.php','/storage/uploads/','A legacy evidence 
 $need('storage/.htaccess','Require all denied','Legacy storage URLs must be denied on Apache.');
 $directAudio="src=\"<?=h(\$a['audio_commentary_path'])?>\"";$directShot="src=\"<?=h(\$a['screenshot_target_path'])?>\"";foreach(['annotation.php','home.php','explore.php','source.php','extension/sidepanel-state.js'] as $file){$body=(string)file_get_contents($root.'/'.$file);if(str_contains($body,$directAudio)||str_contains($body,$directShot)||str_contains($body,'API_BASE+a.audio_commentary_path')||str_contains($body,'API_BASE+a.screenshot_target_path'))$fail[]="Direct evidence URL exposure remains in $file.";}
 
+
+$need('app/rich-capture.php','private_storage_allocate','Rich Capture uploads must use private storage.');
+$need('app/rich-capture.php','rich_capture_assert_ebml','Rich Capture uploads must validate the WebM container signature.');
+$need('app/rich-capture.php','Media upload offset mismatch','Rich Capture chunks must enforce exact offsets.');
+$need('app/rich-capture.php','rich_capture_max_bytes','Rich Capture uploads must enforce a server-side byte ceiling.');
+$need('api/extension-capture.php','require_api_mutation_auth($pdo)','Rich Capture upload mutations must require authenticated extension mutation access.');
+$need('api/extension-publish.php','rich_capture_upload_for_publish','Publishing media must consume an authenticated private upload.');
+$need('api/extension-publish.php','rich_capture_project_for_publish','Unified capture-to-Research must enforce project write/visibility compatibility.');
+$need('extension/service-worker.js','chrome.tabCapture.getMediaStreamId','Media capture must be user-initiated through Chrome tabCapture.');
+$need('worker/media-worker.php','input_is_clip','Media processing must distinguish already-clipped tab input from source timestamps.');
+$need('worker/media-worker.php','scale=-2:240','Video derivatives must remain 240p.');
+$avoid('worker/media-worker.php','yt-dlp','Media worker must not include provider download/bypass tooling.');
+$avoid('worker/media-worker.php','youtube-dl','Media worker must not include provider download/bypass tooling.');
+$avoid('app/evidence-access.php','media_uploads','Original Rich Capture upload inputs must never be exposed through evidence delivery.');
+
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
 $need('app/ai-access.php',"admin_enabled",'Interactive Admin AI must honor the model admin_enabled flag.');
 $need('app/ai-access.php',"pro_enabled",'Interactive Pro AI must honor the model pro_enabled flag.');

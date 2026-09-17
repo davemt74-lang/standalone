@@ -89,3 +89,9 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/research-reports-db.php
+      - name: Rich Capture MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/rich-capture-db.php
