@@ -1,6 +1,6 @@
 <?php
 if($action==='publish'){
-    $u=require_api_mutation_auth($pdo);$url=trim((string)($input['url']??''));$selected=trim((string)($input['selected_text']??''));$comment=trim((string)($input['commentary']??''));$type=(string)($input['capture_type']??'text');$start=isset($input['start_seconds'])?(float)$input['start_seconds']:null;$end=isset($input['end_seconds'])?(float)$input['end_seconds']:null;
+    $u=require_api_mutation_auth($pdo);rate_limit_api($pdo,$config,'publish_user',rate_limit_subject_user($u),20,300);rate_limit_api($pdo,$config,'publish_user_day',rate_limit_subject_user($u),100,86400);$url=trim((string)($input['url']??''));$selected=trim((string)($input['selected_text']??''));$comment=trim((string)($input['commentary']??''));$type=(string)($input['capture_type']??'text');$start=isset($input['start_seconds'])?(float)$input['start_seconds']:null;$end=isset($input['end_seconds'])?(float)$input['end_seconds']:null;
     if(!filter_var($url,FILTER_VALIDATE_URL))json_response(['ok'=>false,'error'=>['code'=>'INVALID_URL']],422);
     if(!in_array($type,['text','video_clip','audio_clip','image_region','page_region'],true))json_response(['ok'=>false,'error'=>['code'=>'INVALID_CAPTURE_TYPE']],422);
     if(in_array($type,['video_clip','audio_clip'],true)&&($start===null||$end===null||$end<=$start||($end-$start)>90))json_response(['ok'=>false,'error'=>['code'=>'CLIP_TOO_LONG','message'=>'Clips must be 90 seconds or less.']],422);
@@ -29,7 +29,7 @@ if($action==='publish'){
 
 
 if($action==='transcript_edit'){
-    $u=require_api_mutation_auth($pdo);$a=ext_annotation($pdo,(string)($input['annotation_id']??''));if(!$a||((int)$a['user_id']!==(int)$u['id']&&$u['role']!=='admin'))json_response(['ok'=>false,'error'=>['code'=>'FORBIDDEN']],403);
+    $u=require_api_mutation_auth($pdo);rate_limit_api($pdo,$config,'transcript_edit_user',rate_limit_subject_user($u),30,600);$a=ext_annotation($pdo,(string)($input['annotation_id']??''));if(!$a||((int)$a['user_id']!==(int)$u['id']&&$u['role']!=='admin'))json_response(['ok'=>false,'error'=>['code'=>'FORBIDDEN']],403);
     $text=trim((string)($input['text']??''));if(mb_strlen($text)>50000)json_response(['ok'=>false,'error'=>['code'=>'TRANSCRIPT_TOO_LONG']],422);
     $q=$pdo->prepare('UPDATE annotation_transcripts SET edited_text=?,updated_at=NOW() WHERE annotation_id=?');$q->execute([$text?:null,$a['id']]);json_response(['ok'=>true,'data'=>['updated'=>true]]);
 }

@@ -22,7 +22,7 @@ if($action==='live'){
 }
 
 if($action==='live_message'){
-    $u=require_api_mutation_auth($pdo);$body=trim((string)($input['body']??''));if($body===''||mb_strlen($body)>3000)json_response(['ok'=>false,'error'=>['code'=>'INVALID_MESSAGE']],422);
+    $u=require_api_mutation_auth($pdo);rate_limit_api($pdo,$config,'live_message_user',rate_limit_subject_user($u),120,300);$body=trim((string)($input['body']??''));if($body===''||mb_strlen($body)>3000)json_response(['ok'=>false,'error'=>['code'=>'INVALID_MESSAGE']],422);
     $sourceId=ext_source_id($pdo,(string)($input['source']??''));if(!$sourceId)json_response(['ok'=>false,'error'=>['code'=>'SOURCE_NOT_FOUND']],404);
     $room=(string)($input['room_type']??'public');$teamId=null;
     if($room==='team'){$teamId=ext_team_id($pdo,(string)($input['team_id']??''),(int)$u['id']);if(!$teamId)json_response(['ok'=>false,'error'=>['code'=>'TEAM_FORBIDDEN']],403);}else{$room='public';if($u['live_presence_mode']!=='visible'&&empty($input['reveal_identity']))json_response(['ok'=>false,'error'=>['code'=>'IDENTITY_DISCLOSURE_REQUIRED','message'=>'Posting publicly reveals your identity for this message.']],409);}
@@ -34,7 +34,7 @@ if($action==='research_projects'){
     $u=require_api_user($pdo);$q=$pdo->prepare('SELECT DISTINCT rp.public_id,rp.title FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.title');$q->execute([$u['id'],$u['id']]);json_response(['ok'=>true,'data'=>['projects'=>$q->fetchAll()]]);
 }
 if($action==='research_add'){
-    $u=require_api_mutation_auth($pdo);$projectRow=project_access($pdo,(int)$u['id'],(string)($input['project_id']??''));$project=$projectRow&&project_can_write($projectRow)?(int)$projectRow['id']:0;$a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$project||!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);$pdo->prepare('INSERT IGNORE INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$project,$a['id'],$u['id']]);if((int)$a['user_id']!==(int)$u['id'])notify_user($pdo,(int)$a['user_id'],(int)$u['id'],'research_usage','annotation',$a['public_id'],$u['display_name'].' added your annotation to research.');json_response(['ok'=>true,'data'=>['added'=>true]]);
+    $u=require_api_mutation_auth($pdo);rate_limit_api($pdo,$config,'research_add_user',rate_limit_subject_user($u),60,3600);$projectRow=project_access($pdo,(int)$u['id'],(string)($input['project_id']??''));$project=$projectRow&&project_can_write($projectRow)?(int)$projectRow['id']:0;$a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$project||!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);$pdo->prepare('INSERT IGNORE INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$project,$a['id'],$u['id']]);if((int)$a['user_id']!==(int)$u['id'])notify_user($pdo,(int)$a['user_id'],(int)$u['id'],'research_usage','annotation',$a['public_id'],$u['display_name'].' added your annotation to research.');json_response(['ok'=>true,'data'=>['added'=>true]]);
 }
 
 if($action==='notifications'){

@@ -1,0 +1,24 @@
+<?php
+declare(strict_types=1);$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use($root,&$fail){$s=(string)file_get_contents($root.'/'.$file);if(!str_contains($s,$needle))$fail[]=$message;};
+if(!is_file($root.'/database/migrations/20260917_007_abuse_rate_limits.sql'))$fail[]='Rate-limit migration 007 is missing.';
+$need('app/rate-limit.php','function rate_limit_hit','Rate limiting must use a centralized server-side counter.');
+$need('app/rate-limit.php','subject_hash','Rate limiting must store hashed subjects rather than raw IP/email values.');
+$need('login.php','login_ip','Native login must be throttled by network source.');
+$need('login.php','login_email','Native login must be throttled by account identifier.');
+$need('register.php','register_ip','Registration must be throttled.');
+$need('oauth/google.php','oauth_start_ip','OAuth starts must be throttled.');
+$need('oauth/callback.php','oauth_callback_ip','OAuth callbacks must be throttled.');
+$need('api/extension-token.php','extension_token_ip','Extension token exchange must be throttled.');
+$need('api/extension-publish.php','publish_user','Annotation publishing must be throttled.');
+$need('api/extension-base.php','comment_user','Comments must be throttled.');
+$need('api/extension-live.php','live_message_user','Live Chat writes must be throttled.');
+$need('report.php','report_ip','Community reports must be throttled.');
+$need('file-a-claim.php','rights_claim_ip','Rights claims must be throttled.');
+$need('app/ai.php','ai_pro_hour','Pro AI requests must have account quotas.');
+$need('app/ai.php','ai_admin_hour','Admin AI requests must have runaway protection.');
+$need('app/ai.php','AI queue is at capacity','The backend AI queue must have a hard active-work ceiling.');
+$need('app/ai.php',"status IN ('queued','processing')",'AI queueing must deduplicate active work for the same task/object.');
+$need('.github/workflows/ci.yml','mariadb-integration','CI must include real MariaDB integration tests.');
+$need('.github/workflows/ci.yml','tests/integration-mariadb.php','CI must execute the MariaDB security/integration suite.');
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Abuse-control contracts passed.\n";

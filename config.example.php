@@ -24,6 +24,11 @@ return [
         // Revocable extension bearer sessions expire even if they are not manually revoked.
         'session_ttl_days' => 30,
     ],
+    'rate_limits' => [
+        // Optional overrides. Defaults are conservative and enforced server-side.
+        // 'login_ip' => ['limit' => 20, 'window_seconds' => 900],
+        // 'ai_pro_hour' => ['limit' => 20, 'window_seconds' => 3600],
+    ],
     'transcription' => [
         // Command receives {input} and {output}. It must write UTF-8 plain text to {output}.
         // Example: '/usr/local/bin/annotated-transcribe {input} {output}'

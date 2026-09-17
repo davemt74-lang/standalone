@@ -40,7 +40,7 @@ if($action==='feed_page'||$action==='feed_following'){
 }
 
 if($action==='follow'){
-    $u=require_api_mutation_auth($pdo);$public=(string)($input['user_id']??'');
+    $u=require_api_mutation_auth($pdo);rate_limit_api($pdo,$config,'social_mutation_user',rate_limit_subject_user($u),120,600);$public=(string)($input['user_id']??'');
     $q=$pdo->prepare('SELECT id FROM users WHERE public_id=? AND status="active"');$q->execute([$public]);$target=(int)($q->fetchColumn()?:0);
     if(!$target||$target===(int)$u['id'])json_response(['ok'=>false,'error'=>['code'=>'INVALID_USER']],422);
     if(is_blocked($pdo,(int)$u['id'],$target))json_response(['ok'=>false,'error'=>['code'=>'BLOCKED']],403);
@@ -51,7 +51,7 @@ if($action==='follow'){
 }
 
 if($action==='save'){
-    $u=require_api_mutation_auth($pdo);$a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
+    $u=require_api_mutation_auth($pdo);rate_limit_api($pdo,$config,'social_mutation_user',rate_limit_subject_user($u),120,600);$a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
     $q=$pdo->prepare('SELECT 1 FROM saved_annotations WHERE user_id=? AND annotation_id=?');$q->execute([$u['id'],$a['id']]);
     if($q->fetchColumn()){$pdo->prepare('DELETE FROM saved_annotations WHERE user_id=? AND annotation_id=?')->execute([$u['id'],$a['id']]);$saved=false;}
     else{$pdo->prepare('INSERT INTO saved_annotations(user_id,annotation_id) VALUES(?,?)')->execute([$u['id'],$a['id']]);$saved=true;}
@@ -59,7 +59,7 @@ if($action==='save'){
 }
 
 if($action==='comment'){
-    $u=require_api_mutation_auth($pdo);$body=trim((string)($input['body']??''));if($body===''||mb_strlen($body)>5000)json_response(['ok'=>false,'error'=>['code'=>'INVALID_COMMENT']],422);
+    $u=require_api_mutation_auth($pdo);rate_limit_api($pdo,$config,'comment_user',rate_limit_subject_user($u),30,600);$body=trim((string)($input['body']??''));if($body===''||mb_strlen($body)>5000)json_response(['ok'=>false,'error'=>['code'=>'INVALID_COMMENT']],422);
     $a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);if(is_blocked($pdo,(int)$u['id'],(int)$a['user_id']))json_response(['ok'=>false,'error'=>['code'=>'BLOCKED']],403);
     $pdo->prepare('INSERT INTO comments(annotation_id,user_id,body) VALUES(?,?,?)')->execute([$a['id'],$u['id'],$body]);
     if((int)$a['user_id']!==(int)$u['id'])notify_user($pdo,(int)$a['user_id'],(int)$u['id'],'comment','annotation',$a['public_id'],$u['display_name'].' commented on your annotation.');

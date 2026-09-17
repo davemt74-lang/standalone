@@ -24,11 +24,12 @@ $need('api/extension-publish.php','next_source_version_number($pdo,$sourceId)','
 $need('worker/source-monitor-worker.php','lock_source_row($pdo','Source monitor must reconcile fetched content under the canonical Source lock.');
 $need('worker/source-monitor-worker.php','source_current_version($pdo,$source)','Source monitor must re-read the latest version after locking.');
 $need('app/functions.php','FOR UPDATE','Concurrent first-seen Source creation must recover with a current read after unique-key races.');
-$need('upgrade.php','GET_LOCK','Database upgrades must use a MariaDB advisory lock.');
-$need('upgrade.php','schema_migration_runs','Database upgrades must persist attempts and partial failures.');
-$need('upgrade.php','MariaDB DDL may already be committed','Upgrade failures must explicitly account for non-transactional DDL.');
-$avoid('upgrade.php','$pdo->beginTransaction();','DDL migrations must not pretend transaction rollback is atomic.');
-$need('upgrade.php','Previously attempted migration changed','Failed/attempted migration checksums must remain immutable.');
+$need('app/migrations.php','GET_LOCK','Database upgrades must use a MariaDB advisory lock.');
+$need('app/migrations.php','schema_migration_runs','Database upgrades must persist attempts and partial failures.');
+$need('app/migrations.php','MariaDB DDL may already be committed','Upgrade failures must explicitly account for non-transactional DDL.');
+$avoid('app/migrations.php','$pdo->beginTransaction();','DDL migrations must not pretend transaction rollback is atomic.');
+$need('app/migrations.php','Previously attempted migration changed','Failed/attempted migration checksums must remain immutable.');
+$need('upgrade.php','migration_apply_pending','Web upgrades must use the shared migration runner exercised by MariaDB CI.');
 
 foreach(glob($root.'/database/migrations/*.sql')?:[] as $file){
     $body=(string)file_get_contents($file);

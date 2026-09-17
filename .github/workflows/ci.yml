@@ -33,3 +33,39 @@ jobs:
         run: php tests/security-contracts.php
       - name: Concurrency and migration contracts
         run: php tests/concurrency-contracts.php
+      - name: Abuse-control contracts
+        run: php tests/abuse-contracts.php
+
+  mariadb-integration:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: ['8.1', '8.3']
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: annotated_ci
+          MARIADB_USER: annotated
+          MARIADB_PASSWORD: annotated
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - name: MariaDB integration and security suite
+        env:
+          ANNOTATED_TEST_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_ci;charset=utf8mb4
+          ANNOTATED_TEST_USER: annotated
+          ANNOTATED_TEST_PASS: annotated
+        run: php tests/integration-mariadb.php
