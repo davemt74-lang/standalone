@@ -61,3 +61,9 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/integration-security-db.php
+      - name: Research knowledge MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/research-knowledge-db.php
