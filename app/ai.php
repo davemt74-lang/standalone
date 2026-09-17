@@ -34,10 +34,14 @@ function ai_generate(PDO $pdo,array $config,int $modelId,string $system,string $
     if($text==='')throw new RuntimeException('AI provider returned no text.');return ['text'=>$text,'input_tokens'=>$in,'output_tokens'=>$out,'model'=>$m];
 }
 function ai_run(PDO $pdo,array $config,?array $user,string $initiatedBy,string $taskType,int $modelId,string $system,string $prompt,array $refs=[],?string $scopeType=null,?string $scopePublicId=null): array {
+    if($user&&$initiatedBy==='pro'){rate_limit_enforce($pdo,$config,'ai_pro_hour',rate_limit_subject_user($user),20,3600);rate_limit_enforce($pdo,$config,'ai_pro_day',rate_limit_subject_user($user),100,86400);}
+    elseif($user&&$initiatedBy==='admin'){rate_limit_enforce($pdo,$config,'ai_admin_hour',rate_limit_subject_user($user),120,3600);rate_limit_enforce($pdo,$config,'ai_admin_day',rate_limit_subject_user($user),500,86400);}
     $public=ulid_like();$q=$pdo->prepare("INSERT INTO ai_runs(public_id,user_id,initiated_by,task_type,model_id,prompt_version,scope_type,scope_public_id,input_refs_json,status) VALUES(?,?,?,?,?,'v1',?,?,?,'processing')");$q->execute([$public,$user['id']??null,$initiatedBy,$taskType,$modelId,$scopeType,$scopePublicId,json_encode($refs,JSON_UNESCAPED_SLASHES)]);$id=(int)$pdo->lastInsertId();
     try{$r=ai_generate($pdo,$config,$modelId,$system,$prompt);$pdo->prepare("UPDATE ai_runs SET output_text=?,status='completed',input_tokens=?,output_tokens=?,completed_at=NOW() WHERE id=?")->execute([$r['text'],$r['input_tokens'],$r['output_tokens'],$id]);return ['public_id'=>$public,'text'=>$r['text'],'model'=>$r['model']];}catch(Throwable $e){$pdo->prepare("UPDATE ai_runs SET status='failed',error_text=?,completed_at=NOW() WHERE id=?")->execute([substr($e->getMessage(),0,1000),$id]);throw $e;}
 }
 function ai_queue_job(PDO $pdo,?int $userId,string $taskType,?int $modelId,string $objectType,string $objectPublicId,array $input=[],int $priority=5): string {
+    $q=$pdo->prepare("SELECT public_id FROM ai_jobs WHERE task_type=? AND object_type=? AND object_public_id=? AND status IN ('queued','processing') ORDER BY id DESC LIMIT 1");$q->execute([$taskType,$objectType,$objectPublicId]);$existing=(string)($q->fetchColumn()?:'');if($existing!=='')return $existing;
+    $active=(int)$pdo->query("SELECT COUNT(*) FROM ai_jobs WHERE status IN ('queued','processing')")->fetchColumn();if($active>=5000)throw new RuntimeException('AI queue is at capacity.');
     $public=ulid_like();$q=$pdo->prepare('INSERT INTO ai_jobs(public_id,requested_by_user_id,task_type,model_id,object_type,object_public_id,input_json,priority) VALUES(?,?,?,?,?,?,?,?)');$q->execute([$public,$userId,$taskType,$modelId?:null,$objectType,$objectPublicId,json_encode($input,JSON_UNESCAPED_SLASHES),max(1,min(9,$priority))]);return $public;
 }
 function ai_research_context(PDO $pdo,int $projectId): array {
