@@ -1,0 +1,55 @@
+<?php
+declare(strict_types=1);
+
+function research_report_access(PDO $pdo,string $publicId,?array $viewer): ?array {
+    $q=$pdo->prepare('SELECT rr.*,rp.owner_user_id,rp.team_id,rp.public_id project_public_id,rp.title project_title,rv.version_number,rv.snapshot_json,rv.snapshot_hash,rv.created_at version_created_at FROM research_reports rr JOIN research_projects rp ON rp.id=rr.project_id JOIN research_report_versions rv ON rv.id=rr.current_version_id WHERE rr.public_id=? AND rr.status=\'published\' LIMIT 1');
+    $q->execute([$publicId]);$r=$q->fetch();if(!$r)return null;
+    if($r['visibility']==='public')return $r;
+    if(!$viewer)return null;
+    if(($viewer['role']??'')==='admin'||(int)$r['owner_user_id']===(int)$viewer['id'])return $r;
+    if($r['visibility']==='team'&&!empty($r['team_id'])){$q=$pdo->prepare('SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1');$q->execute([$r['team_id'],$viewer['id']]);if($q->fetchColumn())return $r;}
+    return null;
+}
+
+function research_report_version(PDO $pdo,array $report,int $versionNumber): ?array {
+    $q=$pdo->prepare('SELECT * FROM research_report_versions WHERE report_id=? AND version_number=? LIMIT 1');$q->execute([$report['id'],$versionNumber]);return $q->fetch()?:null;
+}
+
+function research_report_annotation_allowed(string $reportVisibility,array $annotation,?int $projectTeamId): bool {
+    if($reportVisibility==='private')return true;
+    if(($annotation['visibility']??'')==='public')return true;
+    return $reportVisibility==='team'&&($annotation['visibility']??'')==='team'&&!empty($projectTeamId)&&(int)($annotation['team_id']??0)===$projectTeamId;
+}
+
+function research_report_build_snapshot(PDO $pdo,array $project,string $visibility,string $title,?string $summary): array {
+    if(!in_array($visibility,['public','team','private'],true))throw new RuntimeException('Invalid report visibility.');
+    $pid=(int)$project['id'];$teamId=!empty($project['team_id'])?(int)$project['team_id']:null;
+    if($visibility==='team'&&!$teamId)throw new RuntimeException('Team visibility requires a Team Research project.');
+    $snapshot=['schema'=>'annotated-research-report-v1','project'=>['public_id'=>$project['public_id'],'title'=>$title,'description'=>(string)($project['description']??''),'summary'=>$summary,'visibility'=>$visibility],'sources'=>[],'claims'=>[],'findings'=>[],'entities'=>[],'claim_relations'=>[],'entity_relations'=>[],'timeline'=>[]];
+
+    $q=$pdo->prepare('SELECT s.id,s.public_id,s.title,s.canonical_url,s.domain,s.status,sv.id source_version_id,sv.version_number,sv.captured_at,sv.content_hash FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE ps.project_id=? ORDER BY ps.created_at');$q->execute([$pid]);$sources=$q->fetchAll();$sourceMap=[];
+    foreach($sources as $s){$sourceMap[(int)$s['id']]=$s['public_id'];$snapshot['sources'][]=['id'=>$s['public_id'],'title'=>$s['title'],'url'=>$s['canonical_url'],'domain'=>$s['domain'],'status'=>$s['status'],'version'=>$s['version_number']!==null?(int)$s['version_number']:null,'captured_at'=>$s['captured_at'],'content_hash'=>$s['content_hash']];$snapshot['timeline'][]=['at'=>$s['captured_at'],'type'=>'source','id'=>$s['public_id'],'label'=>$s['title']?:$s['canonical_url']];}
+
+    $q=$pdo->prepare('SELECT rc.* FROM research_claims rc WHERE rc.project_id=? ORDER BY rc.created_at');$q->execute([$pid]);$claims=$q->fetchAll();
+    foreach($claims as $c){$cq=$pdo->prepare('SELECT ce.*,sv.version_number,sv.source_id,s.public_id source_public_id,a.public_id annotation_public_id,a.visibility annotation_visibility,a.team_id annotation_team_id FROM claim_evidence ce LEFT JOIN source_versions sv ON sv.id=ce.source_version_id LEFT JOIN sources s ON s.id=sv.source_id LEFT JOIN annotations a ON a.id=ce.annotation_id WHERE ce.claim_id=? ORDER BY ce.created_at');$cq->execute([$c['id']]);$evidence=[];foreach($cq->fetchAll() as $e){$item=['id'=>$e['public_id'],'relationship'=>$e['relationship'],'source_id'=>$e['source_public_id'],'source_version'=>$e['version_number']!==null?(int)$e['version_number']:null,'note'=>$e['note']];if($e['annotation_public_id']&&research_report_annotation_allowed($visibility,['visibility'=>$e['annotation_visibility'],'team_id'=>$e['annotation_team_id']],$teamId))$item['annotation_id']=$e['annotation_public_id'];$evidence[]=$item;}
+        $snapshot['claims'][]=['id'=>$c['public_id'],'statement'=>$c['statement'],'type'=>$c['claim_type'],'status'=>$c['status'],'resolution_note'=>$c['resolution_note'],'evidence'=>$evidence,'created_at'=>$c['created_at']];$snapshot['timeline'][]=['at'=>$c['created_at'],'type'=>'claim','id'=>$c['public_id'],'label'=>$c['statement']];}
+
+    $q=$pdo->prepare("SELECT * FROM research_findings WHERE project_id=? AND status<>'archived' ORDER BY created_at");$q->execute([$pid]);foreach($q->fetchAll() as $f){$fq=$pdo->prepare('SELECT rc.public_id,fc.relationship,fc.position FROM finding_claims fc JOIN research_claims rc ON rc.id=fc.claim_id WHERE fc.finding_id=? ORDER BY fc.position,fc.id');$fq->execute([$f['id']]);$snapshot['findings'][]=['id'=>$f['public_id'],'title'=>$f['title'],'summary'=>$f['summary'],'status'=>$f['status'],'claims'=>$fq->fetchAll(),'created_at'=>$f['created_at']];$snapshot['timeline'][]=['at'=>$f['created_at'],'type'=>'finding','id'=>$f['public_id'],'label'=>$f['title']];}
+
+    $q=$pdo->prepare('SELECT cr.public_id,cr.relation_type,cr.note,sc.public_id source_claim_id,tc.public_id target_claim_id,cr.created_at FROM claim_relations cr JOIN research_claims sc ON sc.id=cr.source_claim_id JOIN research_claims tc ON tc.id=cr.target_claim_id WHERE cr.project_id=? ORDER BY cr.created_at');$q->execute([$pid]);$snapshot['claim_relations']=$q->fetchAll();
+
+    $q=$pdo->prepare("SELECT re.* FROM research_entities re WHERE re.project_id=? AND re.status<>'archived' ORDER BY re.created_at");$q->execute([$pid]);foreach($q->fetchAll() as $e){$mq=$pdo->prepare('SELECT rem.mention_type,rem.source_version_id,rem.annotation_id,rem.claim_id,rem.finding_id,sv.version_number,s.public_id source_public_id,a.public_id annotation_public_id,a.visibility annotation_visibility,a.team_id annotation_team_id,rc.public_id claim_public_id,rf.public_id finding_public_id FROM research_entity_mentions rem LEFT JOIN source_versions sv ON sv.id=rem.source_version_id LEFT JOIN sources s ON s.id=sv.source_id LEFT JOIN annotations a ON a.id=rem.annotation_id LEFT JOIN research_claims rc ON rc.id=rem.claim_id LEFT JOIN research_findings rf ON rf.id=rem.finding_id WHERE rem.entity_id=? ORDER BY rem.created_at');$mq->execute([$e['id']]);$mentions=[];foreach($mq->fetchAll() as $m){$mi=['type'=>$m['mention_type']];if($m['source_public_id']){$mi['source_id']=$m['source_public_id'];$mi['source_version']=$m['version_number']!==null?(int)$m['version_number']:null;}if($m['mention_type']==='annotation'&&$m['annotation_public_id']&&research_report_annotation_allowed($visibility,['visibility'=>$m['annotation_visibility'],'team_id'=>$m['annotation_team_id']],$teamId))$mi['annotation_id']=$m['annotation_public_id'];if($m['claim_public_id'])$mi['claim_id']=$m['claim_public_id'];if($m['finding_public_id'])$mi['finding_id']=$m['finding_public_id'];$mentions[]=$mi;}
+        $snapshot['entities'][]=['id'=>$e['public_id'],'type'=>$e['entity_type'],'name'=>$e['canonical_name'],'description'=>$e['description'],'status'=>$e['status'],'mentions'=>$mentions,'created_at'=>$e['created_at']];$snapshot['timeline'][]=['at'=>$e['created_at'],'type'=>'entity','id'=>$e['public_id'],'label'=>$e['canonical_name']];}
+    $q=$pdo->prepare('SELECT rr.public_id,rr.relation_type,rr.note,se.public_id source_entity_id,te.public_id target_entity_id,rr.created_at FROM research_entity_relations rr JOIN research_entities se ON se.id=rr.source_entity_id JOIN research_entities te ON te.id=rr.target_entity_id WHERE rr.project_id=? ORDER BY rr.created_at');$q->execute([$pid]);$snapshot['entity_relations']=$q->fetchAll();
+
+    $q=$pdo->prepare('SELECT sce.created_at,sce.change_type,sce.target_changed,sce.diff_summary,s.public_id source_public_id FROM source_change_events sce JOIN sources s ON s.id=sce.source_id JOIN project_sources ps ON ps.source_id=s.id WHERE ps.project_id=? ORDER BY sce.created_at');$q->execute([$pid]);foreach($q->fetchAll() as $ch)$snapshot['timeline'][]=['at'=>$ch['created_at'],'type'=>'source_change','id'=>$ch['source_public_id'],'label'=>$ch['change_type'].($ch['target_changed']?' · annotation target changed':''),'detail'=>$ch['diff_summary']];
+    usort($snapshot['timeline'],fn($a,$b)=>strcmp((string)($a['at']??''),(string)($b['at']??'')));
+    return $snapshot;
+}
+
+function research_report_publish(PDO $pdo,array $project,array $user,string $visibility,string $title,?string $summary): array {
+    $snapshot=research_report_build_snapshot($pdo,$project,$visibility,$title,$summary);$json=json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);if($json===false)throw new RuntimeException('Unable to encode report snapshot.');$hash=hash('sha256',$json);
+    $pdo->beginTransaction();try{$q=$pdo->prepare('SELECT * FROM research_reports WHERE project_id=? FOR UPDATE');$q->execute([$project['id']]);$report=$q->fetch();if(!$report){$public=ulid_like();$pdo->prepare('INSERT INTO research_reports(public_id,project_id,created_by_user_id,title,summary,visibility,status,published_at) VALUES(?,?,?,?,?,?,\'published\',NOW())')->execute([$public,$project['id'],$user['id'],$title,$summary,$visibility]);$reportId=(int)$pdo->lastInsertId();}else{$reportId=(int)$report['id'];$public=$report['public_id'];}
+        $q=$pdo->prepare('SELECT COALESCE(MAX(version_number),0)+1 FROM research_report_versions WHERE report_id=?');$q->execute([$reportId]);$version=(int)$q->fetchColumn();$vPublic=ulid_like();$pdo->prepare('INSERT INTO research_report_versions(public_id,report_id,version_number,published_by_user_id,visibility,title,summary,snapshot_json,snapshot_hash) VALUES(?,?,?,?,?,?,?,?,?)')->execute([$vPublic,$reportId,$version,$user['id'],$visibility,$title,$summary,$json,$hash]);$versionId=(int)$pdo->lastInsertId();$pdo->prepare("UPDATE research_reports SET title=?,summary=?,visibility=?,status='published',current_version_id=?,published_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$title,$summary,$visibility,$versionId,$reportId]);$pdo->commit();return ['public_id'=>$public,'version_number'=>$version,'snapshot_hash'=>$hash];
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+}
