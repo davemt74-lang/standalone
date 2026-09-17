@@ -10,6 +10,13 @@ return [
         'user' => 'annotated',
         'pass' => 'change-me',
     ],
+    'transcription' => [
+        // Command receives {input} and {output}. It must write UTF-8 plain text to {output}.
+        // Example: '/usr/local/bin/annotated-transcribe {input} {output}'
+        'command' => '',
+        'provider' => 'local',
+        'model' => '',
+    ],
     'oauth' => [
         'google' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],
         'x' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],
