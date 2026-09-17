@@ -9,10 +9,9 @@ if($action==='publish'){
     $canonical=canonicalize_url($url);$pageText=(string)($input['page_text']??'');$pageHash=hash('sha256',$pageText);$targetHash=hash('sha256',$selected);
     $pdo->beginTransaction();
     try{
-        $source=ensure_source($pdo,$canonical,$input['title']??null,$input['media_type']??null);$sourceId=(int)$source['id'];$previousVersionId=(int)($source['current_version_id']??0);$versionId=$previousVersionId;$currentHash=null;
-        if($previousVersionId){$q=$pdo->prepare('SELECT content_hash FROM source_versions WHERE id=?');$q->execute([$previousVersionId]);$currentHash=$q->fetchColumn()?:null;}
+        $source=ensure_source($pdo,$canonical,$input['title']??null,$input['media_type']??null);$sourceId=(int)$source['id'];$source=lock_source_row($pdo,$sourceId);$previousVersionId=(int)($source['current_version_id']??0);$versionId=$previousVersionId;$current=source_current_version($pdo,$source);$currentHash=$current['content_hash']??null;
         if(!$versionId||($pageText!==''&&$currentHash!==$pageHash)){
-            $q=$pdo->prepare('SELECT COALESCE(MAX(version_number),0)+1 FROM source_versions WHERE source_id=?');$q->execute([$sourceId]);$next=(int)$q->fetchColumn();
+            $next=next_source_version_number($pdo,$sourceId);
             $q=$pdo->prepare('INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,target_content_hash,screenshot_path,metadata_json) VALUES(?,?,?,?,?,?,?,?,?)');$q->execute([$sourceId,$next,$canonical,$input['title']??null,$pageText?:null,$pageHash,$targetHash,$contextPath,json_encode(['media_type'=>$input['media_type']??null])]);$versionId=(int)$pdo->lastInsertId();
             $targetChanged=false;
             if($previousVersionId&&$pageText!==''){$q=$pdo->prepare('SELECT DISTINCT c.selected_text FROM annotations a JOIN captures c ON c.id=a.capture_id WHERE a.source_id=? AND a.source_version_id=? AND c.selected_text IS NOT NULL AND c.selected_text<>"" LIMIT 100');$q->execute([$sourceId,$previousVersionId]);foreach($q->fetchAll(PDO::FETCH_COLUMN) as $priorText){if(!str_contains(normalize_match_text($pageText),normalize_match_text((string)$priorText))){$targetChanged=true;break;}}}
