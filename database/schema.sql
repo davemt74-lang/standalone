@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   public_id VARCHAR(40) NOT NULL UNIQUE,
   username VARCHAR(50) NOT NULL UNIQUE,
   display_name VARCHAR(100) NOT NULL,
-  email VARCHAR(190) NOT NULL UNIQUE,
+  email VARCHAR(190) NULL UNIQUE,
   password_hash VARCHAR(255) NULL,
   role ENUM('admin','user') NOT NULL DEFAULT 'user',
   status ENUM('active','suspended','deleted') NOT NULL DEFAULT 'active',
