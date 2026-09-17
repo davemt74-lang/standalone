@@ -31,3 +31,5 @@ jobs:
         run: php tests/release-contracts.php
       - name: Security contracts
         run: php tests/security-contracts.php
+      - name: Concurrency and migration contracts
+        run: php tests/concurrency-contracts.php
