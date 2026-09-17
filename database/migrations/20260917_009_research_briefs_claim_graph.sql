@@ -1,5 +1,5 @@
 -- Annotated V1.1 Research Brief, Timeline, and Claim Graph. Keep immutable once applied.
-ALTER TABLE research_claims ADD UNIQUE KEY uq_research_claim_id_project(id,project_id);
+ALTER TABLE research_claims ADD UNIQUE INDEX IF NOT EXISTS uq_research_claim_id_project(id,project_id);
 
 CREATE TABLE IF NOT EXISTS claim_relations (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
