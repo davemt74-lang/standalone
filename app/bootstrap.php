@@ -35,3 +35,4 @@ $pdo = new PDO($db['dsn'], $db['user'], $db['pass'], [
     PDO::ATTR_EMULATE_PREPARES => false,
 ]);
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/access.php';
