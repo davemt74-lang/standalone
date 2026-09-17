@@ -47,6 +47,8 @@ jobs:
         run: php tests/security-contracts.php
       - name: Concurrency and migration contracts
         run: php tests/concurrency-contracts.php
+      - name: Abuse protection contracts
+        run: php tests/rate-limit-contracts.php
       - name: MariaDB schema and limiter smoke
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
