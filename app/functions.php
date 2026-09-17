@@ -10,7 +10,7 @@ function current_user(PDO $pdo): ?array {
     $token=bearer_token();
     if(!$userId && $token){
         try{
-            $q=$pdo->prepare('SELECT user_id FROM extension_sessions WHERE token_hash=? AND revoked_at IS NULL');
+            $q=$pdo->prepare('SELECT user_id FROM extension_sessions WHERE token_hash=? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW())');
             $q->execute([hash('sha256',$token)]);$userId=(int)($q->fetchColumn()?:0);
             if($userId){$pdo->prepare('UPDATE extension_sessions SET last_used_at=NOW() WHERE token_hash=?')->execute([hash('sha256',$token)]);}
         }catch(PDOException $e){$userId=0;}
