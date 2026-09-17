@@ -10,6 +10,11 @@ function users_share_team(PDO $pdo,int $a,int $b): bool {
     $q->execute([$a,$b]);
     return (bool)$q->fetchColumn();
 }
+function presence_identity_visible(PDO $pdo,int $viewerUserId,int $subjectUserId,string $mode): bool {
+    if($mode==='visible')return true;
+    if($mode==='team_only')return users_share_team($pdo,$viewerUserId,$subjectUserId);
+    return false;
+}
 function annotation_access(PDO $pdo,string $publicId,?array $viewer): ?array {
     $uid=(int)($viewer['id']??0);$admin=(($viewer['role']??'')==='admin');
     $q=$pdo->prepare('SELECT id,public_id,user_id,source_id,source_version_id,capture_id,visibility,team_id,status FROM annotations WHERE public_id=? LIMIT 1');
