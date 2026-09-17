@@ -4,6 +4,8 @@ return [
         'name' => 'Annotated',
         'base_url' => 'https://annotated.example.com',
         'session_name' => 'annotated_session',
+        // 32+ random characters. Used only to encrypt secrets stored by Admin (such as LLM API keys).
+        'encryption_key' => 'replace-with-a-long-random-secret',
     ],
     'db' => [
         'dsn' => 'mysql:host=127.0.0.1;dbname=annotated;charset=utf8mb4',

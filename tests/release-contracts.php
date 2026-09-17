@@ -1,15 +1,13 @@
 <?php
-declare(strict_types=1);
-$root=dirname(__DIR__);
-$fail=[];
-$manifest=json_decode((string)file_get_contents($root.'/extension/manifest.json'),true);
-if(($manifest['manifest_version']??null)!==3)$fail[]='Chrome extension must remain Manifest V3.';
-$annotation=(string)file_get_contents($root.'/annotation.php');
-if(!str_contains($annotation,'File a claim'))$fail[]='Public annotation page must expose File a claim.';
-$api='';foreach(glob($root.'/api/*.php') as $f)$api.="\n".file_get_contents($f);
-if(!str_contains($api,'90'))$fail[]='Server/API must contain the 90-second media limit contract.';
-$migrations=array_values(array_filter(glob($root.'/database/migrations/*.sql')?:[],'is_file'));
-sort($migrations,SORT_STRING);$seen=[];$last='';
-foreach($migrations as $file){$base=basename($file);if(!preg_match('/^(\d{8}_\d{3})_/', $base,$m)){$fail[]="Invalid migration filename: $base";continue;}if(isset($seen[$m[1]]))$fail[]="Duplicate migration version: {$m[1]}";$seen[$m[1]]=1;if($last!==''&&strcmp($m[1],$last)<=0)$fail[]='Migrations are not strictly ordered.';$last=$m[1];}
-if(!is_file($root.'/database/migrations/20260917_003_profiles_settings_search_collections.sql'))$fail[]='V1 beta migration 003 missing.';
+declare(strict_types=1);$root=dirname(__DIR__);$fail=[];
+$manifest=json_decode((string)file_get_contents($root.'/extension/manifest.json'),true);if(($manifest['manifest_version']??null)!==3)$fail[]='Chrome extension must remain Manifest V3.';
+$annotation=(string)file_get_contents($root.'/annotation.php');if(!str_contains($annotation,'File a claim'))$fail[]='Public annotation page must expose File a claim.';if(!str_contains($annotation,'Report'))$fail[]='Public annotation page must expose Report.';
+$api='';foreach(glob($root.'/api/*.php') as $f)$api.="\n".file_get_contents($f);if(!str_contains($api,'90'))$fail[]='Server/API must contain the 90-second media limit contract.';
+$migrations=array_values(array_filter(glob($root.'/database/migrations/*.sql')?:[],'is_file'));sort($migrations,SORT_STRING);$seen=[];$last='';foreach($migrations as $file){$base=basename($file);if(!preg_match('/^(\d{8}_\d{3})_/', $base,$m)){$fail[]="Invalid migration filename: $base";continue;}if(isset($seen[$m[1]]))$fail[]="Duplicate migration version: {$m[1]}";$seen[$m[1]]=1;if($last!==''&&strcmp($m[1],$last)<=0)$fail[]='Migrations are not strictly ordered.';$last=$m[1];}
+foreach(['20260917_003_profiles_settings_search_collections.sql','20260917_004_ai_admin_research_monitoring.sql'] as $required)if(!is_file($root.'/database/migrations/'.$required))$fail[]="Required migration missing: $required";
+foreach(['app/ai.php','admin/ai.php','admin/assistant.php','admin/moderation.php','admin/source-monitor.php','worker/ai-worker.php','worker/source-monitor-worker.php','research-project.php','ai.php'] as $required)if(!is_file($root.'/'.$required))$fail[]="AI/admin/research file missing: $required";
+$ai=(string)file_get_contents($root.'/app/ai.php');foreach(['openai','anthropic','gemini','openai_compatible'] as $provider)if(!str_contains($ai,$provider))$fail[]="AI provider adapter missing: $provider";if(!str_contains($ai,'api_key_ciphertext'))$fail[]='AI provider secrets must use encrypted DB storage.';
+$moderation=(string)file_get_contents($root.'/admin/moderation.php');if(!str_contains($moderation,'advisory only'))$fail[]='Moderation UI must state that AI triage is advisory only.';
+$sourceWorker=(string)file_get_contents($root.'/worker/source-monitor-worker.php');if(!str_contains($sourceWorker,'fetch_public_url'))$fail[]='Source monitor must use guarded public URL fetch.';
+$config=(string)file_get_contents($root.'/config.example.php');if(!str_contains($config,'encryption_key'))$fail[]='Config must expose an AI secret encryption key setting.';
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Release contracts passed (".count($migrations)." migrations).\n";
