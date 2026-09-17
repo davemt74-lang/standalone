@@ -10,7 +10,7 @@ This repository contains the Chrome Manifest V3 sidebar extension, PHP web/API a
 2. Import `database/schema.sql` into the empty MariaDB database.
 3. Open `/first-admin.php` and create the first Annotated administrator.
 4. Sign in as the administrator and open `/upgrade.php` to apply the ordered files in `database/migrations/`.
-5. Make `storage/uploads/` writable by the PHP/worker user.
+5. Configure `storage.private_root` to a writable directory **outside the public web root** and grant the PHP/worker user read/write access.
 6. Load the `extension/` folder as an unpacked Chrome extension for development, open Extension Options, and set the Annotated website/API URL.
 
 There is intentionally no installer. The base schema is imported once; all later database changes are forward-only SQL migrations applied through `upgrade.php`.
@@ -82,3 +82,22 @@ The source worker only fetches public HTTP(S) destinations, blocks private/reser
 ### Pro research AI
 
 Pro users get **Ask Annotated** inside research projects. The model receives only project material the user is authorized to access and is instructed to cite Annotated Source/Annotation IDs. AI run records retain task, model, scope, token counts and provenance references.
+
+
+## Private evidence storage
+
+Screenshots, source snapshots, audio commentary, and processed media derivatives are stored with `private://...` references under `storage.private_root`, which should be outside the public web root. Browsers receive only authorization-aware `/evidence.php` URLs; the gateway re-checks annotation or Source access before streaming bytes and supports HTTP Range requests for media playback.
+
+For an existing deployment, run this once after deploying Batch 3:
+
+```bash
+php bin/migrate-private-evidence.php
+```
+
+The utility copies legacy `/storage/uploads/...` evidence into the private root, rewrites database references, then removes the migrated public files. An Apache deny file is included under `/storage/`; for Nginx also deny the legacy URL namespace explicitly, for example:
+
+```nginx
+location ^~ /storage/ { return 404; }
+```
+
+Do not point `storage.private_root` at a directory served by the web server.

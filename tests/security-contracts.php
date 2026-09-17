@@ -18,7 +18,7 @@ $need('app/oauth.php','already connected to another Annotated account','OAuth pr
 $need('extension/content.js','includePageText=false','Page text must be opt-in from the content script.');
 $need('extension/sidepanel-capture.js','readPage(true)','Full page text may be collected only for explicit publish.');
 $state=(string)file_get_contents($root.'/extension/sidepanel-state.js');
-if(preg_match("/action=page_context[^\n]+page_text/",$state))$fail[]='Passive page-context calls must not upload page text.';
+if(preg_match("/action=page_context[^\\n]+page_text/",$state))$fail[]='Passive page-context calls must not upload page text.';
 $need('extension/sidepanel-state.js','normalizeApiBase','Extension API base must reject insecure remote origins.');
 $need('config.example.php','allowed_ids','Config must expose the exact Chrome extension allowlist.');
 $need('config.example.php','bootstrap_key','Config must expose the one-time first-admin bootstrap key.');
@@ -33,4 +33,18 @@ $need('source-compare.php','source_access($pdo,$id,$viewer)','Source comparison 
 $need('search.php','EXISTS(SELECT 1 FROM annotations pa','Search must expose only publicly discoverable sources.');
 $need('annotation.php','annotation_access($pdo,$id,$viewer)','Direct annotation pages must enforce centralized visibility.');
 if(!is_file($root.'/database/migrations/20260917_005_auth_extension_hardening.sql'))$fail[]='Auth/extension hardening migration 005 is missing.';
+
+$need('app/storage.php','private_storage_root','Private evidence storage must have a dedicated filesystem root.');
+$need('evidence.php','annotation_access','Annotation evidence delivery must re-check authorization.');
+$need('evidence.php','source_access','Source evidence delivery must re-check authorization.');
+$need('worker/media-worker.php','private_storage_allocate','Media derivatives must be written to private storage.');
+$need('worker/transcription-worker.php','storage_path_to_absolute','Transcription must resolve private storage references.');
+$need('api/extension-publish.php',"save_data_url_audio((string)(\$input['audio_commentary']??''),\$config)",'Published audio must use private storage.');
+$need('saved.php','annotation_access($pdo,$annotation,$u)','Adding to collections must re-check annotation access.');
+$need('saved.php','array_filter($q->fetchAll(),fn($row)=>annotation_access','Saved/collection owner views must revalidate current access.');
+$need('collection.php',"\$scope=\$c['visibility']==='public'?null:\$viewer",'Public collections must not inherit the owner private access scope.');
+$need('bin/migrate-private-evidence.php','/storage/uploads/','A legacy evidence migration utility is required.');
+$need('storage/.htaccess','Require all denied','Legacy storage URLs must be denied on Apache.');
+$directAudio="src=\"<?=h(\$a['audio_commentary_path'])?>\"";$directShot="src=\"<?=h(\$a['screenshot_target_path'])?>\"";foreach(['annotation.php','home.php','explore.php','source.php','extension/sidepanel-state.js'] as $file){$body=(string)file_get_contents($root.'/'.$file);if(str_contains($body,$directAudio)||str_contains($body,$directShot)||str_contains($body,'API_BASE+a.audio_commentary_path')||str_contains($body,'API_BASE+a.screenshot_target_path'))$fail[]="Direct evidence URL exposure remains in $file.";}
+
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Security contracts passed.\n";

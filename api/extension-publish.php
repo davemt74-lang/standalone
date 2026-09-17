@@ -5,7 +5,7 @@ if($action==='publish'){
     if(!in_array($type,['text','video_clip','audio_clip','image_region','page_region'],true))json_response(['ok'=>false,'error'=>['code'=>'INVALID_CAPTURE_TYPE']],422);
     if(in_array($type,['video_clip','audio_clip'],true)&&($start===null||$end===null||$end<=$start||($end-$start)>90))json_response(['ok'=>false,'error'=>['code'=>'CLIP_TOO_LONG','message'=>'Clips must be 90 seconds or less.']],422);
     if($selected===''&&$comment===''&&empty($input['audio_commentary'])&&!in_array($type,['video_clip','audio_clip','image_region','page_region'],true))json_response(['ok'=>false,'error'=>['code'=>'EMPTY_ANNOTATION']],422);
-    try{$contextPath=save_data_url_image((string)($input['screenshot_context']??''),'context');$targetPath=save_data_url_image((string)($input['screenshot_target']??''),'target');$audioPath=save_data_url_audio((string)($input['audio_commentary']??''));}catch(Throwable $e){json_response(['ok'=>false,'error'=>['code'=>'CAPTURE_INVALID','message'=>$e->getMessage()]],422);}
+    try{$contextPath=save_data_url_image((string)($input['screenshot_context']??''),'context',$config);$targetPath=save_data_url_image((string)($input['screenshot_target']??''),'target',$config);$audioPath=save_data_url_audio((string)($input['audio_commentary']??''),$config);}catch(Throwable $e){json_response(['ok'=>false,'error'=>['code'=>'CAPTURE_INVALID','message'=>$e->getMessage()]],422);}
     $canonical=canonicalize_url($url);$pageText=(string)($input['page_text']??'');$pageHash=hash('sha256',$pageText);$targetHash=hash('sha256',$selected);
     $pdo->beginTransaction();
     try{
@@ -27,6 +27,7 @@ if($action==='publish'){
         $pdo->commit();json_response(['ok'=>true,'data'=>['annotation_id'=>$publicId,'url'=>'/annotation.php?id='.$publicId,'media_queued'=>in_array($type,['video_clip','audio_clip'],true),'transcription_queued'=>$transcriptionQueued]],201);
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();json_response(['ok'=>false,'error'=>['code'=>'PUBLISH_FAILED','message'=>$e->getMessage()?:'Unable to publish annotation.']],500);}
 }
+
 
 if($action==='transcript_edit'){
     $u=require_api_mutation_auth($pdo);$a=ext_annotation($pdo,(string)($input['annotation_id']??''));if(!$a||((int)$a['user_id']!==(int)$u['id']&&$u['role']!=='admin'))json_response(['ok'=>false,'error'=>['code'=>'FORBIDDEN']],403);

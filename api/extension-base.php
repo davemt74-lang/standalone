@@ -36,7 +36,7 @@ if($action==='feed_page'||$action==='feed_following'){
         $sql=$common."JOIN follows f ON f.followed_user_id=a.user_id WHERE f.follower_user_id=? AND a.visibility='public' AND a.status='published' AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=a.user_id) OR (b.blocker_user_id=a.user_id AND b.blocked_user_id=?)) ORDER BY a.published_at DESC LIMIT 50";
         $q=$pdo->prepare($sql);$q->execute([$u['id'],$u['id'],$u['id']]);
     }
-    json_response(['ok'=>true,'data'=>['annotations'=>$q->fetchAll()]]);
+    $rows=$q->fetchAll();foreach($rows as &$row){$row['screenshot_url']=!empty($row['screenshot_target_path'])?evidence_url((string)$row['public_id'],'target'):null;$row['audio_url']=!empty($row['audio_commentary_path'])?evidence_url((string)$row['public_id'],'audio'):null;unset($row['screenshot_target_path'],$row['audio_commentary_path']);}unset($row);json_response(['ok'=>true,'data'=>['annotations'=>$rows]]);
 }
 
 if($action==='follow'){
