@@ -43,13 +43,7 @@ CREATE TABLE IF NOT EXISTS research_entity_mentions (
   CONSTRAINT fk_entity_mention_version FOREIGN KEY(source_version_id) REFERENCES source_versions(id) ON DELETE CASCADE,
   CONSTRAINT fk_entity_mention_annotation FOREIGN KEY(annotation_id) REFERENCES annotations(id) ON DELETE SET NULL,
   CONSTRAINT fk_entity_mention_claim FOREIGN KEY(claim_id) REFERENCES research_claims(id) ON DELETE CASCADE,
-  CONSTRAINT fk_entity_mention_finding FOREIGN KEY(finding_id) REFERENCES research_findings(id) ON DELETE CASCADE,
-  CONSTRAINT chk_entity_mention_target CHECK (
-    (mention_type='source_version' AND source_version_id IS NOT NULL AND annotation_id IS NULL AND claim_id IS NULL AND finding_id IS NULL) OR
-    (mention_type='annotation' AND source_version_id IS NOT NULL AND claim_id IS NULL AND finding_id IS NULL) OR
-    (mention_type='claim' AND source_version_id IS NULL AND annotation_id IS NULL AND claim_id IS NOT NULL AND finding_id IS NULL) OR
-    (mention_type='finding' AND source_version_id IS NULL AND annotation_id IS NULL AND claim_id IS NULL AND finding_id IS NOT NULL)
-  )
+  CONSTRAINT fk_entity_mention_finding FOREIGN KEY(finding_id) REFERENCES research_findings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS research_entity_relations (
