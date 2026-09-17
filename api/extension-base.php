@@ -1,11 +1,12 @@
 <?php
 function ext_source_id(PDO $pdo,string $public): int { $q=$pdo->prepare('SELECT id FROM sources WHERE public_id=?');$q->execute([$public]);return (int)($q->fetchColumn()?:0); }
 function ext_team_id(PDO $pdo,string $public,int $userId): int { $q=$pdo->prepare('SELECT t.id FROM teams t JOIN team_members tm ON tm.team_id=t.id WHERE t.public_id=? AND tm.user_id=? LIMIT 1');$q->execute([$public,$userId]);return (int)($q->fetchColumn()?:0); }
-function ext_annotation(PDO $pdo,string $public): ?array { $q=$pdo->prepare("SELECT id,user_id,source_id,public_id FROM annotations WHERE public_id=? AND status='published'");$q->execute([$public]);return $q->fetch()?:null; }
+function ext_annotation(PDO $pdo,string $public,?array $viewer=null): ?array { return annotation_access($pdo,$public,$viewer); }
 
 if($action==='me'){
-    $u=require_api_user($pdo);
-    json_response(['ok'=>true,'data'=>['user'=>['public_id'=>$u['public_id'],'username'=>$u['username'],'display_name'=>$u['display_name'],'role'=>$u['role'],'live_presence_mode'=>$u['live_presence_mode']]]]);
+    $u=require_api_user($pdo);$defaultVisibility='public';
+    try{$q=$pdo->prepare('SELECT default_annotation_visibility FROM user_preferences WHERE user_id=?');$q->execute([$u['id']]);$defaultVisibility=(string)($q->fetchColumn()?:'public');}catch(PDOException $e){}
+    json_response(['ok'=>true,'data'=>['user'=>['public_id'=>$u['public_id'],'username'=>$u['username'],'display_name'=>$u['display_name'],'role'=>$u['role'],'live_presence_mode'=>$u['live_presence_mode'],'default_annotation_visibility'=>$defaultVisibility]]]);
 }
 
 if($action==='page_context'){
@@ -50,7 +51,7 @@ if($action==='follow'){
 }
 
 if($action==='save'){
-    $u=require_api_mutation_auth($pdo);$a=ext_annotation($pdo,(string)($input['annotation_id']??''));if(!$a)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
+    $u=require_api_mutation_auth($pdo);$a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
     $q=$pdo->prepare('SELECT 1 FROM saved_annotations WHERE user_id=? AND annotation_id=?');$q->execute([$u['id'],$a['id']]);
     if($q->fetchColumn()){$pdo->prepare('DELETE FROM saved_annotations WHERE user_id=? AND annotation_id=?')->execute([$u['id'],$a['id']]);$saved=false;}
     else{$pdo->prepare('INSERT INTO saved_annotations(user_id,annotation_id) VALUES(?,?)')->execute([$u['id'],$a['id']]);$saved=true;}
@@ -59,14 +60,14 @@ if($action==='save'){
 
 if($action==='comment'){
     $u=require_api_mutation_auth($pdo);$body=trim((string)($input['body']??''));if($body===''||mb_strlen($body)>5000)json_response(['ok'=>false,'error'=>['code'=>'INVALID_COMMENT']],422);
-    $a=ext_annotation($pdo,(string)($input['annotation_id']??''));if(!$a)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);if(is_blocked($pdo,(int)$u['id'],(int)$a['user_id']))json_response(['ok'=>false,'error'=>['code'=>'BLOCKED']],403);
+    $a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);if(is_blocked($pdo,(int)$u['id'],(int)$a['user_id']))json_response(['ok'=>false,'error'=>['code'=>'BLOCKED']],403);
     $pdo->prepare('INSERT INTO comments(annotation_id,user_id,body) VALUES(?,?,?)')->execute([$a['id'],$u['id'],$body]);
     if((int)$a['user_id']!==(int)$u['id'])notify_user($pdo,(int)$a['user_id'],(int)$u['id'],'comment','annotation',$a['public_id'],$u['display_name'].' commented on your annotation.');
     json_response(['ok'=>true,'data'=>['created'=>true]],201);
 }
 
 if($action==='watch_source'){
-    $u=require_api_mutation_auth($pdo);$sourceId=ext_source_id($pdo,(string)($input['source']??''));if(!$sourceId)json_response(['ok'=>false,'error'=>['code'=>'SOURCE_NOT_FOUND']],404);
+    $u=require_api_mutation_auth($pdo);$source=source_access($pdo,(string)($input['source']??''),$u);$sourceId=(int)($source['id']??0);if(!$sourceId)json_response(['ok'=>false,'error'=>['code'=>'SOURCE_NOT_FOUND']],404);
     $q=$pdo->prepare('SELECT 1 FROM source_watches WHERE source_id=? AND user_id=?');$q->execute([$sourceId,$u['id']]);
     if($q->fetchColumn()){$pdo->prepare('DELETE FROM source_watches WHERE source_id=? AND user_id=?')->execute([$sourceId,$u['id']]);$watched=false;}else{$pdo->prepare('INSERT INTO source_watches(source_id,user_id) VALUES(?,?)')->execute([$sourceId,$u['id']]);$watched=true;}
     json_response(['ok'=>true,'data'=>['watched'=>$watched]]);
