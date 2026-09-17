@@ -14,5 +14,5 @@ try{
   $me=oauth_http('https://api.x.com/2/users/me?user.fields=profile_image_url,name,username',['headers'=>['Authorization: Bearer '.$token['access_token']]]);$info=$me['data']??[];
   $userId=oauth_finish_login($pdo,'x',(string)($info['id']??''),null,$info['name']??'X User',$info['username']??'x_user',false);
  } else throw new RuntimeException('Unsupported OAuth provider.');
- session_regenerate_id(true);$_SESSION['user_id']=$userId;unset($_SESSION['oauth_state'],$_SESSION['oauth_provider'],$_SESSION['oauth_verifier']);header('Location:/');
+ session_regenerate_id(true);$_SESSION['user_id']=$userId;unset($_SESSION['oauth_state'],$_SESSION['oauth_provider'],$_SESSION['oauth_verifier']);header('Location:'.post_login_destination());
 }catch(Throwable $e){http_response_code(502);echo 'OAuth sign-in failed. '.h($e->getMessage());}
