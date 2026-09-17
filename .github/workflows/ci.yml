@@ -32,7 +32,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: pdo_mysql
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
           coverage: none
       - uses: actions/setup-node@v4
         with:
@@ -49,9 +49,15 @@ jobs:
         run: php tests/concurrency-contracts.php
       - name: Abuse protection contracts
         run: php tests/rate-limit-contracts.php
-      - name: MariaDB schema and limiter smoke
+      - name: MariaDB integration and security suite
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
-        run: php tests/mariadb-smoke.php
+        run: php tests/integration-mariadb.php
+      - name: MariaDB authorization boundary suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/integration-security-db.php

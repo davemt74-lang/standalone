@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);require dirname(__DIR__).'/app/bootstrap.php';require_once dirname(__DIR__).'/app/oauth.php';
 $state=(string)($_GET['state']??'');$code=(string)($_GET['code']??'');$provider=(string)($_SESSION['oauth_provider']??'');$intent=(string)($_SESSION['oauth_intent']??'login');$linkUserId=$intent==='link'?(int)($_SESSION['oauth_link_user_id']??0):0;
+if($limit=rate_limit_page_message($pdo,'oauth-callback-ip',rate_limit_ip_subject(),60,600)){http_response_code(429);exit(h($limit));}
 if(!$provider||!hash_equals((string)($_SESSION['oauth_state']??''),$state)||$code===''){http_response_code(400);exit('Invalid OAuth callback.');}
 try{
  $p=oauth_config($config,$provider);
