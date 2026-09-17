@@ -101,3 +101,11 @@ location ^~ /storage/ { return 404; }
 ```
 
 Do not point `storage.private_root` at a directory served by the web server.
+
+## Concurrency and migration reliability
+
+Migration `20260917_006_worker_leases.sql` adds tokenized worker leases to media, transcription, AI, and source-monitor jobs. Each worker claim is selected under `FOR UPDATE`, receives a random claim token and expiry, and can only complete/retry the job while that lease is still current. Expired leases are reclaimed safely; a stale worker cannot overwrite a newer claim. Retryable jobs are delayed with `available_at`/`scheduled_at` instead of being immediately hot-looped.
+
+Source Version allocation is serialized by locking the canonical `sources` row before reading `current_version_id` and choosing the next version number. The source-monitor worker fetches the remote page before opening the database transaction, then reconciles that fetched result against the latest locked Source Version before committing.
+
+`upgrade.php` now uses MariaDB `GET_LOCK()` so only one schema upgrade can run at a time. Because MariaDB DDL can implicitly commit, upgrades no longer pretend DDL rollback is atomic. `schema_migration_runs` records every attempt, statement position, failure, and checksum. Failed migrations remain checksum-pinned and must be retried unchanged after the environmental problem is corrected. Destructive `DROP`/`TRUNCATE`/`RENAME TABLE` migrations are rejected by the automated contract gate in favor of reviewed expand/contract changes.
