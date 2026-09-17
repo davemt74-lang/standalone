@@ -32,11 +32,7 @@ CREATE TABLE IF NOT EXISTS claim_evidence (
   CONSTRAINT fk_claim_evidence_claim FOREIGN KEY(claim_id) REFERENCES research_claims(id) ON DELETE CASCADE,
   CONSTRAINT fk_claim_evidence_user FOREIGN KEY(added_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_claim_evidence_annotation FOREIGN KEY(annotation_id) REFERENCES annotations(id) ON DELETE SET NULL,
-  CONSTRAINT fk_claim_evidence_version FOREIGN KEY(source_version_id) REFERENCES source_versions(id) ON DELETE RESTRICT,
-  CONSTRAINT chk_claim_evidence_type CHECK (
-    (evidence_type='annotation' AND annotation_id IS NOT NULL) OR
-    (evidence_type='source_version' AND annotation_id IS NULL)
-  )
+  CONSTRAINT fk_claim_evidence_version FOREIGN KEY(source_version_id) REFERENCES source_versions(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS research_findings (
