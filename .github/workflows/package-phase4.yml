@@ -1,0 +1,27 @@
+name: Package Phase 4 Deploy
+
+on:
+  push:
+    branches: [package-v1-1-phase4-20260917]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove packaging workflow from deploy tree
+        run: rm -f .github/workflows/package-phase4.yml
+      - name: Build exact-tree deploy ZIP
+        run: zip -r standalone-v1.1-phase4-deploy.zip . -x '.git/*' 'standalone-v1.1-phase4-deploy.zip'
+      - name: Record SHA-256
+        run: sha256sum standalone-v1.1-phase4-deploy.zip | tee standalone-v1.1-phase4-deploy.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: standalone-v1.1-phase4-deploy
+          path: |
+            standalone-v1.1-phase4-deploy.zip
+            standalone-v1.1-phase4-deploy.sha256
+          if-no-files-found: error
