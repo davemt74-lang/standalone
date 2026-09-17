@@ -1,4 +1,6 @@
 -- Annotated V1.1 Research Brief, Timeline, and Claim Graph. Keep immutable once applied.
+ALTER TABLE research_claims ADD UNIQUE KEY uq_research_claim_id_project(id,project_id);
+
 CREATE TABLE IF NOT EXISTS claim_relations (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   public_id VARCHAR(40) NOT NULL UNIQUE,
@@ -12,9 +14,11 @@ CREATE TABLE IF NOT EXISTS claim_relations (
   UNIQUE KEY uq_claim_relation(source_claim_id,target_claim_id,relation_type),
   INDEX idx_claim_relation_project(project_id,created_at),
   INDEX idx_claim_relation_target(target_claim_id,created_at),
+  INDEX idx_claim_relation_source_project(source_claim_id,project_id),
+  INDEX idx_claim_relation_target_project(target_claim_id,project_id),
   CONSTRAINT fk_claim_relation_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
-  CONSTRAINT fk_claim_relation_source FOREIGN KEY(source_claim_id) REFERENCES research_claims(id) ON DELETE CASCADE,
-  CONSTRAINT fk_claim_relation_target FOREIGN KEY(target_claim_id) REFERENCES research_claims(id) ON DELETE CASCADE,
+  CONSTRAINT fk_claim_relation_source_project FOREIGN KEY(source_claim_id,project_id) REFERENCES research_claims(id,project_id) ON DELETE CASCADE,
+  CONSTRAINT fk_claim_relation_target_project FOREIGN KEY(target_claim_id,project_id) REFERENCES research_claims(id,project_id) ON DELETE CASCADE,
   CONSTRAINT fk_claim_relation_user FOREIGN KEY(added_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT chk_claim_relation_distinct CHECK (source_claim_id<>target_claim_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
