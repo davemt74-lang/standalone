@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Annotated",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Highlight, clip, annotate, discuss and research the web from a Chrome sidebar.",
-  "permissions": ["sidePanel", "activeTab", "scripting", "storage"],
+  "permissions": ["sidePanel", "activeTab", "scripting", "storage", "identity"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "background": {"service_worker": "service-worker.js"},
   "side_panel": {"default_path": "sidepanel.html"},
+  "options_ui": {"page":"options.html","open_in_tab":true},
   "content_scripts": [{"matches": ["http://*/*", "https://*/*"], "js": ["content.js"], "run_at": "document_idle"}],
   "action": {"default_title": "Open Annotated"}
 }
