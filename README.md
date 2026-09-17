@@ -22,3 +22,25 @@ Users may create an Annotated account with email/password, Google, or X. The Chr
 ## Media processing
 
 Media annotations enforce the 90-second limit at the API and worker layers. Video derivatives are generated at 240p. The worker only processes media input supplied by an authorized acquisition/upload adapter and does not bypass third-party access controls.
+
+## Audio commentary + transcription
+
+Audio commentary is recorded in the Chrome sidebar and stored as a first-class annotation asset. Publishing audio creates an `annotation_transcripts` record and queues a `transcription_jobs` job.
+
+Configure `transcription.command` in `config.php` with a local/private speech-to-text command template. The command receives:
+
+- `{input}` — absolute path to the recorded audio file
+- `{output}` — temporary path where the command must write UTF-8 plain text
+
+Run `php worker/transcription-worker.php` from cron/supervisor/your queue runner. Raw machine text is retained separately from the user-edited transcript. Transcript edits never alter the original audio.
+
+## Website surfaces added
+
+- `/home.php` — Following feed
+- `/explore.php` — active public sources + recent annotations
+- `/source.php?id=...` — canonical Source page with annotation feed and version history
+- `/source-compare.php` — text comparison between preserved Source Versions
+- `/notifications.php` — social/research/source-change notifications
+- `/teams.php` — create teams and add researchers for Team Live access
+
+Source changes now create a `source_change_events` ledger and can notify annotation authors/watchers when a later captured version changes previously annotated passages.
