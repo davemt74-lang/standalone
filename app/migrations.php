@@ -18,8 +18,13 @@ function migration_prepare_tables(PDO $pdo): void {
     $pdo->exec("CREATE TABLE IF NOT EXISTS schema_migrations (version VARCHAR(64) PRIMARY KEY, filename VARCHAR(255) NOT NULL, checksum CHAR(64) NOT NULL, applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $pdo->exec("CREATE TABLE IF NOT EXISTS schema_migration_runs (version VARCHAR(64) PRIMARY KEY, filename VARCHAR(255) NOT NULL, checksum CHAR(64) NOT NULL, status VARCHAR(16) NOT NULL, attempts INT UNSIGNED NOT NULL DEFAULT 0, statement_index INT UNSIGNED NOT NULL DEFAULT 0, statement_count INT UNSIGNED NOT NULL DEFAULT 0, error_message VARCHAR(2000) NULL, started_at DATETIME NULL, completed_at DATETIME NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_schema_migration_run_status(status,updated_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
-function migration_lock(PDO $pdo,int $seconds=10): void {$q=$pdo->prepare("SELECT GET_LOCK('annotated_schema_upgrade',?)");$q->execute([$seconds]);if((int)$q->fetchColumn()!==1)throw new RuntimeException('Another Annotated database upgrade is already running.');}
-function migration_unlock(PDO $pdo): void {try{$pdo->query("SELECT RELEASE_LOCK('annotated_schema_upgrade')");}catch(Throwable $e){}}
+function migration_lock(PDO $pdo,int $seconds=10): void {
+    $q=$pdo->prepare("SELECT GET_LOCK('annotated_schema_upgrade',?)");$q->execute([$seconds]);$locked=(int)$q->fetchColumn();$q->closeCursor();
+    if($locked!==1)throw new RuntimeException('Another Annotated database upgrade is already running.');
+}
+function migration_unlock(PDO $pdo): void {
+    try{$q=$pdo->query("SELECT RELEASE_LOCK('annotated_schema_upgrade')");if($q){$q->fetchColumn();$q->closeCursor();}}catch(Throwable $e){}
+}
 function migration_inventory(PDO $pdo,string $dir): array {
     migration_prepare_tables($pdo);$files=glob(rtrim($dir,'/').'/*.sql')?:[];sort($files,SORT_STRING);
     $applied=[];foreach($pdo->query('SELECT version,checksum FROM schema_migrations') as $r)$applied[$r['version']]=$r['checksum'];
