@@ -1,0 +1,1 @@
+const input=document.querySelector('#apiBase'),status=document.querySelector('#status');chrome.storage.sync.get({apiBase:'http://localhost'},v=>input.value=v.apiBase);document.querySelector('#save').onclick=()=>{let v=input.value.trim().replace(/\/$/,'');chrome.storage.sync.set({apiBase:v},()=>status.textContent='Saved.');};
