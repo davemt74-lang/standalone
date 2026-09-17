@@ -45,6 +45,16 @@ function save_data_url_audio(string $dataUrl): ?string {
     return '/'.$rel;
 }
 function notify_user(PDO $pdo,int $userId,?int $actorUserId,string $type,?string $objectType,?string $objectPublicId,?string $body): void {
+    try{
+        $prefColumn = match(true) {
+            str_starts_with($type,'source_') => 'notify_sources',
+            str_starts_with($type,'research_') || str_starts_with($type,'project_') => 'notify_research',
+            str_starts_with($type,'live_') => 'notify_live',
+            default => 'notify_social',
+        };
+        $q=$pdo->prepare("SELECT $prefColumn FROM user_preferences WHERE user_id=?");$q->execute([$userId]);$pref=$q->fetchColumn();
+        if($pref!==false && (int)$pref===0)return;
+    }catch(PDOException $e){}
     try{$q=$pdo->prepare('INSERT INTO notifications(user_id,actor_user_id,notification_type,object_type,object_public_id,body) VALUES(?,?,?,?,?,?)');$q->execute([$userId,$actorUserId,$type,$objectType,$objectPublicId,$body]);}catch(PDOException $e){}
 }
 function simple_text_diff(string $old,string $new,int $maxLines=400): array {
@@ -55,3 +65,56 @@ function simple_text_diff(string $old,string $new,int $maxLines=400): array {
     while($i<$n)$out[]=['type'=>'removed','text'=>$a[$i++]];while($j<$m)$out[]=['type'=>'added','text'=>$b[$j++]];return $out;
 }
 function normalize_match_text(string $text): string { return mb_strtolower(trim((string)preg_replace('/\s+/u',' ',$text))); }
+
+function require_admin(PDO $pdo): array {
+    $u=require_user($pdo);
+    if(($u['role']??'')!=='admin'){http_response_code(403);exit('Administrator access required.');}
+    return $u;
+}
+function user_plan(PDO $pdo,array $user): string {
+    if(($user['role']??'')==='admin') return 'admin';
+    try{
+        $q=$pdo->prepare('SELECT plan_tier,pro_expires_at FROM users WHERE id=?');$q->execute([$user['id']]);$r=$q->fetch();
+        if(!$r)return 'free';
+        if(($r['plan_tier']??'free')==='pro' && (empty($r['pro_expires_at']) || strtotime((string)$r['pro_expires_at'])>time())) return 'pro';
+    }catch(PDOException $e){}
+    return 'free';
+}
+function user_is_pro(PDO $pdo,array $user): bool { return in_array(user_plan($pdo,$user),['pro','admin'],true); }
+function project_access(PDO $pdo,int $userId,string $publicId): ?array {
+    $q=$pdo->prepare("SELECT DISTINCT rp.*,CASE WHEN rp.owner_user_id=? THEN 'owner' ELSE COALESCE(tm.role,'viewer') END access_role FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.public_id=? AND (rp.owner_user_id=? OR tm.user_id=?) LIMIT 1");
+    $q->execute([$userId,$userId,$publicId,$userId,$userId]);return $q->fetch()?:null;
+}
+function public_http_url_allowed(string $url): bool {
+    $parts=parse_url($url);if(!$parts||!in_array(strtolower((string)($parts['scheme']??'')),['http','https'],true)||empty($parts['host']))return false;
+    $host=strtolower((string)$parts['host']);if($host==='localhost'||str_ends_with($host,'.localhost')||str_ends_with($host,'.local'))return false;
+    $ips=[];
+    if(filter_var($host,FILTER_VALIDATE_IP))$ips[]=$host;else{$resolved=gethostbynamel($host);if(is_array($resolved))$ips=$resolved;}
+    if(!$ips)return false;
+    foreach($ips as $ip){if(!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE))return false;}
+    return true;
+}
+function fetch_public_url(string $url,int $maxBytes=3145728): array {
+    $current=$url;
+    for($hop=0;$hop<4;$hop++){
+        if(!public_http_url_allowed($current))throw new RuntimeException('Source URL is not a permitted public HTTP(S) destination.');
+        $parts=parse_url($current);$host=(string)$parts['host'];$port=(int)($parts['port']??(strtolower((string)$parts['scheme'])==='https'?443:80));$resolved=gethostbynamel($host);$pin=is_array($resolved)?($resolved[0]??null):null;if(!$pin)throw new RuntimeException('Unable to resolve public source host.');
+        $ch=curl_init($current);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HEADER=>true,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_TIMEOUT=>20,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_USERAGENT=>'AnnotatedSourceMonitor/1.0',CURLOPT_HTTPHEADER=>['Accept: text/html,application/xhtml+xml;q=0.9,text/plain;q=0.8'],CURLOPT_PROTOCOLS=>CURLPROTO_HTTP|CURLPROTO_HTTPS,CURLOPT_RESOLVE=>[$host.':'.$port.':'.$pin]]);
+        $raw=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);$headerSize=(int)curl_getinfo($ch,CURLINFO_HEADER_SIZE);$contentType=(string)curl_getinfo($ch,CURLINFO_CONTENT_TYPE);$err=curl_error($ch);curl_close($ch);
+        if($raw===false)throw new RuntimeException('Source request failed'.($err?': '.$err:''));
+        $headers=substr($raw,0,$headerSize);$body=substr($raw,$headerSize);
+        if(in_array($status,[301,302,303,307,308],true)&&preg_match('/^Location:\s*(.+)$/mi',$headers,$m)){$loc=trim($m[1]);if(!preg_match('#^https?://#i',$loc)){$p=parse_url($current);$base=($p['scheme']??'https').'://'.($p['host']??'');if(str_starts_with($loc,'/'))$loc=$base.$loc;else{$dir=dirname($p['path']??'/');$dir=$dir==='.'?'':'/'.trim($dir,'/');$loc=$base.$dir.'/'.ltrim($loc,'/');}}$current=$loc;continue;}
+        if(strlen($body)>$maxBytes)$body=substr($body,0,$maxBytes);
+        return ['url'=>$current,'status'=>$status,'content_type'=>$contentType,'body'=>$body];
+    }
+    throw new RuntimeException('Too many source redirects.');
+}
+function html_to_research_text(string $html): array {
+    $title='';$text='';
+    if(trim($html)==='')return ['title'=>'','text'=>''];
+    $prev=libxml_use_internal_errors(true);$dom=new DOMDocument();@$dom->loadHTML($html,LIBXML_NOERROR|LIBXML_NOWARNING);libxml_clear_errors();libxml_use_internal_errors($prev);
+    $nodes=$dom->getElementsByTagName('title');if($nodes->length)$title=trim((string)$nodes->item(0)?->textContent);
+    foreach(['script','style','noscript','svg'] as $tag){$list=$dom->getElementsByTagName($tag);for($i=$list->length-1;$i>=0;$i--){$n=$list->item($i);if($n&&$n->parentNode)$n->parentNode->removeChild($n);}}
+    $text=trim((string)preg_replace('/\s+/u',' ',$dom->textContent??''));
+    return ['title'=>$title,'text'=>$text];
+}
