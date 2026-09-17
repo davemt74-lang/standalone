@@ -77,3 +77,9 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/research-intelligence-db.php
+      - name: Research entities MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/research-entities-db.php
