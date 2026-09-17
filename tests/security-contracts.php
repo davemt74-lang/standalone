@@ -2,6 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$fail=[];
 $need=function(string $file,string $needle,string $message)use($root,&$fail){$s=(string)file_get_contents($root.'/'.$file);if(!str_contains($s,$needle))$fail[]=$message;};
+$avoid=function(string $file,string $needle,string $message)use($root,&$fail){$s=(string)file_get_contents($root.'/'.$file);if(str_contains($s,$needle))$fail[]=$message;};
 
 $need('app/bootstrap.php',"session.use_strict_mode",'Sessions must use strict mode.');
 $need('app/bootstrap.php',"samesite'=>'Lax'",'Session cookies must explicitly set SameSite.');
@@ -21,5 +22,15 @@ if(preg_match("/action=page_context[^\n]+page_text/",$state))$fail[]='Passive pa
 $need('extension/sidepanel-state.js','normalizeApiBase','Extension API base must reject insecure remote origins.');
 $need('config.example.php','allowed_ids','Config must expose the exact Chrome extension allowlist.');
 $need('config.example.php','bootstrap_key','Config must expose the one-time first-admin bootstrap key.');
+
+$need('app/access.php','function annotation_access','Annotation visibility must be centralized.');
+$need('app/access.php','function source_access','Source visibility must be centralized.');
+$need('api/extension-base.php','ext_annotation($pdo','Extension annotation mutations must use viewer-scoped access.');
+$need('api/extension-live.php','project_can_write($projectRow)','Research writes must reject viewer-only project access.');
+$need('api/extension-live.php','users_share_team','Team-only presence must disclose identity only to shared-team viewers.');
+$need('source.php','source_access($pdo,$id,$u)','Source pages must enforce source visibility.');
+$need('source-compare.php','source_access($pdo,$id,$viewer)','Source comparison must enforce source visibility.');
+$need('search.php','EXISTS(SELECT 1 FROM annotations pa','Search must expose only publicly discoverable sources.');
+$need('annotation.php','annotation_access($pdo,$id,$viewer)','Direct annotation pages must enforce centralized visibility.');
 if(!is_file($root.'/database/migrations/20260917_005_auth_extension_hardening.sql'))$fail[]='Auth/extension hardening migration 005 is missing.';
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Security contracts passed.\n";
