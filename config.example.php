@@ -14,6 +14,10 @@ return [
         'user' => 'annotated',
         'pass' => 'change-me',
     ],
+    'storage' => [
+        // Keep evidence outside the public web root. Ensure the PHP/worker user can read/write this directory.
+        'private_root' => dirname(__DIR__) . '/annotated-private',
+    ],
     'extension' => [
         // Exact 32-character Chrome extension IDs allowed to connect to this Annotated server.
         'allowed_ids' => [],

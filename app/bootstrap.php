@@ -34,5 +34,6 @@ $pdo = new PDO($db['dsn'], $db['user'], $db['pass'], [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::ATTR_EMULATE_PREPARES => false,
 ]);
+require_once __DIR__ . '/storage.php';
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/access.php';

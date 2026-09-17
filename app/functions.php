@@ -28,21 +28,22 @@ function api_headers(): void { $origin=$_SERVER['HTTP_ORIGIN']??''; if($origin &
 function canonicalize_url(string $url): string { $parts=parse_url(trim($url)); if(!$parts || empty($parts['host'])) return trim($url); $scheme=strtolower($parts['scheme'] ?? 'https'); $host=strtolower($parts['host']); $path=$parts['path'] ?? '/'; $query=[]; if (!empty($parts['query'])) { parse_str($parts['query'],$query); foreach(array_keys($query) as $k){ if(str_starts_with(strtolower($k),'utm_')||in_array(strtolower($k),['fbclid','gclid'],true)) unset($query[$k]); } } return $scheme.'://'.$host.$path.($query?'?'.http_build_query($query):''); }
 function source_type_from_url(string $url, ?string $mediaType=null): string { $host=strtolower((string)parse_url($url,PHP_URL_HOST)); if(str_contains($host,'youtube.com')||str_contains($host,'youtu.be'))return 'youtube'; if($mediaType==='video')return 'video'; if($mediaType==='audio')return 'audio'; return 'webpage'; }
 function ensure_source(PDO $pdo,string $url,?string $title=null,?string $mediaType=null): array { $canonical=canonicalize_url($url);$hash=hash('sha256',$canonical);$q=$pdo->prepare('SELECT id,public_id,title,canonical_url,status,current_version_id FROM sources WHERE canonical_url_hash=?');$q->execute([$hash]);$s=$q->fetch();if($s)return $s;$host=(string)(parse_url($canonical,PHP_URL_HOST)?:'');$q=$pdo->prepare('INSERT INTO sources(public_id,source_type,canonical_url,canonical_url_hash,domain,title) VALUES(?,?,?,?,?,?)');$q->execute([ulid_like(),source_type_from_url($canonical,$mediaType),$canonical,$hash,$host,$title]);$id=(int)$pdo->lastInsertId();$q=$pdo->prepare('SELECT id,public_id,title,canonical_url,status,current_version_id FROM sources WHERE id=?');$q->execute([$id]);return $q->fetch(); }
-function save_data_url_image(string $dataUrl,string $prefix): ?string { if($dataUrl==='')return null;if(!preg_match('#^data:image/(png|jpeg);base64,(.+)$#s',$dataUrl,$m))throw new InvalidArgumentException('Invalid screenshot format.');$bytes=base64_decode($m[2],true);if($bytes===false||strlen($bytes)>8*1024*1024)throw new InvalidArgumentException('Screenshot is too large.');$ext=$m[1]==='jpeg'?'jpg':'png';$rel='storage/uploads/'.date('Y/m').'/'.$prefix.'-'.bin2hex(random_bytes(12)).'.'.$ext;$abs=dirname(__DIR__).'/'.$rel;if(!is_dir(dirname($abs)))mkdir(dirname($abs),0775,true);if(file_put_contents($abs,$bytes)===false)throw new RuntimeException('Unable to save screenshot.');return '/'.$rel; }
+function save_data_url_image(string $dataUrl,string $prefix,array $config): ?string {
+    if($dataUrl==='')return null;
+    if(!preg_match('#^data:image/(png|jpeg);base64,(.+)$#s',$dataUrl,$m))throw new InvalidArgumentException('Invalid screenshot format.');
+    $bytes=base64_decode($m[2],true);if($bytes===false||strlen($bytes)>8*1024*1024)throw new InvalidArgumentException('Screenshot is too large.');
+    return private_storage_write($config,$bytes,$prefix,$m[1]==='jpeg'?'jpg':'png');
+}
 function is_blocked(PDO $pdo,int $a,int $b): bool { if($a===$b)return false;try{$q=$pdo->prepare('SELECT 1 FROM blocks WHERE (blocker_user_id=? AND blocked_user_id=?) OR (blocker_user_id=? AND blocked_user_id=?) LIMIT 1');$q->execute([$a,$b,$b,$a]);return (bool)$q->fetchColumn();}catch(PDOException $e){return false;} }
 function post_login_destination(): string { $next=$_SESSION['after_login']??'/'; unset($_SESSION['after_login']); return is_string($next)&&str_starts_with($next,'/')&&!str_starts_with($next,'//')?$next:'/'; }
 
-function save_data_url_audio(string $dataUrl): ?string {
+function save_data_url_audio(string $dataUrl,array $config): ?string {
     if ($dataUrl==='') return null;
     if (!preg_match('#^data:audio/(webm|ogg|mp4|mpeg|wav|x-wav);base64,(.+)$#s',$dataUrl,$m)) throw new InvalidArgumentException('Invalid audio commentary format.');
     $bytes=base64_decode($m[2],true);
     if($bytes===false||strlen($bytes)>16*1024*1024) throw new InvalidArgumentException('Audio commentary is too large.');
     $ext=match($m[1]){'webm'=>'webm','ogg'=>'ogg','mp4'=>'m4a','mpeg'=>'mp3','wav','x-wav'=>'wav',default=>'bin'};
-    $rel='storage/uploads/'.date('Y/m').'/commentary-'.bin2hex(random_bytes(12)).'.'.$ext;
-    $abs=dirname(__DIR__).'/'.$rel;
-    if(!is_dir(dirname($abs)))mkdir(dirname($abs),0775,true);
-    if(file_put_contents($abs,$bytes)===false)throw new RuntimeException('Unable to save audio commentary.');
-    return '/'.$rel;
+    return private_storage_write($config,$bytes,'commentary',$ext);
 }
 function notify_user(PDO $pdo,int $userId,?int $actorUserId,string $type,?string $objectType,?string $objectPublicId,?string $body): void {
     try{

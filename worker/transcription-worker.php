@@ -5,9 +5,9 @@ $cfg=$config['transcription']??[];$command=trim((string)($cfg['command']??''));$
 $q=$pdo->query("SELECT j.id job_id,j.transcript_id,j.input_path,t.annotation_id FROM transcription_jobs j JOIN annotation_transcripts t ON t.id=j.transcript_id WHERE j.status='queued' ORDER BY j.created_at ASC LIMIT 1");$job=$q->fetch();
 if(!$job){echo "No queued transcription jobs.\n";exit(0);} 
 $pdo->prepare("UPDATE transcription_jobs SET status='processing',attempts=attempts+1,started_at=NOW() WHERE id=?")->execute([$job['job_id']]);$pdo->prepare("UPDATE annotation_transcripts SET status='processing',provider=?,model=?,updated_at=NOW() WHERE id=?")->execute([$provider,$model?:null,$job['transcript_id']]);
-$input=dirname(__DIR__).'/'.ltrim((string)$job['input_path'],'/');
+$input=storage_path_to_absolute($config,(string)$job['input_path']);
 try{
-    if(!is_file($input))throw new RuntimeException('Audio commentary file not found.');
+    if(!$input||!is_file($input))throw new RuntimeException('Audio commentary file not found.');
     if($command===''){
         $pdo->prepare("UPDATE transcription_jobs SET status='blocked',last_error=?,completed_at=NOW() WHERE id=?")->execute(['No transcription command configured.',$job['job_id']]);
         $pdo->prepare("UPDATE annotation_transcripts SET status='blocked',last_error=?,updated_at=NOW() WHERE id=?")->execute(['No transcription command configured.',$job['transcript_id']]);
