@@ -4,6 +4,7 @@ if(!users_exist($pdo)){ header('Location: /first-admin.php'); exit; }
 $errors=[];
 if($_SERVER['REQUEST_METHOD']==='POST'){
  require_csrf(); $email=strtolower(trim($_POST['email']??''));$username=trim($_POST['username']??'');$name=trim($_POST['display_name']??'');$password=$_POST['password']??'';
+ $limit=rate_limit_page_message($pdo,'register-ip',rate_limit_ip_subject(),6,3600)?:rate_limit_page_message($pdo,'register-email',rate_limit_subject($email),3,3600);if($limit)$errors[]=$limit;
  if(!filter_var($email,FILTER_VALIDATE_EMAIL))$errors[]='Enter a valid email.'; if(!preg_match('/^[A-Za-z0-9_]{3,30}$/',$username))$errors[]='Invalid username.'; if(mb_strlen($name)>100)$errors[]='Display name is too long.'; if(strlen($password)<12)$errors[]='Password must be at least 12 characters.';
  if(!$errors){try{$s=$pdo->prepare('INSERT INTO users(public_id,username,display_name,email,password_hash) VALUES(?,?,?,?,?)');$s->execute([ulid_like(),$username,$name?:$username,$email,password_hash($password,PASSWORD_DEFAULT)]);session_regenerate_id(true);$_SESSION['user_id']=(int)$pdo->lastInsertId();$_SESSION['rotated_at']=time();$_SESSION['last_activity']=time();header('Location:'.post_login_destination());exit;}catch(PDOException $e){$errors[]='Email or username is already registered.';}}
 }
