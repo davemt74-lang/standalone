@@ -101,3 +101,9 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase6-feeds-db.php
+      - name: Phase 7 public pages and discovery MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase7-public-discovery-db.php
