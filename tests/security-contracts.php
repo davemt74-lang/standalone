@@ -78,6 +78,15 @@ $need('extension/content.js','declaredCanonicalUrl','The extension must detect d
 $need('extension/sidepanel-feed.js','phase6OpenContext','Original-context actions must be explicit rather than exposing private evidence URLs.');
 $avoid('app/feed.php','media_uploads','Feed delivery must never expose raw Rich Capture upload inputs.');
 
+$need('app/public-discovery.php',"a.visibility='public'",'Phase 7 Explore/Search/Profile annotation discovery must be public-only.');
+$need('app/public-discovery.php',"rr.visibility='public'",'Phase 7 public Research discovery must exclude Team and Private reports.');
+$need('app/public-discovery.php','annotation_access($pdo,$publicId,$viewer)','Direct annotation pages must retain centralized viewer-scoped authorization.');
+$need('app/public-discovery.php','source_access($pdo,$publicId,$viewer)','Direct source pages must retain centralized viewer-scoped authorization.');
+$need('source.php','noindex,nofollow','Non-public source views must be marked noindex.');
+$need('annotation.php','noindex,nofollow','Non-public annotation views must be marked noindex.');
+$need('research-report.php','noindex,nofollow','Non-public Research report views must be marked noindex.');
+$need('search.php','noindex,follow','Search results pages must not become duplicate public index pages.');
+$avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
 $need('app/ai-access.php',"admin_enabled",'Interactive Admin AI must honor the model admin_enabled flag.');
 $need('app/ai-access.php',"pro_enabled",'Interactive Pro AI must honor the model pro_enabled flag.');
