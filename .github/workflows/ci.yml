@@ -139,3 +139,35 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase11-release-db.php
+
+
+  mysql8-fresh-install:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: annotated_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - name: PHP syntax
+        run: php -l app/migrations.php && php -l app/installer.php && php -l install.php
+      - name: Fresh install MySQL 8 compatibility suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/install-db.php
