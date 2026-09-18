@@ -150,6 +150,27 @@ $need('search.php','Cache-Control: private, no-store','Signed-in search results 
 $need('search.php','noindex,follow','Search result pages must remain noindex.');
 $need('entity.php','search_discovery_entity($pdo,$id,$viewer)','Public entity pages must resolve mentions through access-aware discovery.');
 
+
+$need('oauth/google.php',"\$_SESSION['oauth_issued_at']=time()",'Google OAuth must timestamp authorization state.');
+$need('oauth/x.php',"\$_SESSION['oauth_issued_at']=time()",'X OAuth must timestamp authorization state.');
+$need('oauth/callback.php','$issued>=time()-600','OAuth state must expire within ten minutes.');
+$need('oauth/callback.php',"unset(\$_SESSION['oauth_state']", 'OAuth state must be consumed before provider token exchange.');
+$need('app/functions.php','sessions_revoked_before','Website authentication must enforce the per-user session revocation epoch.');
+$need('connected-accounts.php',"UPDATE users SET sessions_revoked_before=NOW()", 'Connected Accounts must revoke older browser sessions server-side.');
+$need('connected-accounts.php',"WHERE id=? AND user_id=? AND revoked_at IS NULL",'Individual extension-session revocation must be owner-scoped.');
+$need('api/extension-token.php','extension_redirect_allowed($redirect,$config)','Extension token exchange must validate the exact allowlisted redirect.');
+$need('api/extension-token.php','client_version','Extension sessions must record RC client version when available.');
+$need('app/extension-auth.php','extension_allowed_ids','Extension origins must be constrained by configured Chrome IDs.');
+$need('extension/options.js',"u.protocol!=='https:'",'Extension server settings must require HTTPS outside loopback development.');
+$need('onboarding.php','Cache-Control: private, no-store','Onboarding must not be shared-cached.');
+$need('onboarding.php','noindex,nofollow','Onboarding must not be indexed.');
+$need('admin/system-health.php','require_admin($pdo)','Release health must be admin-only.');
+$need('admin/system-health.php','Cache-Control: private, no-store','Release health must not be shared-cached.');
+$need('app/release.php','function release_environment_checks','Release checks must be centralized server-side.');
+$avoid('admin/system-health.php','client_secret','Release health UI must never render OAuth client secrets.');
+$avoid('admin/system-health.php','encryption_key','Release health UI must never render encryption secrets.');
+$phase11Init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_match("/(?<!\\$)\\$\\('nav button'\\)\\.forEach/",$phase11Init))$fail[]='Sidebar nav binding must use querySelectorAll helper.';if(preg_match("/(?<!\\$)\\$\\('\\.modes button'\\)\\.forEach/",$phase11Init))$fail[]='Capture mode binding must use querySelectorAll helper.';$phase11Feed=(string)file_get_contents($root.'/extension/sidepanel-feed.js');if(preg_match("/(?<!\\$)\\$\\('[^']+'\\)\\.forEach/",$phase11Feed))$fail[]='Sidebar feed must not call forEach on a single querySelector result.';$avoid('app/functions.php','if(!$userId&&$token)','Bearer presence must never fall back to website-session authentication.');$need('app/functions.php','if($token){','Bearer requests must authenticate through extension sessions before website-session fallback.');
+
 $avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
 $need('app/ai-access.php',"admin_enabled",'Interactive Admin AI must honor the model admin_enabled flag.');
