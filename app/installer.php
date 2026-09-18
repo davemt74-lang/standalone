@@ -60,3 +60,80 @@ function installer_run(PDO $pdo,string $schemaFile,string $migrationDir): array 
     if($pending)throw new RuntimeException(count($pending).' migration(s) are still pending after installation.');
     return ['schema_statements'=>$schemaStatements,'migrations'=>$applied];
 }
+
+
+function installer_default_base_url(): string {
+    $https=(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off')||((string)($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https');
+    $scheme=$https?'https':'http';
+    $host=trim((string)($_SERVER['HTTP_HOST']??''));
+    if($host==='')return 'http://localhost';
+    return $scheme.'://'.$host;
+}
+function installer_validate_db_identifier(string $name): string {
+    $name=trim($name);
+    if($name===''||!preg_match('/^[A-Za-z0-9_$-]{1,64}$/',$name))throw new RuntimeException('Database name may contain only letters, numbers, underscore, dollar sign, and hyphen.');
+    return $name;
+}
+function installer_build_config(array $input,string $root): array {
+    $baseUrl=rtrim(trim((string)($input['base_url']??'')),'/');
+    if(!filter_var($baseUrl,FILTER_VALIDATE_URL))throw new RuntimeException('Enter a valid site URL.');
+    $parts=parse_url($baseUrl);
+    if(!in_array(strtolower((string)($parts['scheme']??'')),['http','https'],true)||empty($parts['host']))throw new RuntimeException('Site URL must use http or https.');
+
+    $host=trim((string)($input['db_host']??'127.0.0.1'));
+    if($host==='')throw new RuntimeException('Database host is required.');
+    $port=(int)($input['db_port']??3306);
+    if($port<1||$port>65535)throw new RuntimeException('Database port is invalid.');
+    $name=installer_validate_db_identifier((string)($input['db_name']??''));
+    $user=trim((string)($input['db_user']??''));
+    if($user==='')throw new RuntimeException('Database username is required.');
+    $pass=(string)($input['db_pass']??'');
+
+    return [
+        'app'=>[
+            'name'=>'Annotated',
+            'base_url'=>$baseUrl,
+            'session_name'=>'annotated_session',
+            'encryption_key'=>bin2hex(random_bytes(32)),
+        ],
+        'db'=>[
+            'dsn'=>'mysql:host='.$host.';port='.$port.';dbname='.$name.';charset=utf8mb4',
+            'user'=>$user,
+            'pass'=>$pass,
+        ],
+        'storage'=>[
+            'private_root'=>dirname($root).'/annotated-private',
+        ],
+        'extension'=>[
+            'allowed_ids'=>[],
+            'session_ttl_days'=>30,
+        ],
+        'transcription'=>[
+            'command'=>'',
+            'provider'=>'local',
+            'model'=>'',
+        ],
+        'oauth'=>[
+            'google'=>['client_id'=>'','client_secret'=>'','redirect_uri'=>''],
+            'x'=>['client_id'=>'','client_secret'=>'','redirect_uri'=>''],
+        ],
+    ];
+}
+function installer_write_config(string $configFile,array $config): void {
+    if(is_file($configFile))throw new RuntimeException('config.php already exists.');
+    $body="<?php\ndeclare(strict_types=1);\n\nreturn ".var_export($config,true).";\n";
+    $dir=dirname($configFile);
+    if(!is_dir($dir)||!is_writable($dir))throw new RuntimeException('The application directory is not writable. Temporarily allow PHP to write config.php, then reload the installer.');
+    $tmp=$configFile.'.tmp-'.bin2hex(random_bytes(6));
+    if(file_put_contents($tmp,$body,LOCK_EX)===false)throw new RuntimeException('Unable to write the temporary configuration file.');
+    @chmod($tmp,0600);
+    if(!@rename($tmp,$configFile)){@unlink($tmp);throw new RuntimeException('Unable to create config.php.');}
+}
+function installer_connect(array $config): PDO {
+    $db=$config['db']??[];
+    return new PDO((string)($db['dsn']??''),(string)($db['user']??''),(string)($db['pass']??''),[
+        PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES=>false,
+    ]);
+}
