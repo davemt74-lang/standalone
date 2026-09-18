@@ -10,10 +10,10 @@ function onboarding_ensure(PDO $pdo,int $userId): void {
     try{$pdo->prepare('INSERT IGNORE INTO user_onboarding(user_id) VALUES(?)')->execute([$userId]);}catch(PDOException $e){}
 }
 function onboarding_mark_seen(PDO $pdo,int $userId): void {
-    onboarding_ensure($pdo,$userId);$pdo->prepare('UPDATE user_onboarding SET welcome_seen_at=COALESCE(welcome_seen_at,NOW()),dismissed_at=NULL WHERE user_id=?')->execute([$userId]);
+    onboarding_ensure($pdo,$userId);try{$pdo->prepare('UPDATE user_onboarding SET welcome_seen_at=COALESCE(welcome_seen_at,NOW()),dismissed_at=NULL WHERE user_id=?')->execute([$userId]);}catch(PDOException $e){}
 }
 function onboarding_dismiss(PDO $pdo,int $userId): void {
-    onboarding_ensure($pdo,$userId);$pdo->prepare('UPDATE user_onboarding SET dismissed_at=NOW() WHERE user_id=? AND completed_at IS NULL')->execute([$userId]);
+    onboarding_ensure($pdo,$userId);try{$pdo->prepare('UPDATE user_onboarding SET dismissed_at=NOW() WHERE user_id=? AND completed_at IS NULL')->execute([$userId]);}catch(PDOException $e){}
 }
 function onboarding_status(PDO $pdo,array $user,bool $persistCompletion=true): array {
     $uid=(int)$user['id'];onboarding_ensure($pdo,$uid);
@@ -23,7 +23,7 @@ function onboarding_status(PDO $pdo,array $user,bool $persistCompletion=true): a
     $q=$pdo->prepare("SELECT COUNT(*) FROM annotations WHERE user_id=? AND status IN ('published','restricted')");$q->execute([$uid]);$annotationCount=(int)$q->fetchColumn();
     $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE follower_user_id=?)+(SELECT COUNT(*) FROM source_watches WHERE user_id=?)');$q->execute([$uid,$uid]);$followCount=(int)$q->fetchColumn();
     $q=$pdo->prepare('SELECT COUNT(DISTINCT rp.id) FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id IS NOT NULL');$q->execute([$uid,$uid]);$projectCount=(int)$q->fetchColumn();
-    $q=$pdo->prepare('SELECT * FROM user_onboarding WHERE user_id=?');$q->execute([$uid]);$row=$q->fetch()?:[];
+    try{$q=$pdo->prepare('SELECT * FROM user_onboarding WHERE user_id=?');$q->execute([$uid]);$row=$q->fetch()?:[];}catch(PDOException $e){$row=[];}
     $steps=[
         'account'=>['complete'=>$hasPassword||$identityCount>0,'label'=>'Secure your account','detail'=>$hasPassword?'Native password ready':($identityCount?'Connected login ready':'Add a password or OAuth login method'),'url'=>'/connected-accounts.php'],
         'extension'=>['complete'=>$extensionCount>0,'label'=>'Connect the Chrome sidebar','detail'=>$extensionCount?($extensionCount.' active extension session'.($extensionCount===1?'':'s')):'Authorize the Annotated Chrome extension','url'=>'/onboarding.php#extension'],
@@ -32,7 +32,7 @@ function onboarding_status(PDO $pdo,array $user,bool $persistCompletion=true): a
         'research'=>['complete'=>$projectCount>0,'label'=>'Start or join Research','detail'=>$projectCount?($projectCount.' accessible Research project'.($projectCount===1?'':'s')):'Create a Research project and add evidence','url'=>'/research.php'],
     ];
     $complete=true;foreach($steps as $s)if(!$s['complete']){$complete=false;break;}
-    if($complete&&empty($row['completed_at'])&&$persistCompletion){$pdo->prepare('UPDATE user_onboarding SET completed_at=NOW(),dismissed_at=NULL WHERE user_id=?')->execute([$uid]);$row['completed_at']=gmdate('Y-m-d H:i:s');}
+    if($complete&&empty($row['completed_at'])&&$persistCompletion){try{$pdo->prepare('UPDATE user_onboarding SET completed_at=NOW(),dismissed_at=NULL WHERE user_id=?')->execute([$uid]);$row['completed_at']=gmdate('Y-m-d H:i:s');}catch(PDOException $e){}}
     return ['steps'=>$steps,'complete'=>$complete,'completed_count'=>count(array_filter($steps,fn($s)=>$s['complete'])),'total_count'=>count($steps),'row'=>$row];
 }
 function onboarding_should_redirect(PDO $pdo,int $userId): bool {
