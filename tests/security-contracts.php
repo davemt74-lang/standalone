@@ -33,7 +33,7 @@ $need('api/extension-live.php','project_can_write($projectRow)','Research writes
 $need('api/extension-live.php','presence_identity_visible','Live presence must use the centralized identity-disclosure policy.');
 $need('source.php','public_discovery_source($pdo,$id,$viewer)','Source pages must route through centralized viewer-scoped discovery access.');
 $need('source-compare.php','source_access($pdo,$id,$viewer)','Source comparison must enforce source visibility.');
-$need('search.php','public_discovery_search($pdo,$term)','Search must route through public-only discovery services.');
+$need('search.php','public_discovery_search($pdo,$term,$viewer)','Search must route through public-only viewer-aware discovery services.');
 $need('annotation.php','public_discovery_annotation($pdo,$id,$viewer)','Direct annotation pages must route through centralized viewer-scoped discovery access.');
 if(!is_file($root.'/database/migrations/20260917_005_auth_extension_hardening.sql'))$fail[]='Auth/extension hardening migration 005 is missing.';
 
