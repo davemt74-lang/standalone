@@ -1,4 +1,7 @@
-chrome.runtime.onInstalled.addListener(() => chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }));
+chrome.runtime.onInstalled.addListener(details => {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  if(details.reason==='install')chrome.runtime.openOptionsPage();
+});
 chrome.tabs.onActivated.addListener(() => chrome.runtime.sendMessage({ type: 'annotated:tab-changed' }).catch(() => {}));
 chrome.tabs.onUpdated.addListener((_id, info) => { if (info.status === 'complete') chrome.runtime.sendMessage({ type: 'annotated:tab-changed' }).catch(() => {}); });
 chrome.runtime.onMessage.addListener((msg,_sender,sendResponse)=>{
