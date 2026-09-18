@@ -10,7 +10,7 @@ $u=current_user($pdo);
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Annotated — Research the web in context</title>
 <meta name="description" content="Capture, discuss, preserve, follow, and research the web in context with Annotated.">
-<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/app.css">\n<link rel="stylesheet" href="/assets/css/landing.css">
 </head>
 <body class="landingBody">
 <header class="landingHeader">
