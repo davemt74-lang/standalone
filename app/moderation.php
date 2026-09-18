@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+function moderation_transaction(PDO $pdo,callable $fn): mixed {
+    $owned=!$pdo->inTransaction();if($owned)$pdo->beginTransaction();
+    try{$result=$fn();if($owned)$pdo->commit();return $result;}
+    catch(Throwable $e){if($owned&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+}
 function moderation_target(PDO $pdo,string $type,string $publicId,?array $viewer): ?array {
     if(!in_array($type,['annotation','comment','live_message','user','source'],true)||$publicId==='')return null;
     if($type==='annotation'){
@@ -63,13 +68,15 @@ function moderation_report_update(PDO $pdo,array $admin,int $reportId,string $st
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Admin access required.');
     if(!in_array($status,['open','under_review','actioned','dismissed'],true))throw new InvalidArgumentException('Invalid report status.');
     if(!in_array($action,['none','restrict','remove','restore','warn'],true))throw new InvalidArgumentException('Invalid resolution action.');
-    $q=$pdo->prepare('SELECT * FROM moderation_reports WHERE id=? FOR UPDATE');$q->execute([$reportId]);$r=$q->fetch();if(!$r)throw new RuntimeException('Report not found.');
-    if($action!=='none')moderation_apply_object_action($pdo,$admin,(string)$r['object_type'],(string)$r['object_public_id'],$action);
-    $pdo->prepare("UPDATE moderation_reports SET status=?,moderator_note=?,resolution_action=?,resolved_at=IF(? IN ('actioned','dismissed'),NOW(),NULL) WHERE id=?")->execute([$status,$note?:null,$action,$status,$reportId]);
-    moderation_action_record($pdo,$admin,$reportId,null,'report_'.$status,$note,['resolution_action'=>$action,'object_type'=>$r['object_type'],'object_public_id'=>$r['object_public_id']]);
-    if($r['reported_by_user_id'])notification_create($pdo,(int)$r['reported_by_user_id'],(int)$admin['id'],'moderation_report_updated','moderation_report',(string)$r['public_id'],'Your report is now '.str_replace('_',' ',$status).'.',['category'=>'moderation','dedupe_key'=>'report-status:'.$r['id'].':'.$status.':'.$action,'group_key'=>'report:'.$r['public_id']]);
-    $target=moderation_target($pdo,(string)$r['object_type'],(string)$r['object_public_id'],$admin);if($target&&!empty($target['owner_user_id'])&&(int)$target['owner_user_id']!==(int)$admin['id']&&in_array($action,['restrict','remove','restore','warn'],true))notification_create($pdo,(int)$target['owner_user_id'],(int)$admin['id'],'moderation_action',(string)$r['object_type'],(string)$r['object_public_id'],'A moderation action was applied to your '.$r['object_type'].': '.$action.'.',['category'=>'moderation','dedupe_key'=>'moderation-action:'.$reportId.':'.$action,'group_key'=>'moderation-object:'.$r['object_type'].':'.$r['object_public_id']]);
-    return ['public_id'=>$r['public_id'],'status'=>$status,'resolution_action'=>$action];
+    return moderation_transaction($pdo,function()use($pdo,$admin,$reportId,$status,$action,$note): array {
+        $q=$pdo->prepare('SELECT * FROM moderation_reports WHERE id=? FOR UPDATE');$q->execute([$reportId]);$r=$q->fetch();if(!$r)throw new RuntimeException('Report not found.');
+        if($action!=='none')moderation_apply_object_action($pdo,$admin,(string)$r['object_type'],(string)$r['object_public_id'],$action);
+        $pdo->prepare("UPDATE moderation_reports SET status=?,moderator_note=?,resolution_action=?,resolved_at=IF(? IN ('actioned','dismissed'),NOW(),NULL) WHERE id=?")->execute([$status,$note?:null,$action,$status,$reportId]);
+        moderation_action_record($pdo,$admin,$reportId,null,'report_'.$status,$note,['resolution_action'=>$action,'object_type'=>$r['object_type'],'object_public_id'=>$r['object_public_id']]);
+        if($r['reported_by_user_id'])notification_create($pdo,(int)$r['reported_by_user_id'],(int)$admin['id'],'moderation_report_updated','moderation_report',(string)$r['public_id'],'Your report is now '.str_replace('_',' ',$status).'.',['category'=>'moderation','dedupe_key'=>'report-status:'.$r['id'].':'.$status.':'.$action,'group_key'=>'report:'.$r['public_id']]);
+        $target=moderation_target($pdo,(string)$r['object_type'],(string)$r['object_public_id'],$admin);if($target&&!empty($target['owner_user_id'])&&(int)$target['owner_user_id']!==(int)$admin['id']&&in_array($action,['restrict','remove','restore','warn'],true))notification_create($pdo,(int)$target['owner_user_id'],(int)$admin['id'],'moderation_action',(string)$r['object_type'],(string)$r['object_public_id'],'A moderation action was applied to your '.$r['object_type'].': '.$action.'.',['category'=>'moderation','dedupe_key'=>'moderation-action:'.$reportId.':'.$action,'group_key'=>'moderation-object:'.$r['object_type'].':'.$r['object_public_id']]);
+        return ['public_id'=>$r['public_id'],'status'=>$status,'resolution_action'=>$action];
+    });
 }
 function rights_claim_token(): string {return bin2hex(random_bytes(24));}
 function rights_claim_create(PDO $pdo,?array $viewer,string $annotationPublicId,string $name,string $email,string $claimType,string $description): array {
@@ -92,20 +99,26 @@ function rights_claim_events(PDO $pdo,int $claimId): array {$q=$pdo->prepare('SE
 function rights_claim_update(PDO $pdo,array $admin,int $claimId,string $status,string $note='',string $decision=''): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Admin access required.');
     if(!in_array($status,['submitted','under_review','resolved','rejected','restricted','appealed','reopened'],true))throw new InvalidArgumentException('Invalid claim status.');
-    $q=$pdo->prepare('SELECT rc.*,a.public_id annotation_public_id,a.user_id annotation_user_id FROM rights_claims rc JOIN annotations a ON a.id=rc.annotation_id WHERE rc.id=? FOR UPDATE');$q->execute([$claimId]);$c=$q->fetch();if(!$c)throw new RuntimeException('Claim not found.');
-    $pdo->prepare("UPDATE rights_claims SET status=?,moderator_note=?,decision_summary=?,resolved_at=IF(? IN ('resolved','rejected','restricted'),NOW(),NULL) WHERE id=?")->execute([$status,$note?:null,$decision?:null,$status,$claimId]);
-    if($status==='restricted')$pdo->prepare("UPDATE annotations SET status='restricted' WHERE id=?")->execute([$c['annotation_id']]);
-    if(in_array($status,['resolved','rejected'],true)&&$c['status']==='restricted')$pdo->prepare("UPDATE annotations SET status='published' WHERE id=? AND status='restricted'")->execute([$c['annotation_id']]);
-    $eventType=$status==='reopened'?'reopened':'status_changed';$pdo->prepare('INSERT INTO rights_claim_events(public_id,rights_claim_id,actor_user_id,event_type,status,note) VALUES(?,?,?,?,?,?)')->execute([ulid_like(),$claimId,$admin['id'],$eventType,$status,$decision?:$note?:null]);
-    moderation_action_record($pdo,$admin,null,$claimId,'rights_claim_'.$status,$note,['decision_summary'=>$decision]);
-    if($c['claimant_user_id'])notification_create($pdo,(int)$c['claimant_user_id'],(int)$admin['id'],'claim_status','rights_claim',(string)$c['public_id'],'Your claim is now '.str_replace('_',' ',$status).'.',['category'=>'claims','dedupe_key'=>'claim-status:'.$claimId.':'.$status,'group_key'=>'claim:'.$c['public_id']]);
-    if($status==='restricted'&&(int)$c['annotation_user_id']!==(int)$admin['id'])notification_create($pdo,(int)$c['annotation_user_id'],(int)$admin['id'],'moderation_action','annotation',(string)$c['annotation_public_id'],'An annotation was restricted while a rights claim is reviewed.',['category'=>'moderation','dedupe_key'=>'claim-restrict:'.$claimId,'group_key'=>'annotation:'.$c['annotation_public_id']]);
-    return ['public_id'=>$c['public_id'],'status'=>$status];
+    return moderation_transaction($pdo,function()use($pdo,$admin,$claimId,$status,$note,$decision): array {
+        $q=$pdo->prepare('SELECT rc.*,a.public_id annotation_public_id,a.user_id annotation_user_id FROM rights_claims rc JOIN annotations a ON a.id=rc.annotation_id WHERE rc.id=? FOR UPDATE');$q->execute([$claimId]);$c=$q->fetch();if(!$c)throw new RuntimeException('Claim not found.');
+        $pdo->prepare("UPDATE rights_claims SET status=?,moderator_note=?,decision_summary=?,resolved_at=IF(? IN ('resolved','rejected','restricted'),NOW(),NULL) WHERE id=?")->execute([$status,$note?:null,$decision?:null,$status,$claimId]);
+        if($status==='restricted')$pdo->prepare("UPDATE annotations SET status='restricted' WHERE id=?")->execute([$c['annotation_id']]);
+        if(in_array($status,['resolved','rejected'],true)&&$c['status']==='restricted')$pdo->prepare("UPDATE annotations SET status='published' WHERE id=? AND status='restricted'")->execute([$c['annotation_id']]);
+        $eventType=$status==='reopened'?'reopened':'status_changed';$pdo->prepare('INSERT INTO rights_claim_events(public_id,rights_claim_id,actor_user_id,event_type,status,note) VALUES(?,?,?,?,?,?)')->execute([ulid_like(),$claimId,$admin['id'],$eventType,$status,$decision?:$note?:null]);
+        moderation_action_record($pdo,$admin,null,$claimId,'rights_claim_'.$status,$note,['decision_summary'=>$decision]);
+        if($c['claimant_user_id'])notification_create($pdo,(int)$c['claimant_user_id'],(int)$admin['id'],'claim_status','rights_claim',(string)$c['public_id'],'Your claim is now '.str_replace('_',' ',$status).'.',['category'=>'claims','dedupe_key'=>'claim-status:'.$claimId.':'.$status,'group_key'=>'claim:'.$c['public_id']]);
+        if($status==='restricted'&&(int)$c['annotation_user_id']!==(int)$admin['id'])notification_create($pdo,(int)$c['annotation_user_id'],(int)$admin['id'],'moderation_action','annotation',(string)$c['annotation_public_id'],'An annotation was restricted while a rights claim is reviewed.',['category'=>'moderation','dedupe_key'=>'claim-restrict:'.$claimId,'group_key'=>'annotation:'.$c['annotation_public_id']]);
+        return ['public_id'=>$c['public_id'],'status'=>$status];
+    });
 }
 function rights_claim_appeal(PDO $pdo,array $claim,?array $viewer,string $note): void {
     $note=trim($note);if($note===''||mb_strlen($note)>5000)throw new InvalidArgumentException('Add a short appeal explanation.');
     if(!in_array($claim['status'],['resolved','rejected','restricted'],true))throw new RuntimeException('This claim cannot be appealed in its current state.');
-    $pdo->prepare("UPDATE rights_claims SET status='appealed',resolved_at=NULL WHERE id=?")->execute([$claim['id']]);
-    $pdo->prepare("INSERT INTO rights_claim_events(public_id,rights_claim_id,actor_user_id,event_type,status,note) VALUES(?,?,?,'appeal','appealed',?)")->execute([ulid_like(),$claim['id'],$viewer['id']??null,$note]);
-    try{$q=$pdo->query("SELECT id FROM users WHERE role='admin' AND status='active'");foreach($q->fetchAll(PDO::FETCH_COLUMN) as $adminId)notification_create($pdo,(int)$adminId,$viewer['id']??null,'claim_appealed','rights_claim',(string)$claim['public_id'],'A rights claim was appealed.',['category'=>'claims','dedupe_key'=>'claim-appeal:'.$claim['id'].':'.time(),'group_key'=>'claim:'.$claim['public_id']]);}catch(PDOException $e){}
+    moderation_transaction($pdo,function()use($pdo,$claim,$viewer,$note): void {
+        $q=$pdo->prepare('SELECT status FROM rights_claims WHERE id=? FOR UPDATE');$q->execute([$claim['id']]);$current=(string)($q->fetchColumn()?:'');
+        if(!in_array($current,['resolved','rejected','restricted'],true))throw new RuntimeException('This claim cannot be appealed in its current state.');
+        $pdo->prepare("UPDATE rights_claims SET status='appealed',resolved_at=NULL WHERE id=?")->execute([$claim['id']]);
+        $pdo->prepare("INSERT INTO rights_claim_events(public_id,rights_claim_id,actor_user_id,event_type,status,note) VALUES(?,?,?,'appeal','appealed',?)")->execute([ulid_like(),$claim['id'],$viewer['id']??null,$note]);
+        try{$q=$pdo->query("SELECT id FROM users WHERE role='admin' AND status='active'");foreach($q->fetchAll(PDO::FETCH_COLUMN) as $adminId)notification_create($pdo,(int)$adminId,$viewer['id']??null,'claim_appealed','rights_claim',(string)$claim['public_id'],'A rights claim was appealed.',['category'=>'claims','dedupe_key'=>'claim-appeal:'.$claim['id'].':'.hash('sha256',$note),'group_key'=>'claim:'.$claim['public_id']]);}catch(PDOException $e){}
+    });
 }
