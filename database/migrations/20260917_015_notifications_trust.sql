@@ -63,6 +63,23 @@ ALTER TABLE rights_claims MODIFY COLUMN status ENUM('submitted','under_review','
 ALTER TABLE rights_claims ADD UNIQUE KEY IF NOT EXISTS uq_rights_tracking_token(tracking_token_hash);
 ALTER TABLE rights_claims ADD INDEX IF NOT EXISTS idx_rights_claimant_user(claimant_user_id,status,updated_at);
 
+CREATE TABLE IF NOT EXISTS rights_claim_events (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  rights_claim_id BIGINT UNSIGNED NOT NULL,
+  actor_user_id BIGINT UNSIGNED NULL,
+  event_type ENUM('submitted','status_changed','appeal','reopened','note') NOT NULL,
+  status VARCHAR(32) NULL,
+  note TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_rights_claim_event(rights_claim_id,created_at),
+  CONSTRAINT fk_rights_claim_event_claim FOREIGN KEY(rights_claim_id) REFERENCES rights_claims(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rights_claim_event_actor FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE sources
+  ADD COLUMN IF NOT EXISTS moderation_status ENUM('visible','restricted') NOT NULL DEFAULT 'visible' AFTER monitoring_enabled;
+
 ALTER TABLE moderation_reports
   MODIFY COLUMN object_type ENUM('annotation','comment','live_message','user','source') NOT NULL,
   ADD COLUMN IF NOT EXISTS moderator_note TEXT NULL AFTER description,
