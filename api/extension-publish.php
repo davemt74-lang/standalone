@@ -1,6 +1,6 @@
 <?php
 if($action==='publish'){
-    $u=require_api_mutation_auth($pdo);$url=trim((string)($input['url']??''));$selected=trim((string)($input['selected_text']??''));$comment=trim((string)($input['commentary']??''));$type=(string)($input['capture_type']??'text');$start=isset($input['start_seconds'])?(float)$input['start_seconds']:null;$end=isset($input['end_seconds'])?(float)$input['end_seconds']:null;
+    $u=require_api_mutation_auth($pdo);$pageUrl=trim((string)($input['url']??''));$url=source_identity_url($pageUrl,(string)($input['canonical_url']??''));$selected=trim((string)($input['selected_text']??''));$comment=trim((string)($input['commentary']??''));$type=(string)($input['capture_type']??'text');$start=isset($input['start_seconds'])?(float)$input['start_seconds']:null;$end=isset($input['end_seconds'])?(float)$input['end_seconds']:null;
     if(!filter_var($url,FILTER_VALIDATE_URL))json_response(['ok'=>false,'error'=>['code'=>'INVALID_URL']],422);
     if(!in_array($type,['text','video_clip','audio_clip','image_region','page_region'],true))json_response(['ok'=>false,'error'=>['code'=>'INVALID_CAPTURE_TYPE']],422);
     $isMedia=in_array($type,['video_clip','audio_clip'],true);$mediaKind=$type==='video_clip'?'video':($type==='audio_clip'?'audio':null);
@@ -16,7 +16,7 @@ if($action==='publish'){
     try{
         $source=ensure_source($pdo,$canonical,$input['title']??null,$input['media_type']??null);$sourceId=(int)$source['id'];$source=lock_source_row($pdo,$sourceId);$previousVersionId=(int)($source['current_version_id']??0);$versionId=$previousVersionId;$current=source_current_version($pdo,$source);$currentHash=$current['content_hash']??null;
         if(!$versionId||($pageText!==''&&$currentHash!==$pageHash)){
-            $next=next_source_version_number($pdo,$sourceId);$versionMeta=['media_type'=>$input['media_type']??null,'capture_media'=>$mediaMeta];
+            $next=next_source_version_number($pdo,$sourceId);$versionMeta=['media_type'=>$input['media_type']??null,'capture_media'=>$mediaMeta,'page_url'=>$pageUrl,'identity_url'=>$canonical];
             $q=$pdo->prepare('INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,target_content_hash,screenshot_path,metadata_json) VALUES(?,?,?,?,?,?,?,?,?)');$q->execute([$sourceId,$next,$canonical,$input['title']??null,$pageText?:null,$pageHash,$targetHash,$contextPath,json_encode($versionMeta,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);$versionId=(int)$pdo->lastInsertId();
             $targetChanged=false;
             if($previousVersionId&&$pageText!==''){$q=$pdo->prepare('SELECT DISTINCT c.selected_text FROM annotations a JOIN captures c ON c.id=a.capture_id WHERE a.source_id=? AND a.source_version_id=? AND c.selected_text IS NOT NULL AND c.selected_text<>"" LIMIT 100');$q->execute([$sourceId,$previousVersionId]);foreach($q->fetchAll(PDO::FETCH_COLUMN) as $priorText){if(!str_contains(normalize_match_text($pageText),normalize_match_text((string)$priorText))){$targetChanged=true;break;}}}
