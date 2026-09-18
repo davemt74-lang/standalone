@@ -116,10 +116,12 @@ function notification_unread_count(PDO $pdo,array $viewer): int {
 }
 function notification_mark_read(PDO $pdo,array $viewer,?string $publicId=null): int {
     if($publicId===null){$q=$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()) WHERE user_id=? AND archived_at IS NULL');$q->execute([$viewer['id']]);return $q->rowCount();}
-    $q=$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()) WHERE user_id=? AND public_id=?');$q->execute([$viewer['id'],$publicId]);return $q->rowCount();
+    $q=$pdo->prepare('SELECT group_key FROM notifications WHERE user_id=? AND public_id=? LIMIT 1');$q->execute([$viewer['id'],$publicId]);$group=$q->fetchColumn();if($group===false)return 0;
+    $q=$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()) WHERE user_id=? AND group_key=? AND archived_at IS NULL');$q->execute([$viewer['id'],$group]);return $q->rowCount();
 }
 function notification_archive(PDO $pdo,array $viewer,string $publicId): bool {
-    $q=$pdo->prepare('UPDATE notifications SET archived_at=COALESCE(archived_at,NOW()) WHERE user_id=? AND public_id=?');$q->execute([$viewer['id'],$publicId]);return $q->rowCount()>0;
+    $q=$pdo->prepare('SELECT group_key FROM notifications WHERE user_id=? AND public_id=? LIMIT 1');$q->execute([$viewer['id'],$publicId]);$group=$q->fetchColumn();if($group===false)return false;
+    $q=$pdo->prepare('UPDATE notifications SET archived_at=COALESCE(archived_at,NOW()) WHERE user_id=? AND group_key=?');$q->execute([$viewer['id'],$group]);return $q->rowCount()>0;
 }
 function notification_mute_set(PDO $pdo,array $viewer,string $scopeType,string $scopePublicId,string $category='all',bool $muted=true): bool {
     if(!in_array($scopeType,['source','annotation','conversation','live_room','user'],true)||trim($scopePublicId)==='')throw new InvalidArgumentException('Invalid notification mute scope.');
