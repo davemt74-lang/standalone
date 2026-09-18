@@ -14,6 +14,6 @@ try{
     $q=$pdo->prepare('SELECT id,user_id FROM extension_auth_codes WHERE code_hash=? AND redirect_uri=? AND used_at IS NULL AND expires_at>NOW() FOR UPDATE');$q->execute([$hash,$redirect]);$row=$q->fetch();
     if(!$row){$pdo->rollBack();json_response(['ok'=>false,'error'=>['code'=>'INVALID_OR_EXPIRED_CODE']],401);}
     $token=bin2hex(random_bytes(32));$pdo->prepare('UPDATE extension_auth_codes SET used_at=NOW() WHERE id=?')->execute([$row['id']]);
-    $q=$pdo->prepare('INSERT INTO extension_sessions(user_id,token_hash,device_name,expires_at) VALUES(?,?,?,?)');$q->execute([$row['user_id'],hash('sha256',$token),mb_substr(trim((string)($raw['device_name']??'Chrome extension')),0,190),$expires]);
+    $version=mb_substr(trim((string)($raw['client_version']??'')),0,32)?:null;$q=$pdo->prepare('INSERT INTO extension_sessions(user_id,token_hash,device_name,client_version,expires_at) VALUES(?,?,?,?,?)');$q->execute([$row['user_id'],hash('sha256',$token),mb_substr(trim((string)($raw['device_name']??'Chrome extension')),0,190),$version,$expires]);
     $pdo->commit();json_response(['ok'=>true,'data'=>['token'=>$token,'expires_at'=>$expires]],201);
 }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();json_response(['ok'=>false,'error'=>['code'=>'TOKEN_EXCHANGE_FAILED']],500);}
