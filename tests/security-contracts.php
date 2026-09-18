@@ -131,11 +131,11 @@ foreach(['notifications.php','settings.php','claim-status.php','report-status.ph
 
 
 $need('app/search.php','function search_annotation_access_sql','Phase 10 search must define its own permission boundary.');
-$need('app/search.php',"OR $alias.user_id=?",'Private annotations must be searchable by their owner.');
+$need('app/search.php',"OR \$alias.user_id=?",'Private annotation ownership must be explicit in the search visibility SQL.');
 $need('app/search.php','project_annotations spa','Research-shared private annotations must require current project access.');
 $need('app/search.php','team_members stm','Team annotations must require current Team membership.');
 $need('app/search.php','function search_source_visible','Source search visibility must derive from searchable annotations or Research access.');
-$need('app/search.php',"ss.owner_user_id",$message='Private saved searches must retain explicit ownership checks.');
+$need('app/search.php','ss.owner_user_id','Private saved searches must retain explicit ownership checks.');
 $need('app/search.php',"ss.visibility='team'",'Shared saved searches must re-check Team membership.');
 $need('app/search.php',"ss.visibility='project'",'Shared saved searches must re-check Research membership.');
 $need('app/search.php',"rr.status='published' AND rr.visibility='public'",'Public entity indexing must consume only published Public reports.');
