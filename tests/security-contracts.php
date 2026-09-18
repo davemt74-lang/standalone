@@ -126,7 +126,7 @@ $need('app/moderation.php','moderation_target($pdo','Moderation reports must res
 $need('app/moderation.php','moderation_action_record','Moderator decisions must create immutable audit actions.');
 $need('app/moderation.php','tracking_token_hash','Anonymous claim tracking must store only a token hash.');
 $need('app/moderation.php','hash_equals','Claim tracking token comparison must be timing-safe.');
-$need('app/access.php',"source_moderation_status")==false?$fail[]='Annotation access must inherit source moderation restriction.':null;
+$need('app/access.php','source_moderation_status','Annotation access must inherit source moderation restriction.');
 foreach(['notifications.php','settings.php','claim-status.php','report-status.php','admin/moderation.php'] as $file)$need($file,'Cache-Control: private, no-store',"Phase 9 private workflow must not be shared-cached: $file");
 
 $avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
