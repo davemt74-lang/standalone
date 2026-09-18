@@ -26,7 +26,8 @@ function migration_unlock(PDO $pdo): void {
     try{$q=$pdo->query("SELECT RELEASE_LOCK('annotated_schema_upgrade')");if($q){$q->fetchColumn();$q->closeCursor();}}catch(Throwable $e){}
 }
 function migration_identifier(string $value): string {
-    $value=trim($value," \\t\\n\\r\\0\\x0B`");
+    $value=trim($value);
+    if(strlen($value)>=2&&$value[0]==='`'&&$value[strlen($value)-1]==='`')$value=substr($value,1,-1);
     if($value===''||!preg_match('/^[A-Za-z0-9_]+$/',$value))throw new RuntimeException('Unsupported migration identifier: '.$value);
     return $value;
 }
@@ -55,7 +56,7 @@ function migration_split_alter_clauses(string $body): array {
                 }
             }elseif($ch===$quote){
                 if($i+1<$len&&$body[$i+1]===$quote){$buf.=$body[++$i];continue;}
-                if($i===0||$body[$i-1]!=='\\\\')$quote=null;
+                if($i===0||$body[$i-1]!=='\\')$quote=null;
             }
             continue;
         }
@@ -69,7 +70,7 @@ function migration_split_alter_clauses(string $body): array {
     return $out;
 }
 function migration_portable_alter(PDO $pdo,string $sql): ?string {
-    $statement=rtrim(trim($sql),"; \\t\\n\\r");
+    $statement=rtrim(trim($sql),';');
     if(!preg_match('/^ALTER\\s+TABLE\\s+(`?[A-Za-z0-9_]+`?)\\s+(.+)$/is',$statement,$m))return null;
     $tableRaw=$m[1];$table=migration_identifier($tableRaw);$clauses=migration_split_alter_clauses($m[2]);
     $changed=false;$kept=[];
