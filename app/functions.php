@@ -25,9 +25,68 @@ function users_exist(PDO $pdo): bool { return (int)$pdo->query('SELECT COUNT(*) 
 function ulid_like(): string { return bin2hex(random_bytes(13)); }
 function json_response(array $data, int $status=200): never { http_response_code($status); header('Content-Type: application/json; charset=utf-8'); echo json_encode($data, JSON_UNESCAPED_SLASHES); exit; }
 function api_headers(): void { $origin=$_SERVER['HTTP_ORIGIN']??''; if($origin && preg_match('#^chrome-extension://[a-p]{32}$#',$origin)){header('Access-Control-Allow-Origin: '.$origin);header('Vary: Origin');} header('Access-Control-Allow-Headers: Content-Type, Authorization');header('Access-Control-Allow-Methods: GET, POST, OPTIONS'); if($_SERVER['REQUEST_METHOD']==='OPTIONS'){http_response_code(204);exit;} }
-function canonicalize_url(string $url): string { $parts=parse_url(trim($url)); if(!$parts || empty($parts['host'])) return trim($url); $scheme=strtolower($parts['scheme'] ?? 'https'); $host=strtolower($parts['host']); $path=$parts['path'] ?? '/'; $query=[]; if (!empty($parts['query'])) { parse_str($parts['query'],$query); foreach(array_keys($query) as $k){ if(str_starts_with(strtolower($k),'utm_')||in_array(strtolower($k),['fbclid','gclid'],true)) unset($query[$k]); } } return $scheme.'://'.$host.$path.($query?'?'.http_build_query($query):''); }
+function canonicalize_url_legacy(string $url): string {
+    $parts=parse_url(trim($url));if(!$parts||empty($parts['host']))return trim($url);
+    $scheme=strtolower($parts['scheme']??'https');$host=strtolower($parts['host']);$path=$parts['path']??'/';$query=[];
+    if(!empty($parts['query'])){parse_str($parts['query'],$query);foreach(array_keys($query) as $k){if(str_starts_with(strtolower($k),'utm_')||in_array(strtolower($k),['fbclid','gclid'],true))unset($query[$k]);}}
+    return $scheme.'://'.$host.$path.($query?'?'.http_build_query($query):'');
+}
+function canonicalize_url(string $url): string {
+    $raw=trim($url);$parts=parse_url($raw);if(!$parts||empty($parts['host']))return $raw;
+    $scheme=strtolower((string)($parts['scheme']??'https'));if(!in_array($scheme,['http','https'],true))return $raw;
+    $host=strtolower((string)$parts['host']);$path=(string)($parts['path']??'/');if($path==='')$path='/';$query=[];
+    if(!empty($parts['query']))parse_str((string)$parts['query'],$query);
+    foreach(array_keys($query) as $k){$lk=strtolower((string)$k);if(str_starts_with($lk,'utm_')||in_array($lk,['fbclid','gclid','mc_cid','mc_eid','si'],true))unset($query[$k]);}
+    $youtubeId=null;$youtubeHosts=['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtu.be','www.youtu.be'];
+    if(in_array($host,$youtubeHosts,true)){
+        if(str_ends_with($host,'youtu.be'))$youtubeId=trim(explode('/',ltrim($path,'/'))[0]??'');
+        elseif(isset($query['v']))$youtubeId=trim((string)$query['v']);
+        elseif(preg_match('#^/(?:shorts|embed)/([^/?]+)#',$path,$m))$youtubeId=$m[1];
+        $host='www.youtube.com';
+        if($youtubeId!=='')return 'https://www.youtube.com/watch?v='.rawurlencode($youtubeId);
+    }
+    if($query)ksort($query,SORT_STRING);
+    $port='';if(isset($parts['port'])){if(!(($scheme==='https'&&(int)$parts['port']===443)||($scheme==='http'&&(int)$parts['port']===80)))$port=':'.(int)$parts['port'];}
+    return $scheme.'://'.$host.$port.$path.($query?'?'.http_build_query($query):'');
+}
+function source_identity_host_key(string $host): string {
+    $host=strtolower(trim($host));return str_starts_with($host,'www.')?substr($host,4):$host;
+}
+function source_identity_url(string $pageUrl,?string $declaredCanonical=null): string {
+    $page=trim($pageUrl);$candidate=trim((string)$declaredCanonical);if($candidate===''||!filter_var($candidate,FILTER_VALIDATE_URL))return $page;
+    $pageHost=(string)(parse_url($page,PHP_URL_HOST)?:'');$candidateHost=(string)(parse_url($candidate,PHP_URL_HOST)?:'');
+    $candidateScheme=strtolower((string)(parse_url($candidate,PHP_URL_SCHEME)?:''));
+    if(!in_array($candidateScheme,['http','https'],true))return $page;
+    if(source_identity_host_key($pageHost)!==source_identity_host_key($candidateHost))return $page;
+    return $candidate;
+}
+function source_alias_remember(PDO $pdo,int $sourceId,string $url): void {
+    $canonical=canonicalize_url($url);if($canonical==='')return;$hash=hash('sha256',$canonical);
+    try{$q=$pdo->prepare('INSERT IGNORE INTO source_url_aliases(source_id,normalized_url,url_hash) VALUES(?,?,?)');$q->execute([$sourceId,$canonical,$hash]);$q=$pdo->prepare('UPDATE source_url_aliases SET last_seen_at=NOW() WHERE source_id=? AND url_hash=?');$q->execute([$sourceId,$hash]);}catch(PDOException $e){}
+}
+function source_resolve_url(PDO $pdo,string $url,bool $rememberAlias=true): ?array {
+    $canonical=canonicalize_url($url);$hash=hash('sha256',$canonical);$select='SELECT id,public_id,title,canonical_url,status,current_version_id FROM sources WHERE id=?';
+    try{$q=$pdo->prepare('SELECT source_id FROM source_url_aliases WHERE url_hash=? LIMIT 1');$q->execute([$hash]);$id=(int)($q->fetchColumn()?:0);if($id){$q=$pdo->prepare($select);$q->execute([$id]);$s=$q->fetch();if($s)return $s;}}catch(PDOException $e){}
+    $q=$pdo->prepare('SELECT id,public_id,title,canonical_url,status,current_version_id FROM sources WHERE canonical_url_hash=? LIMIT 1');$q->execute([$hash]);$s=$q->fetch();if($s){if($rememberAlias)source_alias_remember($pdo,(int)$s['id'],$canonical);return $s;}
+    $legacy=canonicalize_url_legacy($url);$legacyHashes=[hash('sha256',$legacy)];
+    if(preg_match('#^https://www\.youtube\.com/watch\?v=([^&]+)$#',$canonical,$m)){
+        $vid=rawurldecode($m[1]);foreach(['https://www.youtube.com/watch?v='.$vid,'https://youtube.com/watch?v='.$vid,'https://m.youtube.com/watch?v='.$vid,'https://youtu.be/'.$vid] as $candidate)$legacyHashes[]=hash('sha256',canonicalize_url_legacy($candidate));
+    }
+    foreach(array_unique($legacyHashes) as $legacyHash){$q=$pdo->prepare('SELECT id,public_id,title,canonical_url,status,current_version_id FROM sources WHERE canonical_url_hash=? LIMIT 1');$q->execute([$legacyHash]);$s=$q->fetch();if($s){if($rememberAlias)source_alias_remember($pdo,(int)$s['id'],$canonical);return $s;}}
+    $host=(string)(parse_url($canonical,PHP_URL_HOST)?:'');if($host!==''){
+        $hostKey=source_identity_host_key($host);$q=$pdo->prepare('SELECT id,public_id,title,canonical_url,status,current_version_id,domain FROM sources WHERE domain IN (?,?,?) ORDER BY id DESC LIMIT 250');$q->execute([$hostKey,'www.'.$hostKey,$host]);
+        foreach($q->fetchAll() as $candidate){if(canonicalize_url((string)$candidate['canonical_url'])===$canonical){unset($candidate['domain']);if($rememberAlias)source_alias_remember($pdo,(int)$candidate['id'],$canonical);return $candidate;}}
+    }
+    return null;
+}
 function source_type_from_url(string $url, ?string $mediaType=null): string { $host=strtolower((string)parse_url($url,PHP_URL_HOST)); if(str_contains($host,'youtube.com')||str_contains($host,'youtu.be'))return 'youtube'; if($mediaType==='video')return 'video'; if($mediaType==='audio')return 'audio'; return 'webpage'; }
-function ensure_source(PDO $pdo,string $url,?string $title=null,?string $mediaType=null): array { $canonical=canonicalize_url($url);$hash=hash('sha256',$canonical);$q=$pdo->prepare('SELECT id,public_id,title,canonical_url,status,current_version_id FROM sources WHERE canonical_url_hash=?');$q->execute([$hash]);$s=$q->fetch();if($s)return $s;$host=(string)(parse_url($canonical,PHP_URL_HOST)?:'');try{$q=$pdo->prepare('INSERT INTO sources(public_id,source_type,canonical_url,canonical_url_hash,domain,title) VALUES(?,?,?,?,?,?)');$q->execute([ulid_like(),source_type_from_url($canonical,$mediaType),$canonical,$hash,$host,$title]);$id=(int)$pdo->lastInsertId();}catch(PDOException $e){if((string)$e->getCode()!=='23000')throw $e;$q=$pdo->prepare('SELECT id FROM sources WHERE canonical_url_hash=? FOR UPDATE');$q->execute([$hash]);$id=(int)($q->fetchColumn()?:0);if(!$id)throw $e;}$q=$pdo->prepare('SELECT id,public_id,title,canonical_url,status,current_version_id FROM sources WHERE id=?');$q->execute([$id]);return $q->fetch(); }
+function ensure_source(PDO $pdo,string $url,?string $title=null,?string $mediaType=null): array {
+    $existing=source_resolve_url($pdo,$url,true);if($existing)return $existing;
+    $canonical=canonicalize_url($url);$hash=hash('sha256',$canonical);$host=(string)(parse_url($canonical,PHP_URL_HOST)?:'');
+    try{$q=$pdo->prepare('INSERT INTO sources(public_id,source_type,canonical_url,canonical_url_hash,domain,title) VALUES(?,?,?,?,?,?)');$q->execute([ulid_like(),source_type_from_url($canonical,$mediaType),$canonical,$hash,$host,$title]);$id=(int)$pdo->lastInsertId();}
+    catch(PDOException $e){if((string)$e->getCode()!=='23000')throw $e;$q=$pdo->prepare('SELECT id FROM sources WHERE canonical_url_hash=? FOR UPDATE');$q->execute([$hash]);$id=(int)($q->fetchColumn()?:0);if(!$id)throw $e;}
+    source_alias_remember($pdo,$id,$canonical);$q=$pdo->prepare('SELECT id,public_id,title,canonical_url,status,current_version_id FROM sources WHERE id=?');$q->execute([$id]);return $q->fetch();
+}
 function save_data_url_image(string $dataUrl,string $prefix,array $config): ?string {
     if($dataUrl==='')return null;
     if(!preg_match('#^data:image/(png|jpeg);base64,(.+)$#s',$dataUrl,$m))throw new InvalidArgumentException('Invalid screenshot format.');
