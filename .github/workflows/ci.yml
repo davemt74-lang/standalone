@@ -113,3 +113,9 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase8-live-db.php
+      - name: Phase 9 Notifications, Source Intelligence, Claims and Moderation MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase9-trust-db.php
