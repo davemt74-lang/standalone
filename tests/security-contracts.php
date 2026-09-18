@@ -67,6 +67,17 @@ $avoid('worker/media-worker.php','yt-dlp','Media worker must not include provide
 $avoid('worker/media-worker.php','youtube-dl','Media worker must not include provider download/bypass tooling.');
 $avoid('app/evidence-access.php','media_uploads','Original Rich Capture upload inputs must never be exposed through evidence delivery.');
 
+$need('app/feed.php','feed_access_sql','Phase 6 feeds must centralize visibility filtering.');
+$need('app/feed.php','project_annotations','Phase 6 feed visibility must include explicit project access without making private items public.');
+$need('app/feed.php','feed_block_sql','Phase 6 feeds must enforce block relationships server-side.');
+$need('api/extension-feed.php','feed_annotation_rows','This Page and Following must use server-side feed access services.');
+$need('api/extension-feed.php','require_api_mutation_auth($pdo)','Feed read, comment, and source-follow mutations must require authenticated mutation access.');
+$need('app/functions.php','source_identity_url','Declared canonical URLs must pass source identity validation.');
+$need('app/functions.php','source_resolve_url','Canonical source aliases must resolve server-side.');
+$need('extension/content.js','declaredCanonicalUrl','The extension must detect declared canonical source identity.');
+$need('extension/sidepanel-feed.js','phase6OpenContext','Original-context actions must be explicit rather than exposing private evidence URLs.');
+$avoid('app/feed.php','media_uploads','Feed delivery must never expose raw Rich Capture upload inputs.');
+
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
 $need('app/ai-access.php',"admin_enabled",'Interactive Admin AI must honor the model admin_enabled flag.');
 $need('app/ai-access.php',"pro_enabled",'Interactive Pro AI must honor the model pro_enabled flag.');
