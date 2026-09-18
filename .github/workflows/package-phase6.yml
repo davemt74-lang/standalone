@@ -1,0 +1,28 @@
+name: Package Phase 6 Deploy
+
+on:
+  push:
+    branches: [package-v1-1-phase6-20260917]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact-main deploy package
+        run: |
+          rm -f .github/workflows/package-phase6.yml
+          zip -qr /tmp/Annotated-V1.1-Phase6-Deploy.zip . -x '.git/*'
+          cd /tmp
+          sha256sum Annotated-V1.1-Phase6-Deploy.zip > Annotated-V1.1-Phase6-Deploy.sha256
+          unzip -t Annotated-V1.1-Phase6-Deploy.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: annotated-v1-1-phase6-deploy
+          path: |
+            /tmp/Annotated-V1.1-Phase6-Deploy.zip
+            /tmp/Annotated-V1.1-Phase6-Deploy.sha256
+          if-no-files-found: error
