@@ -5,9 +5,10 @@ $need=function(string $file,string $needle,string $message)use(&$fail,$root){$pa
 $avoid=function(string $file,string $needle,string $message)use(&$fail,$root){$path=$root.'/'.$file;if(is_file($path)&&str_contains((string)file_get_contents($path),$needle))$fail[]=$message;};
 
 $need('register.php','/onboarding.php','New accounts must enter first-run onboarding.');
-$need('onboarding.php','Publish your first annotation','Onboarding must guide the first annotation.');
-$need('onboarding.php','Follow a researcher or source','Onboarding must guide social/source following.');
-$need('onboarding.php','Start or join Research','Onboarding must guide Research setup.');
+$need('app/release.php','Publish your first annotation','Onboarding milestones must guide the first annotation.');
+$need('app/release.php','Follow a researcher or source','Onboarding milestones must guide social/source following.');
+$need('app/release.php','Start or join Research','Onboarding milestones must guide Research setup.');
+$need('onboarding.php',"$status['steps']",'Onboarding page must render the server-derived milestone checklist.');
 $need('extension/service-worker.js',"details.reason==='install'",'Extension install must trigger first-run setup.');
 $need('extension/sidepanel-state.js','extension-authorize.php','Chrome sidebar must use revocable server authorization.');
 $need('extension/sidepanel-state.js','client_version:chrome.runtime.getManifest().version','Chrome authorization must identify the client version.');
