@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/ai.php';
-$u=current_user($pdo);$id=(string)($_GET['id']??$_POST['id']??'');$q=$pdo->prepare("SELECT a.public_id,s.canonical_url FROM annotations a JOIN sources s ON s.id=a.source_id WHERE a.public_id=? AND a.visibility='public' AND a.status IN ('published','restricted')");$q->execute([$id]);$a=$q->fetch();if(!$a){http_response_code(404);exit('Annotation not found.');}
+$u=current_user($pdo);$id=(string)($_GET['id']??$_POST['id']??'');$q=$pdo->prepare("SELECT a.public_id,s.canonical_url FROM annotations a JOIN sources s ON s.id=a.source_id WHERE a.public_id=? AND a.visibility='public' AND a.status='published'");$q->execute([$id]);$a=$q->fetch();if(!$a){http_response_code(404);exit('Annotation not found.');}
 $done=false;$error='';$claimPublic='';$trackingToken='';
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$email=trim((string)($_POST['email']??''));$name=trim((string)($_POST['name']??''));$desc=trim((string)($_POST['description']??''));$type=(string)($_POST['claim_type']??'other');
