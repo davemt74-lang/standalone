@@ -88,6 +88,8 @@ $need('research-report.php','noindex,nofollow','Non-public Research report views
 $need('research-report.php','research_report_version_access($pdo,$report,$version,$viewer)','Research report pages must re-check historical version visibility.');
 $need('research-report-export.php','research_report_version_access($pdo,$report,$version,$viewer)','Research report exports must re-check historical version visibility.');
 $need('search.php','noindex,follow','Search results pages must not become duplicate public index pages.');
+foreach(['source.php','annotation.php','profile.php','research-report.php','research-report-export.php'] as $file)$need($file,'Cache-Control: private, no-store',"Viewer-scoped public response must not be shared-cached: $file");
+
 $avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
 $need('app/ai-access.php',"admin_enabled",'Interactive Admin AI must honor the model admin_enabled flag.');
