@@ -46,7 +46,7 @@ function search_annotation_score(array $row,string $term): int {
     }
     return $score;
 }
-function search_unified(PDO $pdo,string $rawTerm,?array $viewer,array $rawFilters=[]): array {
+function search_unified(PDO $pdo,string $rawTerm,?array $viewer,array $rawFilters=[],bool $recordRecent=true): array {
     $term=search_normalize_query($rawTerm);$filters=search_filters_from_input($rawFilters);$empty=['sources'=>[],'annotations'=>[],'people'=>[],'reports'=>[],'entities'=>[],'projects'=>[],'research'=>[],'meta'=>['query'=>$term,'filters'=>$filters,'total'=>0]];
     if(mb_strlen($term)<2)return $empty;
     $like='%'.$term.'%';$prefix=mb_substr($term,0,max(2,min(5,mb_strlen($term)))).'%';$uid=(int)($viewer['id']??0);
@@ -103,7 +103,7 @@ function search_unified(PDO $pdo,string $rawTerm,?array $viewer,array $rawFilter
     $out=['sources'=>$sources,'annotations'=>$annotations,'people'=>$people,'reports'=>$reports,'entities'=>$entities,'projects'=>$projects,'research'=>$research];
     if($filters['type']!=='all'){foreach(array_keys($out) as $key)if($key!==$filters['type'])$out[$key]=[];}
     $total=0;foreach($out as $v)if(is_array($v))$total+=count($v);$out['meta']=['query'=>$term,'filters'=>$filters,'total'=>$total];
-    if($viewer)search_record_recent($pdo,$viewer,$term,$filters);
+    if($viewer&&$recordRecent)search_record_recent($pdo,$viewer,$term,$filters);
     return $out;
 }
 function search_entity_results(PDO $pdo,string $term,?array $viewer,?array $project=null,int $limit=30): array {
@@ -143,7 +143,7 @@ function search_flatten_results(array $results): array {
     $out=[];foreach(['sources'=>'source','annotations'=>'annotation','reports'=>'research_report','people'=>'person'] as $key=>$type)foreach(($results[$key]??[]) as $r)if(!empty($r['public_id']))$out[]=['type'=>$type,'id'=>(string)$r['public_id'],'label'=>(string)($r['title']??$r['display_name']??$r['text_commentary']??$r['public_id'])];foreach(($results['entities']??[]) as $e)if(($e['scope']??'')==='public'&&!empty($e['public_id']))$out[]=['type'=>'research_entity','id'=>(string)$e['public_id'],'label'=>(string)$e['canonical_name']];return $out;
 }
 function search_run_saved_alert(PDO $pdo,array $saved,array $owner): int {
-    $filters=json_decode((string)($saved['filters_json']??''),true)?:[];$results=search_unified($pdo,(string)$saved['query_text'],$owner,$filters);$new=0;
+    $filters=json_decode((string)($saved['filters_json']??''),true)?:[];$results=search_unified($pdo,(string)$saved['query_text'],$owner,$filters,false);$new=0;
     foreach(search_flatten_results($results) as $obj){$q=$pdo->prepare('INSERT IGNORE INTO saved_search_matches(saved_search_id,object_type,object_public_id) VALUES(?,?,?)');$q->execute([$saved['id'],$obj['type'],$obj['id']]);if($q->rowCount()!==1)continue;$new++;notification_create($pdo,(int)$owner['id'],null,'saved_search_match','saved_search',(string)$saved['public_id'],'New match for saved search “'.$saved['title'].'”: '.mb_substr($obj['label'],0,180),['category'=>'research','dedupe_key'=>'saved-search:'.$saved['id'].':'.$obj['type'].':'.$obj['id'],'group_key'=>'saved-search:'.$saved['public_id'],'context'=>['saved_search_public_id'=>$saved['public_id'],'match_type'=>$obj['type'],'match_public_id'=>$obj['id']]]);$pdo->prepare('UPDATE saved_search_matches SET notified_at=NOW() WHERE saved_search_id=? AND object_type=? AND object_public_id=?')->execute([$saved['id'],$obj['type'],$obj['id']]);}
     $pdo->prepare('UPDATE saved_searches SET last_alerted_at=NOW() WHERE id=?')->execute([$saved['id']]);return $new;
 }
@@ -178,4 +178,21 @@ function search_explore_intelligence(PDO $pdo,?array $viewer): array {
     $trending=$pdo->query("SELECT s.public_id,s.title,s.domain,COUNT(DISTINCT a.id) annotation_count,COUNT(DISTINCT c.id) comment_count,COUNT(DISTINCT a.user_id) contributor_count,MAX(a.published_at) last_activity FROM sources s JOIN annotations a ON a.source_id=s.id AND a.visibility='public' AND a.status='published' AND a.published_at>=DATE_SUB(NOW(),INTERVAL 7 DAY) LEFT JOIN comments c ON c.annotation_id=a.id AND COALESCE(c.moderation_status,'visible')='visible' WHERE COALESCE(s.moderation_status,'visible')='visible' GROUP BY s.id ORDER BY (COUNT(DISTINCT a.id)*3+COUNT(DISTINCT c.id)*2+COUNT(DISTINCT a.user_id)) DESC,last_activity DESC LIMIT 12")->fetchAll();
     $topics=[];try{$topics=$pdo->query("SELECT de.public_id,de.entity_type,de.canonical_name,COUNT(*) mention_count,MAX(dem.updated_at) last_activity FROM discovery_entities de JOIN discovery_entity_mentions dem ON dem.entity_id=de.id WHERE de.status='active' AND dem.updated_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) GROUP BY de.id ORDER BY mention_count DESC,last_activity DESC LIMIT 16")->fetchAll();}catch(PDOException $e){}
     return ['trending'=>$trending,'topics'=>$topics,'recommendations'=>$viewer?search_recommendations($pdo,$viewer,12):[]];
+}
+
+function search_admin_entity_rename(PDO $pdo,array $admin,string $publicId,string $name,?string $description=null): bool {
+    if(($admin['role']??'')!=='admin')throw new RuntimeException('Admin access required.');$name=trim($name);if($name==='')throw new InvalidArgumentException('Entity name is required.');
+    $q=$pdo->prepare("SELECT id,entity_type FROM discovery_entities WHERE public_id=? AND status='active' LIMIT 1");$q->execute([$publicId]);$e=$q->fetch();if(!$e)return false;$norm=search_normalized_name($name);
+    $q=$pdo->prepare('SELECT id FROM discovery_entities WHERE entity_type=? AND normalized_name=? AND id<>? LIMIT 1');$q->execute([$e['entity_type'],$norm,$e['id']]);if($q->fetchColumn())throw new RuntimeException('An entity with that normalized name already exists.');
+    $pdo->prepare('UPDATE discovery_entities SET canonical_name=?,normalized_name=?,description=?,updated_at=NOW() WHERE id=?')->execute([mb_substr($name,0,255),$norm,$description!==null?mb_substr(trim($description),0,4000):null,$e['id']]);return true;
+}
+function search_admin_entity_alias(PDO $pdo,array $admin,string $publicId,string $alias): bool {
+    if(($admin['role']??'')!=='admin')throw new RuntimeException('Admin access required.');$alias=trim($alias);if($alias==='')throw new InvalidArgumentException('Alias is required.');$q=$pdo->prepare("SELECT id FROM discovery_entities WHERE public_id=? AND status='active' LIMIT 1");$q->execute([$publicId]);$id=(int)($q->fetchColumn()?:0);if(!$id)return false;$pdo->prepare('INSERT IGNORE INTO discovery_entity_aliases(entity_id,alias_name,normalized_alias) VALUES(?,?,?)')->execute([$id,mb_substr($alias,0,255),search_normalized_name($alias)]);return true;
+}
+function search_admin_entity_merge(PDO $pdo,array $admin,string $fromPublicId,string $intoPublicId): bool {
+    if(($admin['role']??'')!=='admin')throw new RuntimeException('Admin access required.');if($fromPublicId===$intoPublicId)throw new InvalidArgumentException('Choose two different entities.');
+    $pdo->beginTransaction();try{$q=$pdo->prepare("SELECT * FROM discovery_entities WHERE public_id=? FOR UPDATE");$q->execute([$fromPublicId]);$from=$q->fetch();$q->execute([$intoPublicId]);$into=$q->fetch();if(!$from||!$into||$from['status']!=='active'||$into['status']!=='active')throw new RuntimeException('Entity not available for merge.');if($from['entity_type']!==$into['entity_type'])throw new RuntimeException('Only entities of the same type can be merged.');
+        $q=$pdo->prepare('SELECT object_type,object_public_id,source_id,mention_weight,excerpt FROM discovery_entity_mentions WHERE entity_id=?');$q->execute([$from['id']]);foreach($q->fetchAll() as $m)$pdo->prepare('INSERT INTO discovery_entity_mentions(entity_id,object_type,object_public_id,source_id,mention_weight,excerpt) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE mention_weight=GREATEST(mention_weight,VALUES(mention_weight)),excerpt=COALESCE(VALUES(excerpt),excerpt),updated_at=NOW()')->execute([$into['id'],$m['object_type'],$m['object_public_id'],$m['source_id'],$m['mention_weight'],$m['excerpt']]);
+        $q=$pdo->prepare('SELECT alias_name,normalized_alias FROM discovery_entity_aliases WHERE entity_id=?');$q->execute([$from['id']]);foreach($q->fetchAll() as $a)$pdo->prepare('INSERT IGNORE INTO discovery_entity_aliases(entity_id,alias_name,normalized_alias) VALUES(?,?,?)')->execute([$into['id'],$a['alias_name'],$a['normalized_alias']]);$pdo->prepare('INSERT IGNORE INTO discovery_entity_aliases(entity_id,alias_name,normalized_alias) VALUES(?,?,?)')->execute([$into['id'],$from['canonical_name'],$from['normalized_name']]);
+        $pdo->prepare("UPDATE discovery_entities SET status='merged',merged_into_id=?,updated_at=NOW() WHERE id=?")->execute([$into['id'],$from['id']]);$pdo->commit();return true;}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
