@@ -34,6 +34,11 @@ $pdo = new PDO($db['dsn'], $db['user'], $db['pass'], [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::ATTR_EMULATE_PREPARES => false,
 ]);
+require_once __DIR__ . '/installer.php';
+if(PHP_SAPI!=='cli'&&!installer_base_schema_ready($pdo,dirname(__DIR__).'/database/schema.sql')){
+    header('Location: /install.php');
+    exit;
+}
 require_once __DIR__ . '/storage.php';
 require_once __DIR__ . '/jobs.php';
 require_once __DIR__ . '/concurrency.php';
