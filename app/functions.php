@@ -104,7 +104,8 @@ function save_data_url_audio(string $dataUrl,array $config): ?string {
     $ext=match($m[1]){'webm'=>'webm','ogg'=>'ogg','mp4'=>'m4a','mpeg'=>'mp3','wav','x-wav'=>'wav',default=>'bin'};
     return private_storage_write($config,$bytes,'commentary',$ext);
 }
-function notify_user(PDO $pdo,int $userId,?int $actorUserId,string $type,?string $objectType,?string $objectPublicId,?string $body): void {
+function notify_user(PDO $pdo,int $userId,?int $actorUserId,string $type,?string $objectType,?string $objectPublicId,?string $body,array $options=[]): void {
+    if(function_exists('notification_create')){notification_create($pdo,$userId,$actorUserId,$type,$objectType,$objectPublicId,$body,$options);return;}
     try{
         $prefColumn = match(true) {
             str_starts_with($type,'source_') => 'notify_sources',
