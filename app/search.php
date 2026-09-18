@@ -10,8 +10,8 @@ function search_normalized_name(string $name): string {
     return mb_substr(mb_strtolower(trim((string)preg_replace('/\s+/u',' ',$name))),0,255);
 }
 function search_filters_from_input(array $input): array {
-    $sort=in_array((string)($input['sort']??'relevance'),['relevance','newest','discussed'],true)?(string)$input['sort']:'relevance';
-    $type=in_array((string)($input['type']??'all'),['all','sources','annotations','people','reports','entities','projects','research'],true)?(string)$input['type']:'all';
+    $sortCandidate=(string)($input['sort']??'relevance');$sort=in_array($sortCandidate,['relevance','newest','discussed'],true)?$sortCandidate:'relevance';
+    $typeCandidate=(string)($input['type']??'all');$type=in_array($typeCandidate,['all','sources','annotations','people','reports','entities','projects','research'],true)?$typeCandidate:'all';
     $integrity=in_array((string)($input['integrity']??''),['','source_unchanged','source_updated','passage_changed','passage_missing','source_unavailable','source_restored'],true)?(string)($input['integrity']??''):'';
     $media=in_array((string)($input['media']??''),['','text','screenshot','video_clip','audio_clip','audio_commentary'],true)?(string)($input['media']??''):'';
     $dateFrom=preg_match('/^\d{4}-\d{2}-\d{2}$/',(string)($input['date_from']??''))?(string)$input['date_from']:'';
