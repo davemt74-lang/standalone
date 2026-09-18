@@ -151,10 +151,10 @@ $need('search.php','noindex,follow','Search result pages must remain noindex.');
 $need('entity.php','search_discovery_entity($pdo,$id,$viewer)','Public entity pages must resolve mentions through access-aware discovery.');
 
 
-$need('oauth/google.php',"$_SESSION['oauth_issued_at']=time()",'Google OAuth must timestamp authorization state.');
-$need('oauth/x.php',"$_SESSION['oauth_issued_at']=time()",'X OAuth must timestamp authorization state.');
+$need('oauth/google.php',"\$_SESSION['oauth_issued_at']=time()",'Google OAuth must timestamp authorization state.');
+$need('oauth/x.php',"\$_SESSION['oauth_issued_at']=time()",'X OAuth must timestamp authorization state.');
 $need('oauth/callback.php','$issued>=time()-600','OAuth state must expire within ten minutes.');
-$need('oauth/callback.php',"unset($_SESSION['oauth_state']", 'OAuth state must be consumed before provider token exchange.');
+$need('oauth/callback.php',"unset(\$_SESSION['oauth_state']", 'OAuth state must be consumed before provider token exchange.');
 $need('app/functions.php','sessions_revoked_before','Website authentication must enforce the per-user session revocation epoch.');
 $need('connected-accounts.php',"UPDATE users SET sessions_revoked_before=NOW()", 'Connected Accounts must revoke older browser sessions server-side.');
 $need('connected-accounts.php',"WHERE id=? AND user_id=? AND revoked_at IS NULL",'Individual extension-session revocation must be owner-scoped.');
