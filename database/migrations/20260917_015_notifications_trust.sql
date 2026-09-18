@@ -77,7 +77,10 @@ ALTER TABLE moderation_actions MODIFY COLUMN public_id VARCHAR(40) NOT NULL;
 ALTER TABLE moderation_actions ADD UNIQUE KEY IF NOT EXISTS uq_moderation_action_public(public_id);
 
 ALTER TABLE comments
+  ADD COLUMN IF NOT EXISTS public_id VARCHAR(40) NULL AFTER id,
   ADD COLUMN IF NOT EXISTS moderation_status ENUM('visible','restricted','removed') NOT NULL DEFAULT 'visible' AFTER body,
   ADD COLUMN IF NOT EXISTS removed_at DATETIME NULL AFTER moderation_status,
   ADD COLUMN IF NOT EXISTS removed_by_user_id BIGINT UNSIGNED NULL AFTER removed_at;
+UPDATE comments SET public_id=CONCAT('legacy-comment-',id) WHERE public_id IS NULL OR public_id='';
+ALTER TABLE comments ADD UNIQUE KEY IF NOT EXISTS uq_comment_public(public_id);
 ALTER TABLE comments ADD INDEX IF NOT EXISTS idx_comment_moderation(annotation_id,moderation_status,created_at);
