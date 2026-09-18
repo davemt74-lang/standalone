@@ -75,7 +75,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       EXISTS(SELECT 1 FROM source_watches sw2 WHERE sw2.user_id=$uid AND sw2.source_id=a.source_id) from_followed_source,
       (a.user_id=$uid) is_self" : "0 is_following,0 is_saved,1 is_read,0 source_following,0 from_followed_user,0 from_followed_source,0 is_self";
     $sql="SELECT
-      a.id internal_id,a.public_id,a.text_commentary,a.published_at,a.visibility,a.team_id,
+      a.id internal_id,a.public_id,a.source_version_id,a.text_commentary,a.published_at,a.visibility,a.team_id,
       u.public_id author_public_id,u.username,u.display_name,
       s.public_id source_public_id,s.title source_title,s.canonical_url,s.status source_record_status,s.current_version_id,
       sv.version_number capture_version_number,sv.captured_at capture_version_captured_at,
@@ -98,7 +98,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       LEFT JOIN teams t ON t.id=a.team_id
       LEFT JOIN media_derivatives md ON md.capture_id=c.id
       LEFT JOIN annotation_transcripts at ON at.annotation_id=a.id
-      WHERE ".implode(' AND ',$where)."
+      WHERE COALESCE(s.moderation_status,'visible')='visible' AND ".implode(' AND ',$where)."
       ORDER BY a.id DESC LIMIT ".($limit+1);
     $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll();$hasMore=count($rows)>$limit;if($hasMore)array_pop($rows);
     $next=null;if($hasMore&&$rows)$next=feed_cursor_encode((int)$rows[count($rows)-1]['internal_id']);
@@ -107,6 +107,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $row['audio_url']=!empty($row['audio_commentary_path'])?evidence_url((string)$row['public_id'],'audio'):null;
         $row['media_url']=!empty($row['media_path'])?evidence_url((string)$row['public_id'],'media'):null;
         $row['context_url']=feed_context_url($row);
+        $row['integrity']=source_integrity_annotation_state($pdo,['id'=>(int)$row['internal_id'],'source_version_id'=>(int)$row['source_version_id'],'current_source_version_id'=>(int)$row['current_version_id']]);
         foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','is_self'] as $k)$row[$k]=(bool)$row[$k];
         unset($row['internal_id'],$row['screenshot_target_path'],$row['audio_commentary_path'],$row['media_path']);
     }unset($row);
