@@ -34,6 +34,7 @@ ALTER TABLE user_preferences
   ADD COLUMN IF NOT EXISTS notify_claims TINYINT(1) NOT NULL DEFAULT 1 AFTER notify_live,
   ADD COLUMN IF NOT EXISTS notify_moderation TINYINT(1) NOT NULL DEFAULT 1 AFTER notify_claims;
 
+ALTER TABLE source_change_events MODIFY COLUMN change_type ENUM('updated','edited','moved','unavailable','restored') NOT NULL;
 ALTER TABLE source_change_events
   ADD COLUMN IF NOT EXISTS impact_type ENUM('source_updated','passage_changed','passage_missing','source_unavailable','source_restored') NULL AFTER change_type,
   ADD COLUMN IF NOT EXISTS affected_annotation_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER target_changed,
