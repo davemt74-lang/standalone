@@ -12,6 +12,14 @@ function research_report_access(PDO $pdo,string $publicId,?array $viewer): ?arra
 }
 
 function research_report_version(PDO $pdo,array $report,int $versionNumber): ?array {$q=$pdo->prepare('SELECT * FROM research_report_versions WHERE report_id=? AND version_number=? LIMIT 1');$q->execute([$report['id'],$versionNumber]);return $q->fetch()?:null;}
+function research_report_version_access(PDO $pdo,array $report,int $versionNumber,?array $viewer): ?array {
+    $row=research_report_version($pdo,$report,$versionNumber);if(!$row)return null;
+    if(($row['visibility']??'')==='public')return $row;if(!$viewer)return null;
+    if(($viewer['role']??'')==='admin'||(int)($report['owner_user_id']??0)===(int)$viewer['id'])return $row;
+    $teamId=(int)($report['team_id']??0);if(!$teamId)return null;
+    if(($row['visibility']??'')==='team'){$q=$pdo->prepare('SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1');$q->execute([$teamId,$viewer['id']]);return $q->fetchColumn()?$row:null;}
+    $q=$pdo->prepare("SELECT 1 FROM team_members WHERE team_id=? AND user_id=? AND role IN ('owner','admin') LIMIT 1");$q->execute([$teamId,$viewer['id']]);return $q->fetchColumn()?$row:null;
+}
 
 function research_report_annotation_allowed(string $reportVisibility,array $annotation,?int $projectTeamId): bool {
     if($reportVisibility==='private')return true;if(($annotation['visibility']??'')==='public')return true;return $reportVisibility==='team'&&($annotation['visibility']??'')==='team'&&!empty($projectTeamId)&&(int)($annotation['team_id']??0)===$projectTeamId;
