@@ -11,7 +11,7 @@ function current_user(PDO $pdo): ?array {
         try{$q=$pdo->prepare('SELECT user_id FROM extension_sessions WHERE token_hash=? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW())');$q->execute([hash('sha256',$token)]);$userId=(int)($q->fetchColumn()?:0);if($userId)$pdo->prepare('UPDATE extension_sessions SET last_used_at=NOW() WHERE token_hash=?')->execute([hash('sha256',$token)]);}catch(PDOException $e){$userId=0;}
     }
     if(!$userId)return null;
-    $s=$pdo->prepare('SELECT id,public_id,username,display_name,email,role,live_presence_mode,sessions_revoked_before FROM users WHERE id=? AND status="active"');$s->execute([$userId]);$user=$s->fetch();if(!$user)return null;
+    try{$s=$pdo->prepare('SELECT id,public_id,username,display_name,email,role,live_presence_mode,sessions_revoked_before FROM users WHERE id=? AND status="active"');$s->execute([$userId]);$user=$s->fetch();}catch(PDOException $e){$s=$pdo->prepare('SELECT id,public_id,username,display_name,email,role,live_presence_mode FROM users WHERE id=? AND status="active"');$s->execute([$userId]);$user=$s->fetch();if($user)$user['sessions_revoked_before']=null;}if(!$user)return null;
     if($sessionUserId&&!$token&&!empty($user['sessions_revoked_before'])){$revoked=strtotime((string)$user['sessions_revoked_before']);$auth=(int)($_SESSION['auth_time']??0);if(!$auth||($revoked&&$auth<$revoked)){$_SESSION=[];if(session_status()===PHP_SESSION_ACTIVE)session_regenerate_id(true);return null;}}
     unset($user['sessions_revoked_before']);return $user;
 }
