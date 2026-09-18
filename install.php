@@ -7,6 +7,7 @@ $error='';
 $ready=false;
 $config=null;
 $pdo=null;
+$databaseStatus='Not connected.';
 
 if(!is_file($configFile)){
     http_response_code(503);
@@ -38,6 +39,7 @@ if(!is_file($configFile)){
         }
         $tableCount=installer_database_table_count($pdo);
         $ready=$baseReady||$tableCount===0;
+        $databaseStatus=$tableCount===0?'Database is empty and ready for installation.':($baseReady?'Annotated schema detected.':'Database contains existing tables and cannot be initialized automatically.');
         if($_SERVER['REQUEST_METHOD']==='POST'){
             $sent=(string)($_POST['csrf']??'');
             if(!hash_equals((string)($_SESSION['install_csrf']??''),$sent))throw new RuntimeException('The installer form expired. Reload the page and try again.');
@@ -54,6 +56,7 @@ if(!is_file($configFile)){
     }catch(Throwable $e){
         $error=$e->getMessage();
         $ready=false;
+        $databaseStatus='Database check failed.';
     }
 }
 header('Cache-Control: private, no-store');
@@ -65,6 +68,6 @@ header('X-Frame-Options: DENY');
 <p>This installer creates the base MariaDB schema and applies every bundled database migration. No SQL import or setup key is required.</p>
 <?php if($error):?><div class="error"><?=htmlspecialchars($error,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8')?></div><?php endif?>
 <div class="card"><strong>Configuration</strong><p class="meta"><?=is_file($configFile)?'config.php found.':'config.php is missing.'?></p></div>
-<?php if($pdo):?><div class="card"><strong>Database</strong><p class="meta">Connection successful. <?=installer_database_table_count($pdo)===0?'Database is empty and ready for installation.':($ready?'Annotated schema detected.':'Database contains existing tables and cannot be initialized automatically.')?></p></div><?php endif?>
+<?php if($pdo):?><div class="card"><strong>Database</strong><p class="meta">Connection successful. <?=htmlspecialchars($databaseStatus,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8')?></p></div><?php endif?>
 <?php if($ready):?><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=htmlspecialchars((string)($_SESSION['install_csrf']??''),ENT_QUOTES,'UTF-8')?>"><button>Install Annotated</button></form><?php else:?><p>Correct the configuration or select an empty MariaDB database, then reload this page.</p><?php endif?>
 </main></body></html>
