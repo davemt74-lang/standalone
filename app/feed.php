@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/source-integrity.php';
 
 function feed_cursor_encode(int $id): string {
     return rtrim(strtr(base64_encode((string)$id),'+/','-_'),'=');
