@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Annotated",
-  "version": "0.6.0",
-  "description": "Annotated Chrome sidebar for capture, source-aware feeds, hardened Live rooms with Cloak Mode, public discovery, and Research.",
+  "version": "0.7.0",
+  "description": "Annotated Chrome sidebar for capture, source-aware feeds, Live rooms, source-change intelligence, notifications, claims, moderation, and Research.",
   "permissions": [
     "sidePanel",
     "activeTab",
