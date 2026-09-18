@@ -37,6 +37,29 @@ try{
 
     install_test(installer_database_table_count($pdo)===0,'fresh installer starts from an empty database');
 
+    $tmpRoot=sys_get_temp_dir().'/annotated-install-config-'.substr(bin2hex(random_bytes(6)),0,10);
+    mkdir($tmpRoot,0700,true);
+    try{
+        $generated=installer_build_config([
+            'base_url'=>'https://annotated.example.test',
+            'db_host'=>'127.0.0.1',
+            'db_port'=>'3306',
+            'db_name'=>$dbName,
+            'db_user'=>$dbUser,
+            'db_pass'=>$dbPass,
+        ],$tmpRoot);
+        install_test(str_contains((string)$generated['db']['dsn'],'dbname='.$dbName),'installer builds database DSN from form values');
+        install_test(strlen((string)$generated['app']['encryption_key'])>=64,'installer generates internal encryption material automatically');
+        $generatedFile=$tmpRoot.'/config.php';
+        installer_write_config($generatedFile,$generated);
+        install_test(is_file($generatedFile),'installer writes config.php automatically');
+        $loaded=require $generatedFile;
+        install_test(($loaded['db']['user']??null)===$dbUser,'written config.php is loadable');
+    }finally{
+        @unlink($tmpRoot.'/config.php');
+        @rmdir($tmpRoot);
+    }
+
     $result=installer_run($pdo,$schema,$migrations);
     install_test(($result['schema_statements']??0)>0,'installer imports the base schema');
     install_test(installer_base_schema_ready($pdo,$schema),'all base schema tables exist after install');
