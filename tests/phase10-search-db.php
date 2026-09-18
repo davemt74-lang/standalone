@@ -25,8 +25,9 @@ $annProject=$makeAnn($projectSource,$owner,'private','project foxtrot secret evi
 $annRelated=$makeAnn($relatedSource,$owner,'public','nebula orchard related evidence');
 $pdo->prepare('INSERT INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$projectId,$annProject['id'],$owner['id']]);$pdo->prepare('INSERT INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([$projectId,$projectSource['id'],$owner['id']]);
 
-$anon=search_unified($pdo,'nebula orchard',null,[]);
-p10(p10has($anon['annotations'],$annPublic['public_id'])&&p10has($anon['annotations'],$annRelated['public_id']),'anonymous search returns matching public annotations');
+$q=$pdo->prepare("SELECT COUNT(*) FROM annotations WHERE public_id=? AND visibility='public' AND status='published'");$q->execute([$annPublic['public_id']]);p10((int)$q->fetchColumn()===1,'public search fixture is published and public');
+$anon=search_unified($pdo,'nebula orchard',null,[]);$anonIds=array_map(fn($r)=>(string)($r['public_id']??''),$anon['annotations']);
+p10(p10has($anon['annotations'],$annPublic['public_id'])&&p10has($anon['annotations'],$annRelated['public_id']),'anonymous search returns matching public annotations; got '.json_encode($anonIds));
 p10(!p10has(search_unified($pdo,'private delta secret',null,[])['annotations'],$annPrivate['public_id']),'anonymous search excludes private annotation');
 p10(p10has(search_unified($pdo,'private delta secret',$owner,[])['annotations'],$annPrivate['public_id']),'owner search finds own private annotation');
 p10(!p10has(search_unified($pdo,'private delta secret',$admin,[])['annotations'],$annPrivate['public_id']),'global admin search does not surface another user private annotation');
