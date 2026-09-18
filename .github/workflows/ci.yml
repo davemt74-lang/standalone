@@ -55,6 +55,12 @@ jobs:
         run: php tests/rate-limit-contracts.php
       - name: V1.1 RC1 end-to-end release contract
         run: php tests/v1-rc-e2e-contract.php
+      - name: Fresh install MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/install-db.php
       - name: MariaDB integration and security suite
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
