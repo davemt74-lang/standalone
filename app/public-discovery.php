@@ -8,7 +8,7 @@ function public_discovery_annotation(PDO $pdo,string $publicId,?array $viewer): 
     $access=annotation_access($pdo,$publicId,$viewer);if(!$access||$access['status']!=='published')return null;$uid=(int)($viewer['id']??0);if($uid&&(int)$access['user_id']!==$uid&&is_blocked($pdo,$uid,(int)$access['user_id']))return null;
     $flags=$uid?",EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=$uid AND f.followed_user_id=a.user_id) is_following,EXISTS(SELECT 1 FROM saved_annotations sa WHERE sa.user_id=$uid AND sa.annotation_id=a.id) is_saved,EXISTS(SELECT 1 FROM source_watches sw WHERE sw.user_id=$uid AND sw.source_id=a.source_id) source_following":" ,0 is_following,0 is_saved,0 source_following";
     $sql="SELECT a.*,u.public_id author_public_id,u.username,u.display_name,u.bio author_bio,u.profile_image_url,
-      s.public_id source_public_id,s.title source_title,s.domain,s.canonical_url,s.status source_record_status,
+      s.public_id source_public_id,s.title source_title,s.domain,s.canonical_url,s.status source_record_status,s.current_version_id current_source_version_id,
       sv.version_number capture_version_number,sv.captured_at capture_version_captured_at,
       cv.version_number current_version_number,cv.captured_at current_version_captured_at,
       CASE WHEN a.source_version_id<>s.current_version_id THEN s.status ELSE 'current' END source_status,
