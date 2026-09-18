@@ -154,6 +154,7 @@ async function phase6CardAction(e){
 async function phase6SwitchTab(btn){
   $('nav button').forEach(x=>x.classList.toggle('active',x===btn));$('main>section').forEach(s=>s.hidden=s.id!==btn.dataset.tab);
   if(btn.dataset.tab==='following')phase6LoadFollowing(true);
+  if(btn.dataset.tab==='search')await loadSearchWorkspace();
   if(btn.dataset.tab==='live')await startLive();else stopLivePoll();
   if(btn.dataset.tab==='research')loadProjects();
 }
