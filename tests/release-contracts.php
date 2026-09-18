@@ -38,7 +38,7 @@ $phase10Search=(string)file_get_contents($root.'/app/search.php');foreach(['sear
 $phase10Page=(string)file_get_contents($root.'/search.php');foreach(['search_unified($pdo,$term,$viewer,$filters)','Save this search','Add to Research','Recent searches','Research reports'] as $needle)if(!str_contains($phase10Page,$needle))$fail[]="Phase 10 search page contract missing: $needle";
 $phase10Explore=(string)file_get_contents($root.'/explore.php');foreach(['search_explore_intelligence','TRENDING · 7 DAYS','TOPICS & ENTITIES','BECAUSE YOU FOLLOW'] as $needle)if(!str_contains($phase10Explore,$needle))$fail[]="Phase 10 Explore contract missing: $needle";
 $phase10Chrome=(string)file_get_contents($root.'/extension/sidepanel-search.js');foreach(['runSidebarSearch','search_saved','search_recent','search_add_research'] as $needle)if(!str_contains($phase10Chrome,$needle))$fail[]="Phase 10 Chrome search contract missing: $needle";
-$phase10Feed=(string)file_get_contents($root.'/extension/sidepanel-feed.js');if(!str_contains($phase10Feed,"$('nav button').forEach"))$fail[]='Chrome tab dispatcher must use querySelectorAll helper for nav buttons.';if(str_contains($phase10Feed,"$('nav button').forEach"))$fail[]='Chrome tab dispatcher must not call forEach on querySelector result.';
+$phase10Feed=(string)file_get_contents($root.'/extension/sidepanel-feed.js');if(!str_contains($phase10Feed,"$('nav button').forEach"))$fail[]='Chrome tab dispatcher must use querySelectorAll helper for nav buttons.';if(preg_match("/(?<!\\$)\\$\\('nav button'\\)\\.forEach/",$phase10Feed))$fail[]='Chrome tab dispatcher must not call forEach on querySelector result.';
 
 
 
