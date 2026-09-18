@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/notifications.php';
 
 function live_client_session_id(string $value): string {
     $value=trim($value);
