@@ -39,6 +39,7 @@ ALTER TABLE source_change_events
   ADD COLUMN IF NOT EXISTS impact_type ENUM('source_updated','passage_changed','passage_missing','source_unavailable','source_restored') NULL AFTER change_type,
   ADD COLUMN IF NOT EXISTS affected_annotation_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER target_changed,
   ADD COLUMN IF NOT EXISTS restored_from_event_id BIGINT UNSIGNED NULL AFTER affected_annotation_count;
+ALTER TABLE source_change_events ADD CONSTRAINT fk_source_change_restored_from FOREIGN KEY(restored_from_event_id) REFERENCES source_change_events(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS source_annotation_impacts (
   source_change_event_id BIGINT UNSIGNED NOT NULL,
@@ -62,6 +63,7 @@ ALTER TABLE rights_claims
 ALTER TABLE rights_claims MODIFY COLUMN status ENUM('submitted','under_review','resolved','rejected','restricted','appealed','reopened') NOT NULL DEFAULT 'submitted';
 ALTER TABLE rights_claims ADD UNIQUE KEY IF NOT EXISTS uq_rights_tracking_token(tracking_token_hash);
 ALTER TABLE rights_claims ADD INDEX IF NOT EXISTS idx_rights_claimant_user(claimant_user_id,status,updated_at);
+ALTER TABLE rights_claims ADD CONSTRAINT fk_rights_claimant_user FOREIGN KEY(claimant_user_id) REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS rights_claim_events (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -79,6 +81,7 @@ CREATE TABLE IF NOT EXISTS rights_claim_events (
 
 ALTER TABLE sources
   ADD COLUMN IF NOT EXISTS moderation_status ENUM('visible','restricted') NOT NULL DEFAULT 'visible' AFTER monitoring_enabled;
+ALTER TABLE sources ADD INDEX IF NOT EXISTS idx_source_moderation(moderation_status,status);
 
 ALTER TABLE moderation_reports
   MODIFY COLUMN object_type ENUM('annotation','comment','live_message','user','source') NOT NULL,
@@ -99,5 +102,7 @@ ALTER TABLE comments
   ADD COLUMN IF NOT EXISTS removed_at DATETIME NULL AFTER moderation_status,
   ADD COLUMN IF NOT EXISTS removed_by_user_id BIGINT UNSIGNED NULL AFTER removed_at;
 UPDATE comments SET public_id=CONCAT('legacy-comment-',id) WHERE public_id IS NULL OR public_id='';
+ALTER TABLE comments MODIFY COLUMN public_id VARCHAR(40) NOT NULL;
 ALTER TABLE comments ADD UNIQUE KEY IF NOT EXISTS uq_comment_public(public_id);
 ALTER TABLE comments ADD INDEX IF NOT EXISTS idx_comment_moderation(annotation_id,moderation_status,created_at);
+ALTER TABLE comments ADD CONSTRAINT fk_comment_removed_by FOREIGN KEY(removed_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
