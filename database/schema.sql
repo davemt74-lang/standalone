@@ -201,11 +201,7 @@ CREATE TABLE IF NOT EXISTS live_messages (
   INDEX idx_live_parent(parent_message_id),
   CONSTRAINT fk_live_source FOREIGN KEY(source_id) REFERENCES sources(id) ON DELETE CASCADE,
   CONSTRAINT fk_live_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
-  CONSTRAINT fk_live_team FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE,
-  CONSTRAINT fk_live_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
-  CONSTRAINT fk_live_parent FOREIGN KEY(parent_message_id) REFERENCES live_messages(id) ON DELETE SET NULL,
-  CONSTRAINT fk_live_pinned_by FOREIGN KEY(pinned_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
-  CONSTRAINT fk_live_deleted_by FOREIGN KEY(deleted_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+  CONSTRAINT fk_live_team FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS live_presence_sessions (
