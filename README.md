@@ -6,14 +6,14 @@ This repository contains the Chrome Manifest V3 sidebar extension, PHP web/API a
 
 ## First deployment
 
-1. Copy `config.example.php` to `config.php` and set the database + OAuth configuration.
-2. Import `database/schema.sql` into the empty MariaDB database.
-3. Open `/first-admin.php` and create the first Annotated administrator.
-4. Sign in as the administrator and open `/upgrade.php` to apply the ordered files in `database/migrations/`.
+1. Copy `config.example.php` to `config.php` and set the MariaDB connection plus the production settings you plan to use.
+2. Create an **empty** MariaDB database and grant the configured database user access to it.
+3. Open `/install.php` in the browser and click **Install Annotated**. The installer imports `database/schema.sql` and applies every bundled forward migration automatically.
+4. Create the first administrator on `/first-admin.php`. No bootstrap/setup key is used.
 5. Configure `storage.private_root` to a writable directory **outside the public web root** and grant the PHP/worker user read/write access.
 6. Load the `extension/` folder as an unpacked Chrome extension for development, open Extension Options, and set the Annotated website/API URL.
 
-There is intentionally no installer. The base schema is imported once; all later database changes are forward-only SQL migrations applied through `upgrade.php`.
+Normal web requests automatically route to `/install.php` until the base schema exists. After the first administrator is created, `/first-admin.php` closes permanently. Existing deployments continue to use `/upgrade.php` for later forward-only migrations.
 
 ## Extension account model
 
