@@ -85,6 +85,8 @@ $need('app/public-discovery.php','source_access($pdo,$publicId,$viewer)','Direct
 $need('source.php','noindex,nofollow','Non-public source views must be marked noindex.');
 $need('annotation.php','noindex,nofollow','Non-public annotation views must be marked noindex.');
 $need('research-report.php','noindex,nofollow','Non-public Research report views must be marked noindex.');
+$need('research-report.php','research_report_version_access($pdo,$report,$version,$viewer)','Research report pages must re-check historical version visibility.');
+$need('research-report-export.php','research_report_version_access($pdo,$report,$version,$viewer)','Research report exports must re-check historical version visibility.');
 $need('search.php','noindex,follow','Search results pages must not become duplicate public index pages.');
 $avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
