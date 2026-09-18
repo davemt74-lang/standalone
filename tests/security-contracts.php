@@ -97,9 +97,9 @@ $need('app/live.php',"JOIN team_members tm ON tm.team_id=t.id WHERE t.public_id=
 $need('app/live.php','project_access($pdo,$uid','Research Live rooms must inherit project access.');
 $need('app/live.php',"last_seen_at<DATE_SUB(NOW(),INTERVAL 90 SECOND)",'Stale Live presence must be expired server-side.');
 $need('app/live.php',"NOT EXISTS(SELECT 1 FROM blocks b",'Live message delivery must enforce block relationships server-side.');
-$need('app/live.php',"$identityVisible=$m['identity_mode']==='visible'",'Live message identity disclosure must be conditional.');
-$need('app/live.php',"else $row['cloak_alias']",'Cloaked Live messages must serialize only a pseudonym.');
-$avoid('app/live.php',"'user_public_id'=>$m['user_public_id']", 'Live payloads must not unconditionally serialize internal author identity fields.');
+$need('app/live.php',"\$identityVisible=\$m['identity_mode']==='visible'",'Live message identity disclosure must be conditional.');
+$need('app/live.php',"else \$row['cloak_alias']",'Cloaked Live messages must serialize only a pseudonym.');
+$avoid('app/live.php',"'user_public_id'=>\$m['user_public_id']", 'Live payloads must not unconditionally serialize internal author identity fields.');
 $need('app/live.php','client_message_id','Live message creation must support retry idempotency.');
 $need('app/live.php','annotation_access($pdo','Live activity events must re-check current annotation authorization.');
 $need('api/extension-live.php','require_api_mutation_auth($pdo)','Live mutations must require authenticated mutation access.');
