@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/source-integrity.php';
 
 function feed_cursor_encode(int $id): string {
     return rtrim(strtr(base64_encode((string)$id),'+/','-_'),'=');
@@ -75,7 +76,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       EXISTS(SELECT 1 FROM source_watches sw2 WHERE sw2.user_id=$uid AND sw2.source_id=a.source_id) from_followed_source,
       (a.user_id=$uid) is_self" : "0 is_following,0 is_saved,1 is_read,0 source_following,0 from_followed_user,0 from_followed_source,0 is_self";
     $sql="SELECT
-      a.id internal_id,a.public_id,a.text_commentary,a.published_at,a.visibility,a.team_id,
+      a.id internal_id,a.public_id,a.source_version_id,a.text_commentary,a.published_at,a.visibility,a.team_id,
       u.public_id author_public_id,u.username,u.display_name,
       s.public_id source_public_id,s.title source_title,s.canonical_url,s.status source_record_status,s.current_version_id,
       sv.version_number capture_version_number,sv.captured_at capture_version_captured_at,
@@ -87,7 +88,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       c.screenshot_target_path,
       md.storage_path media_path,md.processing_status media_status,
       a.audio_commentary_path,at.status transcript_status,COALESCE(at.edited_text,at.raw_text) transcript_text,
-      (SELECT COUNT(*) FROM comments cm WHERE cm.annotation_id=a.id) comment_count,
+      (SELECT COUNT(*) FROM comments cm WHERE cm.annotation_id=a.id AND COALESCE(cm.moderation_status,'visible')='visible') comment_count,
       $flags
       FROM annotations a
       JOIN users u ON u.id=a.user_id
@@ -98,7 +99,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       LEFT JOIN teams t ON t.id=a.team_id
       LEFT JOIN media_derivatives md ON md.capture_id=c.id
       LEFT JOIN annotation_transcripts at ON at.annotation_id=a.id
-      WHERE ".implode(' AND ',$where)."
+      WHERE COALESCE(s.moderation_status,'visible')='visible' AND ".implode(' AND ',$where)."
       ORDER BY a.id DESC LIMIT ".($limit+1);
     $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll();$hasMore=count($rows)>$limit;if($hasMore)array_pop($rows);
     $next=null;if($hasMore&&$rows)$next=feed_cursor_encode((int)$rows[count($rows)-1]['internal_id']);
@@ -107,6 +108,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $row['audio_url']=!empty($row['audio_commentary_path'])?evidence_url((string)$row['public_id'],'audio'):null;
         $row['media_url']=!empty($row['media_path'])?evidence_url((string)$row['public_id'],'media'):null;
         $row['context_url']=feed_context_url($row);
+        $row['integrity']=source_integrity_annotation_state($pdo,['id'=>(int)$row['internal_id'],'source_version_id'=>(int)$row['source_version_id'],'current_source_version_id'=>(int)$row['current_version_id']]);
         foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','is_self'] as $k)$row[$k]=(bool)$row[$k];
         unset($row['internal_id'],$row['screenshot_target_path'],$row['audio_commentary_path'],$row['media_path']);
     }unset($row);
@@ -139,10 +141,11 @@ function feed_toggle_source_follow(PDO $pdo,int $sourceId,int $userId): bool {
     $pdo->prepare('INSERT IGNORE INTO source_watches(source_id,user_id) VALUES(?,?)')->execute([$sourceId,$userId]);return true;
 }
 function feed_comments(PDO $pdo,string $annotationPublicId,?array $viewer): ?array {
-    $a=annotation_access($pdo,$annotationPublicId,$viewer);if(!$a||$a['status']!=='published')return null;$uid=(int)($viewer['id']??0);
+    $a=annotation_access($pdo,$annotationPublicId,$viewer);if(!$a||$a['status']!=='published')return null;$uid=(int)($viewer['id']??0);$admin=(($viewer['role']??'')==='admin');
     $block=$uid?" AND NOT EXISTS(SELECT 1 FROM blocks cb WHERE (cb.blocker_user_id=$uid AND cb.blocked_user_id=c.user_id) OR (cb.blocker_user_id=c.user_id AND cb.blocked_user_id=$uid))":'';
-    $q=$pdo->prepare("SELECT c.id,c.parent_comment_id,c.body,c.created_at,u.public_id author_public_id,u.username,u.display_name FROM comments c JOIN users u ON u.id=c.user_id WHERE c.annotation_id=?$block ORDER BY c.id ASC LIMIT 150");$q->execute([$a['id']]);
-    $rows=$q->fetchAll();foreach($rows as &$row){$row['id']=(string)$row['id'];$row['parent_comment_id']=$row['parent_comment_id']!==null?(string)$row['parent_comment_id']:null;}unset($row);
+    $moderation=$admin?'':($uid?" AND (COALESCE(c.moderation_status,'visible')='visible' OR c.user_id=$uid)":" AND COALESCE(c.moderation_status,'visible')='visible'");
+    $q=$pdo->prepare("SELECT c.id,c.public_id,c.user_id,c.parent_comment_id,c.body,c.moderation_status,c.created_at,u.public_id author_public_id,u.username,u.display_name FROM comments c JOIN users u ON u.id=c.user_id WHERE c.annotation_id=?$block$moderation ORDER BY c.id ASC LIMIT 150");$q->execute([$a['id']]);
+    $rows=$q->fetchAll();foreach($rows as &$row){$row['id']=(string)$row['id'];$row['parent_comment_id']=$row['parent_comment_id']!==null?(string)$row['parent_comment_id']:null;$row['restricted']=($row['moderation_status']??'visible')!=='visible';if($row['restricted']&&!$admin&&(int)$uid!==(int)($row['user_id']??0))$row['body']='';unset($row['user_id']);}unset($row);
     return ['annotation'=>$a,'comments'=>$rows];
 }
 function feed_create_comment(PDO $pdo,array $user,string $annotationPublicId,string $body,?int $parentId=null): array {
@@ -150,14 +153,16 @@ function feed_create_comment(PDO $pdo,array $user,string $annotationPublicId,str
     $a=annotation_access($pdo,$annotationPublicId,$user);if(!$a||$a['status']!=='published')throw new RuntimeException('Annotation not found.');
     if(is_blocked($pdo,(int)$user['id'],(int)$a['user_id']))throw new RuntimeException('Commenting is unavailable for this annotation.');
     $parentUserId=null;if($parentId){
-        $q=$pdo->prepare('SELECT user_id FROM comments WHERE id=? AND annotation_id=?');$q->execute([$parentId,$a['id']]);$parentUserId=$q->fetchColumn();
+        $q=$pdo->prepare("SELECT user_id FROM comments WHERE id=? AND annotation_id=? AND COALESCE(moderation_status,'visible')<>'removed'");$q->execute([$parentId,$a['id']]);$parentUserId=$q->fetchColumn();
         if($parentUserId===false)throw new InvalidArgumentException('Reply target is not part of this discussion.');
     }
-    $pdo->prepare('INSERT INTO comments(annotation_id,user_id,parent_comment_id,body) VALUES(?,?,?,?)')->execute([$a['id'],$user['id'],$parentId,$body]);$id=(int)$pdo->lastInsertId();if(function_exists('live_event_emit_for_annotation'))live_event_emit_for_annotation($pdo,(int)$a['id'],'comment',$id);
-    if((int)$a['user_id']!==(int)$user['id'])notify_user($pdo,(int)$a['user_id'],(int)$user['id'],'comment','annotation',$a['public_id'],$user['display_name'].' commented on your annotation.');
-    if($parentUserId!==null&&(int)$parentUserId!==(int)$user['id']&&(int)$parentUserId!==(int)$a['user_id'])notify_user($pdo,(int)$parentUserId,(int)$user['id'],'comment_reply','annotation',$a['public_id'],$user['display_name'].' replied to your comment.');
-    $q=$pdo->prepare('SELECT COUNT(*) FROM comments WHERE annotation_id=?');$q->execute([$a['id']]);
-    return ['id'=>(string)$id,'comment_count'=>(int)$q->fetchColumn()];
+    $commentPublic=ulid_like();$pdo->prepare('INSERT INTO comments(public_id,annotation_id,user_id,parent_comment_id,body) VALUES(?,?,?,?,?)')->execute([$commentPublic,$a['id'],$user['id'],$parentId,$body]);$id=(int)$pdo->lastInsertId();if(function_exists('live_event_emit_for_annotation'))live_event_emit_for_annotation($pdo,(int)$a['id'],'comment',$id);
+    $sq=$pdo->prepare('SELECT public_id FROM sources WHERE id=?');$sq->execute([$a['source_id']]);$sourcePublic=(string)($sq->fetchColumn()?:'');
+    $context=['annotation_public_id'=>$a['public_id'],'conversation_public_id'=>$a['public_id'],'comment_public_id'=>$commentPublic,'source_public_id'=>$sourcePublic];
+    if((int)$a['user_id']!==(int)$user['id'])notify_user($pdo,(int)$a['user_id'],(int)$user['id'],'comment','annotation',$a['public_id'],$user['display_name'].' commented on your annotation.',['dedupe_key'=>'comment:'.$commentPublic.':author','group_key'=>'conversation:'.$a['public_id'],'context'=>$context]);
+    if($parentUserId!==null&&(int)$parentUserId!==(int)$user['id']&&(int)$parentUserId!==(int)$a['user_id'])notify_user($pdo,(int)$parentUserId,(int)$user['id'],'comment_reply','annotation',$a['public_id'],$user['display_name'].' replied to your comment.',['dedupe_key'=>'comment:'.$commentPublic.':reply','group_key'=>'conversation:'.$a['public_id'],'context'=>$context]);
+    $q=$pdo->prepare("SELECT COUNT(*) FROM comments WHERE annotation_id=? AND COALESCE(moderation_status,'visible')='visible'");$q->execute([$a['id']]);
+    return ['id'=>(string)$id,'public_id'=>$commentPublic,'comment_count'=>(int)$q->fetchColumn()];
 }
 function feed_mark_read(PDO $pdo,array $viewer,array $publicIds): int {
     $ids=array_values(array_unique(array_filter(array_map(fn($v)=>trim((string)$v),$publicIds))));$ids=array_slice($ids,0,50);$marked=0;

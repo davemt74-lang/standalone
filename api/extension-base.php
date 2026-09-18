@@ -46,7 +46,7 @@ if($action==='follow'){
     if(is_blocked($pdo,(int)$u['id'],$target))json_response(['ok'=>false,'error'=>['code'=>'BLOCKED']],403);
     $q=$pdo->prepare('SELECT 1 FROM follows WHERE follower_user_id=? AND followed_user_id=?');$q->execute([$u['id'],$target]);
     if($q->fetchColumn()){$pdo->prepare('DELETE FROM follows WHERE follower_user_id=? AND followed_user_id=?')->execute([$u['id'],$target]);$following=false;}
-    else{$pdo->prepare('INSERT INTO follows(follower_user_id,followed_user_id) VALUES(?,?)')->execute([$u['id'],$target]);$following=true;notify_user($pdo,$target,(int)$u['id'],'new_follower','user',$u['public_id'],$u['display_name'].' followed you.');}
+    else{$pdo->prepare('INSERT INTO follows(follower_user_id,followed_user_id) VALUES(?,?)')->execute([$u['id'],$target]);$following=true;notify_user($pdo,$target,(int)$u['id'],'new_follower','user',$u['public_id'],$u['display_name'].' followed you.',['dedupe_key'=>'follow:'.$u['id'].':'.$target,'group_key'=>'follows','context'=>['actor_public_id'=>$u['public_id']]]);}
     json_response(['ok'=>true,'data'=>['following'=>$following]]);
 }
 
@@ -61,8 +61,8 @@ if($action==='save'){
 if($action==='comment'){
     $u=require_api_mutation_auth($pdo);$body=trim((string)($input['body']??''));if($body===''||mb_strlen($body)>5000)json_response(['ok'=>false,'error'=>['code'=>'INVALID_COMMENT']],422);
     $a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);if(is_blocked($pdo,(int)$u['id'],(int)$a['user_id']))json_response(['ok'=>false,'error'=>['code'=>'BLOCKED']],403);
-    $pdo->prepare('INSERT INTO comments(annotation_id,user_id,body) VALUES(?,?,?)')->execute([$a['id'],$u['id'],$body]);
-    if((int)$a['user_id']!==(int)$u['id'])notify_user($pdo,(int)$a['user_id'],(int)$u['id'],'comment','annotation',$a['public_id'],$u['display_name'].' commented on your annotation.');
+    $commentPublic=ulid_like();$pdo->prepare('INSERT INTO comments(public_id,annotation_id,user_id,body) VALUES(?,?,?,?)')->execute([$commentPublic,$a['id'],$u['id'],$body]);
+    if((int)$a['user_id']!==(int)$u['id'])notify_user($pdo,(int)$a['user_id'],(int)$u['id'],'comment','annotation',$a['public_id'],$u['display_name'].' commented on your annotation.',['dedupe_key'=>'comment:'.$commentPublic.':author','group_key'=>'conversation:'.$a['public_id'],'context'=>['annotation_public_id'=>$a['public_id'],'conversation_public_id'=>$a['public_id'],'comment_public_id'=>$commentPublic]]);
     json_response(['ok'=>true,'data'=>['created'=>true]],201);
 }
 

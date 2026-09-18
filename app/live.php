@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/notifications.php';
 
 function live_client_session_id(string $value): string {
     $value=trim($value);
@@ -89,6 +90,12 @@ function live_message_create(PDO $pdo,array $viewer,array $room,string $body,?fl
     $identity=live_identity_mode($viewer,$room,$reveal);$alias=$identity==='cloaked'?live_session_alias($pdo,$uid,$clientSessionId):null;$publicId=ulid_like();
     $pdo->prepare('INSERT INTO live_messages(public_id,source_id,user_id,room_type,team_id,project_id,parent_message_id,identity_mode,cloak_alias,client_message_id,body,source_timestamp_seconds) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
         ->execute([$publicId,$room['source_id'],$uid,$room['room_type'],$room['team_id'],$room['project_id'],$parentId,$identity,$alias,$clientMessageId,$body,$timestamp]);
+    $roomKey=$room['room_type'].':'.($room['room_public_id']?:$room['source']['public_id']);$context=['source_public_id'=>$room['source']['public_id'],'live_room_key'=>$roomKey,'room_type'=>$room['room_type'],'room_id'=>$room['room_public_id']];
+    $notified=[];
+    if($parentId&&!empty($parent['user_id'])&&(int)$parent['user_id']!==$uid){$target=(int)$parent['user_id'];if(notification_create($pdo,$target,$uid,'live_reply','live_message',$publicId,'Someone replied to your Live message.',['category'=>'live','dedupe_key'=>'live-reply:'.$publicId.':'.$target,'group_key'=>'live-room:'.$roomKey,'context'=>$context]))$notified[$target]=true;}
+    if(preg_match_all('/@([A-Za-z0-9_]{2,50})/u',$body,$matches)){
+        foreach(array_unique($matches[1]) as $username){$uq=$pdo->prepare("SELECT * FROM users WHERE username=? AND status='active' LIMIT 1");$uq->execute([$username]);$targetUser=$uq->fetch();if(!$targetUser||(int)$targetUser['id']===$uid||isset($notified[(int)$targetUser['id']]))continue;$targetRoom=live_room_scope($pdo,$targetUser,(string)$room['source']['public_id'],(string)$room['room_type'],$room['room_public_id'],false);if(!$targetRoom)continue;$target=(int)$targetUser['id'];if(notification_create($pdo,$target,$uid,'live_mention','live_message',$publicId,'You were mentioned in a Live room.',['category'=>'live','dedupe_key'=>'live-mention:'.$publicId.':'.$target,'group_key'=>'live-room:'.$roomKey,'context'=>$context]))$notified[$target]=true;}
+    }
     return ['created'=>true,'deduplicated'=>false,'public_id'=>$publicId];
 }
 function live_message_access(PDO $pdo,array $viewer,array $room,string $publicId): ?array {
