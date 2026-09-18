@@ -33,6 +33,7 @@ function annotation_access(PDO $pdo,string $publicId,?array $viewer): ?array {
 }
 function source_access(PDO $pdo,string $publicId,?array $viewer): ?array {
     $q=$pdo->prepare('SELECT * FROM sources WHERE public_id=?');$q->execute([$publicId]);$s=$q->fetch();if(!$s)return null;
+    if(($s['moderation_status']??'visible')==='restricted'&&(!$viewer||($viewer['role']??'')!=='admin'))return null;
     $q=$pdo->prepare("SELECT 1 FROM annotations WHERE source_id=? AND visibility='public' AND status='published' LIMIT 1");$q->execute([$s['id']]);
     if($q->fetchColumn())return $s;
     if(!$viewer)return null;$uid=(int)$viewer['id'];if(($viewer['role']??'')==='admin')return $s;
