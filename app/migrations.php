@@ -25,8 +25,77 @@ function migration_lock(PDO $pdo,int $seconds=10): void {
 function migration_unlock(PDO $pdo): void {
     try{$q=$pdo->query("SELECT RELEASE_LOCK('annotated_schema_upgrade')");if($q){$q->fetchColumn();$q->closeCursor();}}catch(Throwable $e){}
 }
+function migration_identifier(string $value): string {
+    $value=trim($value," \\t\\n\\r\\0\\x0B`");
+    if($value===''||!preg_match('/^[A-Za-z0-9_]+$/',$value))throw new RuntimeException('Unsupported migration identifier: '.$value);
+    return $value;
+}
+function migration_column_exists(PDO $pdo,string $table,string $column): bool {
+    $q=$pdo->prepare('SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=? AND column_name=? LIMIT 1');
+    $q->execute([$table,$column]);return (bool)$q->fetchColumn();
+}
+function migration_index_exists(PDO $pdo,string $table,string $index): bool {
+    $q=$pdo->prepare('SELECT 1 FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name=? AND index_name=? LIMIT 1');
+    $q->execute([$table,$index]);return (bool)$q->fetchColumn();
+}
+function migration_constraint_exists(PDO $pdo,string $table,string $constraint): bool {
+    $q=$pdo->prepare('SELECT 1 FROM information_schema.table_constraints WHERE table_schema=DATABASE() AND table_name=? AND constraint_name=? LIMIT 1');
+    $q->execute([$table,$constraint]);return (bool)$q->fetchColumn();
+}
+function migration_split_alter_clauses(string $body): array {
+    $out=[];$buf='';$depth=0;$quote=null;$len=strlen($body);
+    for($i=0;$i<$len;$i++){
+        $ch=$body[$i];
+        if($quote!==null){
+            $buf.=$ch;
+            if($quote==='`'){
+                if($ch==='`'){
+                    if($i+1<$len&&$body[$i+1]==='`'){$buf.=$body[++$i];continue;}
+                    $quote=null;
+                }
+            }elseif($ch===$quote){
+                if($i+1<$len&&$body[$i+1]===$quote){$buf.=$body[++$i];continue;}
+                if($i===0||$body[$i-1]!=='\\\\')$quote=null;
+            }
+            continue;
+        }
+        if($ch==='`'||$ch==="'"||$ch==='"'){$quote=$ch;$buf.=$ch;continue;}
+        if($ch==='('){$depth++;$buf.=$ch;continue;}
+        if($ch===')'){$depth=max(0,$depth-1);$buf.=$ch;continue;}
+        if($ch===','&&$depth===0){if(trim($buf)!=='')$out[]=trim($buf);$buf='';continue;}
+        $buf.=$ch;
+    }
+    if(trim($buf)!=='')$out[]=trim($buf);
+    return $out;
+}
+function migration_portable_alter(PDO $pdo,string $sql): ?string {
+    $statement=rtrim(trim($sql),"; \\t\\n\\r");
+    if(!preg_match('/^ALTER\\s+TABLE\\s+(`?[A-Za-z0-9_]+`?)\\s+(.+)$/is',$statement,$m))return null;
+    $tableRaw=$m[1];$table=migration_identifier($tableRaw);$clauses=migration_split_alter_clauses($m[2]);
+    $changed=false;$kept=[];
+    foreach($clauses as $clause){
+        if(preg_match('/^ADD\\s+COLUMN\\s+IF\\s+NOT\\s+EXISTS\\s+(`?[A-Za-z0-9_]+`?)\\s+(.+)$/is',$clause,$cm)){
+            $changed=true;$column=migration_identifier($cm[1]);if(migration_column_exists($pdo,$table,$column))continue;
+            $kept[]='ADD COLUMN '.$cm[1].' '.$cm[2];continue;
+        }
+        if(preg_match('/^ADD\\s+(?:(UNIQUE)\\s+)?(INDEX|KEY)\\s+IF\\s+NOT\\s+EXISTS\\s+(`?[A-Za-z0-9_]+`?)\\s*(.+)$/is',$clause,$im)){
+            $changed=true;$index=migration_identifier($im[3]);if(migration_index_exists($pdo,$table,$index))continue;
+            $kept[]='ADD '.($im[1]?'UNIQUE ':'').$im[2].' '.$im[3].' '.$im[4];continue;
+        }
+        if(preg_match('/^ADD\\s+CONSTRAINT\\s+(`?[A-Za-z0-9_]+`?)\\s+(.+)$/is',$clause,$fm)){
+            $changed=true;$constraint=migration_identifier($fm[1]);if(migration_constraint_exists($pdo,$table,$constraint))continue;
+            $kept[]=$clause;continue;
+        }
+        $kept[]=$clause;
+    }
+    if(!$changed)return null;
+    if(!$kept)return '';
+    return 'ALTER TABLE '.$tableRaw."\\n  ".implode(",\\n  ",$kept).';';
+}
 function migration_execute_statement(PDO $pdo,string $sql): void {
-    $verb=strtoupper((string)(preg_split('/\s+/',ltrim($sql),2)[0]??''));
+    $portable=migration_portable_alter($pdo,$sql);
+    if($portable!==null){if($portable==='')return;$sql=$portable;}
+    $verb=strtoupper((string)(preg_split('/\\s+/',ltrim($sql),2)[0]??''));
     if(in_array($verb,['SELECT','SHOW','DESCRIBE','DESC','EXPLAIN'],true)){
         $q=$pdo->query($sql);if($q){$q->fetchAll();$q->closeCursor();}return;
     }
