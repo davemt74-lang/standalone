@@ -69,8 +69,7 @@ function source_integrity_notify_event(PDO $pdo,int $eventId): int {
     $q=$pdo->prepare('SELECT sai.*,a.user_id,a.public_id annotation_public_id,a.visibility,a.team_id FROM source_annotation_impacts sai JOIN annotations a ON a.id=sai.annotation_id WHERE sai.source_change_event_id=?');$q->execute([$eventId]);$impacts=$q->fetchAll();
     $recipients=source_integrity_recipients($pdo,(int)$event['source_id'],$impacts);$sent=0;
     foreach($recipients as $userId){
-        $state=(string)($event['impact_type']?:'source_updated');$annotationPublic=null;
-        foreach($impacts as $i)if((int)$i['user_id']===(int)$userId&&source_integrity_priority($i['impact_type'])>source_integrity_priority($state)){$state=$i['impact_type'];$annotationPublic=$i['annotation_public_id'];}
+        $state=match((string)$event['change_type']){'unavailable'=>'source_unavailable','restored'=>'source_restored',default=>'source_updated'};$annotationPublic=null;
         foreach($impacts as $i)if((int)$i['user_id']===(int)$userId&&source_integrity_priority($i['impact_type'])>=source_integrity_priority($state)){$state=$i['impact_type'];$annotationPublic=$i['annotation_public_id'];}
         $label=source_integrity_label($state);$title=(string)($event['title']?:$event['domain']?:'a watched source');
         $body=$label.' on '.$title.'.'.((int)$event['affected_annotation_count']>0?' '.(int)$event['affected_annotation_count'].' annotation'.((int)$event['affected_annotation_count']===1?'':'s').' affected.':'');
@@ -91,5 +90,5 @@ function source_integrity_annotation_state(PDO $pdo,array $annotation): array {
 }
 function source_integrity_source_timeline(PDO $pdo,int $sourceId,int $limit=30): array {
     $q=$pdo->prepare('SELECT sce.*,pv.version_number previous_version_number,nv.version_number new_version_number FROM source_change_events sce LEFT JOIN source_versions pv ON pv.id=sce.previous_version_id JOIN source_versions nv ON nv.id=sce.new_version_id WHERE sce.source_id=? ORDER BY sce.id DESC LIMIT '.max(1,min(100,$limit)));$q->execute([$sourceId]);$rows=$q->fetchAll();
-    foreach($rows as &$r){$r['impact_type']=$r['impact_type']?:match($r['change_type']){'unavailable'=>'source_unavailable','restored'=>'source_restored',default=>($r['target_changed']?'passage_changed':'source_updated')};$r['label']=source_integrity_label($r['impact_type']);}unset($r);return $rows;
+    foreach($rows as &$r){$r['impact_type']=$r['impact_type']?:match($r['change_type']){'unavailable'=>'source_unavailable','restored'=>'source_restored',default=>($r['target_changed']?'passage_changed':'source_updated')};$r['label']=source_integrity_label($r['impact_type']);$r['previous_number']=$r['previous_version_number'];$r['new_number']=$r['new_version_number'];}unset($r);return $rows;
 }
