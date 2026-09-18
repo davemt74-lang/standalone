@@ -7,6 +7,8 @@ function phase6VisibilityBadge(a){
   return '<span class="visibilityBadge">Public</span>';
 }
 function phase6SourceBadge(a){
+  const integrity=a.integrity||null;
+  if(integrity?.label)return '<span class="badge sourceChange '+(['passage_missing','passage_changed','source_unavailable'].includes(integrity.impact_type)?'warn':'')+'">'+esc(integrity.label)+'</span>';
   if(!a.source_changed)return '';
   const label=a.source_status==='edited'?'Source edited':a.source_status==='updated'?'Source updated':'Source changed';
   return '<span class="badge sourceChange">'+esc(label)+'</span>';
@@ -45,6 +47,7 @@ function phase6AnnotationCard(a){
       <button data-action="source" data-source="${esc(a.source_public_id)}">Source</button>
       <button data-action="source-follow" data-source="${esc(a.source_public_id)}">${sourceFollow}</button>
       <button data-action="open">Annotation</button>
+      <button data-action="report">Report</button>
       ${a.start_seconds!==null&&a.start_seconds!==undefined?'<button data-action="seek" data-time="'+Number(a.start_seconds)+'">Jump here</button>':''}
     </div>
     <div class="thread" hidden><div class="threadBody"></div>
@@ -143,14 +146,15 @@ async function phase6CardAction(e){
     if(action==='save'){if(!token){await connect();if(!token)return;}const j=await api('/api/extension.php?action=save',{method:'POST',body:JSON.stringify({annotation_id:id})});b.textContent=j.data.saved?'Saved':'Save';return;}
     if(action==='research')return openResearch(id);
     if(action==='open')return chrome.tabs.create({url:API_BASE+'/annotation.php?id='+encodeURIComponent(id)});
+    if(action==='report')return reportObject('annotation',id);
     if(action==='source')return chrome.tabs.create({url:API_BASE+'/source.php?id='+encodeURIComponent(b.dataset.source)});
     if(action==='seek'){const tab=await activeTab();if(tab?.id)await chrome.tabs.sendMessage(tab.id,{type:'annotated:seek',time:Number(b.dataset.time)});return;}
   }catch(err){alert(err.message);}
 }
 async function phase6SwitchTab(btn){
-  $$('nav button').forEach(x=>x.classList.toggle('active',x===btn));$$('main>section').forEach(s=>s.hidden=s.id!==btn.dataset.tab);
+  $('nav button').forEach(x=>x.classList.toggle('active',x===btn));$('main>section').forEach(s=>s.hidden=s.id!==btn.dataset.tab);
   if(btn.dataset.tab==='following')phase6LoadFollowing(true);
-  if(btn.dataset.tab==='live'){loadLiveTeams();loadLive();clearInterval(liveTimer);liveTimer=setInterval(loadLive,4000);}else{clearInterval(liveTimer);liveTimer=null;}
+  if(btn.dataset.tab==='live')await startLive();else stopLivePoll();
   if(btn.dataset.tab==='research')loadProjects();
 }
 function phase6SetupInfiniteScroll(){
