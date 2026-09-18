@@ -74,7 +74,15 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
         $q=$pdo->prepare('SELECT reported_by_user_id FROM moderation_reports WHERE public_id=?');$q->execute([$public]);$owner=(int)($q->fetchColumn()?:0);
         return ($viewer['role']??'')==='admin'||$owner===(int)$viewer['id'];
     }
-    if($type==='research_report'&&function_exists('research_report_access'))return research_report_access($pdo,$public,$viewer)!==null;
+    if($type==='research_report'){
+        $q=$pdo->prepare("SELECT rr.visibility,rp.owner_user_id,rp.team_id FROM research_reports rr JOIN research_projects rp ON rp.id=rr.project_id WHERE rr.public_id=? AND rr.status='published' LIMIT 1");$q->execute([$public]);$r=$q->fetch();if(!$r)return false;if($r['visibility']==='public')return true;
+        if(($viewer['role']??'')==='admin'||(int)$r['owner_user_id']===(int)$viewer['id'])return true;if(!$r['team_id'])return false;
+        $sql=$r['visibility']==='team'?'SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1':"SELECT 1 FROM team_members WHERE team_id=? AND user_id=? AND role IN ('owner','admin') LIMIT 1";$q=$pdo->prepare($sql);$q->execute([$r['team_id'],$viewer['id']]);return (bool)$q->fetchColumn();
+    }
+    if($type==='live_message'){
+        $q=$pdo->prepare('SELECT lm.source_id,lm.room_type,t.public_id team_public_id,rp.public_id project_public_id,s.public_id source_public_id FROM live_messages lm JOIN sources s ON s.id=lm.source_id LEFT JOIN teams t ON t.id=lm.team_id LEFT JOIN research_projects rp ON rp.id=lm.project_id WHERE lm.public_id=? LIMIT 1');$q->execute([$public]);$m=$q->fetch();if(!$m)return false;
+        $roomId=$m['room_type']==='team'?$m['team_public_id']:($m['room_type']==='project'?$m['project_public_id']:null);return function_exists('live_room_scope')&&live_room_scope($pdo,$viewer,(string)$m['source_public_id'],(string)$m['room_type'],$roomId,false)!==null;
+    }
     return true;
 }
 function notification_url(PDO $pdo,array $viewer,array $n): ?string {
@@ -87,13 +95,16 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
     if($type==='rights_claim')return '/claim-status.php?id='.rawurlencode($public);
     if($type==='moderation_report')return '/report-status.php?id='.rawurlencode($public);
     if($type==='research_report')return '/research-report.php?id='.rawurlencode($public);
+    if($type==='live_message'){
+        $q=$pdo->prepare('SELECT s.public_id source_public_id,lm.room_type,t.public_id team_public_id,rp.public_id project_public_id FROM live_messages lm JOIN sources s ON s.id=lm.source_id LEFT JOIN teams t ON t.id=lm.team_id LEFT JOIN research_projects rp ON rp.id=lm.project_id WHERE lm.public_id=?');$q->execute([$public]);$m=$q->fetch();if(!$m)return null;$url='/live.php?id='.rawurlencode((string)$m['source_public_id']).'&room_type='.rawurlencode((string)$m['room_type']);$roomId=$m['room_type']==='team'?$m['team_public_id']:($m['room_type']==='project'?$m['project_public_id']:null);if($roomId)$url.='&room_id='.rawurlencode((string)$roomId);return $url.'#message-'.rawurlencode($public);
+    }
     return null;
 }
 function notification_rows(PDO $pdo,array $viewer,int $limit=200,bool $unreadOnly=false): array {
     $limit=max(1,min(300,$limit));$sql='SELECT * FROM notifications WHERE user_id=? AND archived_at IS NULL'.($unreadOnly?' AND read_at IS NULL':'').' ORDER BY created_at DESC,id DESC LIMIT '.$limit;
     $q=$pdo->prepare($sql);$q->execute([$viewer['id']]);$rows=[];$groups=[];
     foreach($q->fetchAll() as $n){
-        if(!notification_object_access($pdo,$viewer,$n))continue;$n['url']=notification_url($pdo,$viewer,$n);$n['context']=json_decode((string)($n['context_json']??''),true)?:[];
+        if(!notification_object_access($pdo,$viewer,$n))continue;$n['url']=notification_url($pdo,$viewer,$n);$n['context']=json_decode((string)($n['context_json']??''),true)?:[];unset($n['id'],$n['user_id'],$n['actor_user_id'],$n['dedupe_key'],$n['context_json'],$n['group_key']);
         $key=(string)($n['group_key']?:$n['public_id']);
         if(isset($groups[$key])){$groups[$key]['group_count']++;if(!$n['read_at'])$groups[$key]['unread_count']++;continue;}
         $n['group_count']=1;$n['unread_count']=$n['read_at']?0:1;$groups[$key]=$n;
