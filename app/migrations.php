@@ -90,7 +90,7 @@ function migration_portable_alter(PDO $pdo,string $sql): ?string {
     }
     if(!$changed)return null;
     if(!$kept)return '';
-    return 'ALTER TABLE '.$tableRaw."\\n  ".implode(",\\n  ",$kept).';';
+    return 'ALTER TABLE '.$tableRaw."\n  ".implode(",\n  ",$kept).';';
 }
 function migration_execute_statement(PDO $pdo,string $sql): void {
     $portable=migration_portable_alter($pdo,$sql);
