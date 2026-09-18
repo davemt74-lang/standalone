@@ -17,8 +17,9 @@ function presence_identity_visible(PDO $pdo,int $viewerUserId,int $subjectUserId
 }
 function annotation_access(PDO $pdo,string $publicId,?array $viewer): ?array {
     $uid=(int)($viewer['id']??0);$admin=(($viewer['role']??'')==='admin');
-    $q=$pdo->prepare('SELECT id,public_id,user_id,source_id,source_version_id,capture_id,visibility,team_id,status FROM annotations WHERE public_id=? LIMIT 1');
+    $q=$pdo->prepare("SELECT a.id,a.public_id,a.user_id,a.source_id,a.source_version_id,a.capture_id,a.visibility,a.team_id,a.status,COALESCE(s.moderation_status,'visible') source_moderation_status FROM annotations a JOIN sources s ON s.id=a.source_id WHERE a.public_id=? LIMIT 1");
     $q->execute([$publicId]);$a=$q->fetch();if(!$a)return null;
+    if($a['source_moderation_status']==='restricted'&&!$admin)return null;
     if($a['status']==='published'&&$a['visibility']==='public')return $a;
     if(!$viewer)return null;
     if($admin||(int)$a['user_id']===$uid)return $a;
