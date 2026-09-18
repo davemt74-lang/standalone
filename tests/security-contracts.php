@@ -112,6 +112,23 @@ $need('live.php','Cache-Control: private, no-store','Website Live must not be sh
 $need('live.php','noindex,nofollow','Authenticated Live pages must not be indexed.');
 $phase8Migration=(string)file_get_contents($root.'/database/migrations/20260917_014_live_rooms_cloak.sql');foreach(['uq_live_presence_client','uq_live_client_message'] as $needle)if(!str_contains($phase8Migration,$needle))$fail[]="Phase 8 idempotency/session migration contract missing: $needle";
 
+
+$need('app/notifications.php','notification_object_access($pdo,$viewer,$n)','Notification delivery must revalidate object access at read time.');
+$need('app/notifications.php','is_blocked($pdo,$userId,$actorUserId)','Notification creation must suppress blocked actors.');
+$need('app/notifications.php','notification_is_muted','Notification creation must enforce user mutes server-side.');
+$need('app/notifications.php','dedupe_key','Notifications must support server-side deduplication.');
+$avoid('api/extension-trust.php',"SELECT * FROM notifications",'Extension notification delivery must use centralized access-aware notification services.');
+$need('api/extension-trust.php','notification_rows($pdo,$u','Extension notification reads must use centralized access-aware delivery.');
+$need('app/source-integrity.php','source_annotation_impacts','Source integrity must persist per-annotation impact state.');
+$need('app/source-integrity.php',"'passage_missing'",'Source integrity must distinguish missing referenced passages.');
+$need('app/source-integrity.php',"'source_unavailable'",'Source integrity must distinguish source outages.');
+$need('app/moderation.php','moderation_target($pdo','Moderation reports must resolve targets through centralized visibility checks.');
+$need('app/moderation.php','moderation_action_record','Moderator decisions must create immutable audit actions.');
+$need('app/moderation.php','tracking_token_hash','Anonymous claim tracking must store only a token hash.');
+$need('app/moderation.php','hash_equals','Claim tracking token comparison must be timing-safe.');
+$need('app/access.php',"source_moderation_status")==false?$fail[]='Annotation access must inherit source moderation restriction.':null;
+foreach(['notifications.php','settings.php','claim-status.php','report-status.php','admin/moderation.php'] as $file)$need($file,'Cache-Control: private, no-store',"Phase 9 private workflow must not be shared-cached: $file");
+
 $avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
 $need('app/ai-access.php',"admin_enabled",'Interactive Admin AI must honor the model admin_enabled flag.');
