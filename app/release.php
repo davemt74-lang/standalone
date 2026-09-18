@@ -38,6 +38,9 @@ function onboarding_status(PDO $pdo,array $user,bool $persistCompletion=true): a
 function onboarding_should_redirect(PDO $pdo,int $userId): bool {
     try{$q=$pdo->prepare('SELECT welcome_seen_at,dismissed_at,completed_at FROM user_onboarding WHERE user_id=?');$q->execute([$userId]);$row=$q->fetch();return $row&&!$row['welcome_seen_at']&&!$row['dismissed_at']&&!$row['completed_at'];}catch(PDOException $e){return false;}
 }
+function onboarding_post_login_destination(PDO $pdo,int $userId): string {
+    $dest=post_login_destination();if($dest==='/'&&onboarding_should_redirect($pdo,$userId))return '/onboarding.php';return $dest;
+}
 
 function release_worker_heartbeat(PDO $pdo,string $worker,string $status='idle',string $message='',int $processed=0): void {
     if(!preg_match('/^[a-z0-9_\-]{2,64}$/',$worker))throw new InvalidArgumentException('Invalid worker name.');
