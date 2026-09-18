@@ -35,7 +35,7 @@ $pdo = new PDO($db['dsn'], $db['user'], $db['pass'], [
     PDO::ATTR_EMULATE_PREPARES => false,
 ]);
 require_once __DIR__ . '/installer.php';
-if(PHP_SAPI!=='cli'&&!installer_base_schema_ready($pdo,dirname(__DIR__).'/database/schema.sql')){
+if(PHP_SAPI!=='cli'&&!installer_table_exists($pdo,'users')){
     header('Location: /install.php');
     exit;
 }
