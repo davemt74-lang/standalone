@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';
-$viewer=current_user($pdo);$id=(string)($_GET['id']??'');$source=public_discovery_source($pdo,$id,$viewer);if(!$source){http_response_code(404);exit('Source not found.');}
+$viewer=current_user($pdo);$id=(string)($_GET['id']??'');if($viewer){header('Cache-Control: private, no-store');header('Vary: Cookie');}$source=public_discovery_source($pdo,$id,$viewer);if(!$source){http_response_code(404);exit('Source not found.');}
 $isPublic=(int)$source['public_annotation_count']>0;$title=(string)($source['title']?:$source['canonical_url']);
 $desc=public_discovery_meta_description('Annotations, preserved source versions, discussion, and provenance for '.$title.' on Annotated.');
 $canonical=public_discovery_absolute_url($config,'/source.php?id='.rawurlencode($source['public_id']));
