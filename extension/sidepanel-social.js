@@ -20,7 +20,42 @@ async function switchTab(btn){$$('nav button').forEach(x=>x.classList.toggle('ac
 async function loadProjects(){if(!token){$('#researchProjects').innerHTML='<div class="hint">Connect your account to use Research.</div>';return [];}try{const j=await api('/api/extension.php?action=research_projects');const ps=j.data.projects||[];$('#researchProjects').innerHTML=ps.length?ps.map(p=>`<div class="projectCard"><strong>${esc(p.title)}</strong></div>`).join(''):'<div class="hint">No projects yet. Create one on the Annotated website.</div>';return ps;}catch{return [];}}
 async function openResearch(annotationId){pendingResearchAnnotation=annotationId;const ps=await loadProjects();if(!ps.length)return;$('#projectSelect').innerHTML=ps.map(p=>`<option value="${esc(p.public_id)}">${esc(p.title)}</option>`).join('');$('#researchDialog').showModal();}
 async function confirmResearch(){if(!pendingResearchAnnotation)return;try{await api('/api/extension.php?action=research_add',{method:'POST',body:JSON.stringify({project_id:$('#projectSelect').value,annotation_id:pendingResearchAnnotation})});pendingResearchAnnotation=null;alert('Added to Research.');}catch(e){alert(e.message);}}
-function notificationHref(n){if(!n.object_public_id)return '';if(n.object_type==='annotation')return '/annotation.php?id='+encodeURIComponent(n.object_public_id)+'#discussion';if(n.object_type==='source')return '/source.php?id='+encodeURIComponent(n.object_public_id);if(n.object_type==='research_report')return '/research-report.php?id='+encodeURIComponent(n.object_public_id);return '';}
-async function loadNotifications(){if(!token){$('#notificationCount').textContent='';return;}try{const j=await api('/api/extension.php?action=notifications');const ns=j.data.notifications||[],unread=ns.filter(n=>!n.read_at).length;$('#notificationCount').textContent=unread?String(unread):'';$('#notificationList').innerHTML=ns.length?ns.map(n=>{const href=notificationHref(n);return `<div class="notification ${n.read_at?'':'unread'}" data-id="${n.id}"><strong>${esc(n.notification_type.replaceAll('_',' '))}</strong><div>${esc(n.body||'')}</div><div class="hint">${esc(n.created_at)}</div>${href?`<button type="button" data-notification-href="${esc(href)}">Open</button>`:''}</div>`;}).join(''):'<div class="hint">No notifications yet.</div>';}catch{}}
-async function markNotification(e){const row=e.target.closest('.notification');if(!row)return;try{if(!row.classList.contains('read')){await api('/api/extension.php?action=notification_read',{method:'POST',body:JSON.stringify({id:Number(row.dataset.id)})});row.classList.remove('unread');}const open=e.target.closest('[data-notification-href]');if(open)chrome.tabs.create({url:API_BASE+open.dataset.notificationHref});else await loadNotifications();}catch{}}
+function notificationHref(n){return n.url||'';}
+function notificationLabel(n){const label=String(n.notification_type||'notification').replaceAll('_',' ');return label.charAt(0).toUpperCase()+label.slice(1);}
+async function loadNotifications(){
+  if(!token){$('#notificationCount').textContent='';return;}
+  try{
+    const j=await api('/api/extension.php?action=notifications'),ns=j.data.notifications||[],unread=Number(j.data.unread_count||0);
+    $('#notificationCount').textContent=unread?String(unread):'';
+    $('#notificationList').innerHTML=ns.length?ns.map(n=>{
+      const href=notificationHref(n),count=Number(n.group_count||1);
+      const scope=n.context?.source_public_id?'source':(n.context?.conversation_public_id?'conversation':'');
+      const scopeId=n.context?.source_public_id||n.context?.conversation_public_id||'';
+      let actions='';
+      if(href)actions+='<button type="button" data-notification-action="open" data-notification-href="'+esc(href)+'">Open</button>';
+      if(!n.read_at)actions+='<button type="button" data-notification-action="read">Mark read</button>';
+      actions+='<button type="button" data-notification-action="archive">Archive</button>';
+      if(scope)actions+='<button type="button" data-notification-action="mute" data-scope-type="'+esc(scope)+'" data-scope-id="'+esc(scopeId)+'" data-category="'+esc(n.category||'all')+'">Mute</button>';
+      return '<div class="notification '+(n.read_at?'':'unread')+'" data-id="'+esc(n.public_id)+'"><div class="notificationHead"><strong>'+esc(notificationLabel(n))+'</strong>'+(count>1?'<span class="badge">'+count+'</span>':'')+'</div><div>'+esc(n.body||'')+'</div><div class="hint">'+esc(n.created_at)+'</div><div class="notificationActions">'+actions+'</div></div>';
+    }).join(''):'<div class="hint">No notifications yet.</div>';
+  }catch(e){$('#notificationList').innerHTML='<div class="hint">Unable to load notifications.</div>';}
+}
+async function markNotification(e){
+  const row=e.target.closest('.notification'),btn=e.target.closest('[data-notification-action]');if(!row||!btn)return;
+  const id=row.dataset.id,action=btn.dataset.notificationAction;
+  try{
+    if(action==='open'){if(!row.classList.contains('read'))await api('/api/extension.php?action=notification_read',{method:'POST',body:JSON.stringify({notification_id:id})});chrome.tabs.create({url:API_BASE+btn.dataset.notificationHref});return;}
+    if(action==='read')await api('/api/extension.php?action=notification_read',{method:'POST',body:JSON.stringify({notification_id:id})});
+    if(action==='archive')await api('/api/extension.php?action=notification_archive',{method:'POST',body:JSON.stringify({notification_id:id})});
+    if(action==='mute'){if(!confirm('Mute similar notifications from this scope?'))return;await api('/api/extension.php?action=notification_mute',{method:'POST',body:JSON.stringify({scope_type:btn.dataset.scopeType,scope_id:btn.dataset.scopeId,category:btn.dataset.category||'all',muted:true})});}
+    await loadNotifications();
+  }catch(err){alert(err.message);}
+}
+async function markAllNotificationsRead(){try{await api('/api/extension.php?action=notification_read_all',{method:'POST',body:'{}'});await loadNotifications();}catch(e){alert(e.message);}}
+async function reportObject(objectType,objectId){
+  if(!token){await connect();if(!token)return;}
+  const reason=prompt('Report reason (spam, harassment, impersonation, misleading_context, privacy, illegal_content, other):','other');if(reason===null)return;
+  const description=prompt('Optional details:','')||'';
+  try{const j=await api('/api/extension.php?action=report',{method:'POST',body:JSON.stringify({object_type:objectType,object_id:objectId,reason:reason.trim()||'other',description})});alert(j.data.created?'Report submitted for review.':'You already have an open report for this item and reason.');}catch(e){alert(e.message);}
+}
 async function cardAction(e){const b=e.target.closest('button[data-action]');if(!b)return;const card=b.closest('.annotationCard'),id=card?.dataset.id;try{if(b.dataset.action==='follow'){if(!token){await connect();if(!token)return;}const j=await api('/api/extension.php?action=follow',{method:'POST',body:JSON.stringify({user_id:b.dataset.user})});b.textContent=j.data.following?'Following':'Follow';}else if(b.dataset.action==='save'){if(!token){await connect();if(!token)return;}const j=await api('/api/extension.php?action=save',{method:'POST',body:JSON.stringify({annotation_id:id})});b.textContent=j.data.saved?'Saved':'Save';}else if(b.dataset.action==='comment'){if(!token){await connect();if(!token)return;}const body=prompt('Comment on this annotation:');if(body){await api('/api/extension.php?action=comment',{method:'POST',body:JSON.stringify({annotation_id:id,body})});await loadThisPage();}}else if(b.dataset.action==='research')await openResearch(id);else if(b.dataset.action==='open')chrome.tabs.create({url:API_BASE+'/annotation.php?id='+encodeURIComponent(id)});else if(b.dataset.action==='source')chrome.tabs.create({url:API_BASE+'/source.php?id='+encodeURIComponent(b.dataset.source)});else if(b.dataset.action==='seek'){const tab=await activeTab();if(tab?.id)await chrome.tabs.sendMessage(tab.id,{type:'annotated:seek',time:Number(b.dataset.time)});}}catch(err){alert(err.message);}}
