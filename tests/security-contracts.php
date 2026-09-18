@@ -82,6 +82,8 @@ $need('app/public-discovery.php',"a.visibility='public'",'Phase 7 Explore/Search
 $need('app/public-discovery.php',"rr.visibility='public'",'Phase 7 public Research discovery must exclude Team and Private reports.');
 $need('app/public-discovery.php','annotation_access($pdo,$publicId,$viewer)','Direct annotation pages must retain centralized viewer-scoped authorization.');
 $need('app/public-discovery.php','source_access($pdo,$publicId,$viewer)','Direct source pages must retain centralized viewer-scoped authorization.');
+$need('app/public-discovery.php','is_blocked($pdo,$uid','Phase 7 direct annotation discovery must reject blocked relationships.');
+$need('app/public-discovery.php','NOT EXISTS(SELECT 1 FROM blocks','Phase 7 signed-in Explore/Search must filter blocked relationships server-side.');
 $need('source.php','noindex,nofollow','Non-public source views must be marked noindex.');
 $need('annotation.php','noindex,nofollow','Non-public annotation views must be marked noindex.');
 $need('research-report.php','noindex,nofollow','Non-public Research report views must be marked noindex.');
