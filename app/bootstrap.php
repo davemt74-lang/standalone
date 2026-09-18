@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 $configFile = dirname(__DIR__) . '/config.php';
 if (!is_file($configFile)) {
-    http_response_code(503);
-    exit('Annotated is not configured. Copy config.example.php to config.php and configure the database.');
+    if(PHP_SAPI!=='cli'){header('Location: /install.php');exit;}
+    throw new RuntimeException('Annotated is not configured. Run the web installer first.');
 }
 $config = require $configFile;
 date_default_timezone_set('UTC');
