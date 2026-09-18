@@ -33,9 +33,3 @@ if($action==='research_projects'){
 if($action==='research_add'){
     $u=require_api_mutation_auth($pdo);$projectRow=project_access($pdo,(int)$u['id'],(string)($input['project_id']??''));$project=$projectRow&&project_can_write($projectRow)?(int)$projectRow['id']:0;$a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$project||!$a||$a['status']!=='published')json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);$pdo->prepare('INSERT IGNORE INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$project,$a['id'],$u['id']]);live_event_emit_research_add($pdo,$project,(int)$a['id'],(int)$u['id']);if((int)$a['user_id']!==(int)$u['id'])notify_user($pdo,(int)$a['user_id'],(int)$u['id'],'research_usage','annotation',$a['public_id'],$u['display_name'].' added your annotation to research.');json_response(['ok'=>true,'data'=>['added'=>true]]);
 }
-if($action==='notifications'){
-    $u=require_api_user($pdo);$q=$pdo->prepare('SELECT id,notification_type,object_type,object_public_id,body,read_at,created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100');$q->execute([$u['id']]);json_response(['ok'=>true,'data'=>['notifications'=>$q->fetchAll()]]);
-}
-if($action==='notification_read'){
-    $u=require_api_mutation_auth($pdo);$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()) WHERE user_id=? AND id=?')->execute([$u['id'],(int)($input['id']??0)]);json_response(['ok'=>true,'data'=>['read'=>true]]);
-}
