@@ -39,7 +39,7 @@ notification_create($pdo,$viewer['id'],$owner['id'],'team_annotation','annotatio
 p9(!in_array($annTeam['public_id'],array_column(notification_rows($pdo,$outsider,100,false),'object_public_id'),true),'Team notification is hidden from non-member');
 p9(in_array($annTeam['public_id'],array_column(notification_rows($pdo,$viewer,100,false),'object_public_id'),true),'Team notification is visible to current Team member');
 
-$newText='alpha bravo charlie revised material plus unrelated current source text';
+$newText='alpha bravo charlie revised material plus private secret passage and team secret passage plus unrelated current source text';
 $pdo->prepare('INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash) VALUES(?,2,?,?,?,?)')->execute([$sourceId,$source['canonical_url'],'Phase 9 Source',$newText,hash('sha256','v2')]);$v2=(int)$pdo->lastInsertId();$pdo->prepare("UPDATE sources SET current_version_id=?,status='edited' WHERE id=?")->execute([$v2,$sourceId]);
 $pdo->prepare("INSERT INTO source_change_events(source_id,previous_version_id,new_version_id,change_type,target_changed,diff_summary) VALUES(?,?,?,'edited',1,'Phase 9 change')")->execute([$sourceId,$v1,$v2]);$eventId=(int)$pdo->lastInsertId();
 $analysis=source_integrity_analyze_event($pdo,$eventId);p9($analysis['impact_type']==='passage_missing'&&$analysis['affected_annotation_count']===2,'source event records strongest impact and affected count');
