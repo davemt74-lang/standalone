@@ -32,10 +32,23 @@ function search_team_scope(PDO $pdo,?array $viewer,string $publicId): ?array {
 function search_project_scope(PDO $pdo,?array $viewer,string $publicId): ?array {
     if(!$viewer||$publicId==='')return null;return project_access($pdo,(int)$viewer['id'],$publicId);
 }
+function search_annotation_access_sql(?array $viewer,string $alias='a'): array {
+    $uid=(int)($viewer['id']??0);if(!$uid)return ["$alias.status='published' AND $alias.visibility='public'",[]];
+    $sql="$alias.status='published' AND (
+      $alias.visibility='public'
+      OR $alias.user_id=?
+      OR ($alias.visibility='team' AND $alias.team_id IS NOT NULL AND EXISTS(SELECT 1 FROM team_members stm WHERE stm.team_id=$alias.team_id AND stm.user_id=?))
+      OR EXISTS(SELECT 1 FROM project_annotations spa JOIN research_projects srp ON srp.id=spa.project_id LEFT JOIN team_members spm ON spm.team_id=srp.team_id AND spm.user_id=? WHERE spa.annotation_id=$alias.id AND (srp.owner_user_id=? OR spm.user_id IS NOT NULL))
+    )";
+    return [$sql,[$uid,$uid,$uid,$uid]];
+}
+function search_source_visible(PDO $pdo,string $publicId,?array $viewer): ?array {
+    $q=$pdo->prepare("SELECT * FROM sources WHERE public_id=? AND COALESCE(moderation_status,'visible')='visible' LIMIT 1");$q->execute([$publicId]);$s=$q->fetch();if(!$s)return null;[$access,$params]=search_annotation_access_sql($viewer,'a');$q=$pdo->prepare("SELECT 1 FROM annotations a WHERE a.source_id=? AND $access LIMIT 1");$q->execute(array_merge([$s['id']],$params));if($q->fetchColumn())return $s;if(!$viewer)return null;$uid=(int)$viewer['id'];$q=$pdo->prepare('SELECT 1 FROM project_sources ps JOIN research_projects rp ON rp.id=ps.project_id LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE ps.source_id=? AND (rp.owner_user_id=? OR tm.user_id IS NOT NULL) LIMIT 1');$q->execute([$uid,$s['id'],$uid]);return $q->fetchColumn()?$s:null;
+}
 function search_report_visible(PDO $pdo,array $report,?array $viewer): bool {
     if(($report['status']??'')!=='published')return false;
     if(($report['visibility']??'')==='public')return true;
-    if(!$viewer)return false;$uid=(int)$viewer['id'];if(($viewer['role']??'')==='admin'||(int)$report['created_by_user_id']===$uid||(int)($report['owner_user_id']??0)===$uid)return true;
+    if(!$viewer)return false;$uid=(int)$viewer['id'];if((int)$report['created_by_user_id']===$uid||(int)($report['owner_user_id']??0)===$uid)return true;
     $teamId=(int)($report['team_id']??0);if($teamId<1)return false;$q=$pdo->prepare('SELECT role FROM team_members WHERE team_id=? AND user_id=?');$q->execute([$teamId,$uid]);$role=$q->fetchColumn();if($role===false)return false;
     return $report['visibility']==='team'||in_array((string)$role,['owner','admin'],true);
 }
@@ -52,9 +65,9 @@ function search_unified(PDO $pdo,string $rawTerm,?array $viewer,array $rawFilter
     $like='%'.$term.'%';$prefix=mb_substr($term,0,max(2,min(5,mb_strlen($term)))).'%';$uid=(int)($viewer['id']??0);
     $team=$filters['team']!==''?search_team_scope($pdo,$viewer,$filters['team']):null;if($filters['team']!==''&&!$team)return $empty;
     $project=$filters['project']!==''?search_project_scope($pdo,$viewer,$filters['project']):null;if($filters['project']!==''&&!$project)return $empty;
-    $sourceFilter=null;if($filters['source']!==''){$sourceFilter=source_access($pdo,$filters['source'],$viewer);if(!$sourceFilter)return $empty;}
+    $sourceFilter=null;if($filters['source']!==''){$sourceFilter=search_source_visible($pdo,$filters['source'],$viewer);if(!$sourceFilter)return $empty;}
 
-    [$accessSql,$accessParams]=feed_access_sql($viewer,'a');$blockSql=feed_block_sql($viewer,'a.user_id');
+    [$accessSql,$accessParams]=search_annotation_access_sql($viewer,'a');$blockSql=feed_block_sql($viewer,'a.user_id');
     $where=["$accessSql","$blockSql","COALESCE(s.moderation_status,'visible')='visible'","(a.text_commentary LIKE ? OR c.selected_text LIKE ? OR t.raw_text LIKE ? OR t.edited_text LIKE ? OR s.title LIKE ? OR s.domain LIKE ?)"];
     $params=array_merge($accessParams,[$like,$like,$like,$like,$like,$like]);
     if($filters['domain']!==''){$where[]='s.domain=?';$params[]=$filters['domain'];}
@@ -74,9 +87,9 @@ function search_unified(PDO $pdo,string $rawTerm,?array $viewer,array $rawFilter
 
     $sources=[];$q=$pdo->prepare("SELECT s.id,s.public_id,s.title,s.domain,s.canonical_url,s.status,s.current_version_id FROM sources s WHERE COALESCE(s.moderation_status,'visible')='visible' AND (s.title LIKE ? OR s.domain LIKE ? OR s.canonical_url LIKE ? OR SOUNDEX(COALESCE(s.title,''))=SOUNDEX(?)) ORDER BY CASE WHEN s.title LIKE ? THEN 0 WHEN s.domain LIKE ? THEN 1 ELSE 2 END,s.id DESC LIMIT 80");$q->execute([$like,$like,$like,$term,$like,$prefix]);
     foreach($q->fetchAll() as $s){
-        $accessible=source_access($pdo,(string)$s['public_id'],$viewer);if(!$accessible)continue;if($filters['domain']!==''&&$s['domain']!==$filters['domain'])continue;if($sourceFilter&&(int)$s['id']!==(int)$sourceFilter['id'])continue;
+        $accessible=search_source_visible($pdo,(string)$s['public_id'],$viewer);if(!$accessible)continue;if($filters['domain']!==''&&$s['domain']!==$filters['domain'])continue;if($sourceFilter&&(int)$s['id']!==(int)$sourceFilter['id'])continue;
         if($project){$pq=$pdo->prepare('SELECT 1 FROM project_sources WHERE project_id=? AND source_id=? UNION SELECT 1 FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id WHERE pa.project_id=? AND a.source_id=? LIMIT 1');$pq->execute([$project['id'],$s['id'],$project['id'],$s['id']]);if(!$pq->fetchColumn())continue;}
-        [$ca,$cp]=feed_access_sql($viewer,'aa');$cq=$pdo->prepare("SELECT COUNT(*) FROM annotations aa WHERE aa.source_id=? AND $ca");$cq->execute(array_merge([$s['id']],$cp));$s['annotation_count']=(int)$cq->fetchColumn();unset($s['id'],$s['current_version_id']);$sources[]=$s;if(count($sources)>=24)break;
+        [$ca,$cp]=search_annotation_access_sql($viewer,'aa');$cq=$pdo->prepare("SELECT COUNT(*) FROM annotations aa WHERE aa.source_id=? AND $ca");$cq->execute(array_merge([$s['id']],$cp));$s['annotation_count']=(int)$cq->fetchColumn();unset($s['id'],$s['current_version_id']);$sources[]=$s;if(count($sources)>=24)break;
     }
 
     $people=[];$userBlock=$uid?" AND NOT EXISTS(SELECT 1 FROM blocks ub WHERE (ub.blocker_user_id=$uid AND ub.blocked_user_id=u.id) OR (ub.blocker_user_id=u.id AND ub.blocked_user_id=$uid))":'';
@@ -173,18 +186,18 @@ function search_discovery_entity(PDO $pdo,string $publicId,?array $viewer): ?arr
     $e['mentions']=$mentions;return $e;
 }
 function search_related_sources(PDO $pdo,string $sourcePublicId,?array $viewer,int $limit=8): array {
-    $source=source_access($pdo,$sourcePublicId,$viewer);if(!$source)return [];[$a1,$p1]=feed_access_sql($viewer,'a1');[$a2,$p2]=feed_access_sql($viewer,'a2');$b1=feed_block_sql($viewer,'a1.user_id');$b2=feed_block_sql($viewer,'a2.user_id');
+    $source=search_source_visible($pdo,$sourcePublicId,$viewer);if(!$source)return [];[$a1,$p1]=search_annotation_access_sql($viewer,'a1');[$a2,$p2]=search_annotation_access_sql($viewer,'a2');$b1=feed_block_sql($viewer,'a1.user_id');$b2=feed_block_sql($viewer,'a2.user_id');
     $sql="SELECT s2.public_id,s2.title,s2.domain,s2.canonical_url,COUNT(DISTINCT a2.user_id) shared_contributors FROM annotations a1 JOIN annotations a2 ON a2.user_id=a1.user_id AND a2.source_id<>a1.source_id JOIN sources s2 ON s2.id=a2.source_id WHERE a1.source_id=? AND $a1 AND $a2 AND $b1 AND $b2 AND COALESCE(s2.moderation_status,'visible')='visible' GROUP BY s2.id ORDER BY shared_contributors DESC,MAX(a2.published_at) DESC LIMIT 40";
     $q=$pdo->prepare($sql);$q->execute(array_merge([$source['id']],$p1,$p2));$out=[];foreach($q->fetchAll() as $r){if(source_access($pdo,(string)$r['public_id'],$viewer))$out[]=$r;if(count($out)>=$limit)break;}return $out;
 }
 function search_related_annotations(PDO $pdo,string $annotationPublicId,?array $viewer,int $limit=8): array {
-    $base=annotation_access($pdo,$annotationPublicId,$viewer);if(!$base)return [];[$access,$params]=feed_access_sql($viewer,'a');$block=feed_block_sql($viewer,'a.user_id');
+    $base=annotation_access($pdo,$annotationPublicId,$viewer);if(!$base)return [];[$access,$params]=search_annotation_access_sql($viewer,'a');$block=feed_block_sql($viewer,'a.user_id');
     $q=$pdo->prepare("SELECT DISTINCT a.id,a.public_id,a.text_commentary,a.published_at,u.username,u.display_name,s.public_id source_public_id,s.title source_title,s.domain,c.selected_text,a.source_version_id,s.current_version_id FROM annotations a JOIN users u ON u.id=a.user_id JOIN sources s ON s.id=a.source_id JOIN captures c ON c.id=a.capture_id WHERE a.id<>? AND a.source_id=? AND $access AND $block AND COALESCE(s.moderation_status,'visible')='visible' ORDER BY a.published_at DESC LIMIT 30");$q->execute(array_merge([$base['id'],$base['source_id']],$params));$rows=$q->fetchAll();
     try{$eq=$pdo->prepare("SELECT DISTINCT other.object_public_id FROM discovery_entity_mentions mine JOIN discovery_entity_mentions other ON other.entity_id=mine.entity_id AND other.object_type='annotation' WHERE mine.object_type='annotation' AND mine.object_public_id=? AND other.object_public_id<>? LIMIT 30");$eq->execute([$annotationPublicId,$annotationPublicId]);foreach($eq->fetchAll(PDO::FETCH_COLUMN) as $pid){$a=annotation_access($pdo,(string)$pid,$viewer);if(!$a)continue;$exists=false;foreach($rows as $r)if($r['public_id']===$pid){$exists=true;break;}if($exists)continue;$rq=$pdo->prepare('SELECT a.id,a.public_id,a.text_commentary,a.published_at,u.username,u.display_name,s.public_id source_public_id,s.title source_title,s.domain,c.selected_text,a.source_version_id,s.current_version_id FROM annotations a JOIN users u ON u.id=a.user_id JOIN sources s ON s.id=a.source_id JOIN captures c ON c.id=a.capture_id WHERE a.public_id=?');$rq->execute([$pid]);if($row=$rq->fetch())$rows[]=$row;}}catch(PDOException $e){}
     $out=[];foreach($rows as $r){$r['integrity']=source_integrity_annotation_state($pdo,['id'=>(int)$r['id'],'source_version_id'=>(int)$r['source_version_id'],'current_source_version_id'=>(int)$r['current_version_id']]);unset($r['id'],$r['source_version_id'],$r['current_version_id']);$out[]=$r;if(count($out)>=$limit)break;}return $out;
 }
 function search_recommendations(PDO $pdo,array $viewer,int $limit=12): array {
-    $uid=(int)$viewer['id'];[$access,$params]=feed_access_sql($viewer,'a');$block=feed_block_sql($viewer,'a.user_id');$sql="SELECT DISTINCT a.public_id,a.text_commentary,a.published_at,u.display_name,u.username,s.public_id source_public_id,s.title source_title,s.domain,c.selected_text FROM annotations a JOIN users u ON u.id=a.user_id JOIN sources s ON s.id=a.source_id JOIN captures c ON c.id=a.capture_id LEFT JOIN follows f ON f.followed_user_id=a.user_id AND f.follower_user_id=? LEFT JOIN source_watches sw ON sw.source_id=a.source_id AND sw.user_id=? WHERE $access AND $block AND COALESCE(s.moderation_status,'visible')='visible' AND a.user_id<>? AND (f.followed_user_id IS NOT NULL OR sw.source_id IS NOT NULL) ORDER BY a.published_at DESC LIMIT ".max(1,min(50,$limit));$q=$pdo->prepare($sql);$q->execute(array_merge([$uid,$uid],$params,[$uid]));return $q->fetchAll();
+    $uid=(int)$viewer['id'];[$access,$params]=search_annotation_access_sql($viewer,'a');$block=feed_block_sql($viewer,'a.user_id');$sql="SELECT DISTINCT a.public_id,a.text_commentary,a.published_at,u.display_name,u.username,s.public_id source_public_id,s.title source_title,s.domain,c.selected_text FROM annotations a JOIN users u ON u.id=a.user_id JOIN sources s ON s.id=a.source_id JOIN captures c ON c.id=a.capture_id LEFT JOIN follows f ON f.followed_user_id=a.user_id AND f.follower_user_id=? LEFT JOIN source_watches sw ON sw.source_id=a.source_id AND sw.user_id=? WHERE $access AND $block AND COALESCE(s.moderation_status,'visible')='visible' AND a.user_id<>? AND (f.followed_user_id IS NOT NULL OR sw.source_id IS NOT NULL) ORDER BY a.published_at DESC LIMIT ".max(1,min(50,$limit));$q=$pdo->prepare($sql);$q->execute(array_merge([$uid,$uid],$params,[$uid]));return $q->fetchAll();
 }
 function search_explore_intelligence(PDO $pdo,?array $viewer): array {
     $trending=$pdo->query("SELECT s.public_id,s.title,s.domain,COUNT(DISTINCT a.id) annotation_count,COUNT(DISTINCT c.id) comment_count,COUNT(DISTINCT a.user_id) contributor_count,MAX(a.published_at) last_activity FROM sources s JOIN annotations a ON a.source_id=s.id AND a.visibility='public' AND a.status='published' AND a.published_at>=DATE_SUB(NOW(),INTERVAL 7 DAY) LEFT JOIN comments c ON c.annotation_id=a.id AND COALESCE(c.moderation_status,'visible')='visible' WHERE COALESCE(s.moderation_status,'visible')='visible' GROUP BY s.id ORDER BY (COUNT(DISTINCT a.id)*3+COUNT(DISTINCT c.id)*2+COUNT(DISTINCT a.user_id)) DESC,last_activity DESC LIMIT 12")->fetchAll();
