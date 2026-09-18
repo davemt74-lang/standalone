@@ -46,11 +46,13 @@ function live_rooms_for_user(PDO $pdo,array $viewer): array {
 }
 function live_presence_cleanup(PDO $pdo): void {
     $pdo->exec("DELETE FROM live_presence_sessions WHERE last_seen_at<DATE_SUB(NOW(),INTERVAL 90 SECOND)");
+    $pdo->exec("DELETE p FROM live_presence_sessions p LEFT JOIN team_members tm ON tm.team_id=p.team_id AND tm.user_id=p.user_id WHERE p.room_type='team' AND (p.team_id IS NULL OR tm.user_id IS NULL)");
+    $pdo->exec("DELETE p FROM live_presence_sessions p LEFT JOIN research_projects rp ON rp.id=p.project_id LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=p.user_id WHERE p.room_type='project' AND (rp.id IS NULL OR (rp.owner_user_id<>p.user_id AND tm.user_id IS NULL))");
 }
 function live_presence_touch(PDO $pdo,array $viewer,array $room,string $clientSessionId,string $mode): array {
     $clientSessionId=live_client_session_id($clientSessionId);if(!in_array($mode,['visible','team_only','cloaked','off'],true))$mode='cloaked';$uid=(int)$viewer['id'];
     live_presence_cleanup($pdo);
-    $pdo->prepare('UPDATE users SET live_presence_mode=? WHERE id=?')->execute([$mode,$uid]);
+    $pdo->prepare('UPDATE users SET live_presence_mode=? WHERE id=?')->execute([$mode,$uid]);$pdo->prepare('UPDATE live_presence_sessions SET presence_mode=? WHERE user_id=?')->execute([$mode,$uid]);
     if($mode==='off'){$pdo->prepare('DELETE FROM live_presence_sessions WHERE user_id=? AND client_session_id=?')->execute([$uid,$clientSessionId]);return ['total'=>0,'visible'=>[],'cloaked'=>[],'following_visible'=>0,'mode'=>'off'];}
     $q=$pdo->prepare('SELECT cloak_alias FROM live_presence_sessions WHERE user_id=? AND client_session_id=? LIMIT 1');$q->execute([$uid,$clientSessionId]);$alias=(string)($q->fetchColumn()?:live_cloak_alias());
     $pdo->prepare("INSERT INTO live_presence_sessions(public_id,user_id,source_id,room_type,team_id,project_id,client_session_id,presence_mode,cloak_alias,last_seen_at) VALUES(?,?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE source_id=VALUES(source_id),room_type=VALUES(room_type),team_id=VALUES(team_id),project_id=VALUES(project_id),presence_mode=VALUES(presence_mode),cloak_alias=VALUES(cloak_alias),last_seen_at=NOW()")
@@ -58,7 +60,7 @@ function live_presence_touch(PDO $pdo,array $viewer,array $room,string $clientSe
     return live_presence_rows($pdo,$viewer,$room,$mode);
 }
 function live_presence_rows(PDO $pdo,array $viewer,array $room,string $viewerMode='cloaked'): array {
-    live_presence_cleanup($pdo);[$where,$params]=live_room_sql($room,'p');$sql="SELECT p.user_id,p.presence_mode,p.cloak_alias,u.public_id,u.username,u.display_name,EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=p.user_id) is_following FROM live_presence_sessions p JOIN users u ON u.id=p.user_id WHERE p.source_id=? AND $where AND p.last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND)";
+    live_presence_cleanup($pdo);[$where,$params]=live_room_sql($room,'p');$sql="SELECT p.user_id,u.live_presence_mode presence_mode,p.cloak_alias,u.public_id,u.username,u.display_name,EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=p.user_id) is_following FROM live_presence_sessions p JOIN users u ON u.id=p.user_id WHERE p.source_id=? AND $where AND p.last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND)";
     $q=$pdo->prepare($sql);$q->execute(array_merge([(int)$viewer['id'],(int)$room['source_id']],$params));$visible=[];$cloaked=[];$total=0;$following=0;$seenUsers=[];
     foreach($q->fetchAll() as $r){
         $subject=(int)$r['user_id'];if(isset($seenUsers[$subject])||is_blocked($pdo,(int)$viewer['id'],$subject))continue;$seenUsers[$subject]=1;$total++;
