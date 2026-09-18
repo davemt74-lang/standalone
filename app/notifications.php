@@ -104,8 +104,7 @@ function notification_rows(PDO $pdo,array $viewer,int $limit=200,bool $unreadOnl
     $limit=max(1,min(300,$limit));$sql='SELECT * FROM notifications WHERE user_id=? AND archived_at IS NULL'.($unreadOnly?' AND read_at IS NULL':'').' ORDER BY created_at DESC,id DESC LIMIT '.$limit;
     $q=$pdo->prepare($sql);$q->execute([$viewer['id']]);$rows=[];$groups=[];
     foreach($q->fetchAll() as $n){
-        if(!notification_object_access($pdo,$viewer,$n))continue;$n['url']=notification_url($pdo,$viewer,$n);$n['context']=json_decode((string)($n['context_json']??''),true)?:[];unset($n['id'],$n['user_id'],$n['actor_user_id'],$n['dedupe_key'],$n['context_json'],$n['group_key']);
-        $key=(string)($n['group_key']?:$n['public_id']);
+        if(!notification_object_access($pdo,$viewer,$n))continue;$n['url']=notification_url($pdo,$viewer,$n);$n['context']=json_decode((string)($n['context_json']??''),true)?:[];$key=(string)($n['group_key']?:$n['public_id']);unset($n['id'],$n['user_id'],$n['actor_user_id'],$n['dedupe_key'],$n['context_json'],$n['group_key']);
         if(isset($groups[$key])){$groups[$key]['group_count']++;if(!$n['read_at'])$groups[$key]['unread_count']++;continue;}
         $n['group_count']=1;$n['unread_count']=$n['read_at']?0:1;$groups[$key]=$n;
     }
@@ -116,11 +115,11 @@ function notification_unread_count(PDO $pdo,array $viewer): int {
 }
 function notification_mark_read(PDO $pdo,array $viewer,?string $publicId=null): int {
     if($publicId===null){$q=$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()) WHERE user_id=? AND archived_at IS NULL');$q->execute([$viewer['id']]);return $q->rowCount();}
-    $q=$pdo->prepare('SELECT group_key FROM notifications WHERE user_id=? AND public_id=? LIMIT 1');$q->execute([$viewer['id'],$publicId]);$group=$q->fetchColumn();if($group===false)return 0;
+    $q=$pdo->prepare('SELECT group_key FROM notifications WHERE user_id=? AND public_id=? LIMIT 1');$q->execute([$viewer['id'],$publicId]);$group=$q->fetchColumn();if($group===false)return 0;if($group===null){$q=$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()) WHERE user_id=? AND public_id=? AND archived_at IS NULL');$q->execute([$viewer['id'],$publicId]);return $q->rowCount();}
     $q=$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()) WHERE user_id=? AND group_key=? AND archived_at IS NULL');$q->execute([$viewer['id'],$group]);return $q->rowCount();
 }
 function notification_archive(PDO $pdo,array $viewer,string $publicId): bool {
-    $q=$pdo->prepare('SELECT group_key FROM notifications WHERE user_id=? AND public_id=? LIMIT 1');$q->execute([$viewer['id'],$publicId]);$group=$q->fetchColumn();if($group===false)return false;
+    $q=$pdo->prepare('SELECT group_key FROM notifications WHERE user_id=? AND public_id=? LIMIT 1');$q->execute([$viewer['id'],$publicId]);$group=$q->fetchColumn();if($group===false)return false;if($group===null){$q=$pdo->prepare('UPDATE notifications SET archived_at=COALESCE(archived_at,NOW()) WHERE user_id=? AND public_id=?');$q->execute([$viewer['id'],$publicId]);return $q->rowCount()>0;}
     $q=$pdo->prepare('UPDATE notifications SET archived_at=COALESCE(archived_at,NOW()) WHERE user_id=? AND group_key=?');$q->execute([$viewer['id'],$group]);return $q->rowCount()>0;
 }
 function notification_mute_set(PDO $pdo,array $viewer,string $scopeType,string $scopePublicId,string $category='all',bool $muted=true): bool {
