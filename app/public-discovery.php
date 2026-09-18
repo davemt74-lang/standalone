@@ -17,7 +17,7 @@ function public_discovery_annotation(PDO $pdo,string $publicId,?array $viewer): 
       at.status transcript_status,at.raw_text transcript_raw,at.edited_text transcript_edited,at.provider transcript_provider,at.model transcript_model,
       t.public_id team_public_id,t.name team_name
       $flags
-      FROM annotations a JOIN users u ON u.id=a.user_id JOIN sources s ON s.id=a.source_id AND COALESCE(s.moderation_status,'visible')='visible'
+      FROM annotations a JOIN users u ON u.id=a.user_id JOIN sources s ON s.id=a.source_id
       JOIN source_versions sv ON sv.id=a.source_version_id LEFT JOIN source_versions cv ON cv.id=s.current_version_id
       JOIN captures c ON c.id=a.capture_id LEFT JOIN media_derivatives md ON md.capture_id=c.id
       LEFT JOIN annotation_transcripts at ON at.annotation_id=a.id LEFT JOIN teams t ON t.id=a.team_id WHERE a.id=? LIMIT 1";
