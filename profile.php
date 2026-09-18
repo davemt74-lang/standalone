@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';
-$viewer=current_user($pdo);$username=trim((string)($_GET['u']??''));$p=$username!==''?public_discovery_profile($pdo,$username,$viewer):null;if(!$p){http_response_code(404);exit('Profile not found.');}
+$viewer=current_user($pdo);$username=trim((string)($_GET['u']??''));if($viewer){header('Cache-Control: private, no-store');header('Vary: Cookie');}$p=$username!==''?public_discovery_profile($pdo,$username,$viewer):null;if(!$p){http_response_code(404);exit('Profile not found.');}
 $owner=$viewer&&(int)$viewer['id']===(int)$p['id'];$isPublic=$p['profile_visibility']==='public';$desc=public_discovery_meta_description((string)($p['bio']?:$p['display_name'].' on Annotated'));
 $canonical=public_discovery_absolute_url($config,'/profile.php?u='.rawurlencode($p['username']));
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($p['display_name'])?> · Annotated</title><meta name="description" content="<?=h($desc)?>"><?php if(!$isPublic):?><meta name="robots" content="noindex,nofollow"><?php endif?><link rel="canonical" href="<?=h($canonical)?>"><?php if($isPublic):?><meta property="og:type" content="profile"><meta property="og:title" content="<?=h($p['display_name'])?> · Annotated"><meta property="og:description" content="<?=h($desc)?>"><meta property="og:url" content="<?=h($canonical)?>"><?php endif?><link rel="stylesheet" href="/assets/css/app.css"></head><body>
