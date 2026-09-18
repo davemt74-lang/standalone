@@ -6,14 +6,14 @@ This repository contains the Chrome Manifest V3 sidebar extension, PHP web/API a
 
 ## First deployment
 
-1. Copy `config.example.php` to `config.php` and set the MariaDB connection plus the production settings you plan to use.
-2. Create an **empty** MariaDB database and grant the configured database user access to it.
-3. Open `/install.php` in the browser and click **Install Annotated**. The installer imports `database/schema.sql` and applies every bundled forward migration automatically.
-4. Create the first administrator on `/first-admin.php`. No bootstrap/setup key is used.
-5. Configure `storage.private_root` to a writable directory **outside the public web root** and grant the PHP/worker user read/write access.
-6. Load the `extension/` folder as an unpacked Chrome extension for development, open Extension Options, and set the Annotated website/API URL.
+1. Create an **empty** MariaDB database and grant a database user access to it.
+2. Upload/extract the Annotated website package into the web root.
+3. Open `/install.php`. Enter the site URL, database host/port/name, database username, and database password.
+4. The installer tests the connection, creates `config.php` automatically, imports `database/schema.sql`, and applies every bundled forward migration.
+5. Create the first administrator when redirected to `/first-admin.php`. No bootstrap/setup key is used.
+6. Install the matching Chrome extension and connect it to the Annotated site URL.
 
-Normal web requests automatically route to `/install.php` until the base schema exists. After the first administrator is created, `/first-admin.php` closes permanently. Existing deployments continue to use `/upgrade.php` for later forward-only migrations.
+Normal web requests automatically route to `/install.php` until configuration and the base schema exist. After the first administrator is created, `/first-admin.php` closes permanently. Existing deployments continue to use `/upgrade.php` for later forward-only migrations.
 
 ## Extension account model
 
