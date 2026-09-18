@@ -1,0 +1,28 @@
+name: Package Phase 10 Deploy
+on:
+  push:
+    branches:
+      - package-v1-1-phase10-20260918
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact-main deploy zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .git
+          rm -f .github/workflows/package-phase10.yml
+          zip -qr Annotated-V1.1-Phase10-Deploy.zip . -x "Annotated-V1.1-Phase10-Deploy.zip"
+          sha256sum Annotated-V1.1-Phase10-Deploy.zip > Annotated-V1.1-Phase10-Deploy.sha256
+          unzip -t Annotated-V1.1-Phase10-Deploy.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: annotated-v1-1-phase10-deploy
+          path: |
+            Annotated-V1.1-Phase10-Deploy.zip
+            Annotated-V1.1-Phase10-Deploy.sha256
+          if-no-files-found: error
