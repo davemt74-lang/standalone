@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS worker_heartbeats (
   INDEX idx_worker_heartbeat_seen(last_seen_at,last_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS sessions_revoked_before DATETIME NULL AFTER status;
+
 ALTER TABLE extension_sessions
   ADD COLUMN IF NOT EXISTS client_version VARCHAR(32) NULL AFTER device_name;
 
