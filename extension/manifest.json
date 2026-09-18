@@ -39,5 +39,6 @@
   ],
   "action": {
     "default_title": "Open Annotated"
-  }
+  },
+  "minimum_chrome_version": "116"
 }
