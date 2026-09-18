@@ -72,7 +72,7 @@ function source_integrity_notify_event(PDO $pdo,int $eventId): int {
         $state=match((string)$event['change_type']){'unavailable'=>'source_unavailable','restored'=>'source_restored',default=>'source_updated'};$annotationPublic=null;
         foreach($impacts as $i)if((int)$i['user_id']===(int)$userId&&source_integrity_priority($i['impact_type'])>=source_integrity_priority($state)){$state=$i['impact_type'];$annotationPublic=$i['annotation_public_id'];}
         $label=source_integrity_label($state);$title=(string)($event['title']?:$event['domain']?:'a watched source');
-        $body=$label.' on '.$title.'.'.((int)$event['affected_annotation_count']>0?' '.(int)$event['affected_annotation_count'].' annotation'.((int)$event['affected_annotation_count']===1?'':'s').' affected.':'');
+        $body=$label.' on '.$title.'.';
         $ok=notification_create($pdo,(int)$userId,null,'source_integrity','source',$event['source_public_id'],$body,[
             'category'=>'sources','dedupe_key'=>'source-change:'.$eventId,'group_key'=>'source:'.$event['source_public_id'],
             'context'=>['source_public_id'=>$event['source_public_id'],'source_change_event_id'=>$eventId,'integrity_state'=>$state,'annotation_public_id'=>$annotationPublic]
