@@ -13,7 +13,7 @@ $need('app/functions.php','expires_at IS NULL OR expires_at>NOW()','Shared beare
 $need('api/extension.php','enforce_extension_bearer_session','The extension API must reject expired bearer sessions.');
 $need('extension-authorize.php','extension_redirect_allowed','Extension authorization must validate the exact redirect.');
 $need('api/extension-token.php','session_ttl_days','Extension tokens must receive a bounded lifetime.');
-$need('first-admin.php','bootstrap_key','First-admin creation must require a private bootstrap key.');
+$avoid('first-admin.php','bootstrap_key','First-admin setup must not require a bootstrap or setup key.');
 $need('app/oauth.php','linkUserId','OAuth linking must use an explicit link target.');
 $need('app/oauth.php','already connected to another Annotated account','OAuth provider collision must fail closed.');
 $need('extension/content.js','includePageText=false','Page text must be opt-in from the content script.');
@@ -22,7 +22,7 @@ $state=(string)file_get_contents($root.'/extension/sidepanel-state.js');
 if(preg_match("/action=page_context[^\\n]+page_text/",$state))$fail[]='Passive page-context calls must not upload page text.';
 $need('extension/sidepanel-state.js','normalizeApiBase','Extension API base must reject insecure remote origins.');
 $need('config.example.php','allowed_ids','Config must expose the exact Chrome extension allowlist.');
-$need('config.example.php','bootstrap_key','Config must expose the one-time first-admin bootstrap key.');
+$avoid('config.example.php','bootstrap_key','Config must not define a bootstrap setup key.');
 
 $need('app/access.php','function annotation_access','Annotation visibility must be centralized.');
 $need('app/access.php','function source_access','Source visibility must be centralized.');
