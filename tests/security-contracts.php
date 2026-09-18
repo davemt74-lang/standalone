@@ -33,7 +33,7 @@ $need('app/live.php','project_can_write($project)','Research Live room writes mu
 $need('app/live.php','presence_identity_visible($pdo','Live presence and messages must use the centralized identity-disclosure policy.');
 $need('source.php','public_discovery_source($pdo,$id,$viewer)','Source pages must route through centralized viewer-scoped discovery access.');
 $need('source-compare.php','source_access($pdo,$id,$viewer)','Source comparison must enforce source visibility.');
-$need('search.php','public_discovery_search($pdo,$term,$viewer)','Search must route through public-only viewer-aware discovery services.');
+$need('search.php','search_unified($pdo,$term,$viewer,$filters)','Search must route through the Phase 10 permission-aware search service.');
 $need('annotation.php','public_discovery_annotation($pdo,$id,$viewer)','Direct annotation pages must route through centralized viewer-scoped discovery access.');
 if(!is_file($root.'/database/migrations/20260917_005_auth_extension_hardening.sql'))$fail[]='Auth/extension hardening migration 005 is missing.';
 
@@ -128,6 +128,27 @@ $need('app/moderation.php','tracking_token_hash','Anonymous claim tracking must 
 $need('app/moderation.php','hash_equals','Claim tracking token comparison must be timing-safe.');
 $need('app/access.php','source_moderation_status','Annotation access must inherit source moderation restriction.');
 foreach(['notifications.php','settings.php','claim-status.php','report-status.php','admin/moderation.php'] as $file)$need($file,'Cache-Control: private, no-store',"Phase 9 private workflow must not be shared-cached: $file");
+
+
+$need('app/search.php','function search_annotation_access_sql','Phase 10 search must define its own permission boundary.');
+$need('app/search.php',"OR \$alias.user_id=?",'Private annotation ownership must be explicit in the search visibility SQL.');
+$need('app/search.php','project_annotations spa','Research-shared private annotations must require current project access.');
+$need('app/search.php','team_members stm','Team annotations must require current Team membership.');
+$need('app/search.php','function search_source_visible','Source search visibility must derive from searchable annotations or Research access.');
+$need('app/search.php','ss.owner_user_id','Private saved searches must retain explicit ownership checks.');
+$need('app/search.php',"ss.visibility='team'",'Shared saved searches must re-check Team membership.');
+$need('app/search.php',"ss.visibility='project'",'Shared saved searches must re-check Research membership.');
+$need('app/search.php',"rr.status='published' AND rr.visibility='public'",'Public entity indexing must consume only published Public reports.');
+$need('app/search.php','origin_report_public_id','Discovery mentions must retain public-report provenance for deindexing.');
+$need('app/search.php','search_remove_public_report_entities','Report visibility changes must deindex public discovery mentions.');
+$need('app/search.php','annotation_access($pdo','Entity/related discovery must re-check annotation authorization.');
+$need('app/search.php','source_access($pdo','Entity mentions must re-check source authorization before display.');
+$need('api/extension-search.php','search_unified($pdo,$term,$u,$filters)','Chrome search must use the same server-side search service.');
+$need('api/extension-search.php','require_api_mutation_auth($pdo)','Saved-search and Add-to-Research mutations must require authenticated mutation access.');
+$avoid('api/extension-search.php','SELECT * FROM annotations','Chrome search API must not implement a parallel raw annotation search.');
+$need('search.php','Cache-Control: private, no-store','Signed-in search results must not be shared-cached.');
+$need('search.php','noindex,follow','Search result pages must remain noindex.');
+$need('entity.php','search_discovery_entity($pdo,$id,$viewer)','Public entity pages must resolve mentions through access-aware discovery.');
 
 $avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
