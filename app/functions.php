@@ -6,17 +6,14 @@ function csrf_token(): string { if (empty($_SESSION['csrf'])) $_SESSION['csrf'] 
 function require_csrf(): void { if (!hash_equals($_SESSION['csrf'] ?? '', $_POST['csrf'] ?? '')) { http_response_code(419); exit('Invalid CSRF token.'); } }
 function bearer_token(): ?string { $h=$_SERVER['HTTP_AUTHORIZATION']??''; return preg_match('/^Bearer\s+(.+)$/i',$h,$m)?trim($m[1]):null; }
 function current_user(PDO $pdo): ?array {
-    $userId = !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
-    $token=bearer_token();
-    if(!$userId && $token){
-        try{
-            $q=$pdo->prepare('SELECT user_id FROM extension_sessions WHERE token_hash=? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW())');
-            $q->execute([hash('sha256',$token)]);$userId=(int)($q->fetchColumn()?:0);
-            if($userId){$pdo->prepare('UPDATE extension_sessions SET last_used_at=NOW() WHERE token_hash=?')->execute([hash('sha256',$token)]);}
-        }catch(PDOException $e){$userId=0;}
+    $sessionUserId=!empty($_SESSION['user_id'])?(int)$_SESSION['user_id']:0;$userId=$sessionUserId;$token=bearer_token();
+    if(!$userId&&$token){
+        try{$q=$pdo->prepare('SELECT user_id FROM extension_sessions WHERE token_hash=? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW())');$q->execute([hash('sha256',$token)]);$userId=(int)($q->fetchColumn()?:0);if($userId)$pdo->prepare('UPDATE extension_sessions SET last_used_at=NOW() WHERE token_hash=?')->execute([hash('sha256',$token)]);}catch(PDOException $e){$userId=0;}
     }
     if(!$userId)return null;
-    $s=$pdo->prepare('SELECT id, public_id, username, display_name, email, role, live_presence_mode FROM users WHERE id=? AND status="active"'); $s->execute([$userId]); return $s->fetch() ?: null;
+    $s=$pdo->prepare('SELECT id,public_id,username,display_name,email,role,live_presence_mode,sessions_revoked_before FROM users WHERE id=? AND status="active"');$s->execute([$userId]);$user=$s->fetch();if(!$user)return null;
+    if($sessionUserId&&!$token&&!empty($user['sessions_revoked_before'])){$revoked=strtotime((string)$user['sessions_revoked_before']);$auth=(int)($_SESSION['auth_time']??0);if(!$auth||($revoked&&$auth<$revoked)){$_SESSION=[];if(session_status()===PHP_SESSION_ACTIVE)session_regenerate_id(true);return null;}}
+    unset($user['sessions_revoked_before']);return $user;
 }
 function require_user(PDO $pdo): array { $u=current_user($pdo); if(!$u){ header('Location: /login.php'); exit; } return $u; }
 function require_api_user(PDO $pdo): array { $u=current_user($pdo); if(!$u)json_response(['ok'=>false,'error'=>['code'=>'AUTH_REQUIRED','message'=>'Sign in to Annotated.']],401); return $u; }
