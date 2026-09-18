@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';$viewer=current_user($pdo);$term=trim((string)($_GET['q']??''));$results=public_discovery_search($pdo,$term);
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';$viewer=current_user($pdo);$term=trim((string)($_GET['q']??''));$results=public_discovery_search($pdo,$term,$viewer);
 $total=array_sum(array_map('count',$results));
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($term!==''?'Search “'.$term.'”':'Search')?> · Annotated</title><meta name="robots" content="noindex,follow"><link rel="stylesheet" href="/assets/css/app.css"></head><body><header class="topbar"><a class="brand" href="/">Annotated</a><nav><?php if($viewer):?><a href="/home.php">Home</a><?php endif?><a href="/explore.php">Explore</a><?php if($viewer):?><a href="/research.php">Research</a><a href="/saved.php">Saved</a><?php else:?><a href="/login.php">Log in</a><?php endif?></nav></header>
 <main class="discoveryShell searchPage"><div class="pageTitle"><span class="eyebrow">DISCOVERY</span><h1>Search Annotated</h1><p>Search public sources, annotations, transcripts, people, published Research reports, and the claims/entities inside those immutable report snapshots.</p></div><form method="get" class="searchBar"><input name="q" value="<?=h($term)?>" placeholder="Search the public research graph" autofocus><button>Search</button></form>
