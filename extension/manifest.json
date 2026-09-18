@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Annotated",
-  "version": "0.4.0",
-  "description": "Annotated Chrome sidebar for rich capture, This Page, Following, Live, and Research.",
+  "version": "0.5.0",
+  "description": "Annotated Chrome sidebar for capture, source-aware feeds, public discovery, Live, and Research.",
   "permissions": [
     "sidePanel",
     "activeTab",

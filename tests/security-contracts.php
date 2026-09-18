@@ -31,10 +31,10 @@ $need('app/access.php',"if(\$mode==='team_only')return users_share_team",'Team-o
 $need('api/extension-base.php','ext_annotation($pdo','Extension annotation mutations must use viewer-scoped access.');
 $need('api/extension-live.php','project_can_write($projectRow)','Research writes must reject viewer-only project access.');
 $need('api/extension-live.php','presence_identity_visible','Live presence must use the centralized identity-disclosure policy.');
-$need('source.php','source_access($pdo,$id,$u)','Source pages must enforce source visibility.');
+$need('source.php','public_discovery_source($pdo,$id,$viewer)','Source pages must route through centralized viewer-scoped discovery access.');
 $need('source-compare.php','source_access($pdo,$id,$viewer)','Source comparison must enforce source visibility.');
-$need('search.php','EXISTS(SELECT 1 FROM annotations pa','Search must expose only publicly discoverable sources.');
-$need('annotation.php','annotation_access($pdo,$id,$viewer)','Direct annotation pages must enforce centralized visibility.');
+$need('search.php','public_discovery_search($pdo,$term,$viewer)','Search must route through public-only viewer-aware discovery services.');
+$need('annotation.php','public_discovery_annotation($pdo,$id,$viewer)','Direct annotation pages must route through centralized viewer-scoped discovery access.');
 if(!is_file($root.'/database/migrations/20260917_005_auth_extension_hardening.sql'))$fail[]='Auth/extension hardening migration 005 is missing.';
 
 $need('app/storage.php','private_storage_root','Private evidence storage must have a dedicated filesystem root.');
@@ -78,6 +78,21 @@ $need('extension/content.js','declaredCanonicalUrl','The extension must detect d
 $need('extension/sidepanel-feed.js','phase6OpenContext','Original-context actions must be explicit rather than exposing private evidence URLs.');
 $avoid('app/feed.php','media_uploads','Feed delivery must never expose raw Rich Capture upload inputs.');
 
+$need('app/public-discovery.php',"a.visibility='public'",'Phase 7 Explore/Search/Profile annotation discovery must be public-only.');
+$need('app/public-discovery.php',"rr.visibility='public'",'Phase 7 public Research discovery must exclude Team and Private reports.');
+$need('app/public-discovery.php','annotation_access($pdo,$publicId,$viewer)','Direct annotation pages must retain centralized viewer-scoped authorization.');
+$need('app/public-discovery.php','source_access($pdo,$publicId,$viewer)','Direct source pages must retain centralized viewer-scoped authorization.');
+$need('app/public-discovery.php','is_blocked($pdo,$uid','Phase 7 direct annotation discovery must reject blocked relationships.');
+$need('app/public-discovery.php','NOT EXISTS(SELECT 1 FROM blocks','Phase 7 signed-in Explore/Search must filter blocked relationships server-side.');
+$need('source.php','noindex,nofollow','Non-public source views must be marked noindex.');
+$need('annotation.php','noindex,nofollow','Non-public annotation views must be marked noindex.');
+$need('research-report.php','noindex,nofollow','Non-public Research report views must be marked noindex.');
+$need('research-report.php','research_report_version_access($pdo,$report,$version,$viewer)','Research report pages must re-check historical version visibility.');
+$need('research-report-export.php','research_report_version_access($pdo,$report,$version,$viewer)','Research report exports must re-check historical version visibility.');
+$need('search.php','noindex,follow','Search results pages must not become duplicate public index pages.');
+foreach(['source.php','annotation.php','profile.php','research-report.php','research-report-export.php'] as $file)$need($file,'Cache-Control: private, no-store',"Viewer-scoped public response must not be shared-cached: $file");
+
+$avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');
 $need('app/ai-access.php',"admin_enabled",'Interactive Admin AI must honor the model admin_enabled flag.');
 $need('app/ai-access.php',"pro_enabled",'Interactive Pro AI must honor the model pro_enabled flag.');
