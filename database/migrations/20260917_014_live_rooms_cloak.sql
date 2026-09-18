@@ -41,10 +41,10 @@ ALTER TABLE live_messages ADD UNIQUE KEY IF NOT EXISTS uq_live_public(public_id)
 ALTER TABLE live_messages ADD UNIQUE KEY IF NOT EXISTS uq_live_client_message(user_id,client_message_id);
 ALTER TABLE live_messages ADD INDEX IF NOT EXISTS idx_live_room_cursor(source_id,room_type,team_id,project_id,id);
 ALTER TABLE live_messages ADD INDEX IF NOT EXISTS idx_live_parent(parent_message_id);
-ALTER TABLE live_messages ADD CONSTRAINT fk_live_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE;
-ALTER TABLE live_messages ADD CONSTRAINT fk_live_parent FOREIGN KEY(parent_message_id) REFERENCES live_messages(id) ON DELETE SET NULL;
-ALTER TABLE live_messages ADD CONSTRAINT fk_live_pinned_by FOREIGN KEY(pinned_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE live_messages ADD CONSTRAINT fk_live_deleted_by FOREIGN KEY(deleted_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE live_messages ADD CONSTRAINT IF NOT EXISTS fk_live_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE;
+ALTER TABLE live_messages ADD CONSTRAINT IF NOT EXISTS fk_live_parent FOREIGN KEY(parent_message_id) REFERENCES live_messages(id) ON DELETE SET NULL;
+ALTER TABLE live_messages ADD CONSTRAINT IF NOT EXISTS fk_live_pinned_by FOREIGN KEY(pinned_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE live_messages ADD CONSTRAINT IF NOT EXISTS fk_live_deleted_by FOREIGN KEY(deleted_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS live_message_reactions (
   message_id BIGINT UNSIGNED NOT NULL,
