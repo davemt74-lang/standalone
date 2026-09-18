@@ -27,8 +27,9 @@ function moderation_target(PDO $pdo,string $type,string $publicId,?array $viewer
     }
     if($type==='user'){
         $q=$pdo->prepare("SELECT u.id,u.public_id,u.status,COALESCE(p.profile_visibility,'public') profile_visibility FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.public_id=? LIMIT 1");$q->execute([$publicId]);$target=$q->fetch();if(!$target)return null;
-        if(!$viewer&&($target['profile_visibility']!=='public'||$target['status']!=='active'))return null;
-        if($viewer&&is_blocked($pdo,(int)$viewer['id'],(int)$target['id']))return null;
+        $admin=$viewer&&(($viewer['role']??'')==='admin');$self=$viewer&&(int)$viewer['id']===(int)$target['id'];
+        if((!$viewer||(!$admin&&!$self))&&($target['profile_visibility']!=='public'||$target['status']!=='active'))return null;
+        if($viewer&&!$admin&&!$self&&is_blocked($pdo,(int)$viewer['id'],(int)$target['id']))return null;
         return ['type'=>'user','public_id'=>$publicId,'owner_user_id'=>(int)$target['id'],'status'=>$target['status']];
     }
     $s=source_access($pdo,$publicId,$viewer);if(!$s)return null;
