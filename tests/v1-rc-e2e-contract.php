@@ -8,7 +8,7 @@ $need('register.php','/onboarding.php','New accounts must enter first-run onboar
 $need('app/release.php','Publish your first annotation','Onboarding milestones must guide the first annotation.');
 $need('app/release.php','Follow a researcher or source','Onboarding milestones must guide social/source following.');
 $need('app/release.php','Start or join Research','Onboarding milestones must guide Research setup.');
-$need('onboarding.php',"$status['steps']",'Onboarding page must render the server-derived milestone checklist.');
+$need('onboarding.php',"\$status['steps']",'Onboarding page must render the server-derived milestone checklist.');
 $need('extension/service-worker.js',"details.reason==='install'",'Extension install must trigger first-run setup.');
 $need('extension/sidepanel-state.js','extension-authorize.php','Chrome sidebar must use revocable server authorization.');
 $need('extension/sidepanel-state.js','client_version:chrome.runtime.getManifest().version','Chrome authorization must identify the client version.');
