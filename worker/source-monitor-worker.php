@@ -1,5 +1,5 @@
 <?php
-declare(strict_types=1);if(PHP_SAPI!=='cli'){http_response_code(404);exit;}require dirname(__DIR__).'/app/bootstrap.php';require_once dirname(__DIR__).'/app/ai.php';
+declare(strict_types=1);if(PHP_SAPI!=='cli'){http_response_code(404);exit;}require dirname(__DIR__).'/app/bootstrap.php';require_once dirname(__DIR__).'/app/ai.php';require_once dirname(__DIR__).'/app/live.php';
 $limit=max(1,min(25,(int)($argv[1]??5)));
 // Seed due watched/project sources without duplicating active jobs.
 $pdo->exec("INSERT INTO source_monitor_jobs(source_id,priority,status) SELECT s.id,4,'queued' FROM sources s WHERE s.monitoring_enabled=1 AND (s.next_check_at IS NULL OR s.next_check_at<=NOW()) AND (EXISTS(SELECT 1 FROM source_watches sw WHERE sw.source_id=s.id) OR EXISTS(SELECT 1 FROM project_sources ps WHERE ps.source_id=s.id)) AND NOT EXISTS(SELECT 1 FROM source_monitor_jobs j WHERE j.source_id=s.id AND j.status IN ('queued','processing'))");
@@ -12,7 +12,7 @@ for($n=0;$n<$limit;$n++){
         if($status<200||$status>=400){
             $sameUnavailable=false;if($current&&$source['status']==='unavailable'){$meta=json_decode((string)($current['metadata_json']??''),true);$sameUnavailable=(int)($meta['http_status']??0)===$status;}
             if($sameUnavailable){$pdo->prepare("UPDATE sources SET last_checked_at=NOW(),next_check_at=DATE_ADD(NOW(),INTERVAL 12 HOUR) WHERE id=?")->execute([$source['id']]);}
-            else{$versionNo=next_source_version_number($pdo,(int)$source['id']);$q=$pdo->prepare('INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,target_content_hash,metadata_json) VALUES(?,?,?,?,NULL,NULL,NULL,?)');$q->execute([$source['id'],$versionNo,$fetch['url'],$title,json_encode(['http_status'=>$status],JSON_UNESCAPED_SLASHES)]);$newId=(int)$pdo->lastInsertId();$pdo->prepare("UPDATE sources SET current_version_id=?,status='unavailable',last_checked_at=NOW(),next_check_at=DATE_ADD(NOW(),INTERVAL 12 HOUR) WHERE id=?")->execute([$newId,$source['id']]);$pdo->prepare("INSERT INTO source_change_events(source_id,previous_version_id,new_version_id,change_type,target_changed,diff_summary) VALUES(?,?,?,'unavailable',0,?)")->execute([$source['id'],$currentId?:null,$newId,'Source returned HTTP '.$status.'.']);$notification='Source is currently unavailable.';}
+            else{$versionNo=next_source_version_number($pdo,(int)$source['id']);$q=$pdo->prepare('INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,target_content_hash,metadata_json) VALUES(?,?,?,?,NULL,NULL,NULL,?)');$q->execute([$source['id'],$versionNo,$fetch['url'],$title,json_encode(['http_status'=>$status],JSON_UNESCAPED_SLASHES)]);$newId=(int)$pdo->lastInsertId();$pdo->prepare("UPDATE sources SET current_version_id=?,status='unavailable',last_checked_at=NOW(),next_check_at=DATE_ADD(NOW(),INTERVAL 12 HOUR) WHERE id=?")->execute([$newId,$source['id']]);$pdo->prepare("INSERT INTO source_change_events(source_id,previous_version_id,new_version_id,change_type,target_changed,diff_summary) VALUES(?,?,?,'unavailable',0,?)")->execute([$source['id'],$currentId?:null,$newId,'Source returned HTTP '.$status.'.']);$eventId=(int)$pdo->lastInsertId();$notification='Source is currently unavailable.';}
         }elseif($current&&$hash!==null&&hash_equals((string)($current['content_hash']??''),$hash)){
             $pdo->prepare("UPDATE sources SET title=COALESCE(?,title),status='current',last_checked_at=NOW(),next_check_at=DATE_ADD(NOW(),INTERVAL 24 HOUR) WHERE id=?")->execute([$title?:null,$source['id']]);
         }else{
@@ -23,6 +23,7 @@ for($n=0;$n<$limit;$n++){
         }
         job_claim_complete($pdo,'source_monitor_jobs',$id,$token);$pdo->commit();
         if($notification)notify_source_dependents($pdo,(int)$job['source_id'],$notification);
+        if($eventId)live_event_emit_source_change($pdo,(int)$job['source_id'],$eventId);
         if($eventId){try{$model=ai_setting_model_id($pdo,'source_monitor');if($model)ai_queue_job($pdo,null,'source_change_summary',$model,'source_change_event',(string)$eventId,[],3);}catch(Throwable $e){}}
         echo "source job {$job['id']} done\n";
     }catch(LostJobClaim $e){if($pdo->inTransaction())$pdo->rollBack();fwrite(STDERR,"source job {$job['id']}: lease lost; stale fetch discarded\n");}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();try{job_claim_retry_or_fail($pdo,'source_monitor_jobs',$id,$token,substr($e->getMessage(),0,1000),(int)$job['attempts'],3,1800);}catch(LostJobClaim $lost){}fwrite(STDERR,"source job {$job['id']}: {$e->getMessage()}\n");}

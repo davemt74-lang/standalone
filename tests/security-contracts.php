@@ -29,8 +29,8 @@ $need('app/access.php','function source_access','Source visibility must be centr
 $need('app/access.php','function presence_identity_visible','Presence identity disclosure must be centralized.');
 $need('app/access.php',"if(\$mode==='team_only')return users_share_team",'Team-only presence must disclose identity only to shared-team viewers.');
 $need('api/extension-base.php','ext_annotation($pdo','Extension annotation mutations must use viewer-scoped access.');
-$need('api/extension-live.php','project_can_write($projectRow)','Research writes must reject viewer-only project access.');
-$need('api/extension-live.php','presence_identity_visible','Live presence must use the centralized identity-disclosure policy.');
+$need('app/live.php','project_can_write($project)','Research Live room writes must reject viewer-only project access.');
+$need('app/live.php','presence_identity_visible($pdo','Live presence and messages must use the centralized identity-disclosure policy.');
 $need('source.php','public_discovery_source($pdo,$id,$viewer)','Source pages must route through centralized viewer-scoped discovery access.');
 $need('source-compare.php','source_access($pdo,$id,$viewer)','Source comparison must enforce source visibility.');
 $need('search.php','public_discovery_search($pdo,$term,$viewer)','Search must route through public-only viewer-aware discovery services.');
@@ -91,6 +91,26 @@ $need('research-report.php','research_report_version_access($pdo,$report,$versio
 $need('research-report-export.php','research_report_version_access($pdo,$report,$version,$viewer)','Research report exports must re-check historical version visibility.');
 $need('search.php','noindex,follow','Search results pages must not become duplicate public index pages.');
 foreach(['source.php','annotation.php','profile.php','research-report.php','research-report-export.php'] as $file)$need($file,'Cache-Control: private, no-store',"Viewer-scoped public response must not be shared-cached: $file");
+
+$need('app/live.php','live_room_scope','Phase 8 Live authorization must be centralized.');
+$need('app/live.php',"JOIN team_members tm ON tm.team_id=t.id WHERE t.public_id=? AND tm.user_id=?",'Team Live rooms must require server-side membership.');
+$need('app/live.php','project_access($pdo,$uid','Research Live rooms must inherit project access.');
+$need('app/live.php',"last_seen_at<DATE_SUB(NOW(),INTERVAL 90 SECOND)",'Stale Live presence must be expired server-side.');
+$need('app/live.php',"NOT EXISTS(SELECT 1 FROM blocks b",'Live message delivery must enforce block relationships server-side.');
+$need('app/live.php',"\$identityVisible=\$m['identity_mode']==='visible'",'Live message identity disclosure must be conditional.');
+$need('app/live.php',"else \$row['cloak_alias']",'Cloaked Live messages must serialize only a pseudonym.');
+$avoid('app/live.php',"'user_public_id'=>\$m['user_public_id']", 'Live payloads must not unconditionally serialize internal author identity fields.');
+$need('app/live.php','client_message_id','Live message creation must support retry idempotency.');
+$need('app/live.php','annotation_access($pdo','Live activity events must re-check current annotation authorization.');
+$need('api/extension-live.php','require_api_mutation_auth($pdo)','Live mutations must require authenticated mutation access.');
+foreach(['live_message_delete','live_message_pin','live_react','live_leave'] as $action)$need('api/extension-live.php',"$action","Phase 8 Live API action missing: $action");
+$need('extension/sidepanel-state.js','liveClientSessionId','Chrome Live must persist a client session identity.');
+$need('extension/sidepanel-social.js','client_message_id','Chrome Live sends must carry an idempotency key.');
+$need('extension/sidepanel-social.js','reveal_identity','Live identity reveal must be explicit per message.');
+$need('live.php','require_csrf()','Website Live mutations must require CSRF protection.');
+$need('live.php','Cache-Control: private, no-store','Website Live must not be shared-cached.');
+$need('live.php','noindex,nofollow','Authenticated Live pages must not be indexed.');
+$phase8Migration=(string)file_get_contents($root.'/database/migrations/20260917_014_live_rooms_cloak.sql');foreach(['uq_live_presence_client','uq_live_client_message'] as $needle)if(!str_contains($phase8Migration,$needle))$fail[]="Phase 8 idempotency/session migration contract missing: $needle";
 
 $avoid('app/public-discovery.php','media_uploads','Public discovery must never query or expose raw Rich Capture uploads.');
 $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI entitlement must be centralized.');

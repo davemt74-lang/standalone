@@ -153,7 +153,7 @@ function feed_create_comment(PDO $pdo,array $user,string $annotationPublicId,str
         $q=$pdo->prepare('SELECT user_id FROM comments WHERE id=? AND annotation_id=?');$q->execute([$parentId,$a['id']]);$parentUserId=$q->fetchColumn();
         if($parentUserId===false)throw new InvalidArgumentException('Reply target is not part of this discussion.');
     }
-    $pdo->prepare('INSERT INTO comments(annotation_id,user_id,parent_comment_id,body) VALUES(?,?,?,?)')->execute([$a['id'],$user['id'],$parentId,$body]);$id=(int)$pdo->lastInsertId();
+    $pdo->prepare('INSERT INTO comments(annotation_id,user_id,parent_comment_id,body) VALUES(?,?,?,?)')->execute([$a['id'],$user['id'],$parentId,$body]);$id=(int)$pdo->lastInsertId();if(function_exists('live_event_emit_for_annotation'))live_event_emit_for_annotation($pdo,(int)$a['id'],'comment',$id);
     if((int)$a['user_id']!==(int)$user['id'])notify_user($pdo,(int)$a['user_id'],(int)$user['id'],'comment','annotation',$a['public_id'],$user['display_name'].' commented on your annotation.');
     if($parentUserId!==null&&(int)$parentUserId!==(int)$user['id']&&(int)$parentUserId!==(int)$a['user_id'])notify_user($pdo,(int)$parentUserId,(int)$user['id'],'comment_reply','annotation',$a['public_id'],$user['display_name'].' replied to your comment.');
     $q=$pdo->prepare('SELECT COUNT(*) FROM comments WHERE annotation_id=?');$q->execute([$a['id']]);
