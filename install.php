@@ -3,71 +3,151 @@ declare(strict_types=1);
 
 $root=__DIR__;
 $configFile=$root.'/config.php';
-$error='';
-$ready=false;
-$config=null;
-$pdo=null;
-$databaseStatus='Not connected.';
+require_once $root.'/app/installer.php';
 
-if(!is_file($configFile)){
-    http_response_code(503);
-    $error='Annotated is not configured yet. Copy config.example.php to config.php and enter the MariaDB connection settings.';
-}else{
-    $config=require $configFile;
-    date_default_timezone_set('UTC');
-    if(session_status()!==PHP_SESSION_ACTIVE){
-        $secure=strtolower((string)(parse_url((string)($config['app']['base_url']??''),PHP_URL_SCHEME)?:''))==='https';
-        session_name($config['app']['session_name']??'annotated_session');
-        session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$secure,'httponly'=>true,'samesite'=>'Lax']);
-        session_start();
-    }
-    if(empty($_SESSION['install_csrf']))$_SESSION['install_csrf']=bin2hex(random_bytes(32));
-    try{
-        $db=$config['db']??[];
-        $pdo=new PDO((string)($db['dsn']??''),(string)($db['user']??''),(string)($db['pass']??''),[
-            PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES=>false,
-        ]);
-        require_once $root.'/app/installer.php';
-        $schemaFile=$root.'/database/schema.sql';
-        $migrationDir=$root.'/database/migrations';
-        $baseReady=installer_base_schema_ready($pdo,$schemaFile);
-        if($baseReady&&installer_table_exists($pdo,'users')){
-            $users=(int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
-            if($users>0){header('Location: /');exit;}
-        }
-        $tableCount=installer_database_table_count($pdo);
-        $ready=$baseReady||$tableCount===0;
-        $databaseStatus=$tableCount===0?'Database is empty and ready for installation.':($baseReady?'Annotated schema detected.':'Database contains existing tables and cannot be initialized automatically.');
-        if($_SERVER['REQUEST_METHOD']==='POST'){
-            $sent=(string)($_POST['csrf']??'');
-            if(!hash_equals((string)($_SESSION['install_csrf']??''),$sent))throw new RuntimeException('The installer form expired. Reload the page and try again.');
-            if(!$ready)throw new RuntimeException('The database is not empty and is not a complete Annotated schema. Use an empty database for a fresh install.');
+date_default_timezone_set('UTC');
+if(session_status()!==PHP_SESSION_ACTIVE){
+    ini_set('session.use_strict_mode','1');
+    ini_set('session.use_only_cookies','1');
+    ini_set('session.cookie_httponly','1');
+    session_name('annotated_install');
+    session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>false,'httponly'=>true,'samesite'=>'Lax']);
+    session_start();
+}
+if(empty($_SESSION['install_csrf']))$_SESSION['install_csrf']=bin2hex(random_bytes(32));
+
+$error='';
+$pdo=null;
+$config=null;
+$databaseStatus='Not connected.';
+$step=is_file($configFile)?'database':'configuration';
+$defaults=[
+    'base_url'=>installer_default_base_url(),
+    'db_host'=>'127.0.0.1',
+    'db_port'=>'3306',
+    'db_name'=>'annotated',
+    'db_user'=>'',
+];
+
+try{
+    if($_SERVER['REQUEST_METHOD']==='POST'){
+        $sent=(string)($_POST['csrf']??'');
+        if(!hash_equals((string)($_SESSION['install_csrf']??''),$sent))throw new RuntimeException('The installer form expired. Reload the page and try again.');
+
+        $action=(string)($_POST['action']??'');
+        if($action==='configure'){
+            if(is_file($configFile))throw new RuntimeException('config.php already exists. Reload the installer.');
+            $config=installer_build_config($_POST,$root);
+            $pdo=installer_connect($config);
+            $tableCount=installer_database_table_count($pdo);
+            if($tableCount!==0)throw new RuntimeException('The selected database is not empty. Use an empty MariaDB database for a new Annotated installation.');
+            installer_write_config($configFile,$config);
+            $step='database';
+        }elseif($action==='install'){
+            if(!is_file($configFile))throw new RuntimeException('Configuration has not been created yet.');
+            $config=require $configFile;
+            $pdo=installer_connect($config);
+            $schemaFile=$root.'/database/schema.sql';
+            $migrationDir=$root.'/database/migrations';
+
+            if(installer_base_schema_ready($pdo,$schemaFile)&&installer_table_exists($pdo,'users')){
+                $users=(int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
+                if($users>0){header('Location: /');exit;}
+            }
+
+            $tableCount=installer_database_table_count($pdo);
+            $baseReady=installer_base_schema_ready($pdo,$schemaFile);
+            if(!$baseReady&&$tableCount>0)throw new RuntimeException('The database contains existing tables but is not a complete Annotated schema. Use an empty database for a fresh install.');
+
             installer_run($pdo,$schemaFile,$migrationDir);
             unset($_SESSION['install_csrf']);
             header('Location: /first-admin.php');
             exit;
         }
-        if($baseReady){
-            $pending=installer_pending_migrations($pdo,$migrationDir);
-            if(!$pending){header('Location: /first-admin.php');exit;}
-        }
-    }catch(Throwable $e){
-        $error=$e->getMessage();
-        $ready=false;
-        $databaseStatus='Database check failed.';
     }
+
+    if(is_file($configFile)){
+        $config=require $configFile;
+        $pdo=installer_connect($config);
+        $schemaFile=$root.'/database/schema.sql';
+        $migrationDir=$root.'/database/migrations';
+        $baseReady=installer_base_schema_ready($pdo,$schemaFile);
+        $tableCount=installer_database_table_count($pdo);
+        $databaseStatus=$tableCount===0?'Database connection successful and empty.':($baseReady?'Annotated schema detected.':'Database contains existing tables.');
+        if($baseReady){
+            if(installer_table_exists($pdo,'users')&&(int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn()>0){header('Location: /');exit;}
+            if(count(installer_pending_migrations($pdo,$migrationDir))===0){header('Location: /first-admin.php');exit;}
+        }
+    }
+}catch(Throwable $e){
+    $error=$e->getMessage();
+    if(!is_file($configFile))$step='configuration';
 }
+
 header('Cache-Control: private, no-store');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 ?><!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Install Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head>
-<body><main class="panel narrow"><span class="eyebrow">ANNOTATED SETUP</span><h1>Install Annotated</h1>
-<p>This installer creates the base MariaDB schema and applies every bundled database migration. No SQL import or setup key is required.</p>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Install Annotated</title>
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+.installShell{max-width:760px;margin:48px auto;padding:24px}.installGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.installGrid .full{grid-column:1/-1}.installStatus{margin:18px 0}.installActions{margin-top:18px}@media(max-width:680px){.installGrid{grid-template-columns:1fr}.installGrid .full{grid-column:auto}}
+</style>
+</head>
+<body>
+<main class="panel installShell">
+<span class="eyebrow">ANNOTATED SETUP</span>
+<h1>Install Annotated</h1>
+<p>Set the database connection once. Annotated will create <code>config.php</code>, import the base schema, apply every bundled migration, and then create your first administrator.</p>
+<p class="meta">No SQL import and no setup key are required.</p>
+
 <?php if($error):?><div class="error"><?=htmlspecialchars($error,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8')?></div><?php endif?>
-<div class="card"><strong>Configuration</strong><p class="meta"><?=is_file($configFile)?'config.php found.':'config.php is missing.'?></p></div>
-<?php if($pdo):?><div class="card"><strong>Database</strong><p class="meta">Connection successful. <?=htmlspecialchars($databaseStatus,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8')?></p></div><?php endif?>
-<?php if($ready):?><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=htmlspecialchars((string)($_SESSION['install_csrf']??''),ENT_QUOTES,'UTF-8')?>"><button>Install Annotated</button></form><?php else:?><p>Correct the configuration or select an empty MariaDB database, then reload this page.</p><?php endif?>
-</main></body></html>
+
+<?php if($step==='configuration'):?>
+<form method="post" class="stack">
+<input type="hidden" name="csrf" value="<?=htmlspecialchars((string)$_SESSION['install_csrf'],ENT_QUOTES,'UTF-8')?>">
+<input type="hidden" name="action" value="configure">
+<div class="installGrid">
+<label class="full">Site URL
+<input name="base_url" required value="<?=htmlspecialchars((string)($_POST['base_url']??$defaults['base_url']),ENT_QUOTES,'UTF-8')?>" placeholder="https://annotated.example.com">
+</label>
+<label>Database host
+<input name="db_host" required value="<?=htmlspecialchars((string)($_POST['db_host']??$defaults['db_host']),ENT_QUOTES,'UTF-8')?>">
+</label>
+<label>Database port
+<input name="db_port" inputmode="numeric" required value="<?=htmlspecialchars((string)($_POST['db_port']??$defaults['db_port']),ENT_QUOTES,'UTF-8')?>">
+</label>
+<label>Database name
+<input name="db_name" required value="<?=htmlspecialchars((string)($_POST['db_name']??$defaults['db_name']),ENT_QUOTES,'UTF-8')?>">
+</label>
+<label>Database username
+<input name="db_user" required autocomplete="username" value="<?=htmlspecialchars((string)($_POST['db_user']??$defaults['db_user']),ENT_QUOTES,'UTF-8')?>">
+</label>
+<label class="full">Database password
+<input type="password" name="db_pass" autocomplete="current-password">
+</label>
+</div>
+<div class="installActions"><button>Save &amp; Test Database</button></div>
+</form>
+<?php else:?>
+<div class="card installStatus">
+<strong>Configuration</strong>
+<p class="meta">config.php created.</p>
+</div>
+<div class="card installStatus">
+<strong>Database</strong>
+<p class="meta"><?=htmlspecialchars($databaseStatus,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8')?></p>
+</div>
+<form method="post" class="stack">
+<input type="hidden" name="csrf" value="<?=htmlspecialchars((string)$_SESSION['install_csrf'],ENT_QUOTES,'UTF-8')?>">
+<input type="hidden" name="action" value="install">
+<button>Install Annotated</button>
+</form>
+<?php endif?>
+</main>
+</body>
+</html>
