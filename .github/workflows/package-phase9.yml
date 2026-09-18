@@ -1,0 +1,34 @@
+name: Package Phase 9
+
+on:
+  push:
+    branches:
+      - package-v1-1-phase9-20260918
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact-main deploy package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/package-phase9.yml
+          rm -rf .git
+          zip -qr Annotated-V1.1-Phase9-Deploy.zip . -x "Annotated-V1.1-Phase9-Deploy.zip"
+          sha256sum Annotated-V1.1-Phase9-Deploy.zip > Annotated-V1.1-Phase9-Deploy.sha256
+          unzip -t Annotated-V1.1-Phase9-Deploy.zip
+      - name: Upload deploy package
+        uses: actions/upload-artifact@v4
+        with:
+          name: annotated-v1-1-phase9-deploy
+          path: |
+            Annotated-V1.1-Phase9-Deploy.zip
+            Annotated-V1.1-Phase9-Deploy.sha256
+          if-no-files-found: error
+          retention-days: 7
