@@ -42,8 +42,8 @@ function source_integrity_classify(string $selected,string $newText,string $even
 function source_integrity_analyze_event(PDO $pdo,int $eventId): array {
     $q=$pdo->prepare('SELECT sce.*,nv.extracted_text new_text,s.public_id source_public_id FROM source_change_events sce JOIN sources s ON s.id=sce.source_id JOIN source_versions nv ON nv.id=sce.new_version_id WHERE sce.id=? LIMIT 1');$q->execute([$eventId]);$event=$q->fetch();if(!$event)throw new RuntimeException('Source change event not found.');
     $newText=(string)($event['new_text']??'');$eventType=(string)$event['change_type'];
-    $q=$pdo->prepare("SELECT a.id,a.public_id,a.user_id,a.visibility,a.team_id,c.selected_text FROM annotations a JOIN captures c ON c.id=a.capture_id WHERE a.source_id=? AND a.status IN ('published','restricted') ORDER BY a.id");
-    $q->execute([$event['source_id']]);$annotations=$q->fetchAll();$strongest=$eventType==='unavailable'?'source_unavailable':($eventType==='restored'?'source_restored':'source_updated');$affected=0;$impacts=[];
+    $q=$pdo->prepare("SELECT a.id,a.public_id,a.user_id,a.visibility,a.team_id,c.selected_text FROM annotations a JOIN captures c ON c.id=a.capture_id WHERE a.source_id=? AND a.source_version_id<>? AND a.status IN ('published','restricted') ORDER BY a.id");
+    $q->execute([$event['source_id'],$event['new_version_id']]);$annotations=$q->fetchAll();$strongest=$eventType==='unavailable'?'source_unavailable':($eventType==='restored'?'source_restored':'source_updated');$affected=0;$impacts=[];
     foreach($annotations as $a){
         $classified=source_integrity_classify((string)($a['selected_text']??''),$newText,$eventType);$impact=$classified['impact_type'];
         if(in_array($impact,['passage_changed','passage_missing','source_unavailable','source_restored'],true))$affected++;
