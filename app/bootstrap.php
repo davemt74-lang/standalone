@@ -40,4 +40,5 @@ require_once __DIR__ . '/concurrency.php';
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/access.php';
 require_once __DIR__ . '/notifications.php';
+require_once __DIR__ . '/source-integrity.php';
 require_once __DIR__ . '/rate-limit.php';
