@@ -1,6 +1,109 @@
 <?php
-declare(strict_types=1); require __DIR__.'/app/bootstrap.php';
-if(!users_exist($pdo)){ header('Location:/first-admin.php'); exit; }
+declare(strict_types=1);
+require __DIR__.'/app/bootstrap.php';
+if(!users_exist($pdo)){header('Location:/first-admin.php');exit;}
 $u=current_user($pdo);
-$feed=$pdo->query("SELECT a.public_id,a.text_commentary,a.published_at,u.username,u.display_name,s.title,s.canonical_url FROM annotations a JOIN users u ON u.id=a.user_id JOIN sources s ON s.id=a.source_id WHERE a.visibility='public' AND a.status='published' ORDER BY a.published_at DESC LIMIT 30")->fetchAll();
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><header class="topbar"><a class="brand" href="/">Annotated</a><nav><a href="/explore.php">Explore</a><a href="/search.php">Search</a><?php if($u):?><a href="/saved.php">Saved</a><?php if(user_is_pro($pdo,$u)):?><a href="/ai.php">AI</a><?php endif?><?php if(($u['role']??'')==='admin'):?><a href="/admin/">Admin</a><?php endif?><a href="/settings.php">Settings</a><a href="/logout.php">Sign out</a><?php else:?><a href="/login.php">Log in</a><a href="/register.php">Sign up</a><?php endif?></nav></header><main class="layout"><section><div class="hero"><span class="eyebrow">THE ANNOTATED WEB</span><h1>See what people are saying about the page you’re on.</h1><p>Highlight, clip, annotate, preserve, discuss and research the web together.</p><a class="button" href="#extension">Add the Chrome sidebar</a></div><h2>Public annotations</h2><?php if(!$feed):?><div class="card empty">No public annotations yet. Install the extension and create the first one.</div><?php endif?><?php foreach($feed as $item):?><article class="card"><div class="meta"><strong><?=h($item['display_name'])?></strong> @<?=h($item['username'])?> · <?=h($item['published_at'])?></div><h3><?=h($item['title'] ?: $item['canonical_url'])?></h3><p><?=nl2br(h($item['text_commentary']))?></p><a href="/annotation.php?id=<?=h($item['public_id'])?>">View annotation</a> · <a href="<?=h($item['canonical_url'])?>" target="_blank" rel="noopener">Original source</a></article><?php endforeach?></section><aside><div class="card"><h3>Annotated V1</h3><p>Chrome sidebar + public website + team research.</p></div></aside></main></body></html>
+?><!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Annotated — Research the web in context</title>
+<meta name="description" content="Capture, discuss, preserve, follow, and research the web in context with Annotated.">
+<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/landing.css">
+</head>
+<body class="landingBody">
+<header class="landingHeader">
+  <a class="landingBrand" href="/" aria-label="Annotated home"><span class="landingMark">A</span><span>Annotated</span></a>
+  <nav class="landingNav" aria-label="Primary">
+    <a href="#product">Product</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="/research.php">Research</a>
+    <a href="/explore.php">Explore</a>
+    <a href="#extension">Chrome Extension</a>
+  </nav>
+  <div class="landingAccount">
+    <?php if($u):?>
+      <a class="landingTextLink" href="/home.php">Open app</a>
+      <a class="button landingPrimary" href="/settings.php">Account</a>
+    <?php else:?>
+      <a class="landingTextLink" href="/login.php">Sign in</a>
+      <a class="button landingPrimary" href="/register.php">Get Annotated</a>
+    <?php endif?>
+  </div>
+</header>
+
+<main>
+<section class="landingHero" id="product">
+  <div class="landingHeroCopy">
+    <span class="landingEyebrow">ANNOTATE THE LIVE WEB</span>
+    <h1>Research the web<br>in context.</h1>
+    <p>Capture what matters. Discuss it where you found it. Preserve the source.<br class="desktopOnly"> Follow what changes. Turn the web into research you can actually use.</p>
+  </div>
+
+  <div class="landingHeroVisual">
+    <img src="/assets/images/annotated-hero.svg" alt="Annotated browser sidebar showing a highlighted article, discussion, and collaborative research context">
+  </div>
+
+  <div class="landingHeroActions" id="extension">
+    <a class="button landingChrome" href="/onboarding.php#extension" aria-label="Add Annotated to Chrome">
+      <span class="chromeDot" aria-hidden="true"></span>
+      Add to Chrome
+    </a>
+    <a class="button secondary landingExplore" href="/explore.php">Explore Annotated <span aria-hidden="true">→</span></a>
+  </div>
+  <div class="landingCapabilityLine" aria-label="Annotated capabilities">
+    <span>Text</span><i>•</i><span>Screenshots</span><i>•</i><span>Video</span><i>•</i><span>Audio</span><i>•</i><span>Live</span><i>•</i><span>Research</span>
+  </div>
+</section>
+
+<section class="landingFeatures" id="how-it-works">
+  <div class="landingSectionIntro">
+    <span class="landingEyebrow">START WITH ANY PAGE</span>
+    <h2>Capture what matters.<br>Keep the context.</h2>
+    <p>Annotated stays connected to the source, the conversation, and the exact version you captured.</p>
+  </div>
+
+  <div class="landingFeatureGrid">
+    <article class="landingFeatureCard">
+      <div class="featureIcon" aria-hidden="true">T</div>
+      <h3>Highlight text</h3>
+      <p>Capture key passages, add your own thinking, and keep the original context attached.</p>
+      <div class="featureMini featureTextMini"><span></span><strong></strong><span></span><span></span></div>
+    </article>
+    <article class="landingFeatureCard">
+      <div class="featureIcon dashedIcon" aria-hidden="true"></div>
+      <h3>Capture screenshots</h3>
+      <p>Save exactly what you are seeing, including a selected region of the page.</p>
+      <div class="featureMini screenshotMini"><div></div></div>
+    </article>
+    <article class="landingFeatureCard">
+      <div class="featureIcon playIcon" aria-hidden="true">▶</div>
+      <h3>Clip video or audio</h3>
+      <p>Capture media directly from the page with focused clips up to 90 seconds.</p>
+      <div class="featureMini mediaMini"><span>▶</span><div></div></div>
+    </article>
+    <article class="landingFeatureCard">
+      <div class="featureIcon clockIcon" aria-hidden="true">◷</div>
+      <h3>Preserve the source</h3>
+      <p>Your annotation stays tied to what the page looked like—even when the live source changes.</p>
+      <div class="featureMini versionMini"><span><b></b>v5 <small>current</small></span><span><b></b>v4</span><span class="captured"><b></b>v3 <small>captured</small></span></div>
+    </article>
+  </div>
+</section>
+</main>
+
+<footer class="landingFooter">
+  <a class="landingBrand footerBrand" href="/"><span class="landingMark">A</span><span>Annotated</span></a>
+  <nav aria-label="Footer">
+    <a href="#product">Product</a>
+    <a href="/research.php">Research</a>
+    <a href="#extension">Chrome Extension</a>
+    <a href="/explore.php">Explore</a>
+    <a href="/settings.php">Privacy</a>
+  </nav>
+  <p>Research the web in context.</p>
+</footer>
+</body>
+</html>
