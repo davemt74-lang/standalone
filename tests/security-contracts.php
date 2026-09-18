@@ -168,6 +168,13 @@ $need('admin/system-health.php','require_admin($pdo)','Release health must be ad
 $need('admin/system-health.php','Cache-Control: private, no-store','Release health must not be shared-cached.');
 $need('app/release.php','function release_environment_checks','Release checks must be centralized server-side.');
 $need('install.php','installer_run($pdo,$schemaFile,$migrationDir)','Fresh installer must apply the schema and bundled migrations through the shared installer service.');
+$need('install.php',"name=\"db_host\"", 'Installer must collect database host.');
+$need('install.php',"name=\"db_name\"", 'Installer must collect database name.');
+$need('install.php',"name=\"db_user\"", 'Installer must collect database username.');
+$need('install.php',"name=\"db_pass\"", 'Installer must collect database password.');
+$need('install.php','installer_write_config($configFile,$config)','Installer must create config.php automatically after validating the database connection.');
+$need('app/installer.php','function installer_write_config','Installer configuration writer must be centralized.');
+$need('app/bootstrap.php',"header('Location: /install.php')",'Missing configuration must route browser requests to the installer.');
 $need('install.php','hash_equals','Installer submission must use a session-bound CSRF check.');
 $need('app/bootstrap.php',"header('Location: /install.php')",'Uninitialized web requests must route to the installer.');
 $need('first-admin.php','users_exist($pdo)','First-admin setup must close after the first account exists.');
