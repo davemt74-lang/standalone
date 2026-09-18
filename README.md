@@ -109,3 +109,29 @@ Migration `20260917_006_worker_leases.sql` adds tokenized worker leases to media
 Source Version allocation is serialized by locking the canonical `sources` row before reading `current_version_id` and choosing the next version number. The source-monitor worker fetches the remote page before opening the database transaction, then reconciles that fetched result against the latest locked Source Version before committing.
 
 `upgrade.php` now uses MariaDB `GET_LOCK()` so only one schema upgrade can run at a time. Because MariaDB DDL can implicitly commit, upgrades no longer pretend DDL rollback is atomic. `schema_migration_runs` records every attempt, statement position, failure, and checksum. Failed migrations remain checksum-pinned and must be retried unchanged after the environmental problem is corrected. Destructive `DROP`/`TRUNCATE`/`RENAME TABLE` migrations are rejected by the automated contract gate in favor of reviewed expand/contract changes.
+
+
+## V1.1 RC1 release hardening
+
+Phase 11 adds the release-candidate operating layer around the V1 product loop:
+
+- `/onboarding.php` — one-time first-run checklist based on real account activity
+- `/admin/system-health.php` — production readiness, migration, queue, and worker health
+- `php bin/release-preflight.php` — CLI release gate using the same health service
+- `docs/RELEASE-V1.1-RC1.md` — deployment, backup, rollback, worker, and Chrome release runbook
+- browser-session revocation epoch plus existing per-extension session revocation
+- OAuth callback state expiry and one-time consumption
+- worker heartbeats for media, transcription, source monitoring, AI, and saved-search alerts
+- Chrome extension version `0.9.0` with first-install setup and accessibility/keyboard hardening
+
+Recommended recurring workers for RC validation:
+
+```bash
+php worker/media-worker.php
+php worker/transcription-worker.php
+php worker/source-monitor-worker.php 5
+php worker/ai-worker.php 5
+php worker/saved-search-worker.php 50
+```
+
+Before every RC/production deploy, back up both MariaDB and `storage.private_root`, run the preflight command, apply pending migrations through `upgrade.php`, and verify Admin → System Health & Release. See the full runbook for rollback rules.
