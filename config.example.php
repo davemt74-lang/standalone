@@ -6,8 +6,6 @@ return [
         'session_name' => 'annotated_session',
         // 32+ random characters. Used only to encrypt secrets stored by Admin (such as LLM API keys).
         'encryption_key' => 'replace-with-a-long-random-secret',
-        // Required only until the first administrator exists. Use 32+ random characters and remove/rotate it after setup.
-        'bootstrap_key' => 'replace-with-a-separate-long-random-bootstrap-secret',
     ],
     'db' => [
         'dsn' => 'mysql:host=127.0.0.1;dbname=annotated;charset=utf8mb4',
