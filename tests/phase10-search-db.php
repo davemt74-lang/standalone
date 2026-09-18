@@ -18,6 +18,7 @@ $publicSource=$makeSource('public','Nebula Orchard Source');$privateSource=$make
 
 $makeAnn=function(array $source,array $user,string $visibility,string $text,?int $team=null,string $captureType='text')use($pdo,$pub): array{$cap=$pub('cap');$pdo->prepare('INSERT INTO captures(public_id,source_id,source_version_id,user_id,capture_type,selected_text) VALUES(?,?,?,?,?,?)')->execute([$cap,$source['id'],$source['version_id'],$user['id'],$captureType,$text]);$capId=(int)$pdo->lastInsertId();$id=$pub('ann');$pdo->prepare("INSERT INTO annotations(public_id,user_id,source_id,source_version_id,capture_id,text_commentary,visibility,team_id,status,published_at) VALUES(?,?,?,?,?,?,?,?, 'published',NOW())")->execute([$id,$user['id'],$source['id'],$source['version_id'],$capId,$text,$visibility,$team]);return ['id'=>(int)$pdo->lastInsertId(),'public_id'=>$id];};
 $annPublic=$makeAnn($publicSource,$owner,'public','nebula orchard public evidence');
+$annSibling=$makeAnn($publicSource,$owner,'public','nebula orchard sibling evidence');
 $annPrivate=$makeAnn($privateSource,$owner,'private','private delta secret evidence');
 $annTeam=$makeAnn($teamSource,$owner,'team','team echo secret evidence',$teamId);
 $annProject=$makeAnn($projectSource,$owner,'private','project foxtrot secret evidence');
@@ -59,7 +60,7 @@ $entityPage=search_discovery_entity($pdo,(string)$entity['public_id'],null);p10(
 $pdo->prepare("UPDATE research_reports SET visibility='private' WHERE id=?")->execute([$reportId]);search_remove_public_report_entities($pdo,$reportPublic);$entityPage=search_discovery_entity($pdo,(string)$entity['public_id'],null);p10($entityPage!==null&&count($entityPage['mentions'])===0,'making report non-public removes all derived public mentions');
 
 $relatedOut=search_related_sources($pdo,$publicSource['public_id'],$outsider,20);p10(p10has($relatedOut,$relatedSource['public_id']),'related-source discovery finds accessible shared-contributor source');p10(!p10has($relatedOut,$privateSource['public_id']),'related-source discovery does not leak private-only source');
-$relatedAnn=search_related_annotations($pdo,$annPublic['public_id'],$outsider,20);p10(p10has($relatedAnn,$annRelated['public_id'])&&!p10has($relatedAnn,$annPrivate['public_id']),'related annotations respect visibility');
+$relatedAnn=search_related_annotations($pdo,$annPublic['public_id'],$outsider,20);p10(p10has($relatedAnn,$annSibling['public_id'])&&!p10has($relatedAnn,$annPrivate['public_id']),'related annotations respect visibility');
 
 $pdo->prepare('INSERT INTO follows(follower_user_id,followed_user_id) VALUES(?,?)')->execute([$outsider['id'],$owner['id']]);$recs=search_recommendations($pdo,$outsider,20);p10(p10has($recs,$annPublic['public_id'])&&!p10has($recs,$annPrivate['public_id']),'personalized recommendations respect search visibility');
 
