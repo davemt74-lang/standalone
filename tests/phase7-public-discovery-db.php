@@ -30,6 +30,10 @@ p7ok(public_discovery_annotation($pdo,$teamAnn,$alice)!==null,'authorized Team m
 $pdo->prepare('INSERT INTO blocks(blocker_user_id,blocked_user_id) VALUES(?,?)')->execute([$alice['id'],$bob['id']]);
 $blockedSource=public_discovery_source($pdo,$publicSource['public_id'],$alice);$blockedIds=array_column($blockedSource['annotations'],'public_id');
 p7ok(!in_array($publicAnn,$blockedIds,true)&&!in_array($teamAnn,$blockedIds,true)&&in_array($alicePrivate,$blockedIds,true),'signed-in source discovery honors block relationships');
+p7ok(public_discovery_annotation($pdo,$publicAnn,$alice)===null,'blocked annotation cannot be reopened by direct URL');
+p7ok(public_discovery_profile($pdo,$bob['username'],$alice)===null,'blocked profile cannot be reopened by direct URL');
+$blockedSearch=public_discovery_search($pdo,'phase7-public-needle',$alice);p7ok(count($blockedSearch['annotations'])===0,'signed-in Search excludes annotations from blocked relationships');
+$blockedExplore=public_discovery_explore($pdo,$alice);p7ok(!in_array($publicAnn,array_column($blockedExplore['annotations'],'public_id'),true),'signed-in Explore excludes annotations from blocked relationships');
 $pdo->prepare('DELETE FROM blocks WHERE blocker_user_id=? AND blocked_user_id=?')->execute([$alice['id'],$bob['id']]);
 
 $projectPublic=$pub('project');$pdo->prepare('INSERT INTO research_projects(public_id,owner_user_id,title,description) VALUES(?,?,?,?)')->execute([$projectPublic,$bob['id'],'P7 Public Research','public research']);$projectId=(int)$pdo->lastInsertId();
