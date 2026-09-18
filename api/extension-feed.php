@@ -1,0 +1,45 @@
+<?php
+if($action==='page_context'){
+    $pageUrl=trim((string)($input['url']??''));$declared=trim((string)($input['canonical_url']??''));
+    if(!filter_var($pageUrl,FILTER_VALIDATE_URL))json_response(['ok'=>false,'error'=>['code'=>'INVALID_URL']],422);
+    $identity=source_identity_url($pageUrl,$declared?:null);$canonical=canonicalize_url($identity);$u=current_user($pdo);
+    $source=source_resolve_url($pdo,$identity,(bool)$u);if(!$source&&$u)$source=ensure_source($pdo,$identity,$input['title']??null,$input['media_type']??null);
+    if(!$source)json_response(['ok'=>true,'data'=>['source'=>null,'canonical_url'=>$canonical,'annotation_count'=>0,'following_annotation_count'=>0,'presence_count'=>0,'authenticated'=>false,'presence_mode'=>'off','source_following'=>false]]);
+    $source=feed_source_by_public($pdo,(string)$source['public_id'])?:$source;$sourceId=(int)$source['id'];
+    $count=feed_source_visible_count($pdo,$sourceId,$u);$followingCount=$u?feed_source_followed_author_count($pdo,$sourceId,$u):0;
+    $presence=0;try{$q=$pdo->prepare('SELECT COUNT(*) FROM page_presence_sessions WHERE source_id=? AND last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND) AND presence_mode<>"off"');$q->execute([$sourceId]);$presence=(int)$q->fetchColumn();}catch(PDOException $e){}
+    $followed=$u?feed_source_followed($pdo,$sourceId,(int)$u['id']):false;
+    json_response(['ok'=>true,'data'=>[
+      'source'=>['public_id'=>$source['public_id'],'title'=>$source['title'],'canonical_url'=>$source['canonical_url'],'status'=>$source['status'],'current_version_number'=>$source['current_version_number']??null],
+      'canonical_url'=>$source['canonical_url']??$canonical,'page_url'=>$pageUrl,'annotation_count'=>$count,'following_annotation_count'=>$followingCount,'presence_count'=>$presence,
+      'authenticated'=>(bool)$u,'presence_mode'=>$u['live_presence_mode']??'off','source_following'=>$followed
+    ]]);
+}
+if($action==='feed_page'){
+    $viewer=current_user($pdo);$source=feed_source_by_public($pdo,(string)($input['source']??''));if(!$source)json_response(['ok'=>true,'data'=>['annotations'=>[],'next_cursor'=>null,'unread_count'=>0]]);
+    $cursor=feed_cursor_decode((string)($input['cursor']??''));$limit=(int)($input['limit']??15);
+    json_response(['ok'=>true,'data'=>feed_annotation_rows($pdo,$viewer,'page',(int)$source['id'],$cursor,$limit)]);
+}
+if($action==='feed_following'){
+    $viewer=require_api_user($pdo);$cursor=feed_cursor_decode((string)($input['cursor']??''));$limit=(int)($input['limit']??15);
+    json_response(['ok'=>true,'data'=>feed_annotation_rows($pdo,$viewer,'following',null,$cursor,$limit)]);
+}
+if($action==='feed_comments'){
+    $viewer=current_user($pdo);$data=feed_comments($pdo,(string)($input['annotation_id']??''),$viewer);if(!$data)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
+    json_response(['ok'=>true,'data'=>['comments'=>$data['comments']]]);
+}
+if($action==='feed_read'){
+    $viewer=require_api_mutation_auth($pdo);$ids=is_array($input['annotation_ids']??null)?$input['annotation_ids']:[];$marked=feed_mark_read($pdo,$viewer,$ids);
+    json_response(['ok'=>true,'data'=>['marked'=>$marked,'unread_count'=>feed_following_unread_count($pdo,$viewer)]]);
+}
+if($action==='comment'){
+    $viewer=require_api_mutation_auth($pdo);$parent=isset($input['parent_comment_id'])&&$input['parent_comment_id']!==''?(int)$input['parent_comment_id']:null;
+    try{$created=feed_create_comment($pdo,$viewer,(string)($input['annotation_id']??''),(string)($input['body']??''),$parent);}
+    catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_COMMENT','message'=>$e->getMessage()]],422);}
+    catch(RuntimeException $e){json_response(['ok'=>false,'error'=>['code'=>'COMMENT_FORBIDDEN','message'=>$e->getMessage()]],403);}
+    json_response(['ok'=>true,'data'=>$created],201);
+}
+if($action==='watch_source'){
+    $viewer=require_api_mutation_auth($pdo);$source=feed_source_by_public($pdo,(string)($input['source']??''));if(!$source)json_response(['ok'=>false,'error'=>['code'=>'SOURCE_NOT_FOUND']],404);
+    $followed=feed_toggle_source_follow($pdo,(int)$source['id'],(int)$viewer['id']);json_response(['ok'=>true,'data'=>['watched'=>$followed,'following'=>$followed]]);
+}
