@@ -156,11 +156,14 @@ chrome.runtime.onMessage.addListener(async message=>{
     await settings();
     let signedIn=false;
     if(token)signedIn=await loadMe(true);
-    if(!signedIn){
+    if(!signedIn&&token){
+      authClose();hideLanding();document.body.classList.remove('sidebar-booting','landing-open');
+      await loadPage();
+    }else if(!signedIn){
       const websiteUser=await websiteSessionHandoff();
       if(websiteUser)signedIn=await loadMe(true);
+      if(!signedIn)await loadLandingPage();
     }
-    if(!signedIn)await loadLandingPage();
     setInterval(()=>{if(!document.hidden&&token&&context?.source?.public_id)heartbeat();},30000);
   }catch(e){
     console.error('[Annotated] Sidebar startup failed',e);
