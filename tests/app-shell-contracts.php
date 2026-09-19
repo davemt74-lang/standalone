@@ -8,8 +8,8 @@ foreach(['app/shell.php','chrome-extension.php','team.php','teams.php'] as $file
 $need('app/bootstrap.php',"/shell.php",'Bootstrap must load the universal application shell.');
 $need('app/functions.php','app_shell_activate($pdo,$user)','Authenticated identity must activate the shared shell.');
 $need('app/functions.php','profile_image_url','Current user identity must expose the profile image.');
-$need('app/shell.php',"/teams.php','Teams must be first-class universal navigation.');
-$need('app/shell.php',"/chrome-extension.php','Universal shell must expose Chrome extension download/install.');
+$need('app/shell.php','/teams.php','Teams must be first-class universal navigation.');
+$need('app/shell.php','/chrome-extension.php','Universal shell must expose Chrome extension download/install.');
 $need('app/shell.php','appUserMenu','Universal header must include the profile/avatar dropdown.');
 $need('app/shell.php','appShellFooter','Every authenticated product page must inherit the shared footer.');
 $need('app/shell.php',"($user['role']??'')==='admin'",'Admin navigation must be role-gated.');
