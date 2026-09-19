@@ -18,6 +18,7 @@ $team=['id'=>$teamId,'public_id'=>$teamPublic,'name'=>'Phase 12A Team','owner_us
 $c1=conversation_team_ensure($pdo,$team,$owner);$c2=conversation_team_ensure($pdo,$team,$owner);
 p12((int)$c1['id']===(int)$c2['id'],'repeated Team Chat initialization resolves one canonical conversation');
 $q=$pdo->prepare("SELECT COUNT(*) FROM conversations WHERE conversation_type='team' AND team_id=?");$q->execute([$teamId]);p12((int)$q->fetchColumn()===1,'one Team owns exactly one persistent conversation');
+p12throws(fn()=>conversation_team_ensure($pdo,$team,$outsider),'conversation initialization independently requires Team membership');
 
 $memberList=conversation_team_list($pdo,$member);p12(count($memberList)===1&&$memberList[0]['team_public_id']===$teamPublic,'team member sees their Team Chat in conversation list');
 p12(count(conversation_team_list($pdo,$outsider))===0,'outsider does not discover Team Chat');
@@ -28,6 +29,9 @@ p12($m1['created']&&!$m1Retry['created']&&$m1Retry['deduplicated'],'client messa
 $q=$pdo->prepare('SELECT COUNT(*) FROM conversation_messages WHERE conversation_id=? AND client_message_id=?');$q->execute([$c1['id'],'client-'.$run]);p12((int)$q->fetchColumn()===1,'idempotent send produces one stored message');
 $q=$pdo->prepare("SELECT category,object_type,object_public_id FROM notifications WHERE user_id=? AND notification_type='team_message' ORDER BY id DESC LIMIT 1");$q->execute([$member['id']]);$notification=$q->fetch();
 p12(($notification['category']??'')==='team'&&($notification['object_type']??'')==='conversation'&&($notification['object_public_id']??'')===$c1['public_id'],'team message creates permission-aware team notification for other members');
+$nq=$pdo->prepare("SELECT * FROM notifications WHERE user_id=? AND notification_type='team_message' ORDER BY id DESC LIMIT 1");$nq->execute([$member['id']]);$nrow=$nq->fetch();
+p12(notification_object_access($pdo,$member,$nrow)===true&&notification_object_access($pdo,$outsider,$nrow)===false,'Team Chat notification access rechecks current Team membership');
+p12(notification_url($pdo,$member,$nrow)==='/home.php?team='.rawurlencode($teamPublic).'#team-chat','Team Chat notification deep-links to the correct Home rail');
 
 $memberRows=conversation_message_rows($pdo,$member,$c1['public_id']);$first=$memberRows['messages'][0]??[];
 p12(($first['body']??'')==='Team hello','authorized member reads team message');
@@ -35,6 +39,8 @@ p12(($first['profile_image_url']??'')==='/uploads/profiles/owner-test.jpg','mess
 p12(conversation_message_rows($pdo,$outsider,$c1['public_id'])===null,'outsider cannot read a guessed Team conversation id');
 
 $memberList=conversation_team_list($pdo,$member);p12((int)$memberList[0]['unread_count']===1,'message from another member increments unread count');
+p12(conversation_mark_read($pdo,$member,$c1['public_id'],'missing-'.$run)===false,'invalid read target is rejected instead of marking the whole conversation read');
+$memberList=conversation_team_list($pdo,$member);p12((int)$memberList[0]['unread_count']===1,'invalid read target leaves unread state unchanged');
 $ownerList=conversation_team_list($pdo,$owner);p12((int)$ownerList[0]['unread_count']===0,'own message does not count as unread');
 p12(conversation_mark_read($pdo,$member,$c1['public_id'],$m1['public_id']),'member can mark Team Chat read');
 $memberList=conversation_team_list($pdo,$member);p12((int)$memberList[0]['unread_count']===0,'mark read clears Team Chat unread count');
