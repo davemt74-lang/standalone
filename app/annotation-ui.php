@@ -34,7 +34,7 @@ function annotation_media_url(array $a): ?string {
 }
 
 function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): string {
-    $showAuthor=$options['show_author']??true;$showSource=$options['show_source']??true;
+    $showAuthor=$options['show_author']??true;$showSource=$options['show_source']??true;$showOpen=$options['show_open']??true;$commentsHref=(string)($options['comments_href']??('/annotation.php?id='.rawurlencode((string)($a['public_id']??'')).'&comments=1#discussion'));$extraActions=(string)($options['extra_actions_html']??'');
     $id=(string)($a['public_id']??'');$author=(string)($a['display_name']??'');$username=(string)($a['username']??'');
     $type=annotation_type_label($a);$sourceLabel=annotation_source_label($a);$snapshot=annotation_snapshot_url($a);$media=annotation_media_url($a);
     $comments=(int)($a['comment_count']??0);$likes=(int)($a['like_count']??0);$liked=!empty($a['viewer_liked']);$saved=!empty($a['is_saved']);
@@ -65,9 +65,10 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
   </details><?php endif?>
   <div class="annotationSocialBar">
     <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$liked?'active':''?>" data-web-annotation-action="like" data-id="<?=h($id)?>"><span aria-hidden="true">♥</span> <span>Like</span> <strong data-like-count><?=h((string)$likes)?></strong></button><?php else:?><a class="annotationSocialAction" href="/login.php"><span aria-hidden="true">♡</span> Like <strong><?=h((string)$likes)?></strong></a><?php endif?>
-    <a class="annotationSocialAction" href="/annotation.php?id=<?=h($id)?>&comments=1#discussion"><span aria-hidden="true">💬</span> Comments <strong><?=h((string)$comments)?></strong></a>
+    <a class="annotationSocialAction" href="<?=h($commentsHref)?>"><span aria-hidden="true">💬</span> Comments <strong><?=h((string)$comments)?></strong></a>
     <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$saved?'active':''?>" data-web-annotation-action="save" data-id="<?=h($id)?>"><span aria-hidden="true">🔖</span> <span data-save-label><?=$saved?'Saved':'Save'?></span></button><?php endif?>
-    <a class="annotationSocialAction annotationOpenAction" href="/annotation.php?id=<?=h($id)?>">Open</a>
+    <?php if($extraActions!==''):?><details class="annotationMore"><summary class="annotationSocialAction">•••</summary><div class="annotationMoreMenu"><?=$extraActions?></div></details><?php endif?>
+    <?php if($showOpen):?><a class="annotationSocialAction annotationOpenAction" href="/annotation.php?id=<?=h($id)?>">Open</a><?php endif?>
   </div>
 </article>
 <?php return (string)ob_get_clean();
