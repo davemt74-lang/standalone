@@ -91,7 +91,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       (a.user_id=$uid) is_self" : "0 is_following,0 is_saved,1 is_read,0 source_following,0 from_followed_user,0 from_followed_source,0 viewer_liked,0 is_self";
     $sql="SELECT
       a.id internal_id,a.public_id,a.source_version_id,a.text_commentary,a.published_at,a.visibility,a.team_id,
-      u.public_id author_public_id,u.username,u.display_name,
+      u.public_id author_public_id,u.username,u.display_name,u.profile_image_url,
       s.public_id source_public_id,s.title source_title,s.domain source_domain,s.source_type,s.canonical_url,s.status source_record_status,s.current_version_id,
       sv.version_number capture_version_number,sv.captured_at capture_version_captured_at,
       cv.version_number current_version_number,cv.captured_at current_version_captured_at,
