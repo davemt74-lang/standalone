@@ -117,8 +117,8 @@ function app_shell_transform(string $html): string {
 
     [$aside,$header,$footer]=app_shell_markup($pdo,$user);
     $mode=(string)($state['mode']??'full');$headerOnly=$mode==='header_only';
-    $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.'<div class="appShellContent">';
-    $close='</div>'.$footer.'</div></div>';
+    $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1" data-chat-presence-csrf="'.app_shell_h(csrf_token()).'">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.'<div class="appShellContent">';
+    $close='</div>'.$footer.'</div></div><script src="/assets/js/chat-presence.js?v=12.0"></script>';
 
     $html=(string)preg_replace('#<body([^>]*)>#i','<body$1>'.$open,$html,1);
     $pos=strripos($html,'</body>');
