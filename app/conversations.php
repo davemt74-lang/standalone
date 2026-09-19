@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+function conversation_runtime_ready(PDO $pdo): bool {
+    try{return installer_table_exists($pdo,'conversations')&&installer_table_exists($pdo,'conversation_messages')&&installer_table_exists($pdo,'conversation_members');}
+    catch(Throwable $e){return false;}
+}
+
 function conversation_team_ensure(PDO $pdo,array $team,array $actor): array {
     $teamId=(int)$team['id'];$actorId=(int)$actor['id'];$title=trim((string)($team['name']??'Team Chat'));
     $pdo->beginTransaction();
@@ -49,6 +54,7 @@ function conversation_access(PDO $pdo,array $viewer,string $conversationPublicId
     return $row;
 }
 function conversation_team_list(PDO $pdo,array $viewer): array {
+    if(!conversation_runtime_ready($pdo))return [];
     $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,t.owner_user_id,tm.role access_role,
       (SELECT COUNT(*) FROM team_members x WHERE x.team_id=t.id) member_count
       FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=?
