@@ -17,6 +17,10 @@ $need('extension/sidepanel.html','id="landingPanel"','Chrome sidebar must expose
 $need('extension/sidepanel.html','id="authAccount"','Chrome sidebar must expose a distinct signed-in account view.');
 $sidebarHtml=(string)file_get_contents($root.'/extension/sidepanel.html');
 $need('extension/sidepanel.html','id="headerCreateNew"','Sidebar header must expose the Create New shortcut.');
+$need('extension/sidepanel.html','id="buildVersion"','Sidebar header must visibly expose the loaded extension version.');
+$need('extension/sidepanel-init.js',"chrome.runtime.getManifest().version",'Sidebar version marker must come from the manifest actually loaded by Chrome.');
+$need('extension/sidepanel-init.js',"[Annotated] Capture mode failed",'Capture mode button errors must be caught instead of surfacing as uncaught anonymous-function dashboard errors.');
+$need('extension/sidepanel-capture.js','ensurePageContentScript(tab)','Region capture must ensure the page reader is present before messaging the active tab.');
 $need('extension/sidepanel.html','id="tab-create"','Sidebar must expose a dedicated Create New tab.');
 $need('extension/sidepanel.html','id="create" role="tabpanel"','Create New must have its own tab panel.');
 $sidebarPageStart=strpos($sidebarHtml,'<section id="page"');$sidebarCreateStart=strpos($sidebarHtml,'<section id="create"');
