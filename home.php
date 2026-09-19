@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/annotation-ui.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/feed.php';require_once __DIR__.'/app/annotation-ui.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
 
 $feed=feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations'];
