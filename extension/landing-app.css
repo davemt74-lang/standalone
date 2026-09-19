@@ -85,3 +85,16 @@
 .annotationTranscriptLabel{margin-bottom:7px;color:#777;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .annotationTranscriptPanel p{margin:0;line-height:1.55;white-space:normal}
 @media(max-width:620px){.annotationTranscriptPanel{margin-left:14px;margin-right:14px}}
+
+
+/* Profile/menu hardening */
+.annotationPost{overflow:visible}
+.annotationPostHead{position:relative;z-index:5}
+.annotationHeaderMenu{z-index:10}
+.annotationHeaderMenu[open]{z-index:120}
+.annotationHeaderMenu>summary{font-size:18px;line-height:1;letter-spacing:0}
+.annotationHeaderMenuPanel{top:calc(100% + 6px);right:0;width:max-content;min-width:172px;max-width:min(240px,calc(100vw - 28px));padding:6px;overflow:hidden;border-radius:11px;box-shadow:0 14px 34px rgba(0,0,0,.16)}
+.annotationHeaderMenuPanel a,.annotationHeaderMenuPanel button{display:block;width:100%;min-height:36px;padding:9px 11px;white-space:nowrap}
+.profilePhotoRemove{display:flex;align-items:center;gap:8px;font-size:.86rem;color:#555}
+.profilePhotoRemove input{width:auto}
+@media(max-width:620px){.annotationHeaderMenuPanel{right:-4px;min-width:168px}}
