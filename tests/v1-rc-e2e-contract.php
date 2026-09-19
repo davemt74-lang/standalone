@@ -15,6 +15,7 @@ $need('extension/sidepanel.html','id="authLoginForm"','Chrome sidebar must expos
 $need('extension/sidepanel.html','id="authRegisterForm"','Chrome sidebar must expose normal account creation.');
 $need('extension/sidepanel.html','id="landingPanel"','Chrome sidebar must expose a logged-out landing view.');
 $need('extension/sidepanel.html','id="authAccount"','Chrome sidebar must expose a distinct signed-in account view.');
+$sidebarHtml=(string)file_get_contents($root.'/extension/sidepanel.html');
 $need('extension/sidepanel.html','id="headerCreateNew"','Sidebar header must expose the Create New shortcut.');
 $need('extension/sidepanel.html','id="tab-create"','Sidebar must expose a dedicated Create New tab.');
 $need('extension/sidepanel.html','id="create" role="tabpanel"','Create New must have its own tab panel.');
@@ -50,7 +51,6 @@ $need('oauth/callback.php','$fresh=$issued>0&&$issued>=time()-600','OAuth callba
 $need('oauth/callback.php',"unset(\$_SESSION['oauth_state']",'OAuth callback state must be consumed before provider exchange.');
 $need('extension/sidepanel.html','role="tablist"','Sidebar must expose tab semantics.');
 $need('extension/sidepanel-feed.js',"setAttribute('aria-selected'",'Sidebar tab state must stay accessible.');
-$sidebarHtml=(string)file_get_contents($root.'/extension/sidepanel.html');
 $sidebarInit=(string)file_get_contents($root.'/extension/sidepanel-init.js');
 preg_match_all("/getElementById\\('([^']+)'\\)/",$sidebarInit,$directIds);
 preg_match_all("/sidebarBind(?:Click)?\\('([^']+)'/",$sidebarInit,$boundIds);
