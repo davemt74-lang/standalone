@@ -100,7 +100,9 @@ $need('home.php','data-team-chat-popout','Team Chat rail must expose an active-c
 $need('home.php','data-team-chat-popups','Home must expose the desktop active-chat popup layer.');
 $need('chat-settings.php','Chat Status','Team Chat must have a dedicated status settings page.');
 $need('chat-settings.php',"'invisible'",'Chat Status settings must support Invisible mode.');
-$need('assets/js/team-chat.js',"request('heartbeat'",'Team Chat client must maintain heartbeat-based online presence.');
+$need('assets/js/chat-presence.js',"post('heartbeat'",'Authenticated Annotated shell must maintain heartbeat-based Chat presence.');
+$need('app/shell.php','chat-presence.js?v=12.0','Authenticated pages must load the shared Chat presence client.');
+$need('app/shell.php','data-chat-presence-csrf','Shared Chat presence must use the authenticated shell CSRF token.');
 $need('assets/js/team-chat.js','function openPopup','Team Chat client must support Facebook-style active popout chats.');
 $need('assets/js/team-chat.js','POPUP_KEY','Active chat popouts must persist across Home reloads.');
 $need('assets/css/app.css','.chatPresenceDot.status-online','Team Chat must visually distinguish online presence.');
