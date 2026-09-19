@@ -181,6 +181,14 @@ $need('app/bootstrap.php',"header('Location: /install.php')",'Missing configurat
 $need('install.php','hash_equals','Installer submission must use a session-bound CSRF check.');
 $need('app/bootstrap.php',"header('Location: /install.php')",'Uninitialized web requests must route to the installer.');
 $need('first-admin.php','users_exist($pdo)','First-admin setup must close after the first account exists.');
+$need('admin-password-reset.php',"admin-password-reset.enable",'Admin password recovery must require a server-side enable marker.');
+$need('admin-password-reset.php',"role='admin'",'Admin password recovery must only target active administrator accounts.');
+$need('admin-password-reset.php','password_hash($password,PASSWORD_DEFAULT)','Admin recovery must hash replacement passwords using PHP password hashing.');
+$need('admin-password-reset.php','sessions_revoked_before=NOW()','Admin recovery must invalidate older browser sessions.');
+$need('admin-password-reset.php',"UPDATE extension_sessions SET revoked_at=NOW()",'Admin recovery must revoke extension sessions.');
+$need('admin-password-reset.php','@unlink($marker)','Admin recovery must disable its one-time marker after success.');
+$need('admin-password-reset.php','require_csrf()','Admin password recovery POST must require CSRF protection.');
+$need('admin-password-reset.php','rate_limit_page_message','Admin password recovery must be rate limited.');
 $avoid('app/release.php','Bootstrap key','Release health must not require a bootstrap setup key.');
 $avoid('admin/system-health.php','client_secret','Release health UI must never render OAuth client secrets.');
 $avoid('admin/system-health.php','encryption_key','Release health UI must never render encryption secrets.');
