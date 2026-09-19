@@ -2,7 +2,8 @@
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
 if(!users_exist($pdo)){header('Location:/first-admin.php');exit;}
-$u=current_user($pdo);if($u){header('Location:/home.php');exit;}
+$extensionSidebar=(string)($_GET['extension_sidebar']??'')==='1';
+$u=$extensionSidebar?null:current_user($pdo);if($u){header('Location:/home.php');exit;}
 ?><!doctype html>
 <html lang="en">
 <head>
