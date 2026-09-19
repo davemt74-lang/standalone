@@ -88,6 +88,7 @@ $need('app/storage.php','private_storage_root','Private evidence storage must ha
 $need('app/evidence-access.php','annotation_access($pdo,$annotationPublicId,$viewer)','Annotation evidence delivery must re-check authorization.');
 $need('app/evidence-access.php','source_access($pdo,$sourcePublicId,$viewer)','Source evidence delivery must re-check authorization.');
 $need('evidence.php','evidence_annotation_asset','Evidence gateway must use the centralized annotation evidence resolver.');
+$need('evidence.php','extension_api_headers($config)','Evidence gateway must allow authenticated Chrome extension media requests through the controlled extension CORS policy.');
 $need('evidence.php','evidence_source_snapshot','Evidence gateway must use the centralized Source evidence resolver.');
 $need('worker/media-worker.php','private_storage_allocate','Media derivatives must be written to private storage.');
 $need('worker/transcription-worker.php','storage_path_to_absolute','Transcription must resolve private storage references.');
