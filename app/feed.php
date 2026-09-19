@@ -126,7 +126,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $row['post_type']=feed_annotation_post_type($row);
         $row['integrity']=source_integrity_annotation_state($pdo,['id'=>(int)$row['internal_id'],'source_version_id'=>(int)$row['source_version_id'],'current_source_version_id'=>(int)$row['current_version_id']]);
         foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','viewer_liked','is_self'] as $k)$row[$k]=(bool)$row[$k];
-        $row['like_count']=(int)($row['like_count']??0);$row['comment_count']=(int)($row['comment_count']??0);
+        $row['like_count']=(int)($row['like_count']??0);$row['comment_count']=(int)($row['comment_count']??0);$row['post_type']=feed_annotation_post_type($row);
         unset($row['internal_id'],$row['screenshot_target_path'],$row['audio_commentary_path'],$row['media_path']);
     }unset($row);
     $unread=$mode==='following'&&$uid?feed_following_unread_count($pdo,$viewer):0;
