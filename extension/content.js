@@ -24,7 +24,22 @@ function startRegionSelection(){
 }
 function openTextContext(text){const needle=String(text||'').trim().replace(/\s+/g,' ').slice(0,300);if(!needle)return false;try{const found=window.find(needle,false,false,true,false,false,false);if(found){const sel=window.getSelection();if(sel?.rangeCount){const el=sel.getRangeAt(0).startContainer.parentElement;el?.scrollIntoView({block:'center',behavior:'smooth'});}return true;}}catch{}return false;}
 async function mediaControl(msg){const el=document.querySelector('video, audio');if(!el)return {ok:false};try{if(Number.isFinite(Number(msg.time)))el.currentTime=Math.max(0,Number(msg.time));if(typeof msg.muted==='boolean')el.muted=msg.muted;if(Number.isFinite(Number(msg.playbackRate))&&Number(msg.playbackRate)>0)el.playbackRate=Number(msg.playbackRate);if(msg.command==='play')await el.play();else if(msg.command==='pause')el.pause();return {ok:true,...mediaInfo()};}catch(e){return {ok:false,error:e?.message||'Media control failed'};}}
+async function annotatedWebsiteSession(msg){
+  try{
+    const expected=String(msg?.origin||'').replace(/\/$/,'');
+    if(!expected||location.origin!==expected)return {ok:false,error:'ORIGIN_MISMATCH'};
+    const r=await fetch('/api/extension-web-session.php',{
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({extension_id:String(msg.extensionId||''),client_version:String(msg.clientVersion||'')})
+    });
+    const j=await r.json().catch(()=>({ok:false,error:{message:'Invalid website session response.'}}));
+    return j;
+  }catch(e){return {ok:false,error:{message:e?.message||'Unable to read Annotated website session.'}};}
+}
 chrome.runtime.onMessage.addListener((msg,_sender,sendResponse)=>{
+  if(msg?.type==='annotated:website-session'){annotatedWebsiteSession(msg).then(sendResponse);return true;}
   if(msg?.type==='annotated:get-page'){sendResponse(selectionPayload(msg.includePageText===true));return true;}
   if(msg?.type==='annotated:start-region'){startRegionSelection();sendResponse({ok:true});return true;}
   if(msg?.type==='annotated:seek'){mediaControl({time:Number(msg.time)}).then(sendResponse);return true;}
