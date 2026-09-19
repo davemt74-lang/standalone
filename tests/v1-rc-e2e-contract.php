@@ -16,6 +16,7 @@ $need('extension/sidepanel.html','id="authRegisterForm"','Chrome sidebar must ex
 $need('extension/sidepanel.html','id="landingPanel"','Chrome sidebar must expose a logged-out landing view.');
 $need('extension/sidepanel.html','id="authAccount"','Chrome sidebar must expose a distinct signed-in account view.');
 $sidebarHtml=(string)file_get_contents($root.'/extension/sidepanel.html');
+if(substr_count($sidebarHtml,'Use the same account you use on the Annotated website.')!==1)$fail[]='Extension login copy must appear exactly once.';
 $need('extension/sidepanel.html','id="headerCreateNew"','Sidebar header must expose the Create New shortcut.');
 $need('extension/sidepanel.html','id="buildVersion"','Sidebar header must visibly expose the loaded extension version.');
 $need('extension/sidepanel-init.js',"chrome.runtime.getManifest().version",'Sidebar version marker must come from the manifest actually loaded by Chrome.');
@@ -30,6 +31,12 @@ $need('extension/sidepanel.css','repeat(5,minmax(0,1fr))','All five sidebar tabs
 $need('extension/sidepanel.css','white-space:nowrap','Sidebar tab labels must not wrap onto a second row.');
 $need('extension/sidepanel-feed.js','async function phase6OpenCreate','Header Create New must open the standalone composer.');
 $need('extension/sidepanel-capture.js',"phase6SwitchTab(pageTab)",'Publishing must return to This Page so the new annotation is visible.');
+$need('extension/sidepanel-state.js','let loadPage=null,loadThisPage=null,loadFollowing=null,annotationCard=null,filterPageFeed=null;','Shared sidebar state must declare feed hooks without carrying a legacy feed implementation.');
+$avoid('extension/sidepanel-state.js','async function loadPage(){','Shared sidebar state must not ship the legacy loadPage implementation.');
+$avoid('extension/sidepanel-state.js','function annotationCard(','Shared sidebar state must not ship the legacy annotationCard renderer.');
+$avoid('extension/sidepanel-state.js','async function loadThisPage(){','Shared sidebar state must not ship the legacy This Page feed loader.');
+$avoid('extension/sidepanel-state.js','async function loadFollowing(){','Shared sidebar state must not ship the legacy Following loader.');
+$need('extension/sidepanel-feed.js','loadPage=phase6LoadPage;loadThisPage=phase6LoadThisPage;loadFollowing=phase6LoadFollowing;annotationCard=phase6AnnotationCard;filterPageFeed=phase6FilterPageFeed;','The dedicated feed module must own the sidebar feed entry points.');
 $need('extension/sidepanel-state.js','await enterWorkspace();','Successful extension authentication must go directly to the workspace.');
 $avoid('extension/sidepanel-state.js',"authShow('chooser')",'Normal extension login must not route through an extra chooser page.');
 $need('extension/sidepanel-state.js','loadLandingPage','Chrome sidebar must render the website landing page when signed out.');
