@@ -191,7 +191,30 @@ function refreshCaptureCompatibility(){const visibility=$('#visibility').value,t
 function renderMediaMeta(){if(!$('#mediaMeta'))return;if(!page?.mediaType){$('#mediaMeta').innerHTML='';return;}const provider=page.mediaProvider==='youtube'?'YouTube':(page.mediaProvider||'Web media');const title=page.mediaTitle||page.title||'Media';const author=page.mediaAuthor?` · ${esc(page.mediaAuthor)}`:'';const duration=Number.isFinite(Number(page.duration))?` · ${fmtTime(page.duration)}`:'';$('#mediaMeta').innerHTML=`<strong>${esc(title)}</strong>${esc(provider)}${author}${duration}`;}
 
 async function activeTab(){const [tab]=await chrome.tabs.query({active:true,currentWindow:true});return tab;}
-async function readPage(includePageText=false){const tab=await activeTab();if(!tab?.id)return null;return await chrome.tabs.sendMessage(tab.id,{type:'annotated:get-page',includePageText}).catch(()=>({url:tab.url,title:tab.title,selectedText:'',pageText:'',viewport:null,mediaType:null}));}
+async function ensurePageContentScript(tab){
+  if(!tab?.id)return false;
+  try{
+    await chrome.tabs.sendMessage(tab.id,{type:'annotated:get-page',includePageText:false});
+    return true;
+  }catch{}
+  try{
+    const u=new URL(tab.url||'');
+    if(!['http:','https:'].includes(u.protocol))return false;
+    await chrome.scripting.executeScript({target:{tabId:tab.id},files:['content.js']});
+    return true;
+  }catch(e){
+    console.warn('[Annotated] Unable to inject page reader',e);
+    return false;
+  }
+}
+async function readPage(includePageText=false){
+  const tab=await activeTab();if(!tab?.id)return null;
+  const ready=await ensurePageContentScript(tab);
+  if(ready){
+    try{return await chrome.tabs.sendMessage(tab.id,{type:'annotated:get-page',includePageText});}catch(e){console.warn('[Annotated] Page reader did not respond after retry',e);}
+  }
+  return {url:tab.url,title:tab.title,selectedText:'',selector:null,selectionRect:null,pageText:'',viewport:null,mediaType:null};
+}
 async function loadPage(){page=await readPage();if(!page)return;$('#title').textContent=page.title||'Current page';try{$('#domain').textContent=new URL(page.url).hostname}catch{}$('#selection').textContent=page.selectedText||(captureMode==='region'?'Choose a region on the page.':'Highlight text on the page to capture it.');$('#mediaMode').hidden=!page.mediaType;$('#mediaControls').hidden=!(captureMode==='media'&&page.mediaType);renderMediaMeta();if(page.mediaType)updateClipDuration();try{const j=await api('/api/extension.php?action=page_context',{method:'POST',body:JSON.stringify({url:page.url,title:page.title,media_type:page.mediaType})});context=j.data;$('#count').textContent=(context.annotation_count||0)+' annotations';$('#presenceCount').textContent=(context.presence_count||0)+' here';$('#presence').value=context.presence_mode||$('#presence').value;await loadThisPage();if(token){heartbeat();loadLiveTeams();}}catch{$('#count').textContent='Backend unavailable';$('#presenceCount').textContent='';}}
 function fmtTime(v){v=Number(v);if(!Number.isFinite(v))return '';const m=Math.floor(v/60),s=Math.floor(v%60);return m+':'+String(s).padStart(2,'0');}
 function annotationCard(a){const follow=Number(a.is_following)?'Following':'Follow',saved=Number(a.is_saved)?'Saved':'Save';const badge=a.source_status==='edited'?'<span class="badge">Edited</span>':a.source_status==='updated'?'<span class="badge">Updated</span>':'';const shot=a.screenshot_url?`<img src="${esc(API_BASE+a.screenshot_url)}" alt="Captured source snapshot">`:'';const time=a.start_seconds!==null&&a.start_seconds!==undefined?`<div class="hint">Clip ${fmtTime(a.start_seconds)} → ${fmtTime(a.end_seconds)}</div>`:'';const audio=a.audio_url?`<audio controls src="${esc(API_BASE+a.audio_url)}"></audio>`:'';const media=a.media_url?(a.capture_type==='video_clip'?`<video controls src="${esc(API_BASE+a.media_url)}"></video>`:`<audio controls src="${esc(API_BASE+a.media_url)}"></audio>`):(a.capture_type==='video_clip'||a.capture_type==='audio_clip')?`<div class="hint">Media derivative: ${esc(a.media_status||'queued')}</div>`:'';const provenance=a.media_provider?`<div class="provenance">${esc(a.media_provider==='youtube'?'YouTube':a.media_provider)}${a.media_title?' · '+esc(a.media_title):''}${a.media_author?' · '+esc(a.media_author):''}</div>`:'';const transcript=a.transcript_status==='ready'&&a.transcript_text?`<details class="transcript"><summary>Transcript</summary>${esc(a.transcript_text.slice(0,1200))}</details>`:a.audio_url?`<div class="hint">Transcript: ${esc(a.transcript_status||'queued')}</div>`:'';return `<article class="annotationCard" data-id="${esc(a.public_id)}"><div class="author"><strong>${esc(a.display_name)}</strong><span>@${esc(a.username)}</span>${badge}<button data-action="follow" data-user="${esc(a.author_public_id)}">${follow}</button></div><h4>${esc(a.source_title||'Annotated source')}</h4>${a.text_commentary?`<p>${esc(a.text_commentary)}</p>`:''}${a.selected_text?`<div class="excerpt">${esc(a.selected_text.slice(0,500))}</div>`:''}${shot}${media}${provenance}${audio}${transcript}${time}<div class="cardActions"><button data-action="comment">Comment · ${Number(a.comment_count||0)}</button><button data-action="save">${saved}</button><button data-action="research">Research</button><button data-action="source" data-source="${esc(a.source_public_id)}">Source</button><button data-action="open">Open</button>${a.start_seconds!==null&&a.start_seconds!==undefined?'<button data-action="seek" data-time="'+Number(a.start_seconds)+'">Jump</button>':''}</div></article>`;}
