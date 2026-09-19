@@ -101,16 +101,19 @@ async function loadLandingPage(force=false){
         sheet.replaceSync(appCss+'\n'+landingCss+'\n:host{display:block;background:#fff;min-height:100vh}.landingBody{min-height:100vh}.landingHeader{position:sticky;top:0}');
         shadow.adoptedStyleSheets=[sheet];
         shadow.appendChild(wrap);
-        shadow.addEventListener('click',e=>{
-            const a=e.target.closest?.('a');if(!a)return;
-            const auth=a.dataset.sidebarAuth;
-            if(auth){e.preventDefault();authShow(auth);return;}
-            const href=a.getAttribute('href')||'';
-            if(href.startsWith('#')){
-                e.preventDefault();shadow.querySelector(href)?.scrollIntoView({behavior:'smooth',block:'start'});return;
-            }
-            if(/^https?:/i.test(href)){e.preventDefault();chrome.tabs.create({url:href});}
-        });
+        if(!shadow.__annotatedLandingBound){
+            shadow.__annotatedLandingBound=true;
+            shadow.addEventListener('click',e=>{
+                const a=e.target.closest?.('a');if(!a)return;
+                const auth=a.dataset.sidebarAuth;
+                if(auth){e.preventDefault();authShow(auth);return;}
+                const href=a.getAttribute('href')||'';
+                if(href.startsWith('#')){
+                    e.preventDefault();shadow.querySelector(href)?.scrollIntoView({behavior:'smooth',block:'start'});return;
+                }
+                if(/^https?:/i.test(href)){e.preventDefault();chrome.tabs.create({url:href});}
+            });
+        }
         landingLoadedFor=API_BASE;
         host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');
     }catch(e){
