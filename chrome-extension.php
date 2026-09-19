@@ -38,7 +38,7 @@ header('Cache-Control: private, no-store');
       <div><p><strong>Download and unzip the extension.</strong><br><span class="meta">Keep the extracted folder somewhere Chrome can continue to access it.</span></p></div>
       <div><p><strong>Open <code>chrome://extensions</code>.</strong><br><span class="meta">Turn on Developer mode, then choose <em>Load unpacked</em>.</span></p></div>
       <div><p><strong>Select the extracted Annotated extension folder.</strong><br><span class="meta">The folder should contain <code>manifest.json</code> at its root.</span></p></div>
-      <div><p><strong>Connect it to this Annotated website.</strong><br><span class="meta">Open Extension Options, enter this site's URL, then authorize the extension from your Annotated account.</span></p></div>
+      <div><p><strong>Log in from the sidebar.</strong><br><span class="meta">Open Extension Options once to set this site's URL. Then open the sidebar and use Log in or Create account. It uses the same Annotated account system as the website.</span></p></div>
     </div>
   </section>
 </main>
