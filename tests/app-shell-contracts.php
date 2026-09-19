@@ -21,8 +21,8 @@ $need('team.php','profile_image_url','Team members must display social identity/
 $need('home.php','Discover researchers','Home must expose social discovery.');
 $need('home.php','Your teams','Home must expose team membership.');
 $need('settings.php','profile_image_url','Settings must let users control their profile picture.');
-$need('chrome-extension.php','Annotated-Chrome-V0.9.0.zip','Extension page must offer the packaged Chrome download.');
-$need('.github/workflows/package-two-zips.yml','package-website/downloads/Annotated-Chrome-V0.9.0.zip','Website package must embed the Chrome extension ZIP.');
+$need('chrome-extension.php','Annotated-Chrome-Extension.zip','Extension page must offer the packaged Chrome download.');
+$need('.github/workflows/package-two-zips.yml','package-website/downloads/Annotated-Chrome-Extension.zip','Website package must embed the Chrome extension ZIP.');
 $need('live.php','if($sourcePublic','Live navigation must have a directory rather than require a source ID.');
 $need('ai.php','catch(PDOException $e)','Ask Annotated must tolerate pre-upgrade project ordering during migration recovery.');
 
