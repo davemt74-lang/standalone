@@ -61,6 +61,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
         <div class="annotationHeaderMenuPanel">
           <?php if($showOpen):?><a href="<?=h($postUrl)?>">Open post</a><?php endif?>
           <button type="button" data-copy-annotation-link data-url="<?=h($postUrl)?>">Copy link</button>
+          <?php if($showCapturedTranscript):?><button type="button" data-annotation-transcript-toggle aria-controls="annotation-transcript-<?=h($id)?>" aria-expanded="false">Show transcript</button><?php endif?>
           <?php if($publicPost):?><a href="/file-a-claim.php?id=<?=h($id)?>">File a claim</a><a href="/report.php?type=annotation&id=<?=h($id)?>">Report post</a><?php endif?>
           <?=$extraActions?>
         </div>
@@ -70,6 +71,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
   <?php if($commentary!==''):?><div class="annotationCaptionWrap"><p class="annotationCaption <?=$commentaryLong?'is-collapsed':''?>" <?=$commentaryLong?'data-collapsible="1"':''?>><?=nl2br(h($commentary))?></p><?php if($commentaryLong):?><button type="button" class="annotationReadMore" data-annotation-expand aria-expanded="false">Read more</button><?php endif?></div><?php endif?>
   <?php if($showSelected):?><blockquote class="annotationQuote"><?=h(mb_substr($selected,0,1200))?></blockquote><?php endif?>
   <?php if($showSnapshot):?><img class="snapshot annotationPostImage" src="<?=h((string)$snapshot)?>" alt="Preserved annotation capture"><?php endif?>
+  <?php if($showCapturedTranscript):?><section class="annotationTranscriptPanel" id="annotation-transcript-<?=h($id)?>" hidden><div class="annotationTranscriptLabel">Captured text transcript</div><p><?=nl2br(h($selected))?></p></section><?php endif?>
   <?php if($showMedia):?><?php if(($a['capture_type']??'')==='video_clip'):?><video class="webMedia" controls src="<?=h((string)$media)?>"></video><?php else:?><audio class="wideAudio" controls src="<?=h((string)$media)?>"></audio><?php endif?><?php endif?>
   <?php if(!empty($a['audio_url'])):?><div class="annotationAudioCommentary"><span class="meta">Audio commentary</span><audio class="wideAudio" controls src="<?=h((string)$a['audio_url'])?>"></audio><?php if(!empty($a['transcript_edited'])||!empty($a['transcript_raw'])):?><details><summary>Transcript</summary><p><?=nl2br(h((string)($a['transcript_edited']?:$a['transcript_raw'])))?></p></details><?php endif?></div><?php endif?>
   <?php if($showSource):?><details class="annotationSourceDetails">
@@ -77,7 +79,6 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     <div class="annotationSourceBody">
       <?php if($canonical!==''):?><div class="sourceUrl"><?=h($canonical)?></div><?php endif?>
       <?php if($captureVersion||$currentVersion||$integrityLabel!==''):?><div class="sourceStats"><?php if($captureVersion):?><span>Captured <strong>v<?=h((string)$captureVersion)?></strong></span><?php endif?><?php if($currentVersion):?><span>Current <strong>v<?=h((string)$currentVersion)?></strong></span><?php endif?><?php if($integrityLabel!==''):?><span>Integrity <strong><?=h($integrityLabel)?></strong></span><?php endif?></div><?php endif?>
-      <?php if($showCapturedTranscript):?><details class="annotationCapturedTranscript"><summary>Captured text transcript</summary><p><?=nl2br(h($selected))?></p></details><?php endif?>
       <div class="annotationSourceActions"><?php if($sourceId!==''):?><a href="/source.php?id=<?=h($sourceId)?>">Source page</a><?php endif?><?php if(!empty($a['source_changed'])&&$sourceId!==''&&!empty($a['source_version_id'])&&!empty($a['current_source_version_id'])):?><a href="/source-compare.php?id=<?=h($sourceId)?>&from=<?=h((string)$a['source_version_id'])?>&to=<?=h((string)$a['current_source_version_id'])?>">Compare versions</a><?php endif?></div>
     </div>
   </details><?php endif?>
