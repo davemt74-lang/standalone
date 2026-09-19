@@ -31,10 +31,15 @@ function annotation_media_url(array $a): ?string {
 function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): string {
     $showAuthor=$options['show_author']??true;$showSource=$options['show_source']??true;$showOpen=$options['show_open']??true;$commentsHref=(string)($options['comments_href']??('/annotation.php?id='.rawurlencode((string)($a['public_id']??'')).'&comments=1#discussion'));$extraActions=(string)($options['extra_actions_html']??'');
     $id=(string)($a['public_id']??'');$author=(string)($a['display_name']??'');$username=(string)($a['username']??'');
+    $postType=(string)($a['post_type']??'');if($postType===''&&function_exists('feed_annotation_post_type'))$postType=feed_annotation_post_type($a);if($postType==='')$postType='annotation';
     $type=annotation_type_label($a);$sourceLabel=annotation_source_label($a);$snapshot=annotation_snapshot_url($a);$media=annotation_media_url($a);
     $comments=(int)($a['comment_count']??0);$likes=(int)($a['like_count']??0);$liked=!empty($a['viewer_liked']);$saved=!empty($a['is_saved']);
     $published=(string)($a['published_at']??'');$visibility=(string)($a['visibility']??'public');$publicPost=$visibility==='public';
     $commentary=trim((string)($a['text_commentary']??''));$selected=trim((string)($a['selected_text']??''));
+    $showSelected=$selected!==''&&(in_array($postType,['quote','image_quote'],true)||$postType==='annotation');
+    $showSnapshot=$snapshot!==null&&(in_array($postType,['image','image_quote'],true)||($postType==='annotation'&&$selected===''));
+    $showMedia=$media!==null&&(in_array($postType,['video','podcast','music','audio'],true)||$postType==='annotation');
+    $snapshotSuppressed=$snapshot!==null&&!$showSnapshot;
     $commentaryLong=mb_strlen($commentary)>420||substr_count($commentary,"\n")>5;
     $canonical=(string)($a['canonical_url']??'');$sourceId=(string)($a['source_public_id']??'');
     $captureVersion=(int)($a['capture_version_number']??0);$currentVersion=(int)($a['current_version_number']??0);
@@ -60,16 +65,16 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     </div>
   </div>
   <?php if($commentary!==''):?><div class="annotationCaptionWrap"><p class="annotationCaption <?=$commentaryLong?'is-collapsed':''?>" <?=$commentaryLong?'data-collapsible="1"':''?>><?=nl2br(h($commentary))?></p><?php if($commentaryLong):?><button type="button" class="annotationReadMore" data-annotation-expand aria-expanded="false">Read more</button><?php endif?></div><?php endif?>
-  <?php if($selected!==''):?><blockquote class="annotationQuote"><?=h(mb_substr($selected,0,1200))?></blockquote><?php endif?>
-  <?php if($snapshot):?><img class="snapshot annotationPostImage" src="<?=h($snapshot)?>" alt="Preserved annotation capture"><?php endif?>
-  <?php if($media):?><?php if(($a['capture_type']??'')==='video_clip'):?><video class="webMedia" controls src="<?=h($media)?>"></video><?php else:?><audio class="wideAudio" controls src="<?=h($media)?>"></audio><?php endif?><?php endif?>
+  <?php if($showSelected):?><blockquote class="annotationQuote"><?=h(mb_substr($selected,0,1200))?></blockquote><?php endif?>
+  <?php if($showSnapshot):?><img class="snapshot annotationPostImage" src="<?=h((string)$snapshot)?>" alt="Preserved annotation capture"><?php endif?>
+  <?php if($showMedia):?><?php if(($a['capture_type']??'')==='video_clip'):?><video class="webMedia" controls src="<?=h((string)$media)?>"></video><?php else:?><audio class="wideAudio" controls src="<?=h((string)$media)?>"></audio><?php endif?><?php endif?>
   <?php if(!empty($a['audio_url'])):?><div class="annotationAudioCommentary"><span class="meta">Audio commentary</span><audio class="wideAudio" controls src="<?=h((string)$a['audio_url'])?>"></audio><?php if(!empty($a['transcript_edited'])||!empty($a['transcript_raw'])):?><details><summary>Transcript</summary><p><?=nl2br(h((string)($a['transcript_edited']?:$a['transcript_raw'])))?></p></details><?php endif?></div><?php endif?>
   <?php if($showSource):?><details class="annotationSourceDetails">
     <summary><span class="annotationSourceIcon" aria-hidden="true">↗</span><span><small>Source content</small><strong><?=h($sourceLabel)?></strong></span><span class="annotationSourceChevron" aria-hidden="true">⌄</span></summary>
     <div class="annotationSourceBody">
       <?php if($canonical!==''):?><div class="sourceUrl"><?=h($canonical)?></div><?php endif?>
       <?php if($captureVersion||$currentVersion||$integrityLabel!==''):?><div class="sourceStats"><?php if($captureVersion):?><span>Captured <strong>v<?=h((string)$captureVersion)?></strong></span><?php endif?><?php if($currentVersion):?><span>Current <strong>v<?=h((string)$currentVersion)?></strong></span><?php endif?><?php if($integrityLabel!==''):?><span>Integrity <strong><?=h($integrityLabel)?></strong></span><?php endif?></div><?php endif?>
-      <div class="annotationSourceActions"><?php if($sourceId!==''):?><a href="/source.php?id=<?=h($sourceId)?>">Source page</a><?php endif?><?php if(!empty($a['source_changed'])&&$sourceId!==''&&!empty($a['source_version_id'])&&!empty($a['current_source_version_id'])):?><a href="/source-compare.php?id=<?=h($sourceId)?>&from=<?=h((string)$a['source_version_id'])?>&to=<?=h((string)$a['current_source_version_id'])?>">Compare versions</a><?php endif?></div>
+      <div class="annotationSourceActions"><?php if($sourceId!==''):?><a href="/source.php?id=<?=h($sourceId)?>">Source page</a><?php endif?><?php if($snapshotSuppressed):?><a href="<?=h((string)$snapshot)?>" target="_blank" rel="noopener">View captured evidence</a><?php endif?><?php if(!empty($a['source_changed'])&&$sourceId!==''&&!empty($a['source_version_id'])&&!empty($a['current_source_version_id'])):?><a href="/source-compare.php?id=<?=h($sourceId)?>&from=<?=h((string)$a['source_version_id'])?>&to=<?=h((string)$a['current_source_version_id'])?>">Compare versions</a><?php endif?></div>
     </div>
   </details><?php endif?>
   <div class="annotationSocialBar">
