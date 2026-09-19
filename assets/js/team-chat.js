@@ -13,7 +13,7 @@
   const mobileClose=rail.querySelector('[data-team-chat-close]');
   const totalUnread=document.querySelector('[data-team-chat-total-unread]');
   const csrf=rail.dataset.csrf||'';
-  let parentMessage='',parentLabel='',pollTimer=null,busy=false,lastConversation='';
+  let parentMessage='',parentLabel='',pollTimer=null,loadSequence=0;
 
   function currentOption(){return select?.selectedOptions?.[0]||null;}
   function absoluteProfile(username){return '/'+encodeURIComponent(String(username||''));}
@@ -79,19 +79,20 @@
     updateTotalUnread();
   }
   async function loadMessages({quiet=false}={}){
-    if(!select?.value||busy)return;busy=true;lastConversation=select.value;
+    if(!select?.value)return;const sequence=++loadSequence,conversation=select.value;
     if(!quiet){messages.innerHTML='<div class="teamChatLoading">Loading messages…</div>';}
     try{
-      const data=await request('messages',{params:{conversation:select.value,limit:60}});
-      if(lastConversation!==select.value)return;
+      const data=await request('messages',{params:{conversation,limit:60}});
+      if(sequence!==loadSequence||conversation!==select.value)return;
       messages.replaceChildren();
       for(const row of (data.messages||[]))messages.appendChild(renderMessage(row));
       if(!(data.messages||[]).length){const empty=document.createElement('div');empty.className='teamChatEmpty';empty.textContent='No messages yet. Start the conversation.';messages.appendChild(empty);}
       messages.scrollTop=messages.scrollHeight;
       const rows=data.messages||[];await markRead(rows[rows.length-1]);
     }catch(err){
+      if(sequence!==loadSequence||conversation!==select.value)return;
       if(!quiet){messages.replaceChildren();const e=document.createElement('div');e.className='teamChatError';e.textContent=err.message||'Unable to load Team Chat.';messages.appendChild(e);}
-    }finally{busy=false;}
+    }
   }
   async function refreshConversationList(){
     try{
