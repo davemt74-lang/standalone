@@ -4,7 +4,35 @@ let audioBlob=null,audioDataUrl='',mediaRecorder=null,audioStream=null;
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function normalizeApiBase(raw){const value=String(raw||'').trim().replace(/\/$/,'');const u=new URL(value);const loopback=['localhost','127.0.0.1','::1'].includes(u.hostname);if(u.username||u.password||u.hash||u.search)throw new Error('Invalid Annotated server URL.');if(u.protocol!=='https:'&&!(u.protocol==='http:'&&loopback))throw new Error('Annotated server must use HTTPS.');return value;}
-async function settings(){const s=await chrome.storage.sync.get({apiBase:'http://localhost'});try{API_BASE=normalizeApiBase(s.apiBase||'http://localhost');}catch{API_BASE='http://localhost';await chrome.storage.sync.set({apiBase:API_BASE});}const a=await chrome.storage.local.get({annotatedToken:'',liveClientSessionId:'',liveRoomSelection:'public'});token=a.annotatedToken||'';liveClientSessionId=a.liveClientSessionId||crypto.randomUUID();liveRoomSelection=a.liveRoomSelection||'public';if(!a.liveClientSessionId)await chrome.storage.local.set({liveClientSessionId});}
+async function discoverAnnotatedServer(){
+    try{
+        const tabs=await chrome.tabs.query({currentWindow:true});
+        const origins=[];for(const tab of tabs.sort((a,b)=>(b.active?1:0)-(a.active?1:0))){
+            try{const u=new URL(tab.url||'');if(!['http:','https:'].includes(u.protocol))continue;if(!origins.includes(u.origin))origins.push(u.origin);}catch{}
+            if(origins.length>=8)break;
+        }
+        for(const origin of origins){
+            try{
+                const r=await fetch(origin+'/api/extension-bootstrap.php',{headers:{Accept:'application/json'}});
+                const j=await r.json();
+                if(r.ok&&j?.ok&&j.data?.product==='Annotated'){
+                    const base=normalizeApiBase(j.data.base_url||origin);
+                    await chrome.storage.sync.set({apiBase:base});
+                    return base;
+                }
+            }catch{}
+        }
+    }catch{}
+    return '';
+}
+async function settings(){
+    const s=await chrome.storage.sync.get({apiBase:''});let configured=String(s.apiBase||'').trim();
+    if(configured){try{API_BASE=normalizeApiBase(configured);}catch{configured='';}}
+    if(!configured){const discovered=await discoverAnnotatedServer();API_BASE=discovered||'http://localhost';}
+    const a=await chrome.storage.local.get({annotatedToken:'',liveClientSessionId:'',liveRoomSelection:'public'});
+    token=a.annotatedToken||'';liveClientSessionId=a.liveClientSessionId||crypto.randomUUID();liveRoomSelection=a.liveRoomSelection||'public';
+    if(!a.liveClientSessionId)await chrome.storage.local.set({liveClientSessionId});
+}
 async function api(path,opts={}){const headers={'Content-Type':'application/json',...(opts.headers||{})};if(token)headers.Authorization='Bearer '+token;const r=await fetch(API_BASE+path,{...opts,headers});let j={};try{j=await r.json()}catch{}if(!r.ok||j.ok===false){const e=new Error(j.error?.message||j.error?.code||('HTTP '+r.status));e.code=j.error?.code||'HTTP_'+r.status;e.status=r.status;throw e;}return j;}
 function authShow(mode='chooser'){
     $('#authPanel').hidden=false;document.body.classList.add('auth-open');
