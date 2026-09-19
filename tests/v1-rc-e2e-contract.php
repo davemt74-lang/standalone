@@ -100,5 +100,21 @@ $need('app/public-discovery.php','COALESCE(at.edited_text,at.raw_text) transcrip
 $need('profile.php','profileActivity','Profile annotations must render in a single-column activity area.');
 $avoid('profile.php','profileColumns','Profile page must not restore the old two-column sidebar layout.');
 $avoid('profile.php','PUBLISHED RESEARCH','Profile page must not render the old Research sidebar.');
+$need('.htaccess','profile.php?u=$1','Clean single-segment username routes must resolve to public profiles.');
+$need('profile.php',"$GLOBALS['annotated_shell_disabled']=true",'Public profile pages must opt out of the authenticated application sidebar.');
+$need('profile.php','profile_path((string)$p[\'username\'])','Profile canonical URLs must use /username.');
+$need('profile.php',"header('Location: '.profile_path($username),true,301)",'Legacy profile.php URLs must redirect permanently to /username.');
+$need('app/shell.php','profile_path($username)','The account dropdown must link to the clean profile URL.');
+$need('settings.php','enctype="multipart/form-data"','Settings profile form must support photo uploads.');
+$need('settings.php','name="profile_photo"','Settings must expose a profile photo upload field.');
+$need('app/storage.php','function profile_image_upload','Profile photo uploads must use the validated storage helper.');
+$need('app/storage.php',"'image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'",'Profile photo uploads must be restricted to safe raster image types.');
+$need('app/feed.php','u.profile_image_url','Annotation feed rows must carry author profile photos.');
+$need('extension/sidepanel-feed.js','function phase6AuthorAvatar','Chrome This Page and Following cards must render profile photos with an initial fallback.');
+$need('extension/sidepanel-feed.js','data-action="profile"','Chrome annotation identities must open the clean user profile.');
+$need('extension/sidepanel-state.js','profileImageAbsolute','Chrome account identity must support website profile photos.');
+$need('annotation.php','commentAuthorIdentity','Annotation discussion identities must render profile photos.');
+$need('assets/css/app.css','.annotationPost{overflow:visible}','Annotation post menus must not be clipped by the post card.');
+
 
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "V1.1 RC1 end-to-end release contract passed.\n";
