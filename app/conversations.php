@@ -104,6 +104,11 @@ function conversation_message_create(PDO $pdo,array $viewer,string $conversation
     }
     $id=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE conversations SET last_message_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$conversation['id']]);
     $pdo->prepare("INSERT INTO conversation_events(conversation_id,event_type,actor_user_id,message_id,payload_json) VALUES(?,'message_created',?,?,NULL)")->execute([$conversation['id'],$viewer['id'],$id]);
+    if($conversation['conversation_type']==='team'&&!empty($conversation['team_id'])){
+        $q=$pdo->prepare("SELECT tm.user_id FROM team_members tm JOIN users u ON u.id=tm.user_id AND u.status='active' WHERE tm.team_id=? AND tm.user_id<>?");$q->execute([$conversation['team_id'],$viewer['id']]);
+        $teamPublic=(string)($conversation['team_public_id']??'');$teamName=(string)($conversation['team_name']??$conversation['title']??'your team');
+        foreach($q->fetchAll(PDO::FETCH_COLUMN) as $recipient)notify_user($pdo,(int)$recipient,(int)$viewer['id'],'team_message','conversation',(string)$conversation['public_id'],$viewer['display_name'].' sent a message in '.$teamName.'.',['dedupe_key'=>'team-message:'.$public.':'.$recipient,'group_key'=>'team-chat:'.$conversation['public_id'],'context'=>['conversation_public_id'=>$conversation['public_id'],'team_public_id'=>$teamPublic]]);
+    }
     return ['public_id'=>$public,'id'=>$id,'created'=>true,'deduplicated'=>false];
 }
 function conversation_mark_read(PDO $pdo,array $viewer,string $conversationPublicId,?string $messagePublicId=null): bool {
