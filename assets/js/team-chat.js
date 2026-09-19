@@ -20,23 +20,11 @@
   const csrf=rail.dataset.csrf||'';
 
   let railParentMessage='',railParentLabel='',railSequence=0,railNextBefore=null,railHistoryExpanded=false;
-  let pollTimer=null,presenceTimer=null;
+  let pollTimer=null;
   const presenceByUsername=new Map();
   const popups=new Map();
   const popupOrder=[];
-  const CLIENT_KEY='annotated.teamChatClientSession';
   const POPUP_KEY='annotated.teamChatPopups';
-
-  function stableClientSession(){
-    let id='';
-    try{id=localStorage.getItem(CLIENT_KEY)||'';}catch{}
-    if(!/^[A-Za-z0-9._:-]{8,80}$/.test(id)){
-      id=(globalThis.crypto?.randomUUID?.()||('chat-'+Date.now()+'-'+Math.random().toString(16).slice(2))).slice(0,80);
-      try{localStorage.setItem(CLIENT_KEY,id);}catch{}
-    }
-    return id;
-  }
-  const clientSessionId=stableClientSession();
 
   function currentOption(){return select?.selectedOptions?.[0]||null;}
   function absoluteProfile(username){return '/'+encodeURIComponent(String(username||''));}
@@ -296,16 +284,6 @@
     if(label)label.textContent=data.custom_status||({auto:'Automatic',available:'Available',away:'Away',busy:'Busy',invisible:'Invisible'})[data.status_mode]||statusLabel(data.effective_status);
   }
 
-  async function heartbeat(){
-    try{const data=await request('heartbeat',{method:'POST',data:{client_session_id:clientSessionId}});updateSelfStatus(data);}catch{}
-  }
-
-  function leavePresence(){
-    try{
-      fetch('/api/conversations.php?action=leave',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf,'Accept':'application/json'},body:JSON.stringify({client_session_id:clientSessionId}),keepalive:true});
-    }catch{}
-  }
-
   composer?.addEventListener('submit',async e=>{
     e.preventDefault();const body=input.value.trim();if(!body||!select.value)return;
     const button=composer.querySelector('button[type=submit]');button.disabled=true;
@@ -327,10 +305,10 @@
   mobileOpen?.addEventListener('click',()=>document.body.classList.add('teamChatMobileOpen'));
   mobileClose?.addEventListener('click',()=>document.body.classList.remove('teamChatMobileOpen'));
   document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('teamChatMobileOpen');});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){heartbeat();loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
+  document.addEventListener('annotated:chat-presence',e=>updateSelfStatus(e.detail||{}));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
 
-  syncTeamMeta();heartbeat();loadRailMessages();restorePopups();
+  syncTeamMeta();loadRailMessages();restorePopups();
   pollTimer=setInterval(()=>{if(document.hidden)return;loadRailMessages({quiet:true});refreshConversationList();for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});},8000);
-  presenceTimer=setInterval(heartbeat,25000);
-  window.addEventListener('beforeunload',()=>{clearInterval(pollTimer);clearInterval(presenceTimer);leavePresence();},{once:true});
+  window.addEventListener('beforeunload',()=>clearInterval(pollTimer),{once:true});
 })();
