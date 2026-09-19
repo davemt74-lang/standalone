@@ -8,26 +8,16 @@ function normalizeApiBase(raw){const value=String(raw||'').trim().replace(/\/$/,
 async function discoverAnnotatedServer(){
     try{
         const tabs=await chrome.tabs.query({currentWindow:true});
-        const origins=[];for(const tab of tabs.sort((a,b)=>(b.active?1:0)-(a.active?1:0))){
-            try{const u=new URL(tab.url||'');if(!['http:','https:'].includes(u.protocol))continue;if(!origins.includes(u.origin))origins.push(u.origin);}catch{}
-            if(origins.length>=8)break;
-        }
-        for(const origin of origins){
+        const candidates=tabs.filter(tab=>{try{return ['http:','https:'].includes(new URL(tab.url||'').protocol);}catch{return false;}})
+            .sort((a,b)=>(b.active?1:0)-(a.active?1:0));
+        for(const tab of candidates){
+            if(!tab.id)continue;
             try{
-                const r=await fetch(origin+'/api/extension-bootstrap.php',{headers:{Accept:'application/json'}});
-                const j=await r.json();
-                if(r.ok&&j?.ok&&j.data?.product==='Annotated'){
-                    const base=normalizeApiBase(j.data.base_url||origin);
-                    await chrome.storage.sync.set({apiBase:base});
-                    return base;
-                }
-            }catch{}
-            try{
-                const probe=origin+'/api/extension.php?action=page_context&url='+encodeURIComponent(origin+'/');
-                const r=await fetch(probe,{headers:{Accept:'application/json'}});
-                const j=await r.json();
-                if(r.ok&&j?.ok&&j.data&&Object.prototype.hasOwnProperty.call(j.data,'annotation_count')&&Object.prototype.hasOwnProperty.call(j.data,'authenticated')){
-                    const base=normalizeApiBase(origin);
+                const ready=await ensurePageContentScript(tab);
+                if(!ready)continue;
+                const probe=await chrome.tabs.sendMessage(tab.id,{type:'annotated:site-probe'});
+                if(probe?.ok&&probe.origin){
+                    const base=normalizeApiBase(probe.origin);
                     await chrome.storage.sync.set({apiBase:base});
                     return base;
                 }
@@ -39,12 +29,12 @@ async function discoverAnnotatedServer(){
 async function settings(){
     const s=await chrome.storage.sync.get({apiBase:''});let configured=String(s.apiBase||'').trim();
     if(configured){try{API_BASE=normalizeApiBase(configured);}catch{configured='';}}
-    if(!configured){const discovered=await discoverAnnotatedServer();API_BASE=discovered||'http://localhost';}
+    if(!configured){const discovered=await discoverAnnotatedServer();API_BASE=discovered||'';}
     const a=await chrome.storage.local.get({annotatedToken:'',liveClientSessionId:'',liveRoomSelection:'public'});
     token=a.annotatedToken||'';liveClientSessionId=a.liveClientSessionId||crypto.randomUUID();liveRoomSelection=a.liveRoomSelection||'public';
     if(!a.liveClientSessionId)await chrome.storage.local.set({liveClientSessionId});
 }
-async function api(path,opts={}){const headers={'Content-Type':'application/json',...(opts.headers||{})};if(token)headers.Authorization='Bearer '+token;const r=await fetch(API_BASE+path,{...opts,headers});let j={};try{j=await r.json()}catch{}if(!r.ok||j.ok===false){const e=new Error(j.error?.message||j.error?.code||('HTTP '+r.status));e.code=j.error?.code||'HTTP_'+r.status;e.status=r.status;throw e;}return j;}
+async function api(path,opts={}){if(!API_BASE){const e=new Error('Annotated website is not connected. Open your Annotated site in a tab or set it in Extension settings.');e.code='SERVER_NOT_CONNECTED';throw e;}const headers={'Content-Type':'application/json',...(opts.headers||{})};if(token)headers.Authorization='Bearer '+token;let r;try{r=await fetch(API_BASE+path,{...opts,headers});}catch(err){const e=new Error('Unable to reach your Annotated website.');e.code='NETWORK_UNAVAILABLE';throw e;}let j={};try{j=await r.json()}catch{}if(!r.ok||j.ok===false){const e=new Error(j.error?.message||j.error?.code||('HTTP '+r.status));e.code=j.error?.code||'HTTP_'+r.status;e.status=r.status;throw e;}return j;}
 
 function clearSidebarViewClasses(){document.body.classList.remove('sidebar-booting','landing-open','auth-open');}
 function hideLanding(){const host=$('#landingPanel');if(host)host.hidden=true;document.body.classList.remove('landing-open');}
@@ -79,55 +69,39 @@ async function enterWorkspace(){
     if(token)await loadNotifications();
 }
 function landingAbsolute(value){
+    if(!value)return value;
+    if(value.startsWith('#'))return value;
+    if(value==='annotated-hero.svg'||value.startsWith('./'))return chrome.runtime.getURL(value.replace(/^\.\//,''));
+    if(!API_BASE)return value;
     try{return new URL(value,API_BASE+'/').href;}catch{return value;}
 }
-function clearLandingAssetUrls(){
-    for(const url of landingAssetUrls){try{URL.revokeObjectURL(url);}catch{}}
-    landingAssetUrls=[];
-}
-async function localizeLandingImages(root){
-    const images=[...root.querySelectorAll('img[src]')];
-    await Promise.all(images.map(async img=>{
-        const raw=img.getAttribute('src')||'';
-        const absolute=landingAbsolute(raw);
-        try{
-            const response=await fetch(absolute,{headers:{Accept:'image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8'}});
-            if(!response.ok)throw new Error('HTTP '+response.status);
-            const blob=await response.blob();
-            const local=URL.createObjectURL(blob);
-            landingAssetUrls.push(local);
-            img.setAttribute('src',local);
-        }catch(e){
-            console.warn('[Annotated] Unable to localize landing image',absolute,e);
-            img.setAttribute('src',absolute);
-        }
-        if(img.hasAttribute('srcset'))img.removeAttribute('srcset');
-    }));
-}
 async function loadLandingPage(force=false){
-    const host=$('#landingPanel');if(!host)return;
-    if(!force&&landingLoadedFor===API_BASE&&host.shadowRoot){host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');return;}
+    const host=$('#landingPanel');if(!host)return false;
+    if(!force&&landingLoadedFor==='local'&&host.shadowRoot){
+        host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');return true;
+    }
     try{
-        const [pageResponse,appCssResponse,landingCssResponse]=await Promise.all([
-            fetch(API_BASE+'/?extension_sidebar=1',{headers:{Accept:'text/html'}}),
-            fetch(API_BASE+'/assets/css/app.css'),
-            fetch(API_BASE+'/assets/css/landing.css')
+        const [htmlResponse,appCssResponse,landingCssResponse]=await Promise.all([
+            fetch(chrome.runtime.getURL('landing.html')),
+            fetch(chrome.runtime.getURL('landing-app.css')),
+            fetch(chrome.runtime.getURL('landing.css'))
         ]);
-        if(!pageResponse.ok||!appCssResponse.ok||!landingCssResponse.ok)throw new Error('Annotated landing page is unavailable.');
-        const [html,appCss,landingCss]=await Promise.all([pageResponse.text(),appCssResponse.text(),landingCssResponse.text()]);
+        if(!htmlResponse.ok||!appCssResponse.ok||!landingCssResponse.ok)throw new Error('Local landing assets are unavailable.');
+        const [html,appCss,landingCss]=await Promise.all([htmlResponse.text(),appCssResponse.text(),landingCssResponse.text()]);
         const doc=new DOMParser().parseFromString(html,'text/html');
-        const parts=[doc.querySelector('.landingHeader'),doc.querySelector('main'),doc.querySelector('.landingFooter')].filter(Boolean);
-        if(parts.length<2)throw new Error('Annotated landing page could not be loaded.');
-        const wrap=document.createElement('div');wrap.className='landingBody';
-        for(const part of parts)wrap.appendChild(part.cloneNode(true));
-        clearLandingAssetUrls();
-        await localizeLandingImages(wrap);
+        const wrap=doc.querySelector('.landingBody');
+        if(!wrap)throw new Error('Local landing markup is invalid.');
+        wrap.querySelectorAll('img[src]').forEach(el=>{
+            const raw=el.getAttribute('src')||'';
+            if(raw)el.setAttribute('src',chrome.runtime.getURL(raw.replace(/^\.\//,'')));
+        });
         wrap.querySelectorAll('a[href]').forEach(el=>{
             const raw=el.getAttribute('href')||'';
             if(raw==='/login.php'){el.dataset.sidebarAuth='login';el.setAttribute('href','#');return;}
             if(raw==='/register.php'){el.dataset.sidebarAuth='register';el.setAttribute('href','#');return;}
             if(raw.startsWith('#'))return;
-            el.setAttribute('href',landingAbsolute(raw));
+            if(API_BASE)el.setAttribute('href',landingAbsolute(raw));
+            else el.dataset.needsServer='1';
         });
         const shadow=host.shadowRoot||host.attachShadow({mode:'open'});
         shadow.innerHTML='';
@@ -141,6 +115,7 @@ async function loadLandingPage(force=false){
                 const a=e.target.closest?.('a');if(!a)return;
                 const auth=a.dataset.sidebarAuth;
                 if(auth){e.preventDefault();authShow(auth);return;}
+                if(a.dataset.needsServer==='1'){e.preventDefault();chrome.runtime.openOptionsPage();return;}
                 const href=a.getAttribute('href')||'';
                 if(href.startsWith('#')){
                     e.preventDefault();shadow.querySelector(href)?.scrollIntoView({behavior:'smooth',block:'start'});return;
@@ -148,16 +123,15 @@ async function loadLandingPage(force=false){
                 if(/^https?:/i.test(href)){e.preventDefault();chrome.tabs.create({url:href});}
             });
         }
-        landingLoadedFor=API_BASE;
+        landingLoadedFor='local';
         host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');
+        return true;
     }catch(e){
-        console.warn('[Annotated] Shared landing page unavailable; falling back to local account view.',e);
-        host.hidden=true;
-        document.body.classList.remove('sidebar-booting','landing-open');
+        console.error('[Annotated] Local landing page failed to render',e);
+        host.hidden=true;document.body.classList.remove('sidebar-booting','landing-open');
         authShow('chooser');
         return false;
     }
-    return true;
 }
 async function websiteSessionHandoff(){
     if(token)return null;
