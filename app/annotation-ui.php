@@ -2,19 +2,11 @@
 declare(strict_types=1);
 
 function annotation_type_label(array $a): string {
-    $type=(string)($a['capture_type']??'');$selected=trim((string)($a['selected_text']??''));$commentary=trim((string)($a['text_commentary']??''));
-    $sourceType=strtolower((string)($a['source_type']??''));$provider=strtolower((string)($a['media_provider']??''));$url=strtolower((string)($a['canonical_url']??''));
-    if($type==='video_clip')return 'Video';
-    if($type==='audio_clip'){
-        if($sourceType==='podcast'||str_contains($provider,'podcast'))return 'Podcast';
-        $musicProviders=['spotify','soundcloud','bandcamp','tidal','deezer','apple_music','music'];
-        if(in_array($provider,$musicProviders,true)||str_contains($url,'spotify.com')||str_contains($url,'soundcloud.com')||str_contains($url,'bandcamp.com')||str_contains($url,'music.apple.com')||str_contains($url,'tidal.com'))return 'Music';
-        return 'Audio';
-    }
-    if(in_array($type,['image_region','page_region'],true))return $selected!==''?'Image + Quote':'Image';
-    if($type==='text')return $selected!==''?'Quote':($commentary!==''?'Note':'Annotation');
-    if(!empty($a['screenshot_url'])||!empty($a['screenshot_target_path']))return $selected!==''?'Image + Quote':'Image';
-    return $commentary!==''?'Note':'Annotation';
+    $labels=['quote'=>'Quote','note'=>'Note','image'=>'Image','image_quote'=>'Image + Quote','video'=>'Video','music'=>'Music','podcast'=>'Podcast','audio'=>'Audio','annotation'=>'Annotation'];
+    $postType=(string)($a['post_type']??'');
+    if(isset($labels[$postType]))return $labels[$postType];
+    if(function_exists('feed_annotation_post_type'))return $labels[feed_annotation_post_type($a)]??'Annotation';
+    return 'Annotation';
 }
 
 function annotation_source_label(array $a): string {
