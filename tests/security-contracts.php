@@ -202,6 +202,8 @@ $need('app/extension-auth.php','return !$configured||in_array($id,$configured,tr
 $need('extension/sidepanel.html','Use the same account you use on the Annotated website.','Extension login must present the website and extension as one account system.');
 $need('extension/options.js',"u.protocol!=='https:'",'Extension server settings must require HTTPS outside loopback development.');
 $manifestSecurity=json_decode((string)file_get_contents($root.'/extension/manifest.json'),true);if(in_array('identity',$manifestSecurity['permissions']??[],true))$fail[]='Chrome identity permission must not be requested by the in-sidebar login flow.';
+if(!in_array('<all_urls>',$manifestSecurity['host_permissions']??[],true))$fail[]='Chrome extension must request <all_urls> host access for reliable page reading, injection, and visible-tab capture.';
+$avoid('extension/service-worker.js','chrome.scripting.executeScript','Background worker must not proactively inject page scripts outside the sidebar interaction flow.');
 $need('onboarding.php','Cache-Control: private, no-store','Onboarding must not be shared-cached.');
 $need('onboarding.php','noindex,nofollow','Onboarding must not be indexed.');
 $need('admin/system-health.php','require_admin($pdo)','Release health must be admin-only.');
