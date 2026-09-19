@@ -32,6 +32,22 @@
     <div id="authRegisterError" class="authError" role="alert" hidden></div>
     <button id="authRegisterSubmit" class="primary authSubmit" type="submit">Create account</button>
   </form>
+  <section id="authAccount" class="authCard accountCard" hidden>
+    <span class="authEyebrow">SIGNED IN</span>
+    <div class="accountIdentity">
+      <div id="authAccountAvatar" class="accountAvatar" aria-hidden="true">A</div>
+      <div>
+        <h2 id="authAccountName">Annotated user</h2>
+        <p id="authAccountUsername">@user</p>
+      </div>
+    </div>
+    <p id="authAccountRole" class="hint"></p>
+    <div class="authChoiceRow">
+      <button id="authAccountContinue" class="primary" type="button">Continue to Annotated</button>
+      <button id="authAccountOpenWeb" type="button">Open website</button>
+    </div>
+    <button id="authAccountSignOut" class="authTextButton" type="button">Sign out</button>
+  </section>
 </section>
 <nav role="tablist" aria-label="Annotated workspace"><button id="tab-page" role="tab" aria-selected="true" aria-controls="page" data-tab="page" class="active">This Page</button><button id="tab-search" role="tab" aria-selected="false" tabindex="-1" aria-controls="search" data-tab="search">Search</button><button id="tab-live" role="tab" aria-selected="false" tabindex="-1" aria-controls="live" data-tab="live">Live</button><button id="tab-following" role="tab" aria-selected="false" tabindex="-1" aria-controls="following" data-tab="following">Following</button><button id="tab-research" role="tab" aria-selected="false" tabindex="-1" aria-controls="research" data-tab="research">Research</button></nav>
 <main>
