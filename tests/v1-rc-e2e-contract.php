@@ -44,7 +44,7 @@ $need('extension/sidepanel-feed.js','Source content','Annotation cards must expo
 $need('extension/sidepanel-feed.js','phase6HydrateEvidence','Extension annotation media must hydrate through authenticated fetches.');
 $need('extension/sidepanel-feed.js',"action==='like'",'Extension annotation posts must expose real Like actions.');
 $need('app/annotation-ui.php','annotation_ui_card','Website annotation views must share one post renderer.');
-$need('home.php',"feed_annotation_rows($pdo,$u,'following'",'Website Home must use the shared feed that includes the signed-in users own annotations.');
+$need('home.php',"feed_annotation_rows(\$pdo,\$u,'following'",'Website Home must use the shared feed that includes the signed-in users own annotations.');
 $need('annotation.php','annotationDiscussion','Annotation discussion must be hideable until Comments is opened.');
 $need('extension/sidepanel-state.js','client_version:chrome.runtime.getManifest().version','Chrome authentication must identify the client version.');
 $avoid('extension/sidepanel-state.js','extension-connect.php','Primary Chrome login must stay inside the sidebar.');
