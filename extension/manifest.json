@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Annotated",
-  "version": "0.11.0",
-  "description": "Annotated v0.11 Chrome sidebar for capture, Live collaboration, source intelligence, search, Research, notifications, moderation, and unified conversation-ready workflows.",
+  "version": "0.12.0",
+  "description": "Annotated v0.12 Chrome sidebar for capture, Live collaboration, source intelligence, search, Research, notifications, moderation, and unified conversation-ready workflows.",
   "permissions": [
     "sidePanel",
     "activeTab",
