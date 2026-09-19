@@ -12,12 +12,11 @@ function sidebarStatusError(message){
 
 function initializeSidebarBindings(){
   sidebarBindClick('connect',connect);
-  sidebarBindClick('headerCreateNew',async()=>{const tab=document.getElementById('tab-create');if(tab)await phase6SwitchTab(tab);});
-  sidebarBindClick('authShowLogin',()=>authShow('login'));
-  sidebarBindClick('authShowRegister',()=>authShow('register'));
-  sidebarBindClick('authCancel',async()=>{if(token)showAccount(accountUser);else await loadLandingPage();});
-  sidebarBindClick('authLoginBack',()=>authShow('chooser'));
-  sidebarBindClick('authRegisterBack',()=>authShow('chooser'));
+  sidebarBindClick('headerCreateNew',phase6OpenCreate);
+  sidebarBindClick('createClose',()=>phase6SwitchTab(document.getElementById('tab-page')));
+  sidebarBindClick('authLoginBack',()=>loadLandingPage());
+  sidebarBindClick('authGoRegister',()=>authShow('register'));
+  sidebarBindClick('authRegisterBack',()=>authShow('login'));
   sidebarBind('authLoginForm','submit',submitExtensionLogin);
   sidebarBind('authRegisterForm','submit',submitExtensionRegister);
   sidebarBindClick('authAccountContinue',enterWorkspace);
@@ -155,13 +154,16 @@ chrome.runtime.onMessage.addListener(async message=>{
     const build=document.getElementById('buildVersion');if(build)build.textContent='v'+chrome.runtime.getManifest().version;
     await settings();
     let signedIn=false;
-    if(token)signedIn=await loadMe(true);
-    if(!signedIn&&token){
+    if(token)signedIn=await loadMe(false);
+    if(signedIn){
+      authClose();hideLanding();document.body.classList.remove('sidebar-booting','landing-open');
+      await loadPage();
+    }else if(!signedIn&&token){
       authClose();hideLanding();document.body.classList.remove('sidebar-booting','landing-open');
       await loadPage();
     }else if(!signedIn){
       const websiteUser=await websiteSessionHandoff();
-      if(websiteUser)signedIn=await loadMe(true);
+      if(websiteUser){signedIn=await loadMe(false);if(signedIn)await enterWorkspace();}
       if(!signedIn)await loadLandingPage();
     }
     setInterval(()=>{if(!document.hidden&&token&&context?.source?.public_id)heartbeat();},30000);
