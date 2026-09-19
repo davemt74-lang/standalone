@@ -1,4 +1,4 @@
-let lastRegion=null;
+let lastRegion=null,lastTextSelection=null;
 function metaContent(name,property=false){const sel=property?`meta[property="${name}"]`:`meta[name="${name}"]`;return document.querySelector(sel)?.content?.trim()||'';}
 function youtubeVideoId(){try{const u=new URL(location.href);if(u.hostname==='youtu.be')return u.pathname.slice(1).split('/')[0]||null;if(u.hostname.endsWith('youtube.com')){if(u.searchParams.get('v'))return u.searchParams.get('v');const m=u.pathname.match(/^\/(?:shorts|embed)\/([^/?]+)/);return m?.[1]||null;}}catch{}return null;}
 function declaredCanonicalUrl(){try{const link=document.querySelector('link[rel~="canonical"]')?.href||metaContent('og:url',true)||'';if(!link)return location.href;const a=new URL(location.href),b=new URL(link,a.href);const key=h=>h.toLowerCase().replace(/^www\./,'');return ['http:','https:'].includes(b.protocol)&&key(a.hostname)===key(b.hostname)?b.href:location.href;}catch{return location.href;}}
@@ -10,10 +10,21 @@ function mediaInfo(){
   const mediaAuthor=youtube?(document.querySelector('#owner #channel-name a')?.textContent||document.querySelector('ytd-channel-name a')?.textContent||metaContent('author')):(metaContent('author')||metaContent('og:site_name',true));
   return {mediaType:video?'video':'audio',currentTime:Number.isFinite(el.currentTime)?el.currentTime:null,duration:Number.isFinite(el.duration)?el.duration:null,mediaPaused:!!el.paused,mediaMuted:!!el.muted,mediaPlaybackRate:Number.isFinite(el.playbackRate)?el.playbackRate:1,mediaProvider:provider,providerMediaId,mediaTitle:String(mediaTitle||'').trim().slice(0,500),mediaAuthor:String(mediaAuthor||'').trim().slice(0,500)};
 }
+function currentTextSelection(){
+  const sel=window.getSelection();const text=(sel?.toString()||'').trim();
+  if(!text||!sel?.rangeCount)return null;
+  const r=sel.getRangeAt(0),rect=r.getBoundingClientRect();
+  const state={selectedText:text,selector:{startOffset:r.startOffset,endOffset:r.endOffset,startNode:r.startContainer.parentElement?.tagName||null,endNode:r.endContainer.parentElement?.tagName||null},selectionRect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height}};
+  lastTextSelection=state;
+  return state;
+}
+function rememberTextSelection(){currentTextSelection();}
+document.addEventListener('selectionchange',rememberTextSelection,{passive:true});
+document.addEventListener('mouseup',rememberTextSelection,{passive:true});
+document.addEventListener('keyup',e=>{if(e.key==='Shift'||e.shiftKey)rememberTextSelection();},{passive:true});
 function selectionPayload(includePageText=false){
-  const sel=window.getSelection();const text=(sel?.toString()||'').trim();let selector=null,selectionRect=null;
-  if(text&&sel.rangeCount){const r=sel.getRangeAt(0);const rect=r.getBoundingClientRect();selector={startOffset:r.startOffset,endOffset:r.endOffset,startNode:r.startContainer.parentElement?.tagName||null,endNode:r.endContainer.parentElement?.tagName||null};selectionRect={x:rect.x,y:rect.y,width:rect.width,height:rect.height};}
-  return {url:location.href,canonicalUrl:declaredCanonicalUrl(),title:document.title,selectedText:text,selector,selectionRect,regionRect:lastRegion,pageText:includePageText?(document.body?.innerText||'').slice(0,150000):'',viewport:{width:innerWidth,height:innerHeight,devicePixelRatio:window.devicePixelRatio||1},...mediaInfo()};
+  const live=currentTextSelection(),selection=live||lastTextSelection||{selectedText:'',selector:null,selectionRect:null};
+  return {url:location.href,canonicalUrl:declaredCanonicalUrl(),title:document.title,selectedText:selection.selectedText,selector:selection.selector,selectionRect:selection.selectionRect,regionRect:lastRegion,pageText:includePageText?(document.body?.innerText||'').slice(0,150000):'',viewport:{width:innerWidth,height:innerHeight,devicePixelRatio:window.devicePixelRatio||1},...mediaInfo()};
 }
 function startRegionSelection(){
   if(document.getElementById('__annotated_region_overlay'))return;
