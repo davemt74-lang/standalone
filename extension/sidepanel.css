@@ -28,3 +28,15 @@ body.auth-open nav,body.auth-open main{display:none}
 .authForm input{width:100%;padding:10px 11px;border:1px solid #ccc;border-radius:10px;background:#fff}
 .authError{padding:10px 11px;border-radius:10px;background:#fff0f0;border:1px solid #efc3c3;color:#8a1f1f;font-size:12px;line-height:1.4}
 .authSubmit{width:100%;margin-top:2px}
+
+
+/* Sidebar view state */
+[hidden]{display:none!important}
+body.sidebar-booting>header,body.sidebar-booting>nav,body.sidebar-booting>main,body.sidebar-booting>.authPanel,body.sidebar-booting>.landingPanel{display:none!important}
+body.landing-open>header,body.landing-open>nav,body.landing-open>main,body.landing-open>.authPanel{display:none!important}
+body.auth-open>nav,body.auth-open>main,body.auth-open>.landingPanel{display:none!important}
+.landingPanel{min-height:100vh;background:#fff}
+.accountIdentity{display:flex;align-items:center;gap:12px}
+.accountIdentity h2,.accountIdentity p{margin:0}
+.accountAvatar{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#111;color:#fff;font-size:18px;font-weight:800}
+.accountCard .authChoiceRow{grid-template-columns:1fr}
