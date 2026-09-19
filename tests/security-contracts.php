@@ -41,6 +41,9 @@ $need('extension/content.js',"addEventListener('selectionchange'",'Page capture 
 $need('extension/sidepanel-state.js','chrome.scripting.executeScript','Sidebar must self-heal a missing page content script after extension reload.');
 $need('extension/sidepanel-state.js',"files:['content.js']", 'Sidebar self-healing must inject the canonical page capture script.');
 $need('extension/sidepanel-state.js','loadLandingPage','Logged-out sidebar must render the shared Annotated landing page.');
+$need('extension/sidepanel-state.js','localizeLandingImages','Sidebar landing must localize website-hosted images before rendering them in the extension context.');
+$need('extension/sidepanel-state.js','URL.createObjectURL','Localized landing images must use extension-local Blob URLs.');
+$need('extension/sidepanel-state.js','URL.revokeObjectURL','Sidebar must release localized landing image Blob URLs when refreshing the landing page.');
 $need('extension/sidepanel-state.js',"/assets/css/landing.css",'Sidebar landing must reuse the website landing stylesheet.');
 $need('extension/sidepanel-state.js',"?extension_sidebar=1",'Sidebar landing must reuse the website homepage renderer.');
 $need('extension/sidepanel.css','[hidden]{display:none!important}','Inactive sidebar auth views must remain hidden even when card display styles are applied.');
