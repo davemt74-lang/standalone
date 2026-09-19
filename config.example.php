@@ -17,7 +17,8 @@ return [
         'private_root' => dirname(__DIR__) . '/annotated-private',
     ],
     'extension' => [
-        // Exact 32-character Chrome extension IDs allowed to connect to this Annotated server.
+        // Optional hard allowlist of 32-character Chrome extension IDs.
+        // Leave empty to allow any valid Chrome extension ID after the signed-in user explicitly approves pairing.
         'allowed_ids' => [],
         // Revocable extension bearer sessions expire even if they are not manually revoked.
         'session_ttl_days' => 30,
