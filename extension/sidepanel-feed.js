@@ -36,6 +36,10 @@ function phase6AnnotationType(a){
   const labels={quote:'Quote',note:'Note',image:'Image',image_quote:'Image + Quote',video:'Video',music:'Music',podcast:'Podcast',audio:'Audio',annotation:'Annotation'};
   return labels[phase6AnnotationPostTypeKey(a)]||'Annotation';
 }
+function phase6AuthorAvatar(a){
+  const src=profileImageAbsolute(a.profile_image_url),name=String(a.display_name||a.username||'Annotated user'),initial=name.trim().charAt(0).toUpperCase()||'A';
+  return src?'<img class="feedAvatar" src="'+esc(src)+'" alt="'+esc(name)+'">':'<span class="feedAvatar feedAvatarFallback" aria-hidden="true">'+esc(initial)+'</span>';
+}
 function phase6SourceName(a){
   if(a.source_domain)return String(a.source_domain).replace(/^www\./i,'');
   try{return new URL(a.canonical_url||'').hostname.replace(/^www\./i,'')||'Source';}catch{return 'Source';}
@@ -81,7 +85,7 @@ function phase6AnnotationCard(a){
   const likeClass=a.viewer_liked?' active':'';
   return '<article class="annotationCard socialPost'+unread+'" data-id="'+esc(a.public_id)+'" data-source="'+esc(a.source_public_id)+'">'+
     phase6Reason(a)+
-    '<div class="postHead"><div class="author"><strong>'+esc(a.display_name)+'</strong><span>@'+esc(a.username)+'</span>'+authorButton+'</div><div class="postMeta"><span class="annotationType">'+esc(type)+'</span>'+phase6VisibilityBadge(a)+phase6SourceBadge(a)+'</div></div>'+
+    '<div class="postHead"><div class="author"><button class="feedAuthorIdentity" data-action="profile" data-username="'+esc(a.username)+'">'+phase6AuthorAvatar(a)+'<span class="feedAuthorText"><strong>'+esc(a.display_name)+'</strong><span>@'+esc(a.username)+'</span></span></button>'+authorButton+'</div><div class="postMeta"><span class="annotationType">'+esc(type)+'</span>'+phase6VisibilityBadge(a)+phase6SourceBadge(a)+'</div></div>'+
     (a.text_commentary?'<p class="postCaption">'+esc(a.text_commentary)+'</p>':'')+
     (showSelected?'<div class="excerpt postQuote">'+esc(selected.slice(0,1000))+'</div>':'')+
     shot+transcriptPanel+media+(a.media_provider?'<div class="provenance">'+esc(a.media_provider==='youtube'?'YouTube':a.media_provider)+(a.media_title?' · '+esc(a.media_title):'')+(a.media_author?' · '+esc(a.media_author):'')+'</div>':'')+audio+transcriptStatus+time+
@@ -150,7 +154,7 @@ function phase6ObserveCards(selector){
 function phase6ScheduleReadFlush(){if(!phase6ReadQueue.size||phase6ReadTimer)return;phase6ReadTimer=setTimeout(phase6FlushReads,350);}
 async function phase6FlushReads(){phase6ReadTimer=null;if(!token||!phase6ReadQueue.size)return;const ids=[...phase6ReadQueue].slice(0,50);ids.forEach(id=>phase6ReadQueue.delete(id));try{const j=await api('/api/extension.php?action=feed_read',{method:'POST',body:JSON.stringify({annotation_ids:ids})});$('#followingUnread').textContent=j.data.unread_count?j.data.unread_count+' unread':'';}catch{}if(phase6ReadQueue.size)phase6ScheduleReadFlush();}
 function phase6RenderThread(comments){
-  return comments.map(c=>`<div class="threadComment${c.parent_comment_id?' reply':''}" data-comment-id="${esc(c.id)}"><div class="messageHead"><strong>${esc(c.display_name)}</strong> @${esc(c.username)} · ${esc(c.created_at)}</div><div>${esc(c.body)}</div><button type="button" data-action="reply" data-comment="${esc(c.id)}" data-author="${esc(c.display_name)}">Reply</button></div>`).join('')||'<div class="hint">No comments yet.</div>';
+  return comments.map(c=>`<div class="threadComment${c.parent_comment_id?' reply':''}" data-comment-id="${esc(c.id)}"><div class="messageHead commentIdentity">${phase6AuthorAvatar(c)}<span><strong>${esc(c.display_name)}</strong> @${esc(c.username)} · ${esc(c.created_at)}</span></div><div>${esc(c.body)}</div><button type="button" data-action="reply" data-comment="${esc(c.id)}" data-author="${esc(c.display_name)}">Reply</button></div>`).join('')||'<div class="hint">No comments yet.</div>';
 }
 async function phase6LoadThread(card,force=false){
   const thread=card.querySelector('.thread');if(!thread)return;if(!force&&thread.dataset.loaded==='1'){thread.hidden=!thread.hidden;return;}
@@ -181,6 +185,7 @@ async function phase6CardAction(e){
   const b=e.target.closest('button[data-action]');if(!b)return;const card=b.closest('.annotationCard'),id=card?.dataset.id;const action=b.dataset.action;
   try{
     if(action==='comments')return phase6LoadThread(card);
+    if(action==='profile'){const username=String(b.dataset.username||'').trim();if(username)return chrome.tabs.create({url:API_BASE+'/'+encodeURIComponent(username)});return;}
     if(action==='toggle-transcript'){const panel=card.querySelector('.capturedTextTranscriptPanel');if(!panel)return;const opening=panel.hidden;panel.hidden=!opening;b.textContent=opening?'Hide transcript':'Show transcript';b.closest('details')?.removeAttribute('open');if(opening)panel.scrollIntoView({behavior:'smooth',block:'nearest'});return;}
     if(action==='reply'){const form=card.querySelector('.threadComposer');form.dataset.parent=b.dataset.comment;const label=form.querySelector('.replyTarget');label.textContent='Replying to '+(b.dataset.author||'comment');label.hidden=false;form.querySelector('[data-action="cancel-reply"]').hidden=false;form.querySelector('textarea').focus();return;}
     if(action==='cancel-reply'){const form=card.querySelector('.threadComposer');delete form.dataset.parent;form.querySelector('.replyTarget').hidden=true;b.hidden=true;return;}
