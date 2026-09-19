@@ -116,3 +116,6 @@
 .settingsHighlightPreview>span{color:#777;font-size:.76rem;font-weight:750;text-transform:uppercase;letter-spacing:.07em}
 .settingsHighlightPreview mark{padding:3px 5px;border-radius:4px;background:var(--annotation-highlight,#fff6bf);color:inherit}
 @media(max-width:900px){.settingsSidebar{position:static}.settingsHighlightRow{align-items:flex-start;flex-direction:column}}
+
+.homeFeedPage .layout>aside{position:sticky;top:88px;align-self:start;max-height:calc(100vh - 106px);overflow:auto;scrollbar-width:thin}
+@media(max-width:900px){.homeFeedPage .layout>aside{position:static;max-height:none;overflow:visible}}
