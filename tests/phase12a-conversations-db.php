@@ -10,12 +10,34 @@ $makeUser=function(string $name,?string $photo=null)use($pdo,$run,$pub): array{$
 $owner=$makeUser('Owner','/uploads/profiles/owner-test.jpg');$member=$makeUser('Member');$viewer=$makeUser('Viewer');$outsider=$makeUser('Outsider');$revoked=$makeUser('Revoked');
 
 p12(conversation_runtime_ready($pdo),'conversation runtime reports ready after migration');
+p12(conversation_presence_ready($pdo),'chat presence runtime reports ready after migration');
+$presenceClient='presence-'.$run;
+$ownerPresence=conversation_presence_touch($pdo,$owner,$presenceClient);
+p12(($ownerPresence['effective_status']??'')==='online','automatic Chat Status is online while heartbeat is active');
+$busy=conversation_status_update($pdo,$owner,'busy','Deep research');
+p12(($busy['status_mode']??'')==='busy'&&($busy['effective_status']??'')==='busy'&&($busy['custom_status']??'')==='Deep research','busy Chat Status and custom status persist');
+p12throws(fn()=>conversation_presence_touch($pdo,$owner,'bad'),'presence heartbeat rejects invalid client session ids');
+
 
 $teamPublic=$pub('team');$pdo->prepare('INSERT INTO teams(public_id,owner_user_id,name) VALUES(?,?,?)')->execute([$teamPublic,$owner['id'],'Phase 12A Team']);$teamId=(int)$pdo->lastInsertId();
 foreach([[$owner,'owner'],[$member,'researcher'],[$viewer,'viewer'],[$revoked,'viewer']] as [$u,$role])$pdo->prepare('INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,?)')->execute([$teamId,$u['id'],$role]);
 $team=['id'=>$teamId,'public_id'=>$teamPublic,'name'=>'Phase 12A Team','owner_user_id'=>$owner['id'],'access_role'=>'owner','member_count'=>4];
 
 $c1=conversation_team_ensure($pdo,$team,$owner);$c2=conversation_team_ensure($pdo,$team,$owner);
+$teamPresence=conversation_presence_rows($pdo,$member,array_merge($c1,['conversation_type'=>'team','team_id'=>$teamId]));
+$ownerStatus=array_values(array_filter($teamPresence,fn($p)=>($p['username']??'')===$owner['username']))[0]??[];
+p12(($ownerStatus['effective_status']??'')==='busy'&&($ownerStatus['custom_status']??'')==='Deep research','teammates receive busy/custom Chat Status from presence rows');
+$invisible=conversation_status_update($pdo,$owner,'invisible','Heads down');
+p12(($invisible['effective_status']??'')==='offline','Invisible status suppresses the online indicator while heartbeat remains active');
+$teamPresence=conversation_presence_rows($pdo,$member,array_merge($c1,['conversation_type'=>'team','team_id'=>$teamId]));$ownerStatus=array_values(array_filter($teamPresence,fn($p)=>($p['username']??'')===$owner['username']))[0]??[];
+p12(($ownerStatus['effective_status']??'')==='offline','teammates see Invisible users as offline');
+$away=conversation_status_update($pdo,$owner,'away','Back soon');p12(($away['effective_status']??'')==='away','Away status is exposed while heartbeat is active');
+$pdo->prepare('UPDATE chat_presence_sessions SET last_seen_at=DATE_SUB(NOW(),INTERVAL 2 MINUTE) WHERE user_id=?')->execute([$owner['id']]);conversation_presence_cleanup($pdo);
+p12((conversation_status_get($pdo,(int)$owner['id'])['effective_status']??'')==='offline','stale heartbeat expires online presence after the 90-second window');
+conversation_presence_touch($pdo,$owner,$presenceClient);conversation_presence_leave($pdo,$owner,$presenceClient);
+p12((conversation_status_get($pdo,(int)$owner['id'])['effective_status']??'')==='offline','explicit chat leave clears online presence immediately');
+conversation_status_update($pdo,$owner,'auto','');
+
 p12((int)$c1['id']===(int)$c2['id'],'repeated Team Chat initialization resolves one canonical conversation');
 $q=$pdo->prepare("SELECT COUNT(*) FROM conversations WHERE conversation_type='team' AND team_id=?");$q->execute([$teamId]);p12((int)$q->fetchColumn()===1,'one Team owns exactly one persistent conversation');
 p12throws(fn()=>conversation_team_ensure($pdo,$team,$outsider),'conversation initialization independently requires Team membership');
