@@ -31,6 +31,8 @@ $need('extension/sidepanel.css','white-space:nowrap','Sidebar tab labels must no
 $need('extension/sidepanel-feed.js',"btn.dataset.tab==='create'",'Opening Create New must refresh the current page selection.');
 $need('extension/sidepanel-capture.js',"phase6SwitchTab(pageTab)",'Publishing must return to This Page so the new annotation is visible.');
 $need('extension/sidepanel-state.js','loadLandingPage','Chrome sidebar must render the website landing page when signed out.');
+$need('extension/sidepanel-state.js',"authShow('chooser')",'If the shared website landing cannot load, the sidebar must fall back to its local account UI.');
+$need('extension/sidepanel-init.js',"if(!signedIn&&token)",'A preserved extension session must keep the actual workspace visible when the server check is temporarily unavailable.');
 $need('extension/sidepanel-state.js','websiteSessionHandoff','Chrome sidebar must recognize a logged-in Annotated website tab.');
 $need('extension/sidepanel-state.js','showAccount','Chrome sidebar must render a dedicated signed-in account view.');
 $need('index.php','extension_sidebar','The main website landing renderer must support reuse by the Chrome sidebar.');
