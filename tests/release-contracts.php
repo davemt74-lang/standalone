@@ -51,9 +51,9 @@ foreach(['media-worker.php'=>'media','transcription-worker.php'=>'transcription'
 
 
 
-$reactionMigration=(string)file_get_contents($root.'/database/migrations/20260919_018_annotation_reactions.sql');foreach(['annotation_reactions',"reaction VARCHAR(32)","reaction='like'"] as $needle)if(!str_contains($reactionMigration,$needle)&&$needle!=="reaction='like'")$fail[]="Annotation reaction migration contract missing: $needle";
+$reactionMigration=(string)file_get_contents($root.'/database/migrations/20260919_018_annotation_reactions.sql');foreach(['annotation_reactions',"reaction VARCHAR(32)","DEFAULT 'like'"] as $needle)if(!str_contains($reactionMigration,$needle))$fail[]="Annotation reaction migration contract missing: $needle";
 $annotationUi=(string)file_get_contents($root.'/app/annotation-ui.php');foreach(['annotation_type_label','annotationSourceDetails','annotationSocialBar','like_count','comment_count'] as $needle)if(!str_contains($annotationUi,$needle))$fail[]="Unified annotation UI contract missing: $needle";
-$feedUi=(string)file_get_contents($root.'/app/feed.php');foreach(['feed_toggle_annotation_like','annotation_reactions','a.user_id=$uid OR EXISTS'] as $needle)if(!str_contains($feedUi,$needle))$fail[]="Unified annotation feed contract missing: $needle";
+$feedUi=(string)file_get_contents($root.'/app/feed.php');foreach(['feed_toggle_annotation_like','annotation_reactions','a.user_id=$uid OR EXISTS','feed_annotation_post_type',"'image_quote'","'podcast'","'music'","'note'"] as $needle)if(!str_contains($feedUi,$needle))$fail[]="Unified annotation feed contract missing: $needle";
 foreach(['app/feed.php','api/extension-feed.php','extension/sidepanel-feed.js','tests/phase6-feeds-db.php'] as $required)if(!is_file($root.'/'.$required))$fail[]="Phase 6 feed file missing: $required";
 $phase6Migration=(string)file_get_contents($root.'/database/migrations/20260917_013_this_page_following.sql');foreach(['source_url_aliases','feed_reads'] as $needle)if(!str_contains($phase6Migration,$needle))$fail[]="Phase 6 migration contract missing: $needle";
 $phase6Feed=(string)file_get_contents($root.'/app/feed.php');foreach(['feed_annotation_rows','feed_following_unread_count','feed_mark_read','feed_create_comment','source_watches'] as $needle)if(!str_contains($phase6Feed,$needle))$fail[]="Phase 6 feed contract missing: $needle";
