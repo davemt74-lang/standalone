@@ -14,11 +14,14 @@ function initializeSidebarBindings(){
   sidebarBindClick('connect',connect);
   sidebarBindClick('authShowLogin',()=>authShow('login'));
   sidebarBindClick('authShowRegister',()=>authShow('register'));
-  sidebarBindClick('authCancel',authClose);
+  sidebarBindClick('authCancel',async()=>{if(token)showAccount(accountUser);else await loadLandingPage();});
   sidebarBindClick('authLoginBack',()=>authShow('chooser'));
   sidebarBindClick('authRegisterBack',()=>authShow('chooser'));
   sidebarBind('authLoginForm','submit',submitExtensionLogin);
   sidebarBind('authRegisterForm','submit',submitExtensionRegister);
+  sidebarBindClick('authAccountContinue',enterWorkspace);
+  sidebarBindClick('authAccountOpenWeb',()=>chrome.tabs.create({url:API_BASE+'/home.php'}));
+  sidebarBindClick('authAccountSignOut',extensionLogout);
 
   sidebarBindClick('refresh',loadPage);
   sidebarBindClick('publish',publish);
@@ -142,12 +145,17 @@ chrome.runtime.onMessage.addListener(async message=>{
   try{
     initializeSidebarBindings();
     await settings();
-    await loadMe();
-    await loadPage();
-    if(token)await loadNotifications();
+    let signedIn=false;
+    if(token)signedIn=await loadMe(true);
+    if(!signedIn){
+      const websiteUser=await websiteSessionHandoff();
+      if(websiteUser)signedIn=await loadMe(true);
+    }
+    if(!signedIn)await loadLandingPage();
     setInterval(()=>{if(!document.hidden&&token&&context?.source?.public_id)heartbeat();},30000);
   }catch(e){
     console.error('[Annotated] Sidebar startup failed',e);
+    document.body.classList.remove('sidebar-booting');
     sidebarStatusError(e?.message||'Sidebar startup failed');
   }
 })();
