@@ -35,6 +35,24 @@ function startRegionSelection(){
 }
 function openTextContext(text){const needle=String(text||'').trim().replace(/\s+/g,' ').slice(0,300);if(!needle)return false;try{const found=window.find(needle,false,false,true,false,false,false);if(found){const sel=window.getSelection();if(sel?.rangeCount){const el=sel.getRangeAt(0).startContainer.parentElement;el?.scrollIntoView({block:'center',behavior:'smooth'});}return true;}}catch{}return false;}
 async function mediaControl(msg){const el=document.querySelector('video, audio');if(!el)return {ok:false};try{if(Number.isFinite(Number(msg.time)))el.currentTime=Math.max(0,Number(msg.time));if(typeof msg.muted==='boolean')el.muted=msg.muted;if(Number.isFinite(Number(msg.playbackRate))&&Number(msg.playbackRate)>0)el.playbackRate=Number(msg.playbackRate);if(msg.command==='play')await el.play();else if(msg.command==='pause')el.pause();return {ok:true,...mediaInfo()};}catch(e){return {ok:false,error:e?.message||'Media control failed'};}}
+function looksLikeAnnotatedSite(){
+  const title=(document.title||'').toLowerCase();
+  const branded=!!document.querySelector('.appShellBrand,.landingBrand,[data-annotated-app]');
+  return branded||title.includes('annotated');
+}
+async function annotatedSiteProbe(){
+  if(!looksLikeAnnotatedSite())return {ok:false};
+  try{
+    const r=await fetch('/api/extension.php?action=page_context&url='+encodeURIComponent(location.origin+'/'),{
+      credentials:'same-origin',
+      headers:{Accept:'application/json'}
+    });
+    const j=await r.json().catch(()=>null);
+    const d=j?.data;
+    if(!r.ok||!j?.ok||!d||!Object.prototype.hasOwnProperty.call(d,'annotation_count')||!Object.prototype.hasOwnProperty.call(d,'authenticated'))return {ok:false};
+    return {ok:true,origin:location.origin,authenticated:!!d.authenticated};
+  }catch{return {ok:false};}
+}
 async function annotatedWebsiteSession(msg){
   try{
     const expected=String(msg?.origin||'').replace(/\/$/,'');
@@ -50,6 +68,7 @@ async function annotatedWebsiteSession(msg){
   }catch(e){return {ok:false,error:{message:e?.message||'Unable to read Annotated website session.'}};}
 }
 chrome.runtime.onMessage.addListener((msg,_sender,sendResponse)=>{
+  if(msg?.type==='annotated:site-probe'){annotatedSiteProbe().then(sendResponse);return true;}
   if(msg?.type==='annotated:website-session'){annotatedWebsiteSession(msg).then(sendResponse);return true;}
   if(msg?.type==='annotated:get-page'){sendResponse(selectionPayload(msg.includePageText===true));return true;}
   if(msg?.type==='annotated:start-region'){startRegionSelection();sendResponse({ok:true});return true;}
