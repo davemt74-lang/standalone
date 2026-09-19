@@ -29,7 +29,7 @@ foreach([[$owner,'owner'],[$member,'researcher']] as [$u,$role])$pdo->prepare('I
 $teamCtx=agent_chat_context_item($pdo,$owner,'team',$teamPublic);p12b(($teamCtx['public_id']??'')===$teamPublic,'Agent Chat can attach an authorized Team as context');
 p12b(agent_chat_context_item($pdo,$other,'team',$teamPublic)===null,'Agent Chat refuses Team context for non-members');
 
-$projectPublic=$pub('project');$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,title,visibility,status) VALUES(?,?,?,'private','active')")->execute([$projectPublic,$owner['id'],'Agent Context Research']);
+$projectPublic=$pub('project');$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,title) VALUES(?,?,?)")->execute([$projectPublic,$owner['id'],'Agent Context Research']);
 $researchCtx=agent_chat_context_item($pdo,$owner,'research',$projectPublic);p12b(($researchCtx['public_id']??'')===$projectPublic,'Agent Chat can attach an authorized Research project');
 p12b(agent_chat_context_item($pdo,$other,'research',$projectPublic)===null,'Agent Chat refuses private Research context for unauthorized users');
 
