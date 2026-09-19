@@ -36,10 +36,13 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     $comments=(int)($a['comment_count']??0);$likes=(int)($a['like_count']??0);$liked=!empty($a['viewer_liked']);$saved=!empty($a['is_saved']);
     $published=(string)($a['published_at']??'');$visibility=(string)($a['visibility']??'public');$publicPost=$visibility==='public';
     $commentary=trim((string)($a['text_commentary']??''));$selected=trim((string)($a['selected_text']??''));
-    $showSelected=$selected!==''&&(in_array($postType,['quote','image_quote'],true)||$postType==='annotation');
-    $showSnapshot=$snapshot!==null&&(in_array($postType,['image','image_quote'],true)||($postType==='annotation'&&$selected===''));
+    // Evidence-first feed rendering: when a preserved screenshot exists, it is the visual post.
+    // Selected text remains attached as a machine-readable transcript and only renders as a fallback
+    // when no screenshot is available.
+    $showSnapshot=$snapshot!==null&&in_array($postType,['quote','image','image_quote','annotation'],true);
+    $showSelected=$selected!==''&&!$showSnapshot&&(in_array($postType,['quote','image_quote','annotation'],true));
     $showMedia=$media!==null&&(in_array($postType,['video','podcast','music','audio'],true)||$postType==='annotation');
-    $snapshotSuppressed=$snapshot!==null&&!$showSnapshot;
+    $showCapturedTranscript=$selected!==''&&$showSnapshot;
     $commentaryLong=mb_strlen($commentary)>420||substr_count($commentary,"\n")>5;
     $canonical=(string)($a['canonical_url']??'');$sourceId=(string)($a['source_public_id']??'');
     $captureVersion=(int)($a['capture_version_number']??0);$currentVersion=(int)($a['current_version_number']??0);
@@ -74,7 +77,8 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     <div class="annotationSourceBody">
       <?php if($canonical!==''):?><div class="sourceUrl"><?=h($canonical)?></div><?php endif?>
       <?php if($captureVersion||$currentVersion||$integrityLabel!==''):?><div class="sourceStats"><?php if($captureVersion):?><span>Captured <strong>v<?=h((string)$captureVersion)?></strong></span><?php endif?><?php if($currentVersion):?><span>Current <strong>v<?=h((string)$currentVersion)?></strong></span><?php endif?><?php if($integrityLabel!==''):?><span>Integrity <strong><?=h($integrityLabel)?></strong></span><?php endif?></div><?php endif?>
-      <div class="annotationSourceActions"><?php if($sourceId!==''):?><a href="/source.php?id=<?=h($sourceId)?>">Source page</a><?php endif?><?php if($snapshotSuppressed):?><a href="<?=h((string)$snapshot)?>" target="_blank" rel="noopener">View captured evidence</a><?php endif?><?php if(!empty($a['source_changed'])&&$sourceId!==''&&!empty($a['source_version_id'])&&!empty($a['current_source_version_id'])):?><a href="/source-compare.php?id=<?=h($sourceId)?>&from=<?=h((string)$a['source_version_id'])?>&to=<?=h((string)$a['current_source_version_id'])?>">Compare versions</a><?php endif?></div>
+      <?php if($showCapturedTranscript):?><details class="annotationCapturedTranscript"><summary>Captured text transcript</summary><p><?=nl2br(h($selected))?></p></details><?php endif?>
+      <div class="annotationSourceActions"><?php if($sourceId!==''):?><a href="/source.php?id=<?=h($sourceId)?>">Source page</a><?php endif?><?php if(!empty($a['source_changed'])&&$sourceId!==''&&!empty($a['source_version_id'])&&!empty($a['current_source_version_id'])):?><a href="/source-compare.php?id=<?=h($sourceId)?>&from=<?=h((string)$a['source_version_id'])?>&to=<?=h((string)$a['current_source_version_id'])?>">Compare versions</a><?php endif?></div>
     </div>
   </details><?php endif?>
   <div class="annotationSocialBar">
