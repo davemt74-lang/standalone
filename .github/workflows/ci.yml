@@ -49,6 +49,8 @@ jobs:
         run: php tests/release-contracts.php
       - name: Security contracts
         run: php tests/security-contracts.php
+      - name: Universal app shell and social product contracts
+        run: php tests/app-shell-contracts.php
       - name: Concurrency and migration contracts
         run: php tests/concurrency-contracts.php
       - name: Abuse protection contracts
