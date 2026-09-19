@@ -10,6 +10,20 @@ try{
         $viewer=require_api_user($pdo);
         json_response(['ok'=>true,'data'=>['conversations'=>conversation_team_list($pdo,$viewer)]]);
     }
+    if($action==='status'){
+        $viewer=require_api_user($pdo);if(!conversation_presence_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Annotated database upgrade is required for Chat Status.']],503);
+        json_response(['ok'=>true,'data'=>conversation_status_get($pdo,(int)$viewer['id'])]);
+    }
+    if($action==='heartbeat'){
+        $viewer=require_api_mutation_auth($pdo);if(!conversation_presence_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Annotated database upgrade is required for Chat Presence.']],503);
+        rate_limit_api_or_429($pdo,'conversation-heartbeat','user:'.$viewer['id'],240,3600);
+        json_response(['ok'=>true,'data'=>conversation_presence_touch($pdo,$viewer,(string)($input['client_session_id']??''))]);
+    }
+    if($action==='leave'){
+        $viewer=require_api_mutation_auth($pdo);rate_limit_api_or_429($pdo,'conversation-leave','user:'.$viewer['id'],120,3600);
+        conversation_presence_leave($pdo,$viewer,(string)($input['client_session_id']??''));json_response(['ok'=>true,'data'=>['left'=>true]]);
+    }
+
     if($action==='messages'){
         $viewer=require_api_user($pdo);$conversation=trim((string)($input['conversation']??''));$before=(int)($input['before']??0);
         $data=conversation_message_rows($pdo,$viewer,$conversation,$before>0?$before:null,(int)($input['limit']??50));
