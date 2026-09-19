@@ -5,7 +5,7 @@ require_once dirname(__DIR__).'/app/extension-auth.php';
 extension_api_headers($config);
 
 if($_SERVER['REQUEST_METHOD']!=='POST')json_response(['ok'=>false,'error'=>['code'=>'METHOD_NOT_ALLOWED']],405);
-rate_limit_api_or_429($pdo,'extension-pair-ip',rate_limit_ip_subject(),180,600);
+rate_limit_api_or_429($pdo,'extension-pair-ip',rate_limit_ip_subject(),240,600);
 
 $raw=json_decode(file_get_contents('php://input'),true)?:[];
 $pair=strtolower(trim((string)($raw['pair']??'')));
