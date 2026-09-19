@@ -114,13 +114,20 @@ function initializeSidebarBindings(){
 
   for(const button of document.querySelectorAll('.modes button')){
     button.addEventListener('click',async()=>{
-      captureMode=button.dataset.mode;
-      for(const item of document.querySelectorAll('.modes button'))item.classList.toggle('active',item===button);
-      const controls=document.getElementById('mediaControls');
-      if(controls)controls.hidden=!(captureMode==='media'&&page?.mediaType);
-      renderMediaMeta();
-      if(captureMode==='media')resetClipUpload('Clip will be captured from the active tab when you publish.');
-      if(captureMode==='region')await startRegion();
+      try{
+        captureMode=button.dataset.mode;
+        for(const item of document.querySelectorAll('.modes button'))item.classList.toggle('active',item===button);
+        const controls=document.getElementById('mediaControls');
+        if(controls)controls.hidden=!(captureMode==='media'&&page?.mediaType);
+        renderMediaMeta();
+        if(captureMode==='media')resetClipUpload('Clip will be captured from the active tab when you publish.');
+        if(captureMode==='region')await startRegion();
+      }catch(e){
+        console.error('[Annotated] Capture mode failed',e);
+        const selection=document.getElementById('selection');
+        if(selection)selection.textContent=e?.message||'Unable to start this capture mode on the current page.';
+        sidebarStatusError(e?.message||'Capture mode unavailable');
+      }
     });
   }
 }
@@ -145,6 +152,7 @@ chrome.runtime.onMessage.addListener(async message=>{
 (async()=>{
   try{
     initializeSidebarBindings();
+    const build=document.getElementById('buildVersion');if(build)build.textContent='v'+chrome.runtime.getManifest().version;
     await settings();
     let signedIn=false;
     if(token)signedIn=await loadMe(true);
