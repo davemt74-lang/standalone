@@ -19,8 +19,8 @@ jobs:
           rm -rf package-website package-extension
           mkdir package-website package-extension
           cp -a extension/. package-extension/
-          (cd package-extension && zip -qr ../Annotated-Chrome-V0.9.0.zip .)
-          unzip -t Annotated-Chrome-V0.9.0.zip
+          (cd package-extension && zip -qr ../Annotated-Chrome-Extension.zip .)
+          unzip -t Annotated-Chrome-Extension.zip
           test -f package-extension/manifest.json
           php -r '$m=json_decode(file_get_contents("package-extension/manifest.json"),true,512,JSON_THROW_ON_ERROR); if(($m["manifest_version"]??0)!==3||($m["version"]??"")!=="0.9.0") exit(1);'
 
@@ -28,30 +28,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a ./ package-website/             --exclude '.git/'             --exclude '.github/'             --exclude 'extension/'             --exclude 'package-website/'             --exclude 'package-extension/'             --exclude 'Annotated-Website-V1.1-RC1.zip'             --exclude 'Annotated-Chrome-V0.9.0.zip'
+          rsync -a ./ package-website/             --exclude '.git/'             --exclude '.github/'             --exclude 'extension/'             --exclude 'package-website/'             --exclude 'package-extension/'             --exclude 'Annotated-Website.zip'             --exclude 'Annotated-Chrome-Extension.zip'
           mkdir -p package-website/downloads
-          cp Annotated-Chrome-V0.9.0.zip package-website/downloads/Annotated-Chrome-V0.9.0.zip
-          (cd package-website && zip -qr ../Annotated-Website-V1.1-RC1.zip .)
-          unzip -t Annotated-Website-V1.1-RC1.zip
+          cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
+          (cd package-website && zip -qr ../Annotated-Website.zip .)
+          unzip -t Annotated-Website.zip
           test -f package-website/index.php
           test -f package-website/install.php
           test -f package-website/database/schema.sql
           test -f package-website/chrome-extension.php
-          test -f package-website/downloads/Annotated-Chrome-V0.9.0.zip
+          test -f package-website/downloads/Annotated-Chrome-Extension.zip
 
       - name: Checksums
-        run: sha256sum Annotated-Website-V1.1-RC1.zip Annotated-Chrome-V0.9.0.zip > SHA256SUMS.txt
+        run: sha256sum Annotated-Website.zip Annotated-Chrome-Extension.zip > SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
         with:
-          name: annotated-website-v1-1-rc1
-          path: Annotated-Website-V1.1-RC1.zip
+          name: annotated-website
+          path: Annotated-Website.zip
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: annotated-chrome-v0-9-0
-          path: Annotated-Chrome-V0.9.0.zip
+          name: annotated-chrome-extension
+          path: Annotated-Chrome-Extension.zip
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
