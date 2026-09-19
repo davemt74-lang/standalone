@@ -37,3 +37,21 @@ function enforce_extension_bearer_session(PDO $pdo): void {
     $token=bearer_token();if(!$token)return;
     try{$q=$pdo->prepare('SELECT 1 FROM extension_sessions WHERE token_hash=? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW())');$q->execute([hash('sha256',$token)]);if(!$q->fetchColumn())json_response(['ok'=>false,'error'=>['code'=>'SESSION_EXPIRED','message'=>'Reconnect the Annotated extension.']],401);}catch(PDOException $e){json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Run the Annotated database upgrade before reconnecting the extension.']],503);}
 }
+
+
+function extension_session_issue(PDO $pdo,int $userId,array $config,string $device='Chrome sidebar',?string $clientVersion=null): array {
+    $ttl=max(1,min(90,(int)($config['extension']['session_ttl_days']??30)));
+    $expires=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+'.$ttl.' days')->format('Y-m-d H:i:s');
+    $token=bin2hex(random_bytes(32));
+    $device=mb_substr(trim($device),0,190)?:'Chrome sidebar';
+    $clientVersion=mb_substr(trim((string)$clientVersion),0,32)?:null;
+    try{
+        $q=$pdo->prepare('INSERT INTO extension_sessions(user_id,token_hash,device_name,client_version,expires_at) VALUES(?,?,?,?,?)');
+        $q->execute([$userId,hash('sha256',$token),$device,$clientVersion,$expires]);
+    }catch(PDOException $e){
+        if(!str_contains(strtolower($e->getMessage()),'client_version'))throw $e;
+        $q=$pdo->prepare('INSERT INTO extension_sessions(user_id,token_hash,device_name,expires_at) VALUES(?,?,?,?)');
+        $q->execute([$userId,hash('sha256',$token),$device,$expires]);
+    }
+    return ['token'=>$token,'expires_at'=>$expires];
+}
