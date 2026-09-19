@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';require_once __DIR__.'/app/annotation-ui.php';
-$GLOBALS['annotated_shell_disabled']=true;
+$GLOBALS['annotated_shell_mode']='header_only';
 $viewer=current_user($pdo);$username=trim((string)($_GET['u']??''));
 $requestPath=(string)(parse_url((string)($_SERVER['REQUEST_URI']??''),PHP_URL_PATH)?:'');if($requestPath==='/profile.php'&&$username!==''){header('Location: '.profile_path($username),true,301);exit;}if($viewer){header('Cache-Control: private, no-store');header('Vary: Cookie');}$p=$username!==''?public_discovery_profile($pdo,$username,$viewer):null;if(!$p){http_response_code(404);exit('Profile not found.');}
 $owner=$viewer&&(int)$viewer['id']===(int)$p['id'];$isPublic=$p['profile_visibility']==='public';$desc=public_discovery_meta_description((string)($p['bio']?:$p['display_name'].' on Annotated'));
