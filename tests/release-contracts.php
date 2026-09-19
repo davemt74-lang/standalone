@@ -45,7 +45,7 @@ $phase11Release=(string)file_get_contents($root.'/app/release.php');foreach(['AN
 $phase11Init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_match("/(?<!\\$)\\$\\('nav button'\\)\\.forEach/",$phase11Init))$fail[]='Phase 11 sidebar nav must not call forEach on querySelector.';if(preg_match("/(?<!\\$)\\$\\('\\.modes button'\\)\\.forEach/",$phase11Init))$fail[]='Phase 11 capture modes must not call forEach on querySelector.';
 $phase11Html=(string)file_get_contents($root.'/extension/sidepanel.html');foreach(['role="tablist"','role="tabpanel"','aria-selected','aria-live="polite"'] as $needle)if(!str_contains($phase11Html,$needle))$fail[]="Phase 11 accessibility contract missing: $needle";
 if(($manifest11['minimum_chrome_version']??'')!=='116')$fail[]='Phase 11 RC must declare Chrome 116+.';
-$releaseWorkflow=(string)file_get_contents($root.'/.github/workflows/release-rc.yml');foreach(['Annotated-V1.1-RC1-Server.zip','Annotated-Chrome-V0.9.0.zip','sha256sum'] as $needle)if(!str_contains($releaseWorkflow,$needle))$fail[]="RC packaging workflow contract missing: $needle";
+$releaseWorkflow=(string)file_get_contents($root.'/.github/workflows/release-rc.yml');foreach(['Annotated-Website.zip','Annotated-Chrome-Extension.zip','sha256sum'] as $needle)if(!str_contains($releaseWorkflow,$needle))$fail[]="RC packaging workflow contract missing: $needle";
 foreach(['media-worker.php'=>'media','transcription-worker.php'=>'transcription','source-monitor-worker.php'=>'source_monitor','ai-worker.php'=>'ai','saved-search-worker.php'=>'saved_search'] as $file=>$name){$body=(string)file_get_contents($root.'/worker/'.$file);if(!str_contains($body,"release_worker_heartbeat(\$pdo,'$name'"))$fail[]="Phase 11 worker heartbeat missing: $file";}
 
 
