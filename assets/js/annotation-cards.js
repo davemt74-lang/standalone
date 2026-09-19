@@ -63,6 +63,10 @@ document.addEventListener('input',e=>{
 });
 
 document.addEventListener('click',async e=>{
+  const menu=e.target.closest?.('.annotationHeaderMenu');
+  if(menu){document.querySelectorAll('.annotationHeaderMenu[open]').forEach(other=>{if(other!==menu)other.removeAttribute('open');});}
+  else document.querySelectorAll('.annotationHeaderMenu[open]').forEach(other=>other.removeAttribute('open'));
+
   const reset=e.target.closest?.('[data-annotation-highlight-reset]');
   if(reset){annotatedApplyHighlight(ANNOTATED_DEFAULT_HIGHLIGHT,true);return;}
 
@@ -113,3 +117,5 @@ document.addEventListener('click',async e=>{
   }catch(err){alert(err.message||'Unable to update annotation.');}
   finally{b.disabled=false;}
 });
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.annotationHeaderMenu[open]').forEach(menu=>menu.removeAttribute('open'));});
