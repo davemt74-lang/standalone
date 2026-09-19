@@ -40,7 +40,7 @@ function agent_chat_context_options(PDO $pdo,array $viewer): array {
     $out=['annotations'=>[],'research'=>[],'teams'=>[]];
     $q=$pdo->prepare("SELECT a.public_id,a.text_commentary,s.title source_title,s.domain,a.created_at FROM annotations a JOIN sources s ON s.id=a.source_id WHERE a.user_id=? AND a.status='published' ORDER BY a.created_at DESC LIMIT 12");$q->execute([$viewer['id']]);
     foreach($q->fetchAll() as $r)$out['annotations'][]=['type'=>'annotation','public_id'=>$r['public_id'],'label'=>trim((string)$r['text_commentary'])!==''?mb_substr(trim((string)$r['text_commentary']),0,80):($r['source_title']?:$r['domain'])];
-    $q=$pdo->prepare("SELECT DISTINCT rp.public_id,rp.title FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.updated_at DESC LIMIT 12");$q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
+    $q=$pdo->prepare("SELECT DISTINCT rp.public_id,rp.title FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.created_at DESC LIMIT 12");$q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
     foreach($q->fetchAll() as $r)$out['research'][]=['type'=>'research','public_id'=>$r['public_id'],'label'=>$r['title']];
     $q=$pdo->prepare("SELECT t.public_id,t.name FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=? ORDER BY t.name LIMIT 12");$q->execute([$viewer['id']]);
     foreach($q->fetchAll() as $r)$out['teams'][]=['type'=>'team','public_id'=>$r['public_id'],'label'=>$r['name']];
@@ -61,12 +61,12 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
     }
     if($type==='research'){
         $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;$ctx=ai_research_context($pdo,(int)$p['id']);
-        return ['type'=>'research','public_id'=>$publicId,'label'=>$p['title'],'text'=>"[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'],'refs'=>array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'])];
+        return ['type'=>'research','public_id'=>$publicId,'label'=>$p['title'],'text'=>mb_substr("[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'],0,18000),'refs'=>array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'])];
     }
     if($type==='team'){
         $team=conversation_team_by_public($pdo,$viewer,$publicId);if(!$team)return null;$c=conversation_team_ensure($pdo,$team,$viewer);
         $q=$pdo->prepare("SELECT m.body,m.created_at,u.display_name FROM conversation_messages m LEFT JOIN users u ON u.id=m.user_id WHERE m.conversation_id=? AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 20");$q->execute([$c['id']]);$rows=array_reverse($q->fetchAll());$parts=["[TEAM {$team['public_id']}]","Team: ".$team['name']];foreach($rows as $r)$parts[]=(string)($r['display_name']?:'Member').': '.mb_substr((string)$r['body'],0,1200);
-        return ['type'=>'team','public_id'=>$publicId,'label'=>$team['name'],'text'=>implode("\n",$parts),'refs'=>[['type'=>'team','id'=>$publicId]]];
+        return ['type'=>'team','public_id'=>$publicId,'label'=>$team['name'],'text'=>mb_substr(implode("\n",$parts),0,12000),'refs'=>[['type'=>'team','id'=>$publicId]]];
     }
     return null;
 }
@@ -92,7 +92,7 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     if(!$userMessage['created']){
         $q=$pdo->prepare("SELECT id,public_id,body FROM conversation_messages WHERE conversation_id=? AND parent_message_id=? AND sender_type='agent' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");$q->execute([$conversation['id'],$userMessageId]);if($existing=$q->fetch())return ['conversation'=>['public_id'=>$conversation['public_id'],'title'=>$conversation['title']],'user_message'=>$userMessage,'assistant_message'=>['id'=>(int)$existing['id'],'public_id'=>$existing['public_id'],'body'=>$existing['body'],'sender_type'=>'agent','role'=>'assistant'],'deduplicated'=>true];
     }
-    foreach($context as $item)$pdo->prepare('INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,?,?,?)')->execute([$userMessageId,$item['type'],$item['public_id'],json_encode(['label'=>$item['label']],JSON_UNESCAPED_SLASHES)]);
+    if($userMessage['created'])foreach($context as $item)$pdo->prepare('INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,?,?,?)')->execute([$userMessageId,$item['type'],$item['public_id'],json_encode(['label'=>$item['label']],JSON_UNESCAPED_SLASHES)]);
     $isAdmin=($viewer['role']??'')==='admin';$quota=rate_limit_consume($pdo,$isAdmin?'agent-chat-admin':'agent-chat-pro','user:'.$viewer['id'],$isAdmin?300:60,3600);if(!$quota['allowed'])throw new RuntimeException('Agent Chat request limit reached. Try again in about '.max(1,(int)ceil($quota['retry_after']/60)).' minute(s).');
     $model=$isAdmin?ai_setting_model_id($pdo,'admin',false):ai_setting_model_id($pdo,'pro',true);if(!$model)$model=ai_setting_model_id($pdo,'research',true);if(!$model)throw new RuntimeException('No Agent Chat model is configured.');ai_interactive_model_record($pdo,$viewer,$model);
     $history=agent_chat_history_text($pdo,(int)$conversation['id'],16);$contextText=implode("\n\n",array_map(fn($x)=>$x['text'],$context));$refs=[];foreach($context as $item)foreach($item['refs'] as $ref)$refs[]=$ref;
