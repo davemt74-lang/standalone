@@ -61,8 +61,9 @@ function phase6AnnotationCard(a){
   const sourceFollow=Number(a.source_following)?'Source followed':'Follow source';
   const postType=phase6AnnotationPostTypeKey(a),type=phase6AnnotationType(a),sourceName=phase6SourceName(a);
   const selected=String(a.selected_text||'').trim();
-  const showSelected=!!selected&&(['quote','image_quote','annotation'].includes(postType));
-  const showShot=!!a.screenshot_url&&(['image','image_quote'].includes(postType)||(postType==='annotation'&&!selected));
+  const showShot=!!a.screenshot_url&&(['quote','image','image_quote','annotation'].includes(postType));
+  const showSelected=!!selected&&!showShot&&(['quote','image_quote','annotation'].includes(postType));
+  const showCapturedTranscript=!!selected&&showShot;
   const showMedia=!!a.media_url&&(['video','music','podcast','audio','annotation'].includes(postType));
   const shot=showShot?'<div class="evidenceFrame"><img data-evidence-src="'+esc(a.screenshot_url)+'" alt="Captured annotation image"></div>':'';
   const media=showMedia?(a.capture_type==='video_clip'?'<div class="evidenceFrame"><video controls data-evidence-src="'+esc(a.media_url)+'"></video></div>':'<div class="evidenceFrame"><audio controls data-evidence-src="'+esc(a.media_url)+'"></audio></div>'):((a.capture_type==='video_clip'||a.capture_type==='audio_clip')&&!a.media_url?'<div class="hint">Media derivative: '+esc(a.media_status||'queued')+'</div>':'');
@@ -79,7 +80,7 @@ function phase6AnnotationCard(a){
     (a.text_commentary?'<p class="postCaption">'+esc(a.text_commentary)+'</p>':'')+
     (showSelected?'<div class="excerpt postQuote">'+esc(selected.slice(0,1000))+'</div>':'')+
     shot+media+(a.media_provider?'<div class="provenance">'+esc(a.media_provider==='youtube'?'YouTube':a.media_provider)+(a.media_title?' · '+esc(a.media_title):'')+(a.media_author?' · '+esc(a.media_author):'')+'</div>':'')+audio+transcript+time+
-    '<details class="sourceDetails"><summary><span class="sourceDetailsIcon">↗</span><span><small>Source content</small><strong>'+esc(sourceName)+'</strong></span><span class="sourceChevron">⌄</span></summary><div class="sourceDetailsBody"><div class="sourceDetailsUrl">'+esc(a.canonical_url||'')+'</div><div class="sourceDetailsStats"><span>'+esc(version)+'</span>'+(a.integrity?.label?'<span>'+esc(a.integrity.label)+'</span>':'')+'</div><div class="sourceDetailsActions"><button data-action="source" data-source="'+esc(a.source_public_id)+'">Source page</button><button data-action="source-follow" data-source="'+esc(a.source_public_id)+'">'+sourceFollow+'</button></div></div></details>'+
+    '<details class="sourceDetails"><summary><span class="sourceDetailsIcon">↗</span><span><small>Source content</small><strong>'+esc(sourceName)+'</strong></span><span class="sourceChevron">⌄</span></summary><div class="sourceDetailsBody"><div class="sourceDetailsUrl">'+esc(a.canonical_url||'')+'</div><div class="sourceDetailsStats"><span>'+esc(version)+'</span>'+(a.integrity?.label?'<span>'+esc(a.integrity.label)+'</span>':'')+'</div>'+(showCapturedTranscript?'<details class="capturedTextTranscript"><summary>Captured text transcript</summary><div>'+esc(selected)+'</div></details>':'')+'<div class="sourceDetailsActions"><button data-action="source" data-source="'+esc(a.source_public_id)+'">Source page</button><button data-action="source-follow" data-source="'+esc(a.source_public_id)+'">'+sourceFollow+'</button></div></div></details>'+
     '<div class="postActions">'+
       '<button class="postAction'+likeClass+'" data-action="like">♥ <span>Like</span> <strong data-like-count>'+Number(a.like_count||0)+'</strong></button>'+
       '<button class="postAction" data-action="comments">💬 <span>Comments</span> <strong data-comment-count>'+Number(a.comment_count||0)+'</strong></button>'+
