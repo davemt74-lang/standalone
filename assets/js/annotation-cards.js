@@ -75,6 +75,19 @@ document.addEventListener('click',async e=>{
     return;
   }
 
+  const transcriptToggle=e.target.closest?.('[data-annotation-transcript-toggle]');
+  if(transcriptToggle){
+    const card=transcriptToggle.closest('.annotationPost'),panelId=transcriptToggle.getAttribute('aria-controls'),panel=panelId?document.getElementById(panelId):card?.querySelector('.annotationTranscriptPanel');
+    if(!panel)return;
+    const opening=panel.hidden;
+    panel.hidden=!opening;
+    transcriptToggle.textContent=opening?'Hide transcript':'Show transcript';
+    transcriptToggle.setAttribute('aria-expanded',opening?'true':'false');
+    transcriptToggle.closest('details')?.removeAttribute('open');
+    if(opening)panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+    return;
+  }
+
   const copy=e.target.closest?.('[data-copy-annotation-link]');
   if(copy){
     const url=new URL(copy.dataset.url||location.href,location.origin).href;
