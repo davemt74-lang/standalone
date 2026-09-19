@@ -12,9 +12,9 @@ function current_user(PDO $pdo): ?array {
         if(!$userId)return null;
     }else{$userId=$sessionUserId;}
     if(!$userId)return null;
-    try{$s=$pdo->prepare('SELECT id,public_id,username,display_name,email,role,live_presence_mode,sessions_revoked_before FROM users WHERE id=? AND status="active"');$s->execute([$userId]);$user=$s->fetch();}catch(PDOException $e){$s=$pdo->prepare('SELECT id,public_id,username,display_name,email,role,live_presence_mode FROM users WHERE id=? AND status="active"');$s->execute([$userId]);$user=$s->fetch();if($user)$user['sessions_revoked_before']=null;}if(!$user)return null;
+    try{$s=$pdo->prepare('SELECT id,public_id,username,display_name,email,role,live_presence_mode,profile_image_url,sessions_revoked_before FROM users WHERE id=? AND status="active"');$s->execute([$userId]);$user=$s->fetch();}catch(PDOException $e){$s=$pdo->prepare('SELECT id,public_id,username,display_name,email,role,live_presence_mode,profile_image_url FROM users WHERE id=? AND status="active"');$s->execute([$userId]);$user=$s->fetch();if($user)$user['sessions_revoked_before']=null;}if(!$user)return null;
     if($sessionUserId&&!$token&&!empty($user['sessions_revoked_before'])){$revoked=strtotime((string)$user['sessions_revoked_before']);$auth=(int)($_SESSION['auth_time']??0);if(!$auth||($revoked&&$auth<$revoked)){$_SESSION=[];if(session_status()===PHP_SESSION_ACTIVE)session_regenerate_id(true);return null;}}
-    unset($user['sessions_revoked_before']);return $user;
+    unset($user['sessions_revoked_before']);if(function_exists('app_shell_activate'))app_shell_activate($pdo,$user);return $user;
 }
 function require_user(PDO $pdo): array { $u=current_user($pdo); if(!$u){ header('Location: /login.php'); exit; } return $u; }
 function require_api_user(PDO $pdo): array { $u=current_user($pdo); if(!$u)json_response(['ok'=>false,'error'=>['code'=>'AUTH_REQUIRED','message'=>'Sign in to Annotated.']],401); return $u; }
