@@ -20,6 +20,10 @@ $need('api/extension-account.php','password_hash($password,PASSWORD_DEFAULT)','E
 $need('api/extension-account.php','rate_limit_api_or_429','Extension login and registration must be rate limited.');
 $need('api/extension-account.php','extension_session_issue','Successful sidebar authentication must issue a revocable extension session.');
 $need('app/extension-auth.php','function extension_session_issue','Extension session creation must be centralized.');
+$need('api/extension-bootstrap.php','extension_origin_allowed','Automatic server discovery must only answer valid Chrome extension origins.');
+$need('api/extension-bootstrap.php',"'product'=>'Annotated'",'Automatic server discovery must identify a real Annotated installation.');
+$need('extension/sidepanel-state.js','discoverAnnotatedServer','Sidebar must auto-discover an open Annotated website when no server is configured.');
+$need('extension/sidepanel-state.js','/api/extension-bootstrap.php','Sidebar discovery must verify the candidate website with the Annotated bootstrap endpoint.');
 $need('extension/sidepanel.html','id="authLoginForm"','Sidebar must contain a normal login form.');
 $need('extension/sidepanel.html','id="authRegisterForm"','Sidebar must contain a normal create-account form.');
 $need('extension/sidepanel-state.js',"/api/extension-account.php",'Sidebar authentication must use the direct account API.');
