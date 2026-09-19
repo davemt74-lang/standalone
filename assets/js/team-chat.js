@@ -9,14 +9,16 @@
   const unread=rail.querySelector('#teamChatUnread');
   const openTeam=rail.querySelector('#teamChatOpenTeam');
   const reply=rail.querySelector('#teamChatReply');
+  const loadEarlier=rail.querySelector('#teamChatLoadEarlier');
   const mobileOpen=document.querySelector('[data-team-chat-open]');
   const mobileClose=rail.querySelector('[data-team-chat-close]');
   const totalUnread=document.querySelector('[data-team-chat-total-unread]');
   const csrf=rail.dataset.csrf||'';
-  let parentMessage='',parentLabel='',pollTimer=null,loadSequence=0;
+  let parentMessage='',parentLabel='',pollTimer=null,loadSequence=0,nextBefore=null,historyExpanded=false;
 
   function currentOption(){return select?.selectedOptions?.[0]||null;}
   function absoluteProfile(username){return '/'+encodeURIComponent(String(username||''));}
+  function formatTime(value){const raw=String(value||'').trim();if(!raw)return '';const normalized=/Z$|[+-]\d\d:\d\d$/.test(raw)?raw:raw.replace(' ','T')+'Z';const d=new Date(normalized);if(Number.isNaN(d.getTime()))return raw;return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(d);}
   function avatar(row,size='32'){
     const wrap=document.createElement('span');wrap.className='teamChatAvatar';wrap.style.setProperty('--team-chat-avatar-size',size+'px');
     if(row.profile_image_url){
@@ -45,7 +47,7 @@
     const identity=document.createElement('a');identity.className='teamChatIdentity';identity.href=absoluteProfile(row.username);
     identity.appendChild(avatar(row));
     const names=document.createElement('span');const strong=document.createElement('strong');strong.textContent=row.display_name||row.username||'Annotated user';
-    const meta=document.createElement('small');meta.textContent='@'+(row.username||'user')+' · '+String(row.created_at||'');
+    const meta=document.createElement('small');meta.textContent='@'+(row.username||'user')+' · '+formatTime(row.created_at);
     names.append(strong,meta);identity.appendChild(names);head.appendChild(identity);
     const replyButton=document.createElement('button');replyButton.type='button';replyButton.className='teamChatReplyButton';replyButton.textContent='Reply';replyButton.addEventListener('click',()=>{setReply(row.public_id,row.display_name||row.username||'message');input?.focus();});head.appendChild(replyButton);
     article.appendChild(head);
@@ -72,27 +74,43 @@
     if(totalUnread)totalUnread.textContent=total?'('+total+')':'';
   }
   function syncTeamMeta(){
-    const option=currentOption();if(!option)return;
+    const option=currentOption(),sendButton=composer?.querySelector('button[type=submit]');
+    if(!option){memberCount.textContent='No current team access';if(unread)unread.hidden=true;if(openTeam)openTeam.hidden=true;if(input)input.disabled=true;if(sendButton)sendButton.disabled=true;updateTotalUnread();return;}
+    if(openTeam){openTeam.hidden=false;openTeam.href='/team.php?id='+encodeURIComponent(option.dataset.team||'');}
+    if(input)input.disabled=false;if(sendButton)sendButton.disabled=false;
     memberCount.textContent=(option.dataset.members||'0')+' members';
     const count=Number(option.dataset.unread)||0;if(unread){unread.hidden=!count;unread.textContent=count?count+' unread':'';}
-    if(openTeam)openTeam.href='/team.php?id='+encodeURIComponent(option.dataset.team||'');
     updateTotalUnread();
   }
   async function loadMessages({quiet=false}={}){
-    if(!select?.value)return;const sequence=++loadSequence,conversation=select.value;
-    if(!quiet){messages.innerHTML='<div class="teamChatLoading">Loading messages…</div>';}
+    if(!select?.value)return;const sequence=++loadSequence,conversation=select.value,nearBottom=(messages.scrollHeight-messages.scrollTop-messages.clientHeight)<90;
+    if(!quiet){messages.innerHTML='<div class="teamChatLoading">Loading messages…</div>';historyExpanded=false;}
     try{
       const data=await request('messages',{params:{conversation,limit:60}});
       if(sequence!==loadSequence||conversation!==select.value)return;
-      messages.replaceChildren();
-      for(const row of (data.messages||[]))messages.appendChild(renderMessage(row));
-      if(!(data.messages||[]).length){const empty=document.createElement('div');empty.className='teamChatEmpty';empty.textContent='No messages yet. Start the conversation.';messages.appendChild(empty);}
-      messages.scrollTop=messages.scrollHeight;
-      const rows=data.messages||[];await markRead(conversation,rows[rows.length-1]);
+      const rows=data.messages||[];
+      if(quiet&&historyExpanded){
+        for(const row of rows){if(!messages.querySelector('[data-message="'+CSS.escape(String(row.public_id))+'"]'))messages.appendChild(renderMessage(row));}
+      }else{
+        messages.replaceChildren();for(const row of rows)messages.appendChild(renderMessage(row));
+        if(!rows.length){const empty=document.createElement('div');empty.className='teamChatEmpty';empty.textContent='No messages yet. Start the conversation.';messages.appendChild(empty);}
+      }
+      nextBefore=data.next_before||null;if(loadEarlier){loadEarlier.hidden=!nextBefore;}
+      if(!quiet||nearBottom)messages.scrollTop=messages.scrollHeight;
+      if(!quiet||nearBottom)await markRead(conversation,rows[rows.length-1]);
     }catch(err){
       if(sequence!==loadSequence||conversation!==select.value)return;
       if(!quiet){messages.replaceChildren();const e=document.createElement('div');e.className='teamChatError';e.textContent=err.message||'Unable to load Team Chat.';messages.appendChild(e);}
     }
+  }
+  async function loadEarlierMessages(){
+    if(!select?.value||!nextBefore)return;const conversation=select.value,sequence=++loadSequence,oldHeight=messages.scrollHeight;loadEarlier.disabled=true;
+    try{
+      const data=await request('messages',{params:{conversation,before:nextBefore,limit:60}});if(sequence!==loadSequence||conversation!==select.value)return;
+      const fragment=document.createDocumentFragment();for(const row of (data.messages||[]))fragment.appendChild(renderMessage(row));messages.prepend(fragment);
+      nextBefore=data.next_before||null;historyExpanded=true;loadEarlier.hidden=!nextBefore;messages.scrollTop+=messages.scrollHeight-oldHeight;
+    }catch(err){alert(err.message||'Unable to load earlier team messages.');}
+    finally{loadEarlier.disabled=false;}
   }
   async function refreshConversationList(){
     try{
@@ -105,7 +123,7 @@
         option.textContent=item.team_name+(item.unread_count?' · '+item.unread_count+' new':'');
       }
       if([...select.options].some(o=>o.value===selected))select.value=selected;else if(select.options.length)select.selectedIndex=0;
-      syncTeamMeta();
+      const changed=selected!==select.value;syncTeamMeta();if(changed){nextBefore=null;historyExpanded=false;loadMessages();}
     }catch{}
   }
   composer?.addEventListener('submit',async e=>{
@@ -121,7 +139,8 @@
   input?.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,110)+'px';});
   input?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();composer.requestSubmit();}});
   reply?.querySelector('button')?.addEventListener('click',()=>setReply('',''));
-  select?.addEventListener('change',()=>{setReply('','');syncTeamMeta();loadMessages();});
+  select?.addEventListener('change',()=>{setReply('','');nextBefore=null;historyExpanded=false;syncTeamMeta();loadMessages();});
+  loadEarlier?.addEventListener('click',loadEarlierMessages);
   mobileOpen?.addEventListener('click',()=>document.body.classList.add('teamChatMobileOpen'));
   mobileClose?.addEventListener('click',()=>document.body.classList.remove('teamChatMobileOpen'));
   document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('teamChatMobileOpen');});
