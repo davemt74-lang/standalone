@@ -19,6 +19,12 @@ function current_user(PDO $pdo): ?array {
 function require_user(PDO $pdo): array { $u=current_user($pdo); if(!$u){ header('Location: /login.php'); exit; } return $u; }
 function require_api_user(PDO $pdo): array { $u=current_user($pdo); if(!$u)json_response(['ok'=>false,'error'=>['code'=>'AUTH_REQUIRED','message'=>'Sign in to Annotated.']],401); return $u; }
 function require_api_mutation_auth(PDO $pdo): array { $u=require_api_user($pdo); if(!bearer_token()){ $sent=(string)($_SERVER['HTTP_X_CSRF_TOKEN']??''); if($sent===''||!hash_equals((string)($_SESSION['csrf']??''),$sent))json_response(['ok'=>false,'error'=>['code'=>'CSRF_FAILED']],419); } return $u; }
+function post_auth_destination(PDO $pdo,int $userId): string {
+    $after=(string)($_SESSION['after_login']??'');
+    unset($_SESSION['after_login']);
+    if($after!==''&&str_starts_with($after,'/')&&!str_starts_with($after,'//')&&!str_contains($after,"\r")&&!str_contains($after,"\n"))return $after;
+    return onboarding_post_login_destination($pdo,$userId);
+}
 function users_exist(PDO $pdo): bool { return (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn() > 0; }
 function ulid_like(): string { return bin2hex(random_bytes(13)); }
 function json_response(array $data, int $status=200): never { http_response_code($status); header('Content-Type: application/json; charset=utf-8'); echo json_encode($data, JSON_UNESCAPED_SLASHES); exit; }
