@@ -18,6 +18,8 @@ function phase6Reason(a){
   return bits.length?'<div class="feedReason">From '+esc(bits.join(' + '))+'</div>':'';
 }
 function phase6AnnotationType(a){
+  const labels={quote:'Quote',note:'Note',image:'Image',image_quote:'Image + Quote',video:'Video',music:'Music',podcast:'Podcast',audio:'Audio',annotation:'Annotation'};
+  if(a.post_type&&labels[a.post_type])return labels[a.post_type];
   const selected=String(a.selected_text||'').trim(),commentary=String(a.text_commentary||'').trim();
   const sourceType=String(a.source_type||'').toLowerCase(),provider=String(a.media_provider||'').toLowerCase(),url=String(a.canonical_url||'').toLowerCase();
   if(a.capture_type==='video_clip')return 'Video';
