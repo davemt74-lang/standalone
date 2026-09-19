@@ -1,0 +1,10 @@
+Options -MultiViews
+RewriteEngine On
+
+# Existing files and directories always win.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Public Annotated profiles live at /username.
+RewriteRule ^([A-Za-z0-9_]{3,30})/?$ profile.php?u=$1 [QSA,L]

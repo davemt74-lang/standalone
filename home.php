@@ -13,14 +13,27 @@ $q->execute([$u['id']]);$teams=$q->fetchAll();
 
 $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
 $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'following_count'=>0,'annotation_count'=>0];
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage">
 <main class="layout"><section>
-<div class="pageTitle"><span class="eyebrow">YOUR FEED</span><h1>Your Annotated feed</h1><p>Your annotations plus activity from the people and sources you follow.</p></div>
 <?php if(!$feed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations and captures from people or sources you follow will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
 <?php foreach($feed as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?>
 </section><aside>
-<div class="card"><div class="profileMini"><?=app_shell_avatar($u,'avatarImageLg')?><span><strong><?=h($u['display_name'])?></strong><small>@<?=h($u['username'])?></small></span></div><div class="profileStats"><span><strong><?=h((string)$stats['followers'])?></strong> followers</span><span><strong><?=h((string)$stats['following_count'])?></strong> following</span><span><strong><?=h((string)$stats['annotation_count'])?></strong> annotations</span></div><a href="/profile.php?u=<?=h($u['username'])?>">View your profile</a></div>
-<div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">PEOPLE</span><h3>Discover researchers</h3></div></div><?php foreach($people as $p):?><a class="profileMini" style="margin:12px 0" href="/profile.php?u=<?=h($p['username'])?>"><?=app_shell_avatar($p,'avatarSm')?><span><strong><?=h($p['display_name'])?></strong><small>@<?=h($p['username'])?> · <?=h((string)$p['annotation_count'])?> annotations</small></span></a><?php endforeach?><?php if(!$people):?><p class="meta">No new profile suggestions right now.</p><?php endif?><a href="/explore.php">Explore Annotated</a></div>
+<div class="card"><div class="profileMini"><?=app_shell_avatar($u,'avatarImageLg')?><span><strong><?=h($u['display_name'])?></strong><small>@<?=h($u['username'])?></small></span></div><div class="profileStats"><span><strong><?=h((string)$stats['followers'])?></strong> followers</span><span><strong><?=h((string)$stats['following_count'])?></strong> following</span><span><strong><?=h((string)$stats['annotation_count'])?></strong> annotations</span></div><a href="<?=h(profile_path((string)$u['username']))?>">View your profile</a></div>
+<div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">PEOPLE</span><h3>Discover researchers</h3></div></div><?php foreach($people as $p):?><a class="profileMini" style="margin:12px 0" href="<?=h(profile_path((string)$p['username']))?>"><?=app_shell_avatar($p,'avatarSm')?><span><strong><?=h($p['display_name'])?></strong><small>@<?=h($p['username'])?> · <?=h((string)$p['annotation_count'])?> annotations</small></span></a><?php endforeach?><?php if(!$people):?><p class="meta">No new profile suggestions right now.</p><?php endif?><a href="/explore.php">Explore Annotated</a></div>
 <div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">TEAMS</span><h3>Your teams</h3></div></div><?php foreach($teams as $t):?><a class="savedSearchRow" href="/team.php?id=<?=h($t['public_id'])?>"><strong><?=h($t['name'])?></strong><small><?=h(ucfirst($t['role']))?> · <?=h((string)$t['member_count'])?> members</small></a><?php endforeach?><?php if(!$teams):?><p class="meta">Create a team for private collaboration and shared Research.</p><?php endif?><a href="/teams.php">Open Teams</a></div>
 <div class="card"><span class="eyebrow">BROWSER SIDEBAR</span><h3>Annotate while you browse</h3><p class="meta">The Chrome extension connects this social website to the live page you are researching.</p><a class="button" href="/chrome-extension.php">Download Chrome Extension</a></div>
-</aside></main><?=annotation_ui_scripts($u)?></body></html>
+</aside></main>
+<form class="homeAgentDock" id="homeAgentComposer" data-agent-chat-composer>
+  <button type="button" class="homeAgentAdd" id="homeAgentAdd" aria-label="Add context">+</button>
+  <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
+  <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
+</form>
+<script>
+(()=>{const form=document.querySelector('#homeAgentComposer'),input=document.querySelector('#homeAgentPrompt'),add=document.querySelector('#homeAgentAdd');if(!form||!input)return;
+const size=()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,132)+'px';};input.addEventListener('input',size);
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
+add?.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
+form.addEventListener('submit',e=>{e.preventDefault();const prompt=input.value.trim();if(!prompt)return;window.ANNOTATED_PENDING_AGENT_PROMPT=prompt;try{sessionStorage.setItem('annotated.pendingAgentPrompt',prompt);}catch{}document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{prompt,source:'home_feed'},bubbles:true,cancelable:true}));});
+})();
+</script>
+<?=annotation_ui_scripts($u)?></body></html>

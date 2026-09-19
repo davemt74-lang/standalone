@@ -16,6 +16,7 @@ $need('extension/sidepanel.html','id="authRegisterForm"','Chrome sidebar must ex
 $need('extension/sidepanel.html','id="landingPanel"','Chrome sidebar must expose a logged-out landing view.');
 $need('extension/sidepanel.html','id="authAccount"','Chrome sidebar must expose a distinct signed-in account view.');
 $sidebarHtml=(string)file_get_contents($root.'/extension/sidepanel.html');
+if(substr_count($sidebarHtml,'Use the same account you use on the Annotated website.')!==1)$fail[]='Extension login copy must appear exactly once.';
 $need('extension/sidepanel.html','id="headerCreateNew"','Sidebar header must expose the Create New shortcut.');
 $need('extension/sidepanel.html','id="buildVersion"','Sidebar header must visibly expose the loaded extension version.');
 $need('extension/sidepanel-init.js',"chrome.runtime.getManifest().version",'Sidebar version marker must come from the manifest actually loaded by Chrome.');
@@ -30,6 +31,12 @@ $need('extension/sidepanel.css','repeat(5,minmax(0,1fr))','All five sidebar tabs
 $need('extension/sidepanel.css','white-space:nowrap','Sidebar tab labels must not wrap onto a second row.');
 $need('extension/sidepanel-feed.js','async function phase6OpenCreate','Header Create New must open the standalone composer.');
 $need('extension/sidepanel-capture.js',"phase6SwitchTab(pageTab)",'Publishing must return to This Page so the new annotation is visible.');
+$need('extension/sidepanel-state.js','let loadPage=null,loadThisPage=null,loadFollowing=null,annotationCard=null,filterPageFeed=null;','Shared sidebar state must declare feed hooks without carrying a legacy feed implementation.');
+$avoid('extension/sidepanel-state.js','async function loadPage(){','Shared sidebar state must not ship the legacy loadPage implementation.');
+$avoid('extension/sidepanel-state.js','function annotationCard(','Shared sidebar state must not ship the legacy annotationCard renderer.');
+$avoid('extension/sidepanel-state.js','async function loadThisPage(){','Shared sidebar state must not ship the legacy This Page feed loader.');
+$avoid('extension/sidepanel-state.js','async function loadFollowing(){','Shared sidebar state must not ship the legacy Following loader.');
+$need('extension/sidepanel-feed.js','loadPage=phase6LoadPage;loadThisPage=phase6LoadThisPage;loadFollowing=phase6LoadFollowing;annotationCard=phase6AnnotationCard;filterPageFeed=phase6FilterPageFeed;','The dedicated feed module must own the sidebar feed entry points.');
 $need('extension/sidepanel-state.js','await enterWorkspace();','Successful extension authentication must go directly to the workspace.');
 $avoid('extension/sidepanel-state.js',"authShow('chooser')",'Normal extension login must not route through an extra chooser page.');
 $need('extension/sidepanel-state.js','loadLandingPage','Chrome sidebar must render the website landing page when signed out.');
@@ -74,5 +81,47 @@ foreach($sidebarIds as $id)if(!str_contains($sidebarHtml,'id="'.$id.'"'))$fail[]
 $need('extension/sidepanel-init.js','function sidebarBind','Sidebar event wiring must tolerate optional/missing elements without aborting all initialization.');
 $avoid('extension/sidepanel-init.js',").onclick=",'Sidebar initialization must not use brittle direct onclick chains.');
 $init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_match("/(?<!\\$)\\$\\('nav button'\\)\\.forEach/",$init))$fail[]='Sidebar nav wiring must not call forEach on a single selector.';if(preg_match("/(?<!\\$)\\$\\('\\.modes button'\\)\\.forEach/",$init))$fail[]='Capture mode wiring must not call forEach on a single selector.';
+
+$avoid('home.php','YOUR FEED','Home feed must not render the redundant feed heading block.');
+$avoid('home.php','data-annotation-highlight-picker','Home feed must begin with feed content, not display preference controls.');
+$need('home.php','homeAgentDock','Home feed must expose the sticky Agent composer shell.');
+$need('assets/css/app.css','.homeFeedPage .layout>aside{position:sticky','Home feed right rail must remain sticky on desktop.');
+$need('app/annotation-ui.php','Evidence-first feed rendering','Website annotation cards must render preserved screenshots as the primary visual post when available.');
+$need('app/annotation-ui.php','data-annotation-transcript-toggle','Website post menus must expose Show transcript when transcript text exists.');
+$need('app/annotation-ui.php',"'Media transcript'",'Website renderer must support media transcripts for video, podcast, music and audio posts.');
+$need('extension/sidepanel-feed.js',"['quote','image','image_quote','annotation'].includes(postType)",'Chrome feed must render screenshots for quote and image-oriented posts.');
+$need('extension/sidepanel-feed.js','data-action="toggle-transcript"','Chrome post menus must expose Show transcript.');
+$need('extension/sidepanel-feed.js',"'Media transcript'",'Chrome renderer must support future media transcripts without another UI path.');
+$need('app/annotation-ui.php','annotationHeaderMenu','Annotation post actions must live in the post-header overflow menu.');
+$need('app/annotation-ui.php','data-annotation-expand','Long annotation notes must expose Read more / Show less behavior.');
+$need('app/annotation-ui.php','data-web-annotation-action="research"','Annotation social actions must include Research.');
+$need('assets/js/annotation-cards.js','annotated.highlightColor','Annotation highlight color must persist as a viewer display preference.');
+$need('assets/css/app.css','--annotation-highlight','Annotation quotes must use the configurable highlight color.');
+$need('app/public-discovery.php','COALESCE(at.edited_text,at.raw_text) transcript_text','Profile annotation cards must receive transcript text when available.');
+$need('profile.php','profileActivity','Profile annotations must render in a single-column activity area.');
+$avoid('profile.php','profileColumns','Profile page must not restore the old two-column sidebar layout.');
+$avoid('profile.php','PUBLISHED RESEARCH','Profile page must not render the old Research sidebar.');
+$need('.htaccess','profile.php?u=$1','Clean single-segment username routes must resolve to public profiles.');
+$need('profile.php',"\$GLOBALS['annotated_shell_mode']='header_only'",'Authenticated profile pages must use the default header without the application sidebar.');
+$need('profile.php','profile_path((string)$p[\'username\'])','Profile canonical URLs must use /username.');
+$need('profile.php',"header('Location: '.profile_path(\$username),true,301)",'Legacy profile.php URLs must redirect permanently to /username.');
+$need('app/shell.php','profile_path($username)','The account dropdown must link to the clean profile URL.');
+$need('app/shell.php',"'header_only'",'The universal shell must support a header-only mode.');
+$need('assets/css/app.css','.appShellHeaderOnly','Header-only profile shell styling must be present.');
+$need('settings.php','enctype="multipart/form-data"','Settings profile form must support photo uploads.');
+$need('settings.php','name="profile_photo"','Settings must expose a profile photo upload field.');
+$need('settings.php','data-annotation-highlight-picker','Account Settings must expose the annotation highlight color preference.');
+$need('settings.php','settingsSidebar','Account Settings must expose a dedicated right sidebar hook.');
+$need('assets/css/app.css','.settingsSidebar{position:sticky','Account Settings right sidebar must stay sticky on desktop.');
+$need('settings.php','annotation-cards.js?v=0.11.0','Account Settings highlight control must reuse the shared highlight preference runtime.');
+$need('app/storage.php','function profile_image_upload','Profile photo uploads must use the validated storage helper.');
+$need('app/storage.php',"'image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'",'Profile photo uploads must be restricted to safe raster image types.');
+$need('app/feed.php','u.profile_image_url','Annotation feed rows must carry author profile photos.');
+$need('extension/sidepanel-feed.js','function phase6AuthorAvatar','Chrome This Page and Following cards must render profile photos with an initial fallback.');
+$need('extension/sidepanel-feed.js','data-action="profile"','Chrome annotation identities must open the clean user profile.');
+$need('extension/sidepanel-state.js','profileImageAbsolute','Chrome account identity must support website profile photos.');
+$need('annotation.php','commentAuthorIdentity','Annotation discussion identities must render profile photos.');
+$need('assets/css/app.css','.annotationPost{overflow:visible}','Annotation post menus must not be clipped by the post card.');
+
 
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "V1.1 RC1 end-to-end release contract passed.\n";

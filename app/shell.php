@@ -23,8 +23,9 @@ function app_shell_is_html_candidate(): bool {
     return true;
 }
 function app_shell_activate(PDO $pdo,array $user): void {
-    if(!app_shell_is_html_candidate())return;
-    $GLOBALS['annotated_shell']=['pdo'=>$pdo,'user'=>$user];
+    if(!empty($GLOBALS['annotated_shell_disabled'])||!app_shell_is_html_candidate())return;
+    $mode=(string)($GLOBALS['annotated_shell_mode']??'full');if(!in_array($mode,['full','header_only'],true))$mode='full';
+    $GLOBALS['annotated_shell']=['pdo'=>$pdo,'user'=>$user,'mode'=>$mode];
     if(empty($GLOBALS['annotated_shell_buffering'])){
         $GLOBALS['annotated_shell_buffering']=true;
         ob_start('app_shell_transform');
@@ -83,7 +84,7 @@ function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode)
 }
 function app_shell_user_menu(array $user,bool $isAdmin): string {
     $username=(string)($user['username']??'');
-    $profile='/profile.php?u='.rawurlencode($username);
+    $profile=profile_path($username);
     return '<details class="appUserMenu"><summary>'.app_shell_avatar($user,'appAvatar').'<span class="appUserSummary"><strong>'.app_shell_h((string)($user['display_name']??$username)).'</strong><small>@'.app_shell_h($username).'</small></span><span aria-hidden="true">⌄</span></summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/connected-accounts.php">Connected accounts</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
 }
 function app_shell_markup(PDO $pdo,array $user): array {
@@ -115,7 +116,8 @@ function app_shell_transform(string $html): string {
     $html=(string)preg_replace('#<header\s+class=["\']topbar["\'][^>]*>.*?</header>#is','',$html,1);
 
     [$aside,$header,$footer]=app_shell_markup($pdo,$user);
-    $open='<div class="appShell" data-annotated-shell="1">'.$aside.'<div class="appShellStage">'.$header.'<div class="appShellContent">';
+    $mode=(string)($state['mode']??'full');$headerOnly=$mode==='header_only';
+    $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.'<div class="appShellContent">';
     $close='</div>'.$footer.'</div></div>';
 
     $html=(string)preg_replace('#<body([^>]*)>#i','<body$1>'.$open,$html,1);

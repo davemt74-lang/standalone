@@ -58,13 +58,64 @@
 .annotationPost{padding:0;overflow:hidden}
 .annotationPostHead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 18px 8px}
 .annotationPostIdentity{min-width:0}.annotationAuthor{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}.annotationAuthor span{min-width:0}.annotationAuthor strong,.annotationAuthor small{display:block}.annotationAuthor small{margin-top:2px;color:#777}
-.annotationPostMeta{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;color:#777;font-size:.73rem}.annotationTypeBadge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;background:#f0f0ec;color:#333;font-size:.72rem;font-weight:800}
-.annotationCaption{font-size:1rem;line-height:1.55;margin:8px 18px 14px}.annotationQuote{margin:10px 18px 16px;padding:13px 14px;border:0;border-left:3px solid #d9d9d3;border-radius:0 10px 10px 0;background:#f7f7f4;font-size:.95rem;line-height:1.5}
+.annotationPostHeadRight{display:flex;align-items:flex-start;justify-content:flex-end;gap:8px;min-width:0}.annotationPostMeta{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;color:#777;font-size:.73rem}.annotationTypeBadge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;background:#f0f0ec;color:#333;font-size:.72rem;font-weight:800}
+.annotationCaptionWrap{margin:8px 18px 14px}.annotationCaption{font-size:1rem;line-height:1.55;margin:0;white-space:normal}.annotationCaption.is-collapsed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}.annotationReadMore{margin-top:5px;padding:0;background:transparent;color:#555;border:0;border-radius:0;font:inherit;font-size:.84rem;font-weight:750}.annotationReadMore:hover{color:#111;text-decoration:underline}.annotationQuote{margin:10px 18px 16px;padding:13px 14px;border:0;border-left:3px solid #e3d57c;border-radius:0 10px 10px 0;background:var(--annotation-highlight,#fff6bf);font-size:.95rem;line-height:1.5}
 .annotationPostImage{display:block;width:calc(100% - 36px);max-width:none;margin:8px 18px 16px;border-radius:12px}
 .annotationPost .webMedia,.annotationPost .wideAudio{width:calc(100% - 36px);margin:8px 18px 16px}
 .annotationSourceDetails{margin:0 18px 0;border-top:1px solid #ecece7}.annotationSourceDetails>summary{list-style:none;display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:9px;align-items:center;padding:13px 0;cursor:pointer}.annotationSourceDetails>summary::-webkit-details-marker{display:none}.annotationSourceDetails summary small,.annotationSourceDetails summary strong{display:block}.annotationSourceDetails summary small{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:2px}.annotationSourceDetails summary strong{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.annotationSourceIcon{width:24px;height:24px;border-radius:50%;border:1px solid #ddd;display:grid;place-items:center;font-size:.72rem}.annotationSourceChevron{transition:transform .15s ease}.annotationSourceDetails[open] .annotationSourceChevron{transform:rotate(180deg)}.annotationSourceBody{padding:0 0 14px 35px}.annotationSourceBody .sourceUrl{margin:0 0 10px}.annotationSourceActions{display:flex;gap:12px;flex-wrap:wrap;font-size:.78rem;margin-top:10px}
 .annotationSocialBar{display:flex;align-items:center;border-top:1px solid #ecece7;margin-top:2px;padding:7px 10px;background:#fff;overflow:auto}.annotationSocialAction{flex:0 0 auto;border:0;background:transparent;color:#555;text-decoration:none;padding:8px 9px;border-radius:9px;font:inherit;font-size:.78rem;display:inline-flex;align-items:center;gap:5px;cursor:pointer}.annotationSocialAction:hover{background:#f4f4f0;color:#111}.annotationSocialAction.active{color:#111;font-weight:800}.annotationSocialAction strong{font-size:.72rem}.annotationOpenAction{margin-left:auto}
 .annotationDiscussion[hidden]{display:none!important}.annotationDiscussion{margin-top:18px}
-@media(max-width:620px){.annotationPostHead{padding:14px 14px 7px}.annotationCaption{margin:8px 14px 12px}.annotationQuote{margin:8px 14px 14px}.annotationPostImage,.annotationPost .webMedia,.annotationPost .wideAudio{width:calc(100% - 28px);margin-left:14px;margin-right:14px}.annotationSourceDetails{margin:0 14px}.annotationSocialBar{padding:6px}.annotationSocialAction{padding:8px 7px}}
+@media(max-width:620px){.annotationPostHead{padding:14px 14px 7px}.annotationCaptionWrap{margin:8px 14px 12px}.annotationQuote{margin:8px 14px 14px}.annotationPostImage,.annotationPost .webMedia,.annotationPost .wideAudio{width:calc(100% - 28px);margin-left:14px;margin-right:14px}.annotationSourceDetails{margin:0 14px}.annotationSocialBar{padding:6px}.annotationSocialAction{padding:8px 7px}}
 
 .annotationMore{margin-left:auto;position:relative}.annotationMore>summary{list-style:none}.annotationMore>summary::-webkit-details-marker{display:none}.annotationMoreMenu{position:absolute;right:0;bottom:38px;z-index:20;min-width:160px;padding:6px;background:#fff;border:1px solid #ddd;border-radius:10px;box-shadow:0 12px 30px #0002;display:grid}.annotationMoreMenu a,.annotationMoreMenu button{border:0;background:none;color:#333;text-decoration:none;text-align:left;padding:8px;border-radius:7px;font:inherit;font-size:.78rem;cursor:pointer}.annotationMoreMenu a:hover,.annotationMoreMenu button:hover{background:#f4f4f0}
+
+
+/* Feed/profile UX pass */
+:root{--annotation-highlight:#fff6bf}
+.annotationHeaderMenu{margin:0;position:relative;flex:0 0 auto}.annotationHeaderMenu>summary{list-style:none;width:30px;height:30px;border-radius:999px;display:grid;place-items:center;color:#666;font-weight:800;letter-spacing:.08em;cursor:pointer}.annotationHeaderMenu>summary::-webkit-details-marker{display:none}.annotationHeaderMenu>summary:hover,.annotationHeaderMenu[open]>summary{background:#f2f2ee;color:#111}.annotationHeaderMenuPanel{position:absolute;right:0;top:34px;z-index:40;min-width:190px;padding:7px;background:#fff;border:1px solid #ddd;border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.14);display:grid}.annotationHeaderMenuPanel a,.annotationHeaderMenuPanel button{border:0;background:transparent;color:#333;text-decoration:none;text-align:left;padding:9px 10px;border-radius:8px;font:inherit;font-size:.82rem;cursor:pointer}.annotationHeaderMenuPanel a:hover,.annotationHeaderMenuPanel button:hover{background:#f5f5f1;color:#111}.annotationHeaderMenuPanel:empty{display:none}
+.feedViewControls{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:2px 0 14px}.feedHighlightControl{display:flex;align-items:center;gap:8px;color:#666;font-size:.78rem}.feedHighlightControl input[type=color]{width:30px;height:30px;padding:2px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer}.feedHighlightReset{border:0;background:transparent;color:#777;padding:6px 4px;border-radius:7px;font:inherit;font-size:.75rem}.feedHighlightReset:hover{background:#f2f2ee;color:#111}
+.profilePage{max-width:900px}.profileActivity{max-width:760px;margin:0 auto}.profilePage>.profileHead{max-width:760px;margin-left:auto;margin-right:auto}
+.homeFeedPage .appShellContent{padding-bottom:112px}.homeAgentDock{position:fixed;left:calc(250px + (100vw - 250px)/2);transform:translateX(-50%);bottom:18px;z-index:70;width:min(760px,calc(100vw - 330px));padding:8px 9px 8px 11px;border:1px solid #d9d9d4;border-radius:28px;background:#fff;box-shadow:0 14px 42px rgba(0,0,0,.14);display:grid;grid-template-columns:36px minmax(0,1fr) 38px;gap:8px;align-items:end}.homeAgentDock button{width:36px;height:36px;padding:0;border-radius:50%;font-size:1rem}.homeAgentAdd{background:#f1f1ed;color:#333}.homeAgentSend{background:#111;color:#fff}.homeAgentDock textarea{min-height:36px;max-height:132px;resize:none;border:0;outline:0;padding:8px 4px 6px;background:transparent;font:inherit;line-height:1.35}.annotationResearchDialog{width:min(520px,calc(100vw - 32px));border:0;border-radius:18px;padding:22px;box-shadow:0 20px 70px rgba(0,0,0,.24)}.annotationResearchDialog::backdrop{background:rgba(0,0,0,.28)}
+@media(max-width:980px){.homeAgentDock{left:50%;width:min(760px,calc(100vw - 32px))}}
+@media(max-width:620px){.annotationPostHeadRight{gap:4px}.annotationPostMeta time{display:none}.feedViewControls{justify-content:flex-start}.homeAgentDock{bottom:10px;width:calc(100vw - 20px)}}
+
+
+.annotationTranscriptPanel{margin:0 18px 16px;padding:14px 16px;border:1px solid #e2e2dc;border-radius:12px;background:#fafaf7}
+.annotationTranscriptPanel[hidden]{display:none!important}
+.annotationTranscriptLabel{margin-bottom:7px;color:#777;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.annotationTranscriptPanel p{margin:0;line-height:1.55;white-space:normal}
+@media(max-width:620px){.annotationTranscriptPanel{margin-left:14px;margin-right:14px}}
+
+
+/* Profile/menu hardening */
+.annotationPost{overflow:visible}
+.annotationPostHead{position:relative;z-index:5}
+.annotationHeaderMenu{z-index:10}
+.annotationHeaderMenu[open]{z-index:120}
+.annotationHeaderMenu>summary{font-size:18px;line-height:1;letter-spacing:0}
+.annotationHeaderMenuPanel{top:calc(100% + 6px);right:0;width:max-content;min-width:172px;max-width:min(240px,calc(100vw - 28px));padding:6px;overflow:hidden;border-radius:11px;box-shadow:0 14px 34px rgba(0,0,0,.16)}
+.annotationHeaderMenuPanel a,.annotationHeaderMenuPanel button{display:block;width:100%;min-height:36px;padding:9px 11px;white-space:nowrap}
+.profilePhotoRemove{display:flex;align-items:center;gap:8px;font-size:.86rem;color:#555}
+.profilePhotoRemove input{width:auto}
+@media(max-width:620px){.annotationHeaderMenuPanel{right:-4px;min-width:168px}}
+
+.commentAuthorIdentity{display:flex;align-items:center;gap:9px;color:inherit;text-decoration:none}.commentAuthorIdentity span{min-width:0}.commentAuthorIdentity strong,.commentAuthorIdentity small{display:block}.commentAuthorIdentity small{margin-top:2px;color:#777}
+
+.appShellHeaderOnly{grid-template-columns:minmax(0,1fr)}
+.appShellHeaderOnly .appShellHeader{width:100%}
+
+
+/* Account settings display preferences */
+.settingsSidebar{position:sticky;top:88px;align-self:start}
+.settingsHighlightRow{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0}
+.settingsHighlightRow>label{font-weight:700}
+.settingsHighlightControls{display:flex;align-items:center;gap:8px}
+.settingsHighlightControls input[type=color]{width:42px;height:42px;padding:3px;border:1px solid #d8d8d2;border-radius:10px;background:#fff;cursor:pointer}
+.settingsHighlightControls .button{min-height:38px;padding:.55rem .85rem}
+.settingsHighlightPreview{display:flex;align-items:center;gap:12px;margin-top:4px;padding:13px 14px;border:1px solid #e5e5df;border-radius:12px;background:#fafaf7}
+.settingsHighlightPreview>span{color:#777;font-size:.76rem;font-weight:750;text-transform:uppercase;letter-spacing:.07em}
+.settingsHighlightPreview mark{padding:3px 5px;border-radius:4px;background:var(--annotation-highlight,#fff6bf);color:inherit}
+@media(max-width:900px){.settingsSidebar{position:static}.settingsHighlightRow{align-items:flex-start;flex-direction:column}}
+
+.homeFeedPage .layout>aside{position:sticky;top:88px;align-self:start;max-height:calc(100vh - 106px);overflow:auto;scrollbar-width:thin}
+@media(max-width:900px){.homeFeedPage .layout>aside{position:static;max-height:none;overflow:visible}}
