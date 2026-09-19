@@ -50,7 +50,7 @@ function conversation_presence_rows(PDO $pdo,array $viewer,array $conversation):
       LEFT JOIN chat_status_preferences sp ON sp.user_id=u.id
       WHERE tm.team_id=? ORDER BY u.display_name,u.username");
     $q->execute([$conversation['team_id']]);$out=[];
-    foreach($q->fetchAll() as $row){$mode=(string)$row['status_mode'];$active=(bool)$row['active_now'];$row['effective_status']=!$active||$mode==='invisible'?'offline':($mode==='busy'?'busy':($mode==='away'?'away':'online'));unset($row['active_now']);$out[]=$row;}
+    foreach($q->fetchAll() as $row){$mode=(string)$row['status_mode'];$active=(bool)$row['active_now'];$row['effective_status']=!$active||$mode==='invisible'?'offline':($mode==='busy'?'busy':($mode==='away'?'away':'online'));if($mode==='invisible')$row['custom_status']='';unset($row['active_now']);$out[]=$row;}
     return $out;
 }
 
