@@ -109,6 +109,10 @@ $need('app/shell.php',"'header_only'",'The universal shell must support a header
 $need('assets/css/app.css','.appShellHeaderOnly','Header-only profile shell styling must be present.');
 $need('settings.php','enctype="multipart/form-data"','Settings profile form must support photo uploads.');
 $need('settings.php','name="profile_photo"','Settings must expose a profile photo upload field.');
+$need('settings.php','data-annotation-highlight-picker','Account Settings must expose the annotation highlight color preference.');
+$need('settings.php','settingsSidebar','Account Settings must expose a dedicated right sidebar hook.');
+$need('assets/css/app.css','.settingsSidebar{position:sticky','Account Settings right sidebar must stay sticky on desktop.');
+$need('settings.php','annotation-cards.js?v=0.11.0','Account Settings highlight control must reuse the shared highlight preference runtime.');
 $need('app/storage.php','function profile_image_upload','Profile photo uploads must use the validated storage helper.');
 $need('app/storage.php',"'image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'",'Profile photo uploads must be restricted to safe raster image types.');
 $need('app/feed.php','u.profile_image_url','Annotation feed rows must carry author profile photos.');
