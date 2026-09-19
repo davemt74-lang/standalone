@@ -33,6 +33,12 @@ $need('oauth/callback.php','$fresh=$issued>0&&$issued>=time()-600','OAuth callba
 $need('oauth/callback.php',"unset(\$_SESSION['oauth_state']",'OAuth callback state must be consumed before provider exchange.');
 $need('extension/sidepanel.html','role="tablist"','Sidebar must expose tab semantics.');
 $need('extension/sidepanel-feed.js',"setAttribute('aria-selected'",'Sidebar tab state must stay accessible.');
+$sidebarHtml=(string)file_get_contents($root.'/extension/sidepanel.html');
+$sidebarInit=(string)file_get_contents($root.'/extension/sidepanel-init.js');
+preg_match_all("/getElementById\\('([^']+)'\\)/",$sidebarInit,$sidebarIds);
+foreach(array_unique($sidebarIds[1]??[]) as $id)if(!str_contains($sidebarHtml,'id="'.$id.'"'))$fail[]='Sidebar initializer references missing element #'.$id;
+$need('extension/sidepanel-init.js','function sidebarBind','Sidebar event wiring must tolerate optional/missing elements without aborting all initialization.');
+$avoid('extension/sidepanel-init.js',").onclick=",'Sidebar initialization must not use brittle direct onclick chains.');
 $init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_match("/(?<!\\$)\\$\\('nav button'\\)\\.forEach/",$init))$fail[]='Sidebar nav wiring must not call forEach on a single selector.';if(preg_match("/(?<!\\$)\\$\\('\\.modes button'\\)\\.forEach/",$init))$fail[]='Capture mode wiring must not call forEach on a single selector.';
 
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "V1.1 RC1 end-to-end release contract passed.\n";
