@@ -38,15 +38,15 @@ async function api(path,opts={}){if(!API_BASE){const e=new Error('Annotated webs
 
 function clearSidebarViewClasses(){document.body.classList.remove('sidebar-booting','landing-open','auth-open');}
 function hideLanding(){const host=$('#landingPanel');if(host)host.hidden=true;document.body.classList.remove('landing-open');}
-function authShow(mode='chooser'){
+function authShow(mode='login'){
     hideLanding();
     const panel=$('#authPanel');if(panel)panel.hidden=false;
     document.body.classList.remove('sidebar-booting');document.body.classList.add('auth-open');
-    $('#authChooser').hidden=mode!=='chooser';
-    $('#authLoginForm').hidden=mode!=='login';
-    $('#authRegisterForm').hidden=mode!=='register';
-    $('#authAccount').hidden=mode!=='account';
-    $('#authLoginError').hidden=true;$('#authRegisterError').hidden=true;
+    const login=$('#authLoginForm'),register=$('#authRegisterForm'),account=$('#authAccount');
+    if(login)login.hidden=mode!=='login';
+    if(register)register.hidden=mode!=='register';
+    if(account)account.hidden=mode!=='account';
+    if($('#authLoginError'))$('#authLoginError').hidden=true;if($('#authRegisterError'))$('#authRegisterError').hidden=true;
     if(mode==='login')setTimeout(()=>$('#authLoginIdentifier')?.focus(),0);
     if(mode==='register')setTimeout(()=>$('#authRegisterName')?.focus(),0);
 }
@@ -129,7 +129,7 @@ async function loadLandingPage(force=false){
     }catch(e){
         console.error('[Annotated] Local landing page failed to render',e);
         host.hidden=true;document.body.classList.remove('sidebar-booting','landing-open');
-        authShow('chooser');
+        authShow('login');
         return false;
     }
 }
@@ -159,7 +159,8 @@ async function finishExtensionAuth(j){
     token=j.data.token;accountUser=j.data.user||null;
     await chrome.storage.local.set({annotatedToken:token});
     $('#authLoginPassword').value='';$('#authRegisterPassword').value='';$('#authRegisterConfirm').value='';
-    await loadMe(true);
+    await loadMe(false);
+    await enterWorkspace();
 }
 async function submitExtensionLogin(e){
     e.preventDefault();const button=$('#authLoginSubmit');button.disabled=true;button.textContent='Logging in…';$('#authLoginError').hidden=true;
@@ -185,7 +186,7 @@ async function extensionLogout(){
     $('#status').textContent='Not signed in';$('#connect').textContent='Log in';
     await loadLandingPage(true);
 }
-async function connect(){if(token){showAccount(accountUser);return;}authShow('chooser');}
+async function connect(){if(token){showAccount(accountUser);return;}authShow('login');}
 async function loadMe(showAccountView=false){
     if(!token){$('#status').textContent='Not signed in';$('#connect').textContent='Log in';return false;}
     try{
