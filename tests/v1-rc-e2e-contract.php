@@ -10,7 +10,8 @@ $need('app/release.php','Follow a researcher or source','Onboarding milestones m
 $need('app/release.php','Start or join Research','Onboarding milestones must guide Research setup.');
 $need('onboarding.php',"\$status['steps']",'Onboarding page must render the server-derived milestone checklist.');
 $need('extension/service-worker.js',"details.reason==='install'",'Extension install must trigger first-run setup.');
-$need('extension/sidepanel-state.js','extension-authorize.php','Chrome sidebar must use revocable server authorization.');
+$need('extension/sidepanel-state.js','extension-connect.php','Chrome sidebar must open the website for revocable server pairing.');
+$need('extension/sidepanel-state.js','/api/extension-pair.php','Chrome sidebar must complete pairing through the revocable server session API.');
 $need('extension/sidepanel-state.js','client_version:chrome.runtime.getManifest().version','Chrome authorization must identify the client version.');
 $need('extension/sidepanel-capture.js','action=publish','Capture must publish through the server API.');
 $need('extension/sidepanel-feed.js','action=follow','Feed must support following.');
