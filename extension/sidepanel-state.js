@@ -55,11 +55,13 @@ function authShow(mode='login'){
 function authClose(){const panel=$('#authPanel');if(panel)panel.hidden=true;document.body.classList.remove('auth-open');}
 function authSetError(id,message){const el=$(id);if(!el)return;el.textContent=message||'Unable to continue.';el.hidden=false;}
 function accountInitial(user){return String(user?.display_name||user?.username||'A').trim().charAt(0).toUpperCase()||'A';}
+function profileImageAbsolute(raw){const value=String(raw||'').trim();if(!value)return '';try{const u=new URL(value,API_BASE?API_BASE+'/':location.href);return ['http:','https:'].includes(u.protocol)?u.href:'';}catch{return '';}}
+
 function showAccount(user){
     accountUser=user||accountUser;if(!accountUser)return;
     $('#authAccountName').textContent=accountUser.display_name||accountUser.username||'Annotated user';
     $('#authAccountUsername').textContent='@'+(accountUser.username||'user');
-    $('#authAccountAvatar').textContent=accountInitial(accountUser);
+    const accountAvatar=$('#authAccountAvatar'),accountPhoto=profileImageAbsolute(accountUser.profile_image_url);if(accountAvatar){accountAvatar.replaceChildren();if(accountPhoto){const img=document.createElement('img');img.src=accountPhoto;img.alt=accountUser.display_name||accountUser.username||'Profile photo';accountAvatar.appendChild(img);}else accountAvatar.textContent=accountInitial(accountUser);}
     $('#authAccountRole').textContent=(accountUser.role==='admin'?'Administrator':'Annotated account')+' · Same account as the website';
     $('#status').textContent='@'+(accountUser.username||'user');
     $('#connect').textContent='Account';
