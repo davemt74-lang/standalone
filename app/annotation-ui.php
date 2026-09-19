@@ -55,7 +55,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
 <article class="card annotationPost" data-annotation-id="<?=h($id)?>">
   <div class="annotationPostHead">
     <div class="annotationPostIdentity">
-      <?php if($showAuthor&&$author!==''):?><?php if($username!==''):?><a href="/profile.php?u=<?=h($username)?>" class="annotationAuthor"><?=app_shell_avatar(['display_name'=>$author,'profile_image_url'=>$a['profile_image_url']??null],'avatarSm')?><span><strong><?=h($author)?></strong><small>@<?=h($username)?></small></span></a><?php else:?><strong><?=h($author)?></strong><?php endif?><?php endif?>
+      <?php if($showAuthor&&$author!==''):?><?php if($username!==''):?><a href="<?=h(profile_path($username))?>" class="annotationAuthor"><?=app_shell_avatar(['display_name'=>$author,'profile_image_url'=>$a['profile_image_url']??null],'avatarSm')?><span><strong><?=h($author)?></strong><small>@<?=h($username)?></small></span></a><?php else:?><strong><?=h($author)?></strong><?php endif?><?php endif?>
     </div>
     <div class="annotationPostHeadRight">
       <div class="annotationPostMeta"><span class="annotationTypeBadge"><?=h($type)?></span><?php if($visibility!=='public'):?><span class="badge"><?=h(ucfirst($visibility))?></span><?php endif?><?php if($published!==''):?><time><?=h($published)?></time><?php endif?></div>
