@@ -17,20 +17,24 @@ function phase6Reason(a){
   const bits=[];if(a.from_followed_user)bits.push('person you follow');if(a.from_followed_source)bits.push('source you follow');
   return bits.length?'<div class="feedReason">From '+esc(bits.join(' + '))+'</div>':'';
 }
-function phase6AnnotationType(a){
-  const labels={quote:'Quote',note:'Note',image:'Image',image_quote:'Image + Quote',video:'Video',music:'Music',podcast:'Podcast',audio:'Audio',annotation:'Annotation'};
-  if(a.post_type&&labels[a.post_type])return labels[a.post_type];
+function phase6AnnotationPostTypeKey(a){
+  const valid=new Set(['quote','note','image','image_quote','video','music','podcast','audio','annotation']);
+  if(a.post_type&&valid.has(a.post_type))return a.post_type;
   const selected=String(a.selected_text||'').trim(),commentary=String(a.text_commentary||'').trim();
   const sourceType=String(a.source_type||'').toLowerCase(),provider=String(a.media_provider||'').toLowerCase(),url=String(a.canonical_url||'').toLowerCase();
-  if(a.capture_type==='video_clip')return 'Video';
+  if(a.capture_type==='video_clip')return 'video';
   if(a.capture_type==='audio_clip'){
-    if(sourceType==='podcast'||provider.includes('podcast'))return 'Podcast';
-    if(['spotify','soundcloud','bandcamp','tidal','deezer','apple_music','music'].includes(provider)||['spotify.com','soundcloud.com','bandcamp.com','music.apple.com','tidal.com'].some(x=>url.includes(x)))return 'Music';
-    return 'Audio';
+    if(sourceType==='podcast'||provider.includes('podcast'))return 'podcast';
+    if(['spotify','soundcloud','bandcamp','tidal','deezer','apple_music','music'].includes(provider)||['spotify.com','soundcloud.com','bandcamp.com','music.apple.com','tidal.com'].some(x=>url.includes(x)))return 'music';
+    return 'audio';
   }
-  if(['image_region','page_region'].includes(a.capture_type))return selected?'Image + Quote':'Image';
-  if(a.capture_type==='text')return selected?'Quote':commentary?'Note':'Annotation';
-  return commentary?'Note':'Annotation';
+  if(['image_region','page_region'].includes(a.capture_type))return selected?'image_quote':'image';
+  if(a.capture_type==='text')return selected?'quote':commentary?'note':'annotation';
+  return commentary?'note':'annotation';
+}
+function phase6AnnotationType(a){
+  const labels={quote:'Quote',note:'Note',image:'Image',image_quote:'Image + Quote',video:'Video',music:'Music',podcast:'Podcast',audio:'Audio',annotation:'Annotation'};
+  return labels[phase6AnnotationPostTypeKey(a)]||'Annotation';
 }
 function phase6SourceName(a){
   if(a.source_domain)return String(a.source_domain).replace(/^www\./i,'');
@@ -55,9 +59,13 @@ function phase6AnnotationCard(a){
   const follow=Number(a.is_following)?'Following':'Follow';
   const saved=Number(a.is_saved)?'Saved':'Save';
   const sourceFollow=Number(a.source_following)?'Source followed':'Follow source';
-  const type=phase6AnnotationType(a),sourceName=phase6SourceName(a);
-  const shot=a.screenshot_url?'<div class="evidenceFrame"><img data-evidence-src="'+esc(a.screenshot_url)+'" alt="Captured annotation image"></div>':'';
-  const media=a.media_url?(a.capture_type==='video_clip'?'<div class="evidenceFrame"><video controls data-evidence-src="'+esc(a.media_url)+'"></video></div>':'<div class="evidenceFrame"><audio controls data-evidence-src="'+esc(a.media_url)+'"></audio></div>'):(a.capture_type==='video_clip'||a.capture_type==='audio_clip')?'<div class="hint">Media derivative: '+esc(a.media_status||'queued')+'</div>':'';
+  const postType=phase6AnnotationPostTypeKey(a),type=phase6AnnotationType(a),sourceName=phase6SourceName(a);
+  const selected=String(a.selected_text||'').trim();
+  const showSelected=!!selected&&(['quote','image_quote','annotation'].includes(postType));
+  const showShot=!!a.screenshot_url&&(['image','image_quote'].includes(postType)||(postType==='annotation'&&!selected));
+  const showMedia=!!a.media_url&&(['video','music','podcast','audio','annotation'].includes(postType));
+  const shot=showShot?'<div class="evidenceFrame"><img data-evidence-src="'+esc(a.screenshot_url)+'" alt="Captured annotation image"></div>':'';
+  const media=showMedia?(a.capture_type==='video_clip'?'<div class="evidenceFrame"><video controls data-evidence-src="'+esc(a.media_url)+'"></video></div>':'<div class="evidenceFrame"><audio controls data-evidence-src="'+esc(a.media_url)+'"></audio></div>'):((a.capture_type==='video_clip'||a.capture_type==='audio_clip')&&!a.media_url?'<div class="hint">Media derivative: '+esc(a.media_status||'queued')+'</div>':'');
   const audio=a.audio_url?'<div class="audioCommentaryPost"><span class="hint">Audio commentary</span><audio controls data-evidence-src="'+esc(a.audio_url)+'"></audio></div>':'';
   const transcript=a.transcript_status==='ready'&&a.transcript_text?'<details class="transcript"><summary>Transcript</summary>'+esc(String(a.transcript_text).slice(0,1200))+'</details>':a.audio_url?'<div class="hint">Transcript: '+esc(a.transcript_status||'queued')+'</div>':'';
   const time=a.start_seconds!==null&&a.start_seconds!==undefined?'<div class="hint">Clip '+fmtTime(a.start_seconds)+' → '+fmtTime(a.end_seconds)+'</div>':'';
@@ -69,7 +77,7 @@ function phase6AnnotationCard(a){
     phase6Reason(a)+
     '<div class="postHead"><div class="author"><strong>'+esc(a.display_name)+'</strong><span>@'+esc(a.username)+'</span>'+authorButton+'</div><div class="postMeta"><span class="annotationType">'+esc(type)+'</span>'+phase6VisibilityBadge(a)+phase6SourceBadge(a)+'</div></div>'+
     (a.text_commentary?'<p class="postCaption">'+esc(a.text_commentary)+'</p>':'')+
-    (a.selected_text?'<div class="excerpt postQuote">'+esc(String(a.selected_text).slice(0,1000))+'</div>':'')+
+    (showSelected?'<div class="excerpt postQuote">'+esc(selected.slice(0,1000))+'</div>':'')+
     shot+media+(a.media_provider?'<div class="provenance">'+esc(a.media_provider==='youtube'?'YouTube':a.media_provider)+(a.media_title?' · '+esc(a.media_title):'')+(a.media_author?' · '+esc(a.media_author):'')+'</div>':'')+audio+transcript+time+
     '<details class="sourceDetails"><summary><span class="sourceDetailsIcon">↗</span><span><small>Source content</small><strong>'+esc(sourceName)+'</strong></span><span class="sourceChevron">⌄</span></summary><div class="sourceDetailsBody"><div class="sourceDetailsUrl">'+esc(a.canonical_url||'')+'</div><div class="sourceDetailsStats"><span>'+esc(version)+'</span>'+(a.integrity?.label?'<span>'+esc(a.integrity.label)+'</span>':'')+'</div><div class="sourceDetailsActions"><button data-action="source" data-source="'+esc(a.source_public_id)+'">Source page</button><button data-action="source-follow" data-source="'+esc(a.source_public_id)+'">'+sourceFollow+'</button></div></div></details>'+
     '<div class="postActions">'+
