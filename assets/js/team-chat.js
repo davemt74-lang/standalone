@@ -47,7 +47,7 @@
       const fallback=document.createElement('span');fallback.className='teamChatAvatarFallback';fallback.textContent=String(row.display_name||row.username||'A').trim().charAt(0).toUpperCase()||'A';wrap.appendChild(fallback);
     }
     const p=currentPresence(row.username),dot=document.createElement('i');
-    dot.className='chatPresenceDot status-'+statusClass(p.effective_status);dot.dataset.presenceDot='1';dot.title=p.custom_status||statusLabel(p.effective_status);wrap.appendChild(dot);
+    dot.className='chatPresenceDot status-'+statusClass(p.effective_status);dot.dataset.presenceDot='1';dot.title=p.custom_status||statusLabel(p.effective_status);dot.setAttribute('role','img');dot.setAttribute('aria-label',p.custom_status||statusLabel(p.effective_status));wrap.appendChild(dot);
     return wrap;
   }
 
@@ -69,7 +69,7 @@
     for(const row of rows)presenceByUsername.set(String(row.username||''),row);
     document.querySelectorAll('.teamChatAvatar[data-username]').forEach(node=>{
       const p=currentPresence(node.dataset.username),dot=node.querySelector('[data-presence-dot]');
-      if(dot){dot.className='chatPresenceDot status-'+statusClass(p.effective_status);dot.title=p.custom_status||statusLabel(p.effective_status);}
+      if(dot){dot.className='chatPresenceDot status-'+statusClass(p.effective_status);dot.title=p.custom_status||statusLabel(p.effective_status);dot.setAttribute('aria-label',p.custom_status||statusLabel(p.effective_status));}
     });
   }
 
