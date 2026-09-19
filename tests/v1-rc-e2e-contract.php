@@ -15,6 +15,16 @@ $need('extension/sidepanel.html','id="authLoginForm"','Chrome sidebar must expos
 $need('extension/sidepanel.html','id="authRegisterForm"','Chrome sidebar must expose normal account creation.');
 $need('extension/sidepanel.html','id="landingPanel"','Chrome sidebar must expose a logged-out landing view.');
 $need('extension/sidepanel.html','id="authAccount"','Chrome sidebar must expose a distinct signed-in account view.');
+$need('extension/sidepanel.html','id="headerCreateNew"','Sidebar header must expose the Create New shortcut.');
+$need('extension/sidepanel.html','id="tab-create"','Sidebar must expose a dedicated Create New tab.');
+$need('extension/sidepanel.html','id="create" role="tabpanel"','Create New must have its own tab panel.');
+$sidebarPageStart=strpos($sidebarHtml,'<section id="page"');$sidebarCreateStart=strpos($sidebarHtml,'<section id="create"');
+if($sidebarPageStart===false||$sidebarCreateStart===false||$sidebarCreateStart<=$sidebarPageStart)$fail[]='Create New panel must follow the This Page panel.';
+else{$pageOnly=substr($sidebarHtml,$sidebarPageStart,$sidebarCreateStart-$sidebarPageStart);if(str_contains($pageOnly,'class="capture"'))$fail[]='This Page must not contain the annotation composer.';}
+$need('extension/sidepanel.css','repeat(6,minmax(0,1fr))','All six sidebar tabs must fit on one row.');
+$need('extension/sidepanel.css','white-space:nowrap','Sidebar tab labels must not wrap onto a second row.');
+$need('extension/sidepanel-feed.js',"btn.dataset.tab==='create'",'Opening Create New must refresh the current page selection.');
+$need('extension/sidepanel-capture.js',"phase6SwitchTab(pageTab)",'Publishing must return to This Page so the new annotation is visible.');
 $need('extension/sidepanel-state.js','loadLandingPage','Chrome sidebar must render the website landing page when signed out.');
 $need('extension/sidepanel-state.js','websiteSessionHandoff','Chrome sidebar must recognize a logged-in Annotated website tab.');
 $need('extension/sidepanel-state.js','showAccount','Chrome sidebar must render a dedicated signed-in account view.');
