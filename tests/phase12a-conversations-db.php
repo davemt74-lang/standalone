@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
 $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-require_once $root.'/app/installer.php';require_once $root.'/app/storage.php';require_once $root.'/app/functions.php';require_once $root.'/app/access.php';require_once $root.'/app/conversations.php';
+require_once $root.'/app/installer.php';require_once $root.'/app/storage.php';require_once $root.'/app/functions.php';require_once $root.'/app/access.php';require_once $root.'/app/notifications.php';require_once $root.'/app/conversations.php';
 function p12(bool $v,string $m): void {if(!$v)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
 function p12throws(callable $fn,string $m): void {try{$fn();}catch(Throwable $e){echo "PASS: $m\n";return;}throw new RuntimeException('FAIL: '.$m);}
 $run='p12'.substr(bin2hex(random_bytes(6)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
@@ -26,6 +26,8 @@ $m1=conversation_message_create($pdo,$owner,$c1['public_id'],'Team hello',null,'
 $m1Retry=conversation_message_create($pdo,$owner,$c1['public_id'],'Team hello',null,'client-'.$run);
 p12($m1['created']&&!$m1Retry['created']&&$m1Retry['deduplicated'],'client message id makes Team Chat retries idempotent');
 $q=$pdo->prepare('SELECT COUNT(*) FROM conversation_messages WHERE conversation_id=? AND client_message_id=?');$q->execute([$c1['id'],'client-'.$run]);p12((int)$q->fetchColumn()===1,'idempotent send produces one stored message');
+$q=$pdo->prepare("SELECT category,object_type,object_public_id FROM notifications WHERE user_id=? AND notification_type='team_message' ORDER BY id DESC LIMIT 1");$q->execute([$member['id']]);$notification=$q->fetch();
+p12(($notification['category']??'')==='team'&&($notification['object_type']??'')==='conversation'&&($notification['object_public_id']??'')===$c1['public_id'],'team message creates permission-aware team notification for other members');
 
 $memberRows=conversation_message_rows($pdo,$member,$c1['public_id']);$first=$memberRows['messages'][0]??[];
 p12(($first['body']??'')==='Team hello','authorized member reads team message');
