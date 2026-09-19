@@ -94,7 +94,8 @@ $need('worker/media-worker.php','private_storage_allocate','Media derivatives mu
 $need('worker/transcription-worker.php','storage_path_to_absolute','Transcription must resolve private storage references.');
 $need('api/extension-publish.php',"save_data_url_audio((string)(\$input['audio_commentary']??''),\$config)",'Published audio must use private storage.');
 $need('saved.php','annotation_access($pdo,$annotation,$u)','Adding to collections must re-check annotation access.');
-$need('saved.php','array_filter($q->fetchAll(),fn($row)=>annotation_access','Saved/collection owner views must revalidate current access.');
+$need('saved.php','public_discovery_annotation($pdo','Saved views must revalidate current annotation access through the centralized discovery/access service.');
+$need('collection.php','public_discovery_annotation($pdo','Collection views must revalidate current annotation access through the centralized discovery/access service.');
 $need('collection.php',"\$scope=\$c['visibility']==='public'?null:\$viewer",'Public collections must not inherit the owner private access scope.');
 $need('bin/migrate-private-evidence.php','/storage/uploads/','A legacy evidence migration utility is required.');
 $need('storage/.htaccess','Require all denied','Legacy storage URLs must be denied on Apache.');
