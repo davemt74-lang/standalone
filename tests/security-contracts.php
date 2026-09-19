@@ -13,7 +13,7 @@ $need('app/functions.php','expires_at IS NULL OR expires_at>NOW()','Shared beare
 $need('api/extension.php','enforce_extension_bearer_session','The extension API must reject expired bearer sessions.');
 $need('extension-connect.php','extension_id_allowed($extensionId,$config)','Normal-tab pairing must validate the requesting Chrome extension ID.');
 $need('extension-connect.php','require_csrf()','Website extension approval must require CSRF protection.');
-$need('extension-connect.php',"hash('sha256',$pair)",'Website pairing must persist only a hash of the pairing secret.');
+$need('extension-connect.php','hash(\'sha256\',$pair)','Website pairing must persist only a hash of the pairing secret.');
 $need('extension-connect.php',"\$_SESSION['after_login']", 'Unauthenticated pairing must return to approval after website login.');
 $need('api/extension-pair.php','session_ttl_days','Paired extension tokens must receive a bounded lifetime.');
 $need('api/extension-pair.php','FOR UPDATE','Pairing token exchange must consume approval atomically.');
