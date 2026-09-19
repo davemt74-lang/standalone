@@ -123,7 +123,7 @@
 
 /* Phase 12A — Unified conversations + Team Chat rail */
 .teamChatRightRail{overflow:visible!important;max-height:none!important}
-.teamChatRail{height:calc(100vh - 104px);min-height:520px;display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto auto;border:1px solid #deded8;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.05);overflow:hidden}
+.teamChatRail{height:calc(100vh - 104px);min-height:520px;display:grid;grid-template-rows:auto auto auto auto minmax(0,1fr) auto auto auto;border:1px solid #deded8;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.05);overflow:hidden}
 .teamChatHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 16px 10px;border-bottom:1px solid #ecece7}.teamChatHeader h3{margin:2px 0 0}.teamChatClose{display:none;width:32px;height:32px;padding:0;border-radius:50%;background:#f2f2ee;color:#333;font-size:1.25rem}
 .teamChatTeamPicker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 12px 6px}.teamChatTeamPicker select{min-width:0;width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:10px;background:#fff;font:inherit;font-size:.86rem}.teamChatTeamPicker a{font-size:.76rem;font-weight:750;text-decoration:none}
 .teamChatStatus{display:flex;justify-content:space-between;gap:10px;padding:0 14px 8px;color:#777;font-size:.72rem}.teamChatStatus #teamChatUnread{padding:3px 7px;border-radius:999px;background:#111;color:#fff;font-weight:800}
