@@ -9,6 +9,7 @@ function conversation_runtime_ready(PDO $pdo): bool {
 
 function conversation_team_ensure(PDO $pdo,array $team,array $actor): array {
     $teamId=(int)$team['id'];$actorId=(int)$actor['id'];$title=trim((string)($team['name']??'Team Chat'));
+    $aq=$pdo->prepare('SELECT role FROM team_members WHERE team_id=? AND user_id=? LIMIT 1');$aq->execute([$teamId,$actorId]);if(!$aq->fetchColumn())throw new RuntimeException('Team membership is required.');
     $pdo->beginTransaction();
     try{
         $q=$pdo->prepare("SELECT * FROM conversations WHERE conversation_type='team' AND team_id=? FOR UPDATE");$q->execute([$teamId]);$conversation=$q->fetch();
@@ -113,7 +114,7 @@ function conversation_message_create(PDO $pdo,array $viewer,string $conversation
 }
 function conversation_mark_read(PDO $pdo,array $viewer,string $conversationPublicId,?string $messagePublicId=null): bool {
     $conversation=conversation_access($pdo,$viewer,$conversationPublicId);if(!$conversation)return false;$messageId=0;
-    if($messagePublicId){$q=$pdo->prepare('SELECT id FROM conversation_messages WHERE public_id=? AND conversation_id=?');$q->execute([$messagePublicId,$conversation['id']]);$messageId=(int)($q->fetchColumn()?:0);}
+    if($messagePublicId){$q=$pdo->prepare('SELECT id FROM conversation_messages WHERE public_id=? AND conversation_id=?');$q->execute([$messagePublicId,$conversation['id']]);$messageId=(int)($q->fetchColumn()?:0);if(!$messageId)return false;}
     if(!$messageId){$q=$pdo->prepare('SELECT COALESCE(MAX(id),0) FROM conversation_messages WHERE conversation_id=?');$q->execute([$conversation['id']]);$messageId=(int)$q->fetchColumn();}
     $pdo->prepare('INSERT INTO conversation_members(conversation_id,user_id,member_role,last_read_message_id,last_read_at) VALUES(?,?,?,NULLIF(?,0),NOW()) ON DUPLICATE KEY UPDATE last_read_message_id=CASE WHEN VALUES(last_read_message_id) IS NULL THEN last_read_message_id ELSE GREATEST(COALESCE(last_read_message_id,0),VALUES(last_read_message_id)) END,last_read_at=NOW()')
       ->execute([$conversation['id'],$viewer['id'],in_array((string)($conversation['team_role']??''),['owner','admin'],true)?(string)$conversation['team_role']:'member',$messageId]);
