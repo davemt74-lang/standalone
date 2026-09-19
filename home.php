@@ -15,7 +15,6 @@ $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?)
 $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'following_count'=>0,'annotation_count'=>0];
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage">
 <main class="layout"><section>
-<div class="feedViewControls"><label class="feedHighlightControl">Highlight color <input type="color" value="#fff6bf" data-annotation-highlight-picker aria-label="Annotation highlight color"></label><button type="button" class="feedHighlightReset" data-annotation-highlight-reset>Reset</button></div>
 <?php if(!$feed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations and captures from people or sources you follow will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
 <?php foreach($feed as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?>
 </section><aside>
