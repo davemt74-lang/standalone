@@ -21,15 +21,17 @@ $need('extension/sidepanel.html','id="buildVersion"','Sidebar header must visibl
 $need('extension/sidepanel-init.js',"chrome.runtime.getManifest().version",'Sidebar version marker must come from the manifest actually loaded by Chrome.');
 $need('extension/sidepanel-init.js',"[Annotated] Capture mode failed",'Capture mode button errors must be caught instead of surfacing as uncaught anonymous-function dashboard errors.');
 $need('extension/sidepanel-capture.js','ensurePageContentScript(tab)','Region capture must ensure the page reader is present before messaging the active tab.');
-$need('extension/sidepanel.html','id="tab-create"','Sidebar must expose a dedicated Create New tab.');
-$need('extension/sidepanel.html','id="create" role="tabpanel"','Create New must have its own tab panel.');
+$avoid('extension/sidepanel.html','id="tab-create"','Create New must not appear as a duplicate sidebar tab.');
+$need('extension/sidepanel.html','id="create" class="createPanel"','Create New must remain a standalone composer opened from the header.');
 $sidebarPageStart=strpos($sidebarHtml,'<section id="page"');$sidebarCreateStart=strpos($sidebarHtml,'<section id="create"');
-if($sidebarPageStart===false||$sidebarCreateStart===false||$sidebarCreateStart<=$sidebarPageStart)$fail[]='Create New panel must follow the This Page panel.';
-else{$pageOnly=substr($sidebarHtml,$sidebarPageStart,$sidebarCreateStart-$sidebarPageStart);if(str_contains($pageOnly,'class="capture"'))$fail[]='This Page must not contain the annotation composer.';}
-$need('extension/sidepanel.css','repeat(6,minmax(0,1fr))','All six sidebar tabs must fit on one row.');
+if($sidebarPageStart===false||$sidebarCreateStart===false||$sidebarCreateStart<=$sidebarPageStart)$fail[]='Standalone Create New panel must follow the This Page panel.';
+else{$pageOnly=substr($sidebarHtml,$sidebarPageStart,$sidebarCreateStart-$sidebarPageStart);if(str_contains($pageOnly,'class="capture"'))$fail[]='This Page must contain annotations only, not the annotation composer.';}
+$need('extension/sidepanel.css','repeat(5,minmax(0,1fr))','All five sidebar tabs must fit on one row.');
 $need('extension/sidepanel.css','white-space:nowrap','Sidebar tab labels must not wrap onto a second row.');
-$need('extension/sidepanel-feed.js',"btn.dataset.tab==='create'",'Opening Create New must refresh the current page selection.');
+$need('extension/sidepanel-feed.js','async function phase6OpenCreate','Header Create New must open the standalone composer.');
 $need('extension/sidepanel-capture.js',"phase6SwitchTab(pageTab)",'Publishing must return to This Page so the new annotation is visible.');
+$need('extension/sidepanel-state.js','await enterWorkspace();','Successful extension authentication must go directly to the workspace.');
+$avoid('extension/sidepanel-state.js',"authShow('chooser')",'Normal extension login must not route through an extra chooser page.');
 $need('extension/sidepanel-state.js','loadLandingPage','Chrome sidebar must render the website landing page when signed out.');
 $need('extension/sidepanel-state.js',"chrome.runtime.getURL('landing.html')",'The logged-out sidebar landing page must not depend on a website fetch.');
 $need('extension/sidepanel-init.js',"if(!signedIn&&token)",'A preserved extension session must keep the actual workspace visible when the server check is temporarily unavailable.');
@@ -37,6 +39,13 @@ $need('extension/sidepanel-state.js','websiteSessionHandoff','Chrome sidebar mus
 $need('extension/sidepanel-state.js','showAccount','Chrome sidebar must render a dedicated signed-in account view.');
 $need('extension/landing.html','Research the web','Chrome sidebar must ship the Annotated public landing experience locally.');
 $need('extension/sidepanel-state.js','/api/extension-account.php','Chrome sidebar must authenticate against the shared Annotated account backend.');
+$need('extension/sidepanel-feed.js','phase6AnnotationType','Annotation cards must expose a derived annotation type.');
+$need('extension/sidepanel-feed.js','Source content','Annotation cards must expose collapsed source content.');
+$need('extension/sidepanel-feed.js','phase6HydrateEvidence','Extension annotation media must hydrate through authenticated fetches.');
+$need('extension/sidepanel-feed.js',"action==='like'",'Extension annotation posts must expose real Like actions.');
+$need('app/annotation-ui.php','annotation_ui_card','Website annotation views must share one post renderer.');
+$need('home.php',"feed_annotation_rows($pdo,$u,'following'",'Website Home must use the shared feed that includes the signed-in users own annotations.');
+$need('annotation.php','annotationDiscussion','Annotation discussion must be hideable until Comments is opened.');
 $need('extension/sidepanel-state.js','client_version:chrome.runtime.getManifest().version','Chrome authentication must identify the client version.');
 $avoid('extension/sidepanel-state.js','extension-connect.php','Primary Chrome login must stay inside the sidebar.');
 $avoid('extension/sidepanel-state.js','/api/extension-pair.php','Primary Chrome login must not use the legacy pairing flow.');
