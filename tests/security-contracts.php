@@ -36,6 +36,8 @@ $need('api/extension-web-session.php','same-origin','Website-session handoff mus
 $need('extension/content.js','annotated:website-session','An open Annotated page must expose the authenticated session bridge only through the content-script message channel.');
 $need('extension/content.js',"credentials:'same-origin'",'Website-session handoff must use the website session only on the same Annotated origin.');
 $need('extension/sidepanel-state.js','websiteSessionHandoff','Sidebar must recognize an already-authenticated open Annotated website.');
+$need('extension/sidepanel-state.js','const ready=await ensurePageContentScript(tab)','Website-session handoff must restore the content script after an extension reload before messaging the open Annotated tab.');
+$need('extension/sidepanel-state.js',"[Annotated] Website session handoff failed",'Website-session handoff failures must be observable instead of silently swallowed.');
 $need('extension/content.js','lastTextSelection','Page capture must preserve the last non-empty highlighted text when sidebar focus collapses the live selection.');
 $need('extension/content.js',"addEventListener('selectionchange'",'Page capture must remember highlighted text as the selection changes.');
 $need('extension/sidepanel-state.js','chrome.scripting.executeScript','Sidebar must self-heal a missing page content script after extension reload.');
