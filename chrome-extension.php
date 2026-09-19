@@ -20,7 +20,7 @@ header('Cache-Control: private, no-store');
       <h1>Annotate the live web from the page itself.</h1>
       <p class="commentary">Highlight text, capture screenshots, clip audio or video, join Live rooms, and send what you find directly into your Annotated research and teams.</p>
       <div class="inlineActions">
-        <a class="button" href="/downloads/Annotated-Chrome-V0.9.0.zip" download>Download Chrome Extension</a>
+        <a class="button" href="/downloads/Annotated-Chrome-Extension.zip" download>Download Chrome Extension</a>
         <a class="button secondary" href="/connected-accounts.php">Manage extension sessions</a>
       </div>
       <p class="meta">Version 0.9.0 · Manifest V3 · Chrome 116+</p>
