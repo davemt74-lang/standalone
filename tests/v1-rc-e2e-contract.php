@@ -4,7 +4,8 @@ $root=dirname(__DIR__);$fail=[];
 $need=function(string $file,string $needle,string $message)use(&$fail,$root){$path=$root.'/'.$file;if(!is_file($path)){$fail[]="Missing $file";return;}if(!str_contains((string)file_get_contents($path),$needle))$fail[]=$message;};
 $avoid=function(string $file,string $needle,string $message)use(&$fail,$root){$path=$root.'/'.$file;if(is_file($path)&&str_contains((string)file_get_contents($path),$needle))$fail[]=$message;};
 
-$need('register.php','/onboarding.php','New accounts must enter first-run onboarding.');
+$need('register.php','onboarding_ensure($pdo,$uid)','New accounts must initialize the same onboarding state as website accounts.');
+$need('register.php','post_auth_destination($pdo,$uid)','Website registration must use the shared post-auth destination flow.');
 $need('app/release.php','Publish your first annotation','Onboarding milestones must guide the first annotation.');
 $need('app/release.php','Follow a researcher or source','Onboarding milestones must guide social/source following.');
 $need('app/release.php','Start or join Research','Onboarding milestones must guide Research setup.');
@@ -35,8 +36,10 @@ $need('extension/sidepanel.html','role="tablist"','Sidebar must expose tab seman
 $need('extension/sidepanel-feed.js',"setAttribute('aria-selected'",'Sidebar tab state must stay accessible.');
 $sidebarHtml=(string)file_get_contents($root.'/extension/sidepanel.html');
 $sidebarInit=(string)file_get_contents($root.'/extension/sidepanel-init.js');
-preg_match_all("/getElementById\\('([^']+)'\\)/",$sidebarInit,$sidebarIds);
-foreach(array_unique($sidebarIds[1]??[]) as $id)if(!str_contains($sidebarHtml,'id="'.$id.'"'))$fail[]='Sidebar initializer references missing element #'.$id;
+preg_match_all("/getElementById\\('([^']+)'\\)/",$sidebarInit,$directIds);
+preg_match_all("/sidebarBind(?:Click)?\\('([^']+)'/",$sidebarInit,$boundIds);
+$sidebarIds=array_unique(array_merge($directIds[1]??[],$boundIds[1]??[]));
+foreach($sidebarIds as $id)if(!str_contains($sidebarHtml,'id="'.$id.'"'))$fail[]='Sidebar initializer references missing element #'.$id;
 $need('extension/sidepanel-init.js','function sidebarBind','Sidebar event wiring must tolerate optional/missing elements without aborting all initialization.');
 $avoid('extension/sidepanel-init.js',").onclick=",'Sidebar initialization must not use brittle direct onclick chains.');
 $init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_match("/(?<!\\$)\\$\\('nav button'\\)\\.forEach/",$init))$fail[]='Sidebar nav wiring must not call forEach on a single selector.';if(preg_match("/(?<!\\$)\\$\\('\\.modes button'\\)\\.forEach/",$init))$fail[]='Capture mode wiring must not call forEach on a single selector.';
