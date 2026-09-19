@@ -1,7 +1,7 @@
 let API_BASE='http://localhost',token='',page=null,context=null,captureMode='text',regionRect=null,pendingResearchAnnotation=null,liveTimer=null,captureOptions={teams:[],projects:[]};
 let liveClientSessionId='',liveRoomSelection='public',liveMessageCursor=0,liveEventCursor=0,liveRoomKey='',liveMessageCache=new Map(),liveEventCache=new Map(),liveReplyTo=null,livePollFailures=0,livePollCount=0,pendingLiveSend=null;
 let audioBlob=null,audioDataUrl='',mediaRecorder=null,audioStream=null;
-let accountUser=null,landingLoadedFor='',landingAssetUrls=[];
+let accountUser=null,landingLoadedFor='';
 // Feed entry points are supplied by sidepanel-feed.js after shared state/helpers load.
 let loadPage=null,loadThisPage=null,loadFollowing=null,annotationCard=null,filterPageFeed=null;
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
