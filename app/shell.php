@@ -24,7 +24,8 @@ function app_shell_is_html_candidate(): bool {
 }
 function app_shell_activate(PDO $pdo,array $user): void {
     if(!empty($GLOBALS['annotated_shell_disabled'])||!app_shell_is_html_candidate())return;
-    $GLOBALS['annotated_shell']=['pdo'=>$pdo,'user'=>$user];
+    $mode=(string)($GLOBALS['annotated_shell_mode']??'full');if(!in_array($mode,['full','header_only'],true))$mode='full';
+    $GLOBALS['annotated_shell']=['pdo'=>$pdo,'user'=>$user,'mode'=>$mode];
     if(empty($GLOBALS['annotated_shell_buffering'])){
         $GLOBALS['annotated_shell_buffering']=true;
         ob_start('app_shell_transform');
@@ -115,7 +116,8 @@ function app_shell_transform(string $html): string {
     $html=(string)preg_replace('#<header\s+class=["\']topbar["\'][^>]*>.*?</header>#is','',$html,1);
 
     [$aside,$header,$footer]=app_shell_markup($pdo,$user);
-    $open='<div class="appShell" data-annotated-shell="1">'.$aside.'<div class="appShellStage">'.$header.'<div class="appShellContent">';
+    $mode=(string)($state['mode']??'full');$headerOnly=$mode==='header_only';
+    $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.'<div class="appShellContent">';
     $close='</div>'.$footer.'</div></div>';
 
     $html=(string)preg_replace('#<body([^>]*)>#i','<body$1>'.$open,$html,1);
