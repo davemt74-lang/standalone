@@ -95,6 +95,18 @@ $need('app/conversations.php','conversation_access','Conversation authorization 
 $need('app/conversations.php','client_message_id','Conversation sends must remain retry-idempotent.');
 $need('team.php','#team-chat','Team workspace must deep-link into its Home Team Chat.');
 $need('extension/manifest.json','"version": "0.11.0"','Phase 12A must bump the Chrome extension to v0.11.0.');
+$need('home.php','teamChatSettingsButton','Team Chat rail must expose a footer settings icon.');
+$need('home.php','data-team-chat-popout','Team Chat rail must expose an active-chat popout control.');
+$need('home.php','data-team-chat-popups','Home must expose the desktop active-chat popup layer.');
+$need('chat-settings.php','Chat Status','Team Chat must have a dedicated status settings page.');
+$need('chat-settings.php',"'invisible'",'Chat Status settings must support Invisible mode.');
+$need('assets/js/team-chat.js',"request('heartbeat'",'Team Chat client must maintain heartbeat-based online presence.');
+$need('assets/js/team-chat.js','function openPopup','Team Chat client must support Facebook-style active popout chats.');
+$need('assets/js/team-chat.js','POPUP_KEY','Active chat popouts must persist across Home reloads.');
+$need('assets/css/app.css','.chatPresenceDot.status-online','Team Chat must visually distinguish online presence.');
+$need('assets/css/app.css','.teamChatPopupLayer','Desktop active chat popouts must be styled.');
+$need('settings.php','/chat-settings.php','Account Settings must link to Chat Status.');
+
 
 $need('assets/css/app.css','.homeFeedPage .layout>aside{position:sticky','Home feed right rail must remain sticky on desktop.');
 $need('app/annotation-ui.php','Evidence-first feed rendering','Website annotation cards must render preserved screenshots as the primary visual post when available.');
