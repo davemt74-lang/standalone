@@ -40,12 +40,18 @@ function feed_source_by_public(PDO $pdo,string $publicId): ?array {
     $q->execute([$publicId]);return $q->fetch()?:null;
 }
 function feed_annotation_post_type(array $row): string {
-    $type=(string)($row['capture_type']??'');
+    $type=(string)($row['capture_type']??'');$selected=trim((string)($row['selected_text']??''));$commentary=trim((string)($row['text_commentary']??''));
+    $sourceType=strtolower((string)($row['source_type']??''));$provider=strtolower((string)($row['media_provider']??''));$url=strtolower((string)($row['canonical_url']??''));
     if($type==='video_clip')return 'video';
-    if($type==='audio_clip')return (string)($row['source_type']??'')==='podcast'?'podcast':'audio_music';
-    if(in_array($type,['image_region','page_region'],true))return trim((string)($row['selected_text']??''))!==''?'image_quote':'image';
-    if($type==='text')return 'quote';
-    return 'annotation';
+    if($type==='audio_clip'){
+        if($sourceType==='podcast'||str_contains($provider,'podcast'))return 'podcast';
+        $musicProviders=['spotify','soundcloud','bandcamp','tidal','deezer','apple_music','music'];
+        if(in_array($provider,$musicProviders,true)||str_contains($url,'spotify.com')||str_contains($url,'soundcloud.com')||str_contains($url,'bandcamp.com')||str_contains($url,'music.apple.com')||str_contains($url,'tidal.com'))return 'music';
+        return 'audio';
+    }
+    if(in_array($type,['image_region','page_region'],true))return $selected!==''?'image_quote':'image';
+    if($type==='text')return $selected!==''?'quote':($commentary!==''?'note':'annotation');
+    return $commentary!==''?'note':'annotation';
 }
 function feed_context_url(array $row): string {
     $url=(string)($row['canonical_url']??'');if($url==='')return '';
