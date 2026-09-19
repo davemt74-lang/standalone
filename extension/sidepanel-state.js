@@ -1,7 +1,7 @@
 let API_BASE='http://localhost',token='',page=null,context=null,captureMode='text',regionRect=null,pendingResearchAnnotation=null,liveTimer=null,captureOptions={teams:[],projects:[]};
 let liveClientSessionId='',liveRoomSelection='public',liveMessageCursor=0,liveEventCursor=0,liveRoomKey='',liveMessageCache=new Map(),liveEventCache=new Map(),liveReplyTo=null,livePollFailures=0,livePollCount=0,pendingLiveSend=null;
 let audioBlob=null,audioDataUrl='',mediaRecorder=null,audioStream=null;
-let accountUser=null,landingLoadedFor='';
+let accountUser=null,landingLoadedFor='',landingAssetUrls=[];
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function normalizeApiBase(raw){const value=String(raw||'').trim().replace(/\/$/,'');const u=new URL(value);const loopback=['localhost','127.0.0.1','::1'].includes(u.hostname);if(u.username||u.password||u.hash||u.search)throw new Error('Invalid Annotated server URL.');if(u.protocol!=='https:'&&!(u.protocol==='http:'&&loopback))throw new Error('Annotated server must use HTTPS.');return value;}
@@ -71,6 +71,29 @@ async function enterWorkspace(){
 function landingAbsolute(value){
     try{return new URL(value,API_BASE+'/').href;}catch{return value;}
 }
+function clearLandingAssetUrls(){
+    for(const url of landingAssetUrls){try{URL.revokeObjectURL(url);}catch{}}
+    landingAssetUrls=[];
+}
+async function localizeLandingImages(root){
+    const images=[...root.querySelectorAll('img[src]')];
+    await Promise.all(images.map(async img=>{
+        const raw=img.getAttribute('src')||'';
+        const absolute=landingAbsolute(raw);
+        try{
+            const response=await fetch(absolute,{headers:{Accept:'image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8'}});
+            if(!response.ok)throw new Error('HTTP '+response.status);
+            const blob=await response.blob();
+            const local=URL.createObjectURL(blob);
+            landingAssetUrls.push(local);
+            img.setAttribute('src',local);
+        }catch(e){
+            console.warn('[Annotated] Unable to localize landing image',absolute,e);
+            img.setAttribute('src',absolute);
+        }
+        if(img.hasAttribute('srcset'))img.removeAttribute('srcset');
+    }));
+}
 async function loadLandingPage(force=false){
     const host=$('#landingPanel');if(!host)return;
     if(!force&&landingLoadedFor===API_BASE&&host.shadowRoot){host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');return;}
@@ -87,7 +110,8 @@ async function loadLandingPage(force=false){
         if(parts.length<2)throw new Error('Annotated landing page could not be loaded.');
         const wrap=document.createElement('div');wrap.className='landingBody';
         for(const part of parts)wrap.appendChild(part.cloneNode(true));
-        wrap.querySelectorAll('img[src]').forEach(el=>el.setAttribute('src',landingAbsolute(el.getAttribute('src'))));
+        clearLandingAssetUrls();
+        await localizeLandingImages(wrap);
         wrap.querySelectorAll('a[href]').forEach(el=>{
             const raw=el.getAttribute('href')||'';
             if(raw==='/login.php'){el.dataset.sidebarAuth='login';el.setAttribute('href','#');return;}
