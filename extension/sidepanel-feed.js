@@ -18,11 +18,17 @@ function phase6Reason(a){
   return bits.length?'<div class="feedReason">From '+esc(bits.join(' + '))+'</div>':'';
 }
 function phase6AnnotationType(a){
+  const selected=String(a.selected_text||'').trim(),commentary=String(a.text_commentary||'').trim();
+  const sourceType=String(a.source_type||'').toLowerCase(),provider=String(a.media_provider||'').toLowerCase(),url=String(a.canonical_url||'').toLowerCase();
   if(a.capture_type==='video_clip')return 'Video';
-  if(a.capture_type==='audio_clip')return a.source_type==='podcast'?'Podcast':'Audio / Music';
-  if(['image_region','page_region'].includes(a.capture_type))return String(a.selected_text||'').trim()?'Image + Quote':'Image';
-  if(a.capture_type==='text')return 'Quote';
-  return 'Annotation';
+  if(a.capture_type==='audio_clip'){
+    if(sourceType==='podcast'||provider.includes('podcast'))return 'Podcast';
+    if(['spotify','soundcloud','bandcamp','tidal','deezer','apple_music','music'].includes(provider)||['spotify.com','soundcloud.com','bandcamp.com','music.apple.com','tidal.com'].some(x=>url.includes(x)))return 'Music';
+    return 'Audio';
+  }
+  if(['image_region','page_region'].includes(a.capture_type))return selected?'Image + Quote':'Image';
+  if(a.capture_type==='text')return selected?'Quote':commentary?'Note':'Annotation';
+  return commentary?'Note':'Annotation';
 }
 function phase6SourceName(a){
   if(a.source_domain)return String(a.source_domain).replace(/^www\./i,'');
