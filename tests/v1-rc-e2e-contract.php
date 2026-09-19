@@ -13,6 +13,12 @@ $need('onboarding.php',"\$status['steps']",'Onboarding page must render the serv
 $need('extension/service-worker.js',"details.reason==='install'",'Extension install must trigger first-run setup.');
 $need('extension/sidepanel.html','id="authLoginForm"','Chrome sidebar must expose a normal login form.');
 $need('extension/sidepanel.html','id="authRegisterForm"','Chrome sidebar must expose normal account creation.');
+$need('extension/sidepanel.html','id="landingPanel"','Chrome sidebar must expose a logged-out landing view.');
+$need('extension/sidepanel.html','id="authAccount"','Chrome sidebar must expose a distinct signed-in account view.');
+$need('extension/sidepanel-state.js','loadLandingPage','Chrome sidebar must render the website landing page when signed out.');
+$need('extension/sidepanel-state.js','websiteSessionHandoff','Chrome sidebar must recognize a logged-in Annotated website tab.');
+$need('extension/sidepanel-state.js','showAccount','Chrome sidebar must render a dedicated signed-in account view.');
+$need('index.php','extension_sidebar','The main website landing renderer must support reuse by the Chrome sidebar.');
 $need('extension/sidepanel-state.js','/api/extension-account.php','Chrome sidebar must authenticate against the shared Annotated account backend.');
 $need('extension/sidepanel-state.js','client_version:chrome.runtime.getManifest().version','Chrome authentication must identify the client version.');
 $avoid('extension/sidepanel-state.js','extension-connect.php','Primary Chrome login must stay inside the sidebar.');
