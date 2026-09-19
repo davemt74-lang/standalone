@@ -29,6 +29,17 @@ $need('extension/sidepanel.html','id="authRegisterForm"','Sidebar must contain a
 $need('extension/sidepanel-state.js',"/api/extension-account.php",'Sidebar authentication must use the direct account API.');
 $need('extension/sidepanel-state.js','submitExtensionLogin','Sidebar must submit login without leaving the sidebar.');
 $need('extension/sidepanel-state.js','submitExtensionRegister','Sidebar must submit registration without leaving the sidebar.');
+$need('api/extension-web-session.php','current_user($pdo)','Website-session handoff must require an existing authenticated Annotated website session.');
+$need('api/extension-web-session.php','extension_id_allowed($extensionId,$config)','Website-session handoff must validate the requesting extension ID.');
+$need('api/extension-web-session.php','extension_session_issue','Website-session handoff must mint a separate revocable extension session.');
+$need('api/extension-web-session.php','same-origin','Website-session handoff must reject cross-site requests.');
+$need('extension/content.js','annotated:website-session','An open Annotated page must expose the authenticated session bridge only through the content-script message channel.');
+$need('extension/content.js',"credentials:'same-origin'",'Website-session handoff must use the website session only on the same Annotated origin.');
+$need('extension/sidepanel-state.js','websiteSessionHandoff','Sidebar must recognize an already-authenticated open Annotated website.');
+$need('extension/sidepanel-state.js','loadLandingPage','Logged-out sidebar must render the shared Annotated landing page.');
+$need('extension/sidepanel-state.js',"/assets/css/landing.css",'Sidebar landing must reuse the website landing stylesheet.');
+$need('extension/sidepanel-state.js',"?extension_sidebar=1",'Sidebar landing must reuse the website homepage renderer.');
+$need('extension/sidepanel.css','[hidden]{display:none!important}','Inactive sidebar auth views must remain hidden even when card display styles are applied.');
 $avoid('extension/sidepanel-state.js','launchWebAuthFlow','Extension login must not depend on Chrome launchWebAuthFlow.');
 $avoid('extension/sidepanel-state.js','chrome.identity','Extension login must not depend on the Chrome identity API.');
 $avoid('extension/sidepanel-state.js','extension-connect.php','Primary sidebar login must not open a website pairing page.');
