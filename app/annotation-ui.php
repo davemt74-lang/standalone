@@ -42,7 +42,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     $showSnapshot=$snapshot!==null&&in_array($postType,['quote','image','image_quote','annotation'],true);
     $showSelected=$selected!==''&&!$showSnapshot&&(in_array($postType,['quote','image_quote','annotation'],true));
     $showMedia=$media!==null&&(in_array($postType,['video','podcast','music','audio'],true)||$postType==='annotation');
-    $mediaTranscript=trim((string)($a['transcript_edited']??$a['transcript_text']??$a['transcript_raw']??''));
+    $mediaTranscript=trim((string)($a['transcript_edited']??''));if($mediaTranscript==='')$mediaTranscript=trim((string)($a['transcript_text']??''));if($mediaTranscript==='')$mediaTranscript=trim((string)($a['transcript_raw']??''));
     $transcriptText=$selected!==''&&$showSnapshot?$selected:$mediaTranscript;
     $transcriptLabel=$selected!==''&&$showSnapshot?'Captured text transcript':'Media transcript';
     $hasTranscript=$transcriptText!=='';
