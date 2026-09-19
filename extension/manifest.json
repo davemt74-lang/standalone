@@ -8,7 +8,6 @@
     "activeTab",
     "scripting",
     "storage",
-    "identity",
     "tabCapture"
   ],
   "host_permissions": [
