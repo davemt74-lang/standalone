@@ -103,3 +103,16 @@
 
 .appShellHeaderOnly{grid-template-columns:minmax(0,1fr)}
 .appShellHeaderOnly .appShellHeader{width:100%}
+
+
+/* Account settings display preferences */
+.settingsSidebar{position:sticky;top:88px;align-self:start}
+.settingsHighlightRow{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0}
+.settingsHighlightRow>label{font-weight:700}
+.settingsHighlightControls{display:flex;align-items:center;gap:8px}
+.settingsHighlightControls input[type=color]{width:42px;height:42px;padding:3px;border:1px solid #d8d8d2;border-radius:10px;background:#fff;cursor:pointer}
+.settingsHighlightControls .button{min-height:38px;padding:.55rem .85rem}
+.settingsHighlightPreview{display:flex;align-items:center;gap:12px;margin-top:4px;padding:13px 14px;border:1px solid #e5e5df;border-radius:12px;background:#fafaf7}
+.settingsHighlightPreview>span{color:#777;font-size:.76rem;font-weight:750;text-transform:uppercase;letter-spacing:.07em}
+.settingsHighlightPreview mark{padding:3px 5px;border-radius:4px;background:var(--annotation-highlight,#fff6bf);color:inherit}
+@media(max-width:900px){.settingsSidebar{position:static}.settingsHighlightRow{align-items:flex-start;flex-direction:column}}
