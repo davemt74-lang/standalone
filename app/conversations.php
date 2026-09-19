@@ -34,7 +34,7 @@ function conversation_team_by_public(PDO $pdo,array $viewer,string $teamPublicId
     $q->execute([$viewer['id'],$teamPublicId]);return $q->fetch()?:null;
 }
 function conversation_access(PDO $pdo,array $viewer,string $conversationPublicId): ?array {
-    $q=$pdo->prepare("SELECT c.*,t.public_id team_public_id,t.name team_name,tm.role team_role,
+    $q=$pdo->prepare("SELECT c.*,t.public_id team_public_id,t.name team_name,tm.role team_role,cm.user_id conversation_member_user_id,
       (SELECT COUNT(*) FROM team_members tx WHERE tx.team_id=c.team_id) member_count
       FROM conversations c
       LEFT JOIN teams t ON t.id=c.team_id
@@ -45,7 +45,7 @@ function conversation_access(PDO $pdo,array $viewer,string $conversationPublicId
     if($row['conversation_type']==='team'){
         if(empty($row['team_id'])||empty($row['team_role']))return null;
         conversation_sync_team_members($pdo,$row,(int)$row['team_id']);
-    }elseif(empty($row['conversation_member_id'])&&false){return null;}
+    }elseif(empty($row['conversation_member_user_id'])){return null;}
     return $row;
 }
 function conversation_team_list(PDO $pdo,array $viewer): array {
@@ -103,7 +103,7 @@ function conversation_mark_read(PDO $pdo,array $viewer,string $conversationPubli
     $conversation=conversation_access($pdo,$viewer,$conversationPublicId);if(!$conversation)return false;$messageId=0;
     if($messagePublicId){$q=$pdo->prepare('SELECT id FROM conversation_messages WHERE public_id=? AND conversation_id=?');$q->execute([$messagePublicId,$conversation['id']]);$messageId=(int)($q->fetchColumn()?:0);}
     if(!$messageId){$q=$pdo->prepare('SELECT COALESCE(MAX(id),0) FROM conversation_messages WHERE conversation_id=?');$q->execute([$conversation['id']]);$messageId=(int)$q->fetchColumn();}
-    $pdo->prepare('INSERT INTO conversation_members(conversation_id,user_id,member_role,last_read_message_id,last_read_at) VALUES(?,?,?,NULLIF(?,0),NOW()) ON DUPLICATE KEY UPDATE last_read_message_id=GREATEST(COALESCE(last_read_message_id,0),VALUES(last_read_message_id)),last_read_at=NOW()')
+    $pdo->prepare('INSERT INTO conversation_members(conversation_id,user_id,member_role,last_read_message_id,last_read_at) VALUES(?,?,?,NULLIF(?,0),NOW()) ON DUPLICATE KEY UPDATE last_read_message_id=CASE WHEN VALUES(last_read_message_id) IS NULL THEN last_read_message_id ELSE GREATEST(COALESCE(last_read_message_id,0),VALUES(last_read_message_id)) END,last_read_at=NOW()')
       ->execute([$conversation['id'],$viewer['id'],in_array((string)($conversation['team_role']??''),['owner','admin'],true)?(string)$conversation['team_role']:'member',$messageId]);
     return true;
 }
