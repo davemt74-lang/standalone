@@ -70,6 +70,7 @@ function app_shell_admin_nav(string $path): string {
     $links[]=app_shell_link('/admin/moderation.php','Moderation','⚑',$path);
     $links[]=app_shell_link('/admin/discovery-entities.php','Discovery','◎',$path);
     $links[]=app_shell_link('/admin/system-health.php','System Health','◫',$path);
+    $links[]=app_shell_link('/upgrade.php','Database Upgrade','⇧',$path);
     $links[]=app_shell_link('/admin/assistant.php','Admin Assistant','⌁',$path);
     return implode('',$links);
 }
@@ -88,7 +89,7 @@ function app_shell_user_menu(array $user,bool $isAdmin): string {
 function app_shell_markup(PDO $pdo,array $user): array {
     $path=app_shell_request_path();
     $isAdmin=(string)($user['role']??'')==='admin';
-    $adminMode=$isAdmin&&str_starts_with($path,'/admin/');
+    $adminMode=$isAdmin&&(str_starts_with($path,'/admin/')||$path==='/upgrade.php');
     $brand='<a class="appShellBrand" href="'.($adminMode?'/admin/':'/home.php').'"><span class="appShellMark">A</span><span>Annotated</span></a>';
     $nav=$adminMode?app_shell_admin_nav($path):app_shell_user_nav($pdo,$user,$path);
     $roleText=$adminMode?'ADMIN WORKSPACE':'SOCIAL RESEARCH';
