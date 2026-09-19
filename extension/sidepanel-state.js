@@ -22,6 +22,16 @@ async function discoverAnnotatedServer(){
                     return base;
                 }
             }catch{}
+            try{
+                const probe=origin+'/api/extension.php?action=page_context&url='+encodeURIComponent(origin+'/');
+                const r=await fetch(probe,{headers:{Accept:'application/json'}});
+                const j=await r.json();
+                if(r.ok&&j?.ok&&j.data&&Object.prototype.hasOwnProperty.call(j.data,'annotation_count')&&Object.prototype.hasOwnProperty.call(j.data,'authenticated')){
+                    const base=normalizeApiBase(origin);
+                    await chrome.storage.sync.set({apiBase:base});
+                    return base;
+                }
+            }catch{}
         }
     }catch{}
     return '';
@@ -141,10 +151,13 @@ async function loadLandingPage(force=false){
         landingLoadedFor=API_BASE;
         host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');
     }catch(e){
-        const shadow=host.shadowRoot||host.attachShadow({mode:'open'});shadow.innerHTML='<div style="font:14px system-ui;padding:24px"><h2>Annotated</h2><p>Open your Annotated website in Chrome, then reopen this sidebar.</p><button id="landingOptions">Extension settings</button></div>';
-        shadow.getElementById('landingOptions')?.addEventListener('click',()=>chrome.runtime.openOptionsPage());
-        host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');
+        console.warn('[Annotated] Shared landing page unavailable; falling back to local account view.',e);
+        host.hidden=true;
+        document.body.classList.remove('sidebar-booting','landing-open');
+        authShow('chooser');
+        return false;
     }
+    return true;
 }
 async function websiteSessionHandoff(){
     if(token)return null;
@@ -209,8 +222,16 @@ async function loadMe(showAccountView=false){
         await loadCaptureOptions();
         if(showAccountView)showAccount(accountUser);
         return true;
-    }catch{
-        token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');$('#status').textContent='Not signed in';$('#connect').textContent='Log in';return false;
+    }catch(e){
+        const authFailure=e?.status===401&&['SESSION_EXPIRED','AUTH_REQUIRED','INVALID_OR_EXPIRED_CODE'].includes(String(e?.code||''));
+        if(authFailure){
+            token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');
+            $('#status').textContent='Not signed in';$('#connect').textContent='Log in';
+        }else{
+            console.warn('[Annotated] Account check failed; preserving extension session.',e);
+            $('#status').textContent='Connection unavailable';$('#connect').textContent='Account';
+        }
+        return false;
     }
 }
 
