@@ -23,6 +23,9 @@ $need('app/extension-auth.php','function extension_session_issue','Extension ses
 $need('api/extension-bootstrap.php','extension_api_headers($config)','Automatic server discovery must use the shared Chrome-origin validation headers.');
 $need('api/extension-bootstrap.php',"'product'=>'Annotated'",'Automatic server discovery must identify a real Annotated installation.');
 $need('extension/sidepanel-state.js','discoverAnnotatedServer','Sidebar must auto-discover an open Annotated website when no server is configured.');
+$need('extension/sidepanel-state.js',"action=page_context&url=",'Server discovery must fall back to the existing Annotated API for compatibility with older website installs.');
+$need('extension/sidepanel-state.js','Account check failed; preserving extension session.','Transient account/API errors must preserve the existing extension token.');
+$avoid('extension/sidepanel-state.js','Open your Annotated website in Chrome, then reopen this sidebar.','Landing-page failures must never replace the entire extension with a dead fallback screen.');
 $need('extension/sidepanel-state.js','/api/extension-bootstrap.php','Sidebar discovery must verify the candidate website with the Annotated bootstrap endpoint.');
 $need('extension/sidepanel.html','id="authLoginForm"','Sidebar must contain a normal login form.');
 $need('extension/sidepanel.html','id="authRegisterForm"','Sidebar must contain a normal create-account form.');
