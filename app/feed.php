@@ -39,6 +39,14 @@ function feed_source_by_public(PDO $pdo,string $publicId): ?array {
     $q=$pdo->prepare('SELECT s.*,cv.version_number current_version_number,cv.captured_at current_version_captured_at FROM sources s LEFT JOIN source_versions cv ON cv.id=s.current_version_id WHERE s.public_id=? LIMIT 1');
     $q->execute([$publicId]);return $q->fetch()?:null;
 }
+function feed_annotation_post_type(array $row): string {
+    $type=(string)($row['capture_type']??'');
+    if($type==='video_clip')return 'video';
+    if($type==='audio_clip')return (string)($row['source_type']??'')==='podcast'?'podcast':'audio_music';
+    if(in_array($type,['image_region','page_region'],true))return trim((string)($row['selected_text']??''))!==''?'image_quote':'image';
+    if($type==='text')return 'quote';
+    return 'annotation';
+}
 function feed_context_url(array $row): string {
     $url=(string)($row['canonical_url']??'');if($url==='')return '';
     $start=$row['start_seconds']!==null?(float)$row['start_seconds']:null;$end=$row['end_seconds']!==null?(float)$row['end_seconds']:null;
@@ -109,6 +117,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $row['audio_url']=!empty($row['audio_commentary_path'])?evidence_url((string)$row['public_id'],'audio'):null;
         $row['media_url']=!empty($row['media_path'])?evidence_url((string)$row['public_id'],'media'):null;
         $row['context_url']=feed_context_url($row);
+        $row['post_type']=feed_annotation_post_type($row);
         $row['integrity']=source_integrity_annotation_state($pdo,['id'=>(int)$row['internal_id'],'source_version_id'=>(int)$row['source_version_id'],'current_source_version_id'=>(int)$row['current_version_id']]);
         foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','viewer_liked','is_self'] as $k)$row[$k]=(bool)$row[$k];
         $row['like_count']=(int)($row['like_count']??0);$row['comment_count']=(int)($row['comment_count']??0);
