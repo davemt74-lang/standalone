@@ -23,7 +23,7 @@ header('Cache-Control: private, no-store');
         <a class="button" href="/downloads/Annotated-Chrome-Extension.zip" download>Download Chrome Extension</a>
         <a class="button secondary" href="/connected-accounts.php">Manage extension sessions</a>
       </div>
-      <p class="meta">Version 0.9.7 · Manifest V3 · Chrome 116+</p>
+      <p class="meta">Version 0.9.8 · Manifest V3 · Chrome 116+</p>
     </section>
     <aside class="card">
       <span class="eyebrow">CONNECTED PRODUCT</span>
