@@ -74,3 +74,22 @@ CREATE TABLE IF NOT EXISTS conversation_events (
   CONSTRAINT fk_conversation_event_actor FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
   CONSTRAINT fk_conversation_event_message FOREIGN KEY(message_id) REFERENCES conversation_messages(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS chat_status_preferences (
+  user_id BIGINT UNSIGNED PRIMARY KEY,
+  status_mode VARCHAR(24) NOT NULL DEFAULT 'auto',
+  custom_status VARCHAR(120) NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_chat_status_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS chat_presence_sessions (
+  user_id BIGINT UNSIGNED NOT NULL,
+  client_session_id VARCHAR(80) NOT NULL,
+  last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(user_id,client_session_id),
+  INDEX idx_chat_presence_seen(last_seen_at),
+  CONSTRAINT fk_chat_presence_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
