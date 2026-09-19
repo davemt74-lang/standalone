@@ -154,13 +154,17 @@ async function websiteSessionHandoff(){
     for(const tab of candidates){
         if(!tab.id)continue;
         try{
+            const ready=await ensurePageContentScript(tab);
+            if(!ready)continue;
             const j=await chrome.tabs.sendMessage(tab.id,{type:'annotated:website-session',origin,extensionId:chrome.runtime.id,clientVersion:chrome.runtime.getManifest().version});
             if(j?.ok&&j.data?.signed_in&&j.data?.token){
                 token=j.data.token;accountUser=j.data.user||null;
                 await chrome.storage.local.set({annotatedToken:token});
                 return accountUser;
             }
-        }catch{}
+        }catch(e){
+            console.warn('[Annotated] Website session handoff failed',e);
+        }
     }
     return null;
 }
