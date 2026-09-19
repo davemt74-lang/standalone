@@ -43,9 +43,9 @@ p6_ok(in_array($cPublic,$pageIds,true)&&in_array($bTeam,$pageIds,true)&&in_array
 
 $first=feed_annotation_rows($pdo,$a,'following',null,null,2);p6_ok(count($first['annotations'])===2&&$first['next_cursor']!==null,'Following uses bounded cursor pagination');
 $second=feed_annotation_rows($pdo,$a,'following',null,feed_cursor_decode($first['next_cursor']),2);$following=array_merge($first['annotations'],$second['annotations']);$followingIds=array_column($following,'public_id');
-p6_ok(count($followingIds)===3,'Following combines followed people and followed sources without duplicating items');
-p6_ok(in_array($cPublic,$followingIds,true)&&in_array($bTeam,$followingIds,true)&&in_array($bOther,$followingIds,true)&&!in_array($bPrivate,$followingIds,true),'Following keeps Team/private boundaries while merging feed reasons');
-p6_ok(!in_array($aPrivate,$followingIds,true),'Following excludes the viewer own annotations');
+p6_ok(count($followingIds)===4,'Following combines the viewer own posts, followed people, and followed sources without duplicating items');
+p6_ok(in_array($cPublic,$followingIds,true)&&in_array($bTeam,$followingIds,true)&&in_array($bOther,$followingIds,true)&&in_array($aPrivate,$followingIds,true)&&!in_array($bPrivate,$followingIds,true),'Following keeps Team/private boundaries while including the viewer own accessible annotations');
+p6_ok(in_array($aPrivate,$followingIds,true),'Following/Home includes the viewer own published annotations');
 
 $markId=$first['annotations'][0]['public_id'];p6_ok(feed_mark_read($pdo,$a,[$markId])===1,'feed read mutation accepts accessible annotations');
 $refetch=feed_annotation_rows($pdo,$a,'following',null,null,20);$readRow=array_values(array_filter($refetch['annotations'],fn($r)=>$r['public_id']===$markId))[0]??null;p6_ok((bool)($readRow['is_read']??false),'read state is returned with following cards');
@@ -57,5 +57,11 @@ p6_ok((string)$thread['comments'][1]['parent_comment_id']===(string)$top['id'],'
 p6_ok(feed_source_followed($pdo,(int)$s1['id'],(int)$a['id']),'source follow state is readable');
 p6_ok(feed_toggle_source_follow($pdo,(int)$s1['id'],(int)$a['id'])===false,'source can be unfollowed inline');
 p6_ok(feed_toggle_source_follow($pdo,(int)$s1['id'],(int)$a['id'])===true,'source can be followed inline again');
+
+$like=feed_toggle_annotation_like($pdo,$a,$cPublic);p6_ok($like['liked']===true&&$like['like_count']===1,'annotation Like can be added and counted');
+$likedFeed=feed_annotation_rows($pdo,$a,'page',(int)$s1['id'],null,20);$likedRow=array_values(array_filter($likedFeed['annotations'],fn($r)=>$r['public_id']===$cPublic))[0]??null;
+p6_ok((bool)($likedRow['viewer_liked']??false)&&((int)($likedRow['like_count']??0)===1),'feed returns viewer Like state and count');
+$unlike=feed_toggle_annotation_like($pdo,$a,$cPublic);p6_ok($unlike['liked']===false&&$unlike['like_count']===0,'annotation Like can be removed and count returns to zero');
+p6_ok(($likedRow['post_type']??'')==='quote','feed exposes normalized annotation post type');
 
 echo "Phase 6 This Page + Following MariaDB suite passed.\n";
