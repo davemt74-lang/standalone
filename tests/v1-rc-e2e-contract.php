@@ -83,8 +83,9 @@ $avoid('extension/sidepanel-init.js',").onclick=",'Sidebar initialization must n
 $init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_match("/(?<!\\$)\\$\\('nav button'\\)\\.forEach/",$init))$fail[]='Sidebar nav wiring must not call forEach on a single selector.';if(preg_match("/(?<!\\$)\\$\\('\\.modes button'\\)\\.forEach/",$init))$fail[]='Capture mode wiring must not call forEach on a single selector.';
 
 $avoid('home.php','YOUR FEED','Home feed must not render the redundant feed heading block.');
-$need('home.php','data-annotation-highlight-picker','Home feed must expose the user highlight color preference.');
+$avoid('home.php','data-annotation-highlight-picker','Home feed must begin with feed content, not display preference controls.');
 $need('home.php','homeAgentDock','Home feed must expose the sticky Agent composer shell.');
+$need('assets/css/app.css','.homeFeedPage .layout>aside{position:sticky','Home feed right rail must remain sticky on desktop.');
 $need('app/annotation-ui.php','Evidence-first feed rendering','Website annotation cards must render preserved screenshots as the primary visual post when available.');
 $need('app/annotation-ui.php','data-annotation-transcript-toggle','Website post menus must expose Show transcript when transcript text exists.');
 $need('app/annotation-ui.php',"'Media transcript'",'Website renderer must support media transcripts for video, podcast, music and audio posts.');
