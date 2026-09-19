@@ -12,6 +12,7 @@ function sidebarStatusError(message){
 
 function initializeSidebarBindings(){
   sidebarBindClick('connect',connect);
+  sidebarBindClick('headerCreateNew',async()=>{const tab=document.getElementById('tab-create');if(tab)await phase6SwitchTab(tab);});
   sidebarBindClick('authShowLogin',()=>authShow('login'));
   sidebarBindClick('authShowRegister',()=>authShow('register'));
   sidebarBindClick('authCancel',async()=>{if(token)showAccount(accountUser);else await loadLandingPage();});
