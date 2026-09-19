@@ -20,7 +20,7 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
 <?php foreach($feed as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?>
 </section><aside class="homeRightRail <?=$chatTeams?'teamChatRightRail':''?>">
 <?php if($chatTeams):?>
-<section class="teamChatRail" id="teamChatRail" data-team-chat-rail data-csrf="<?=h(csrf_token())?>" data-preferred-team="<?=h($preferredTeam)?>">
+<section class="teamChatRail" id="team-chat" data-team-chat-rail data-csrf="<?=h(csrf_token())?>" data-preferred-team="<?=h($preferredTeam)?>">
   <header class="teamChatHeader"><div><span class="eyebrow">TEAM CHAT</span><h3>Messages</h3></div><button type="button" class="teamChatClose" data-team-chat-close aria-label="Close team chat">×</button></header>
   <div class="teamChatTeamPicker"><select id="teamChatConversation" aria-label="Choose team"><?php foreach($chatTeams as $chat):?><option value="<?=h($chat['public_id'])?>" data-team="<?=h($chat['team_public_id'])?>" data-members="<?=h((string)$chat['member_count'])?>" data-unread="<?=h((string)$chat['unread_count'])?>" <?=$preferredTeam!==''&&$preferredTeam===$chat['team_public_id']?'selected':''?>><?=h($chat['team_name'])?><?=$chat['unread_count']?' · '.$chat['unread_count'].' new':''?></option><?php endforeach?></select><a id="teamChatOpenTeam" href="/team.php?id=<?=h($chatTeams[0]['team_public_id'])?>">Team</a></div>
   <div class="teamChatStatus"><span id="teamChatMemberCount"></span><span id="teamChatUnread" hidden></span></div>
@@ -35,7 +35,7 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
 <div class="card"><span class="eyebrow">BROWSER SIDEBAR</span><h3>Annotate while you browse</h3><p class="meta">The Chrome extension connects this social website to the live page you are researching.</p><a class="button" href="/chrome-extension.php">Download Chrome Extension</a></div>
 <?php endif?>
 </aside></main>
-<?php if($chatTeams):?><button class="teamChatMobileToggle" type="button" data-team-chat-open aria-controls="teamChatRail">Team Chat <span data-team-chat-total-unread></span></button><?php endif?>
+<?php if($chatTeams):?><button class="teamChatMobileToggle" type="button" data-team-chat-open aria-controls="team-chat">Team Chat <span data-team-chat-total-unread></span></button><?php endif?>
 <form class="homeAgentDock" id="homeAgentComposer" data-agent-chat-composer>
   <button type="button" class="homeAgentAdd" id="homeAgentAdd" aria-label="Add context">+</button>
   <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
