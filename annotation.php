@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';require_once __DIR__.'/app/annotation-ui.php';require_once __DIR__.'/app/annotation-ui.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';require_once __DIR__.'/app/annotation-ui.php';
 $viewer=current_user($pdo);$id=(string)($_GET['id']??'');if($viewer){header('Cache-Control: private, no-store');header('Vary: Cookie');}$a=public_discovery_annotation($pdo,$id,$viewer);if(!$a){http_response_code(404);exit('Annotation not found.');}
-$comments=public_discovery_comments($pdo,$a,$viewer);$relatedAnnotations=search_related_annotations($pdo,$a['public_id'],$viewer,6);$isPublic=$a['visibility']==='public';$showComments=(string)($_GET['comments']??'')==='1';$pageTitle=trim((string)($a['text_commentary']?:$a['selected_text']?:$a['source_title']?:'Annotation'));
+$comments=public_discovery_comments($pdo,$a,$viewer);$relatedAnnotations=search_related_annotations($pdo,$a['public_id'],$viewer,6);$isPublic=$a['visibility']==='public';$pageTitle=trim((string)($a['text_commentary']?:$a['selected_text']?:$a['source_title']?:'Annotation'));
 $metaTitle=mb_substr($pageTitle,0,90);$desc=public_discovery_meta_description((string)($a['text_commentary']?:$a['selected_text']?:('Annotation on '.$a['source_title'])));
 $canonical=public_discovery_absolute_url($config,'/annotation.php?id='.rawurlencode($a['public_id']));
 $showDiscussion=(string)($_GET['comments']??'')==='1';
@@ -35,7 +35,6 @@ document.querySelector('#copyLink')?.addEventListener('click',async e=>{await na
 <?php if($viewer):?><script>
 const csrf=<?=json_encode(csrf_token())?>,annotationId=<?=json_encode($a['public_id'])?>;let replyParent=null;
 async function mutate(action,payload){const r=await fetch('/api/extension.php?action='+encodeURIComponent(action),{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(payload)});const j=await r.json();if(!r.ok||j.ok===false)throw new Error(j.error?.message||j.error?.code||'Request failed');return j.data;}
-document.querySelector('#copyLink')?.addEventListener('click',async e=>{await navigator.clipboard.writeText(location.href);e.currentTarget.textContent='Copied';});
 document.querySelector('#followAuthor')?.addEventListener('click',async e=>{try{const d=await mutate('follow',{user_id:e.currentTarget.dataset.user});e.currentTarget.textContent=d.following?'Following':'Follow author';}catch(x){alert(x.message)}});
 document.querySelector('#followSource')?.addEventListener('click',async e=>{try{const d=await mutate('watch_source',{source:e.currentTarget.dataset.source});e.currentTarget.textContent=d.following?'Following source':'Follow source';}catch(x){alert(x.message)}});
 document.querySelectorAll('.replyButton').forEach(b=>b.addEventListener('click',()=>{replyParent=b.dataset.id;const t=document.querySelector('#replyTarget');t.textContent='Replying to '+b.dataset.author;t.hidden=false;document.querySelector('#cancelReply').hidden=false;document.querySelector('#commentBody').focus();}));
