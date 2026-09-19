@@ -158,9 +158,12 @@ $need('oauth/callback.php',"unset(\$_SESSION['oauth_state']", 'OAuth state must 
 $need('app/functions.php','sessions_revoked_before','Website authentication must enforce the per-user session revocation epoch.');
 $need('connected-accounts.php',"UPDATE users SET sessions_revoked_before=NOW()", 'Connected Accounts must revoke older browser sessions server-side.');
 $need('connected-accounts.php',"WHERE id=? AND user_id=? AND revoked_at IS NULL",'Individual extension-session revocation must be owner-scoped.');
-$need('api/extension-token.php','extension_redirect_allowed($redirect,$config)','Extension token exchange must validate the exact allowlisted redirect.');
+$need('api/extension-token.php','extension_redirect_allowed($redirect,$config)','Extension token exchange must validate the exact Chrome redirect bound to the authorization code.');
 $need('api/extension-token.php','client_version','Extension sessions must record RC client version when available.');
-$need('app/extension-auth.php','extension_allowed_ids','Extension origins must be constrained by configured Chrome IDs.');
+$need('app/extension-auth.php','extension_redirect_id','Extension redirects must be restricted to valid chromiumapp.org callback URLs.');
+$need('app/extension-auth.php','extension_id_allowed','Extension IDs must support optional hard allowlisting with explicit pairing as the empty-list default.');
+$need('app/extension-auth.php','return !$configured||in_array($id,$configured,true)','Fresh installs must allow explicit user-approved pairing without manual config.php editing.');
+$need('extension-authorize.php','Extension ID','Extension approval must display the exact Chrome extension ID to the user.');
 $need('extension/options.js',"u.protocol!=='https:'",'Extension server settings must require HTTPS outside loopback development.');
 $need('onboarding.php','Cache-Control: private, no-store','Onboarding must not be shared-cached.');
 $need('onboarding.php','noindex,nofollow','Onboarding must not be indexed.');
