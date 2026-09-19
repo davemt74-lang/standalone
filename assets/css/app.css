@@ -100,3 +100,6 @@
 @media(max-width:620px){.annotationHeaderMenuPanel{right:-4px;min-width:168px}}
 
 .commentAuthorIdentity{display:flex;align-items:center;gap:9px;color:inherit;text-decoration:none}.commentAuthorIdentity span{min-width:0}.commentAuthorIdentity strong,.commentAuthorIdentity small{display:block}.commentAuthorIdentity small{margin-top:2px;color:#777}
+
+.appShellHeaderOnly{grid-template-columns:minmax(0,1fr)}
+.appShellHeaderOnly .appShellHeader{width:100%}
