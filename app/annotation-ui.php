@@ -55,6 +55,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
   <?php if($selected!==''):?><blockquote class="annotationQuote"><?=h(mb_substr($selected,0,1200))?></blockquote><?php endif?>
   <?php if($snapshot):?><img class="snapshot annotationPostImage" src="<?=h($snapshot)?>" alt="Preserved annotation capture"><?php endif?>
   <?php if($media):?><?php if(($a['capture_type']??'')==='video_clip'):?><video class="webMedia" controls src="<?=h($media)?>"></video><?php else:?><audio class="wideAudio" controls src="<?=h($media)?>"></audio><?php endif?><?php endif?>
+  <?php if(!empty($a['audio_url'])):?><div class="annotationAudioCommentary"><span class="meta">Audio commentary</span><audio class="wideAudio" controls src="<?=h((string)$a['audio_url'])?>"></audio><?php if(!empty($a['transcript_edited'])||!empty($a['transcript_raw'])):?><details><summary>Transcript</summary><p><?=nl2br(h((string)($a['transcript_edited']?:$a['transcript_raw'])))?></p></details><?php endif?></div><?php endif?>
   <?php if($showSource):?><details class="annotationSourceDetails">
     <summary><span class="annotationSourceIcon" aria-hidden="true">↗</span><span><small>Source content</small><strong><?=h($sourceLabel)?></strong></span><span class="annotationSourceChevron" aria-hidden="true">⌄</span></summary>
     <div class="annotationSourceBody">
