@@ -63,8 +63,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $where[]='a.source_id=?';$params[]=$sourceId;
     }elseif($mode==='following'){
         if(!$uid)return ['annotations'=>[],'next_cursor'=>null,'unread_count'=>0];
-        $where[]="a.user_id<>$uid";
-        $where[]="(EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_user_id=$uid AND ff.followed_user_id=a.user_id) OR EXISTS(SELECT 1 FROM source_watches fsw WHERE fsw.user_id=$uid AND fsw.source_id=a.source_id))";
+        $where[]="(a.user_id=$uid OR EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_user_id=$uid AND ff.followed_user_id=a.user_id) OR EXISTS(SELECT 1 FROM source_watches fsw WHERE fsw.user_id=$uid AND fsw.source_id=a.source_id))";
     }else throw new InvalidArgumentException('Invalid feed mode.');
     if($cursorId){$where[]='a.id<?';$params[]=$cursorId;}
     $flags=$uid ? "
@@ -74,11 +73,12 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       EXISTS(SELECT 1 FROM source_watches sw WHERE sw.user_id=$uid AND sw.source_id=a.source_id) source_following,
       EXISTS(SELECT 1 FROM follows ff2 WHERE ff2.follower_user_id=$uid AND ff2.followed_user_id=a.user_id) from_followed_user,
       EXISTS(SELECT 1 FROM source_watches sw2 WHERE sw2.user_id=$uid AND sw2.source_id=a.source_id) from_followed_source,
-      (a.user_id=$uid) is_self" : "0 is_following,0 is_saved,1 is_read,0 source_following,0 from_followed_user,0 from_followed_source,0 is_self";
+      EXISTS(SELECT 1 FROM annotation_reactions arl WHERE arl.user_id=$uid AND arl.annotation_id=a.id AND arl.reaction='like') viewer_liked,
+      (a.user_id=$uid) is_self" : "0 is_following,0 is_saved,1 is_read,0 source_following,0 from_followed_user,0 from_followed_source,0 viewer_liked,0 is_self";
     $sql="SELECT
       a.id internal_id,a.public_id,a.source_version_id,a.text_commentary,a.published_at,a.visibility,a.team_id,
       u.public_id author_public_id,u.username,u.display_name,
-      s.public_id source_public_id,s.title source_title,s.canonical_url,s.status source_record_status,s.current_version_id,
+      s.public_id source_public_id,s.title source_title,s.domain source_domain,s.source_type,s.canonical_url,s.status source_record_status,s.current_version_id,
       sv.version_number capture_version_number,sv.captured_at capture_version_captured_at,
       cv.version_number current_version_number,cv.captured_at current_version_captured_at,
       CASE WHEN a.source_version_id<>s.current_version_id THEN s.status ELSE 'current' END source_status,
@@ -89,6 +89,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       md.storage_path media_path,md.processing_status media_status,
       a.audio_commentary_path,at.status transcript_status,COALESCE(at.edited_text,at.raw_text) transcript_text,
       (SELECT COUNT(*) FROM comments cm WHERE cm.annotation_id=a.id AND COALESCE(cm.moderation_status,'visible')='visible') comment_count,
+      (SELECT COUNT(*) FROM annotation_reactions ar WHERE ar.annotation_id=a.id AND ar.reaction='like') like_count,
       $flags
       FROM annotations a
       JOIN users u ON u.id=a.user_id
@@ -109,7 +110,8 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $row['media_url']=!empty($row['media_path'])?evidence_url((string)$row['public_id'],'media'):null;
         $row['context_url']=feed_context_url($row);
         $row['integrity']=source_integrity_annotation_state($pdo,['id'=>(int)$row['internal_id'],'source_version_id'=>(int)$row['source_version_id'],'current_source_version_id'=>(int)$row['current_version_id']]);
-        foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','is_self'] as $k)$row[$k]=(bool)$row[$k];
+        foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','viewer_liked','is_self'] as $k)$row[$k]=(bool)$row[$k];
+        $row['like_count']=(int)($row['like_count']??0);$row['comment_count']=(int)($row['comment_count']??0);
         unset($row['internal_id'],$row['screenshot_target_path'],$row['audio_commentary_path'],$row['media_path']);
     }unset($row);
     $unread=$mode==='following'&&$uid?feed_following_unread_count($pdo,$viewer):0;
@@ -139,6 +141,15 @@ function feed_toggle_source_follow(PDO $pdo,int $sourceId,int $userId): bool {
     $q=$pdo->prepare('SELECT 1 FROM sources WHERE id=?');$q->execute([$sourceId]);if(!$q->fetchColumn())throw new RuntimeException('Source not found.');
     if(feed_source_followed($pdo,$sourceId,$userId)){$pdo->prepare('DELETE FROM source_watches WHERE source_id=? AND user_id=?')->execute([$sourceId,$userId]);return false;}
     $pdo->prepare('INSERT IGNORE INTO source_watches(source_id,user_id) VALUES(?,?)')->execute([$sourceId,$userId]);return true;
+}
+function feed_toggle_annotation_like(PDO $pdo,array $viewer,string $annotationPublicId): array {
+    $a=annotation_access($pdo,$annotationPublicId,$viewer);if(!$a||$a['status']!=='published')throw new RuntimeException('Annotation not found.');
+    $uid=(int)$viewer['id'];$aid=(int)$a['id'];
+    $q=$pdo->prepare("SELECT 1 FROM annotation_reactions WHERE annotation_id=? AND user_id=? AND reaction='like'");$q->execute([$aid,$uid]);
+    if($q->fetchColumn()){$pdo->prepare("DELETE FROM annotation_reactions WHERE annotation_id=? AND user_id=? AND reaction='like'")->execute([$aid,$uid]);$liked=false;}
+    else{$pdo->prepare("INSERT INTO annotation_reactions(annotation_id,user_id,reaction) VALUES(?,?,'like')")->execute([$aid,$uid]);$liked=true;}
+    $q=$pdo->prepare("SELECT COUNT(*) FROM annotation_reactions WHERE annotation_id=? AND reaction='like'");$q->execute([$aid]);
+    return ['liked'=>$liked,'like_count'=>(int)$q->fetchColumn()];
 }
 function feed_comments(PDO $pdo,string $annotationPublicId,?array $viewer): ?array {
     $a=annotation_access($pdo,$annotationPublicId,$viewer);if(!$a||$a['status']!=='published')return null;$uid=(int)($viewer['id']??0);$admin=(($viewer['role']??'')==='admin');
