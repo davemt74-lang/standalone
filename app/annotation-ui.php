@@ -42,7 +42,10 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     $showSnapshot=$snapshot!==null&&in_array($postType,['quote','image','image_quote','annotation'],true);
     $showSelected=$selected!==''&&!$showSnapshot&&(in_array($postType,['quote','image_quote','annotation'],true));
     $showMedia=$media!==null&&(in_array($postType,['video','podcast','music','audio'],true)||$postType==='annotation');
-    $showCapturedTranscript=$selected!==''&&$showSnapshot;
+    $mediaTranscript=trim((string)($a['transcript_edited']??$a['transcript_text']??$a['transcript_raw']??''));
+    $transcriptText=$selected!==''&&$showSnapshot?$selected:$mediaTranscript;
+    $transcriptLabel=$selected!==''&&$showSnapshot?'Captured text transcript':'Media transcript';
+    $hasTranscript=$transcriptText!=='';
     $commentaryLong=mb_strlen($commentary)>420||substr_count($commentary,"\n")>5;
     $canonical=(string)($a['canonical_url']??'');$sourceId=(string)($a['source_public_id']??'');
     $captureVersion=(int)($a['capture_version_number']??0);$currentVersion=(int)($a['current_version_number']??0);
@@ -61,7 +64,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
         <div class="annotationHeaderMenuPanel">
           <?php if($showOpen):?><a href="<?=h($postUrl)?>">Open post</a><?php endif?>
           <button type="button" data-copy-annotation-link data-url="<?=h($postUrl)?>">Copy link</button>
-          <?php if($showCapturedTranscript):?><button type="button" data-annotation-transcript-toggle aria-controls="annotation-transcript-<?=h($id)?>" aria-expanded="false">Show transcript</button><?php endif?>
+          <?php if($hasTranscript):?><button type="button" data-annotation-transcript-toggle aria-controls="annotation-transcript-<?=h($id)?>" aria-expanded="false">Show transcript</button><?php endif?>
           <?php if($publicPost):?><a href="/file-a-claim.php?id=<?=h($id)?>">File a claim</a><a href="/report.php?type=annotation&id=<?=h($id)?>">Report post</a><?php endif?>
           <?=$extraActions?>
         </div>
@@ -71,9 +74,9 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
   <?php if($commentary!==''):?><div class="annotationCaptionWrap"><p class="annotationCaption <?=$commentaryLong?'is-collapsed':''?>" <?=$commentaryLong?'data-collapsible="1"':''?>><?=nl2br(h($commentary))?></p><?php if($commentaryLong):?><button type="button" class="annotationReadMore" data-annotation-expand aria-expanded="false">Read more</button><?php endif?></div><?php endif?>
   <?php if($showSelected):?><blockquote class="annotationQuote"><?=h(mb_substr($selected,0,1200))?></blockquote><?php endif?>
   <?php if($showSnapshot):?><img class="snapshot annotationPostImage" src="<?=h((string)$snapshot)?>" alt="Preserved annotation capture"><?php endif?>
-  <?php if($showCapturedTranscript):?><section class="annotationTranscriptPanel" id="annotation-transcript-<?=h($id)?>" hidden><div class="annotationTranscriptLabel">Captured text transcript</div><p><?=nl2br(h($selected))?></p></section><?php endif?>
+  <?php if($hasTranscript):?><section class="annotationTranscriptPanel" id="annotation-transcript-<?=h($id)?>" hidden><div class="annotationTranscriptLabel"><?=h($transcriptLabel)?></div><p><?=nl2br(h($transcriptText))?></p></section><?php endif?>
   <?php if($showMedia):?><?php if(($a['capture_type']??'')==='video_clip'):?><video class="webMedia" controls src="<?=h((string)$media)?>"></video><?php else:?><audio class="wideAudio" controls src="<?=h((string)$media)?>"></audio><?php endif?><?php endif?>
-  <?php if(!empty($a['audio_url'])):?><div class="annotationAudioCommentary"><span class="meta">Audio commentary</span><audio class="wideAudio" controls src="<?=h((string)$a['audio_url'])?>"></audio><?php if(!empty($a['transcript_edited'])||!empty($a['transcript_raw'])):?><details><summary>Transcript</summary><p><?=nl2br(h((string)($a['transcript_edited']?:$a['transcript_raw'])))?></p></details><?php endif?></div><?php endif?>
+  <?php if(!empty($a['audio_url'])):?><div class="annotationAudioCommentary"><span class="meta">Audio commentary</span><audio class="wideAudio" controls src="<?=h((string)$a['audio_url'])?>"></audio></div><?php endif?>
   <?php if($showSource):?><details class="annotationSourceDetails">
     <summary><span class="annotationSourceIcon" aria-hidden="true">↗</span><span><small>Source content</small><strong><?=h($sourceLabel)?></strong></span><span class="annotationSourceChevron" aria-hidden="true">⌄</span></summary>
     <div class="annotationSourceBody">
