@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/installer.php';
 
 function conversation_runtime_ready(PDO $pdo): bool {
     try{return installer_table_exists($pdo,'conversations')&&installer_table_exists($pdo,'conversation_messages')&&installer_table_exists($pdo,'conversation_members');}
