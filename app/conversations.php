@@ -6,6 +6,53 @@ function conversation_runtime_ready(PDO $pdo): bool {
     try{return installer_table_exists($pdo,'conversations')&&installer_table_exists($pdo,'conversation_messages')&&installer_table_exists($pdo,'conversation_members');}
     catch(Throwable $e){return false;}
 }
+function conversation_presence_ready(PDO $pdo): bool {
+    try{return installer_table_exists($pdo,'chat_status_preferences')&&installer_table_exists($pdo,'chat_presence_sessions');}
+    catch(Throwable $e){return false;}
+}
+function conversation_status_get(PDO $pdo,int $userId): array {
+    if(!conversation_presence_ready($pdo))return ['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
+    $pdo->prepare('INSERT IGNORE INTO chat_status_preferences(user_id) VALUES(?)')->execute([$userId]);
+    $q=$pdo->prepare('SELECT status_mode,custom_status FROM chat_status_preferences WHERE user_id=?');$q->execute([$userId]);$row=$q->fetch()?:['status_mode'=>'auto','custom_status'=>null];
+    conversation_presence_cleanup($pdo);
+    $q=$pdo->prepare('SELECT 1 FROM chat_presence_sessions WHERE user_id=? AND last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND) LIMIT 1');$q->execute([$userId]);$active=(bool)$q->fetchColumn();
+    $mode=(string)($row['status_mode']??'auto');$effective=!$active||$mode==='invisible'?'offline':($mode==='busy'?'busy':($mode==='away'?'away':'online'));
+    return ['status_mode'=>$mode,'custom_status'=>(string)($row['custom_status']??''),'effective_status'=>$effective];
+}
+function conversation_status_update(PDO $pdo,array $viewer,string $mode,string $customStatus=''): array {
+    if(!conversation_presence_ready($pdo))throw new RuntimeException('Chat status requires the Phase 12A database upgrade.');
+    $mode=strtolower(trim($mode));if(!in_array($mode,['auto','available','away','busy','invisible'],true))throw new InvalidArgumentException('Invalid chat status.');
+    $customStatus=trim($customStatus);if(mb_strlen($customStatus)>120)throw new InvalidArgumentException('Custom status must be 120 characters or fewer.');
+    $pdo->prepare('INSERT INTO chat_status_preferences(user_id,status_mode,custom_status) VALUES(?,?,?) ON DUPLICATE KEY UPDATE status_mode=VALUES(status_mode),custom_status=VALUES(custom_status)')->execute([$viewer['id'],$mode,$customStatus!==''?$customStatus:null]);
+    return conversation_status_get($pdo,(int)$viewer['id']);
+}
+function conversation_presence_cleanup(PDO $pdo): void {
+    if(!conversation_presence_ready($pdo))return;
+    $pdo->exec('DELETE FROM chat_presence_sessions WHERE last_seen_at<DATE_SUB(NOW(),INTERVAL 90 SECOND)');
+}
+function conversation_presence_touch(PDO $pdo,array $viewer,string $clientSessionId): array {
+    if(!conversation_presence_ready($pdo))throw new RuntimeException('Chat presence requires the Phase 12A database upgrade.');
+    $clientSessionId=trim($clientSessionId);if(!preg_match('/^[A-Za-z0-9._:-]{8,80}$/',$clientSessionId))throw new InvalidArgumentException('Invalid chat client session.');
+    conversation_presence_cleanup($pdo);
+    $pdo->prepare('INSERT INTO chat_presence_sessions(user_id,client_session_id,last_seen_at) VALUES(?,?,NOW()) ON DUPLICATE KEY UPDATE last_seen_at=NOW()')->execute([$viewer['id'],$clientSessionId]);
+    return conversation_status_get($pdo,(int)$viewer['id']);
+}
+function conversation_presence_leave(PDO $pdo,array $viewer,string $clientSessionId): void {
+    if(!conversation_presence_ready($pdo))return;$clientSessionId=trim($clientSessionId);
+    if($clientSessionId==='')return;$pdo->prepare('DELETE FROM chat_presence_sessions WHERE user_id=? AND client_session_id=?')->execute([$viewer['id'],$clientSessionId]);
+}
+function conversation_presence_rows(PDO $pdo,array $viewer,array $conversation): array {
+    if(!conversation_presence_ready($pdo)||($conversation['conversation_type']??'')!=='team'||empty($conversation['team_id']))return [];
+    conversation_presence_cleanup($pdo);
+    $q=$pdo->prepare("SELECT u.public_id,u.username,u.display_name,u.profile_image_url,COALESCE(sp.status_mode,'auto') status_mode,COALESCE(sp.custom_status,'') custom_status,
+      EXISTS(SELECT 1 FROM chat_presence_sessions ps WHERE ps.user_id=u.id AND ps.last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND)) active_now
+      FROM team_members tm JOIN users u ON u.id=tm.user_id AND u.status='active'
+      LEFT JOIN chat_status_preferences sp ON sp.user_id=u.id
+      WHERE tm.team_id=? ORDER BY u.display_name,u.username");
+    $q->execute([$conversation['team_id']]);$out=[];
+    foreach($q->fetchAll() as $row){$mode=(string)$row['status_mode'];$active=(bool)$row['active_now'];$row['effective_status']=!$active||$mode==='invisible'?'offline':($mode==='busy'?'busy':($mode==='away'?'away':'online'));unset($row['active_now']);$out[]=$row;}
+    return $out;
+}
 
 function conversation_team_ensure(PDO $pdo,array $team,array $actor): array {
     $teamId=(int)$team['id'];$actorId=(int)$actor['id'];$title=trim((string)($team['name']??'Team Chat'));
@@ -86,8 +133,8 @@ function conversation_message_rows(PDO $pdo,array $viewer,string $conversationPu
       WHERE $where ORDER BY m.id DESC LIMIT ".($limit+1);
     $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll();$more=count($rows)>$limit;if($more)array_pop($rows);$rows=array_reverse($rows);
     foreach($rows as &$row){$row['id']=(int)$row['id'];$row['is_self']=(int)($row['user_id']??0)===(int)$viewer['id'];$row['body']=$row['deleted_at']!==null?'Message removed.':(string)$row['body'];unset($row['user_id']);}unset($row);
-    $next=$more&&$rows?(int)$rows[0]['id']:null;
-    return ['conversation'=>['public_id'=>$conversation['public_id'],'type'=>$conversation['conversation_type'],'team_public_id'=>$conversation['team_public_id']??null,'team_name'=>$conversation['team_name']??$conversation['title'],'member_count'=>(int)($conversation['member_count']??0)],'messages'=>$rows,'next_before'=>$next];
+    $next=$more&&$rows?(int)$rows[0]['id']:null;$presence=conversation_presence_rows($pdo,$viewer,$conversation);$onlineCount=count(array_filter($presence,fn($p)=>($p['effective_status']??'offline')!=='offline'));
+    return ['conversation'=>['public_id'=>$conversation['public_id'],'type'=>$conversation['conversation_type'],'team_public_id'=>$conversation['team_public_id']??null,'team_name'=>$conversation['team_name']??$conversation['title'],'member_count'=>(int)($conversation['member_count']??0),'online_count'=>$onlineCount],'messages'=>$rows,'presence'=>$presence,'next_before'=>$next];
 }
 function conversation_message_create(PDO $pdo,array $viewer,string $conversationPublicId,string $body,?string $parentPublicId=null,?string $clientMessageId=null): array {
     $body=trim($body);if($body===''||mb_strlen($body)>5000)throw new InvalidArgumentException('Message must be between 1 and 5000 characters.');
