@@ -78,7 +78,7 @@ $init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_ma
 $avoid('home.php','YOUR FEED','Home feed must not render the redundant feed heading block.');
 $need('home.php','data-annotation-highlight-picker','Home feed must expose the user highlight color preference.');
 $need('home.php','homeAgentDock','Home feed must expose the sticky Agent composer shell.');
-$need('app/annotation-ui.php',"$showSnapshot=\$snapshot!==null&&(in_array(\$postType,['image','image_quote'],true)",'Website annotation cards must render screenshots only for image-oriented post types.');
+$need('app/annotation-ui.php','showSnapshot','Website annotation cards must render screenshots only for image-oriented post types.');
 $need('app/annotation-ui.php','View captured evidence','Suppressed screenshots must remain accessible as provenance.');
 $need('extension/sidepanel-feed.js',"['image','image_quote'].includes(postType)",'Chrome feed must suppress screenshot duplication for non-image post types.');
 $need('app/annotation-ui.php','annotationHeaderMenu','Annotation post actions must live in the post-header overflow menu.');
