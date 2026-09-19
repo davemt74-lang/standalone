@@ -1,0 +1,61 @@
+name: Annotated Two-Package Build
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build complete Chrome extension ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf package-website package-extension
+          mkdir package-website package-extension
+          cp -a extension/. package-extension/
+          (cd package-extension && zip -qr ../Annotated-Chrome-Extension.zip .)
+          unzip -t Annotated-Chrome-Extension.zip
+          test -f package-extension/manifest.json
+          php -r '$m=json_decode(file_get_contents("package-extension/manifest.json"),true,512,JSON_THROW_ON_ERROR); if(($m["manifest_version"]??0)!==3||($m["version"]??"")!=="0.9.6") exit(1);'
+
+      - name: Build complete website ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a ./ package-website/             --exclude '.git/'             --exclude '.github/'             --exclude 'extension/'             --exclude 'package-website/'             --exclude 'package-extension/'             --exclude 'Annotated-Website.zip'             --exclude 'Annotated-Chrome-Extension.zip'
+          mkdir -p package-website/downloads
+          cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
+          (cd package-website && zip -qr ../Annotated-Website.zip .)
+          unzip -t Annotated-Website.zip
+          test -f package-website/index.php
+          test -f package-website/install.php
+          test -f package-website/database/schema.sql
+          test -f package-website/chrome-extension.php
+          test -f package-website/downloads/Annotated-Chrome-Extension.zip
+
+      - name: Checksums
+        run: sha256sum Annotated-Website.zip Annotated-Chrome-Extension.zip > SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: annotated-website
+          path: Annotated-Website.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: annotated-chrome-extension
+          path: Annotated-Chrome-Extension.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: annotated-package-checksums
+          path: SHA256SUMS.txt
+          if-no-files-found: error

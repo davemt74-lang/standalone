@@ -1,7 +1,25 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/live.php';
-$u=require_user($pdo);$sourcePublic=(string)($_GET['id']??$_POST['source']??'');$source=source_access($pdo,$sourcePublic,$u);if(!$source){http_response_code(404);exit('Source not found.');}
+$u=require_user($pdo);$sourcePublic=(string)($_GET['id']??$_POST['source']??'');
+if($sourcePublic===''){
+    $q=$pdo->query("SELECT s.public_id,s.title,s.domain,COUNT(lm.id) message_count,MAX(lm.created_at) last_activity FROM live_messages lm JOIN sources s ON s.id=lm.source_id WHERE lm.room_type='public' AND lm.deleted_at IS NULL GROUP BY s.id,s.public_id,s.title,s.domain ORDER BY last_activity DESC LIMIT 30");
+    $active=$q->fetchAll();
+    $q=$pdo->query("SELECT s.public_id,s.title,s.domain,MAX(a.published_at) activity FROM sources s JOIN annotations a ON a.source_id=s.id WHERE a.visibility='public' AND a.status='published' GROUP BY s.id,s.public_id,s.title,s.domain ORDER BY activity DESC LIMIT 20");
+    $sources=$q->fetchAll();
+    $rooms=live_rooms_for_user($pdo,$u);
+    header('Cache-Control: private, no-store');header('Vary: Cookie');
+    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Live · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+    <main class="panel">
+      <div class="pageTitle"><span class="eyebrow">LIVE</span><h1>Discuss the web while it happens.</h1><p>Open a public source room, then switch into a Team or Research room when that source belongs to one of your private workspaces.</p></div>
+      <div class="sectionHeadWeb"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>Active source rooms</h2></div></div>
+      <div class="sourceGrid"><?php foreach($active as $s):?><a class="card sourceCard" href="/live.php?id=<?=h($s['public_id'])?>"><div class="meta"><?=h($s['domain'])?> · <?=h((string)$s['message_count'])?> messages</div><h3><?=h($s['title']?:$s['domain'])?></h3><p class="meta">Last activity <?=h((string)$s['last_activity'])?></p></a><?php endforeach?><?php if(!$active):?><div class="card empty">No public Live conversations yet. Start one from a source below.</div><?php endif?></div>
+      <div class="sectionHeadWeb"><div><span class="eyebrow">START A ROOM</span><h2>Recently annotated sources</h2></div></div>
+      <div class="sourceGrid"><?php foreach($sources as $s):?><a class="card sourceCard" href="/live.php?id=<?=h($s['public_id'])?>"><div class="meta"><?=h($s['domain'])?></div><h3><?=h($s['title']?:$s['domain'])?></h3><p>Open Live</p></a><?php endforeach?></div>
+      <div class="card"><h2>Your private Live access</h2><p><strong><?=h((string)count($rooms['teams']))?></strong> Teams · <strong><?=h((string)count($rooms['projects']))?></strong> Research projects</p><p class="meta">Private room choices appear automatically after you open a source.</p></div>
+    </main></body></html><?php exit;
+}
+$source=source_access($pdo,$sourcePublic,$u);if(!$source){http_response_code(404);exit('Source not found.');}
 function web_live_room(PDO $pdo,array $u,string $sourcePublic): ?array {return live_room_scope($pdo,$u,$sourcePublic,(string)($_REQUEST['room_type']??'public'),isset($_REQUEST['room_id'])?(string)$_REQUEST['room_id']:null,false);}
 if(isset($_GET['ajax'])){
     header('Content-Type: application/json; charset=utf-8');$room=web_live_room($pdo,$u,$sourcePublic);if(!$room)json_response(['ok'=>false,'error'=>['code'=>'ROOM_FORBIDDEN']],403);

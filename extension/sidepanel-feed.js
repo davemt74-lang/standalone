@@ -153,6 +153,8 @@ async function phase6CardAction(e){
 }
 async function phase6SwitchTab(btn){
   document.querySelectorAll('nav [role="tab"]').forEach(x=>{const active=x===btn;x.classList.toggle('active',active);x.setAttribute('aria-selected',active?'true':'false');x.tabIndex=active?0:-1;});document.querySelectorAll('main>section[role="tabpanel"]').forEach(s=>s.hidden=s.id!==btn.dataset.tab);
+  if(btn.dataset.tab==='create')await phase6LoadPage();
+  if(btn.dataset.tab==='page'&&context?.source?.public_id)await phase6LoadThisPage(true);
   if(btn.dataset.tab==='following')phase6LoadFollowing(true);
   if(btn.dataset.tab==='search')await loadSearchWorkspace();
   if(btn.dataset.tab==='live')await startLive();else stopLivePoll();

@@ -2,6 +2,18 @@
 
 This runbook applies to **Annotated V1.1 RC1** and must be executed against the exact merged `main` commit that passed CI.
 
+## Fresh installation
+
+1. Copy `config.example.php` to `config.php` and configure the MariaDB connection.
+2. Create an empty MariaDB database.
+3. Open `/install.php` and click **Install Annotated**.
+4. The installer imports the base schema and applies all bundled migrations automatically.
+5. Create the first administrator when redirected to `/first-admin.php`.
+6. No manual SQL import and no bootstrap/setup key are required.
+7. Complete the production settings and run `php bin/release-preflight.php`.
+
+If the installer detects unrelated or partially initialized tables, it stops rather than modifying that database. Use a fresh empty database for a new install.
+
 ## 1. Before deployment
 
 1. Back up the MariaDB database with a transaction-consistent dump appropriate to your environment.

@@ -1,19 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Annotated",
-  "version": "0.9.0",
+  "version": "0.9.6",
   "description": "Annotated V1.1 RC1 Chrome sidebar for capture, Live collaboration, source intelligence, search, Research, notifications, and moderation.",
   "permissions": [
     "sidePanel",
     "activeTab",
     "scripting",
     "storage",
-    "identity",
     "tabCapture"
   ],
   "host_permissions": [
-    "http://*/*",
-    "https://*/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "service-worker.js"
