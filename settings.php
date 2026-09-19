@@ -16,7 +16,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if(!$errors){
             $pdo->prepare('UPDATE users SET display_name=?,bio=?,website_url=?,profile_image_url=? WHERE id=?')->execute([$display,$bio?:null,$website?:null,$image!==''?$image:null,$u['id']]);
             if($oldImage!==''&&$oldImage!==$image)profile_image_delete_local($oldImage);
-            $currentProfileImage=$image;$success='Profile updated.';
+            $currentProfileImage=$image;if(isset($GLOBALS['annotated_shell']['user'])){$GLOBALS['annotated_shell']['user']['profile_image_url']=$image;$GLOBALS['annotated_shell']['user']['display_name']=$display;}$success='Profile updated.';
         }elseif($uploaded!=='')profile_image_delete_local($uploaded);
     }
     if($action==='privacy'){
