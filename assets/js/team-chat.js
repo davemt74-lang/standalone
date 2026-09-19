@@ -58,13 +58,13 @@
     const body=document.createElement('div');body.className='teamChatBody';body.textContent=row.body||'';article.appendChild(body);
     return article;
   }
-  async function markRead(last){
-    if(!last?.public_id)return;
-    try{await request('read',{method:'POST',data:{conversation:select.value,message:last.public_id}});setCurrentUnread(0);}catch{}
+  async function markRead(conversation,last){
+    if(!conversation||!last?.public_id)return;
+    try{await request('read',{method:'POST',data:{conversation,message:last.public_id}});setConversationUnread(conversation,0);}catch{}
   }
-  function setCurrentUnread(count){
-    const option=currentOption();if(option){option.dataset.unread=String(count);const base=option.textContent.replace(/ · \d+ new$/,'');option.textContent=base+(count?' · '+count+' new':'');}
-    if(unread){unread.hidden=!count;unread.textContent=count?count+' unread':'';}
+  function setConversationUnread(conversation,count){
+    const option=[...(select?.options||[])].find(o=>o.value===conversation);if(option){option.dataset.unread=String(count);const base=option.textContent.replace(/ · \d+ new$/,'');option.textContent=base+(count?' · '+count+' new':'');}
+    if(option&&option===currentOption()&&unread){unread.hidden=!count;unread.textContent=count?count+' unread':'';}
     updateTotalUnread();
   }
   function updateTotalUnread(){
@@ -88,7 +88,7 @@
       for(const row of (data.messages||[]))messages.appendChild(renderMessage(row));
       if(!(data.messages||[]).length){const empty=document.createElement('div');empty.className='teamChatEmpty';empty.textContent='No messages yet. Start the conversation.';messages.appendChild(empty);}
       messages.scrollTop=messages.scrollHeight;
-      const rows=data.messages||[];await markRead(rows[rows.length-1]);
+      const rows=data.messages||[];await markRead(conversation,rows[rows.length-1]);
     }catch(err){
       if(sequence!==loadSequence||conversation!==select.value)return;
       if(!quiet){messages.replaceChildren();const e=document.createElement('div');e.className='teamChatError';e.textContent=err.message||'Unable to load Team Chat.';messages.appendChild(e);}
@@ -96,13 +96,15 @@
   }
   async function refreshConversationList(){
     try{
-      const data=await request('list');const incoming=data.conversations||[];const selected=select.value;
+      const data=await request('list'),incoming=data.conversations||[],selected=select.value,incomingIds=new Set(incoming.map(item=>item.public_id));
+      [...select.options].forEach(option=>{if(!incomingIds.has(option.value))option.remove();});
       for(const item of incoming){
-        const option=[...select.options].find(o=>o.value===item.public_id);if(!option)continue;
-        option.dataset.unread=String(item.unread_count||0);option.dataset.members=String(item.member_count||0);
+        let option=[...select.options].find(o=>o.value===item.public_id);
+        if(!option){option=document.createElement('option');option.value=item.public_id;select.appendChild(option);}
+        option.dataset.team=String(item.team_public_id||'');option.dataset.unread=String(item.unread_count||0);option.dataset.members=String(item.member_count||0);
         option.textContent=item.team_name+(item.unread_count?' · '+item.unread_count+' new':'');
       }
-      if([...select.options].some(o=>o.value===selected))select.value=selected;
+      if([...select.options].some(o=>o.value===selected))select.value=selected;else if(select.options.length)select.selectedIndex=0;
       syncTeamMeta();
     }catch{}
   }
