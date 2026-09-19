@@ -30,7 +30,7 @@ p12(($ownerStatus['effective_status']??'')==='busy'&&($ownerStatus['custom_statu
 $invisible=conversation_status_update($pdo,$owner,'invisible','Heads down');
 p12(($invisible['effective_status']??'')==='offline','Invisible status suppresses the online indicator while heartbeat remains active');
 $teamPresence=conversation_presence_rows($pdo,$member,array_merge($c1,['conversation_type'=>'team','team_id'=>$teamId]));$ownerStatus=array_values(array_filter($teamPresence,fn($p)=>($p['username']??'')===$owner['username']))[0]??[];
-p12(($ownerStatus['effective_status']??'')==='offline','teammates see Invisible users as offline');
+p12(($ownerStatus['effective_status']??'')==='offline'&&($ownerStatus['custom_status']??'')==='','teammates see Invisible users as offline without leaking custom status');
 $away=conversation_status_update($pdo,$owner,'away','Back soon');p12(($away['effective_status']??'')==='away','Away status is exposed while heartbeat is active');
 $pdo->prepare('UPDATE chat_presence_sessions SET last_seen_at=DATE_SUB(NOW(),INTERVAL 2 MINUTE) WHERE user_id=?')->execute([$owner['id']]);conversation_presence_cleanup($pdo);
 p12((conversation_status_get($pdo,(int)$owner['id'])['effective_status']??'')==='offline','stale heartbeat expires online presence after the 90-second window');
