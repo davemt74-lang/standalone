@@ -55,5 +55,5 @@ $q->execute([$team['id']]);$annotations=$q->fetchAll();
 </section>
 <aside>
 <?php if($canManage):?><div class="card"><h3>Add a member</h3><p class="meta">Add an existing Annotated user by username.</p><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="username"></label><button>Add member</button></form></div><?php endif?>
-<div class="card"><h3>Team collaboration</h3><p class="meta">Team membership controls private team annotations, Team Live access, and team-scoped Research projects.</p></div>
+<div class="card"><h3>Team collaboration</h3><p class="meta">Team membership controls private team annotations, Team Live access, team chat, and team-scoped Research projects.</p><a class="button secondary" href="/home.php?team=<?=h($team['public_id'])?>#team-chat">Open Team Chat</a></div>
 </aside></main></body></html>

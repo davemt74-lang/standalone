@@ -79,6 +79,9 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
         if(($viewer['role']??'')==='admin'||(int)$r['owner_user_id']===(int)$viewer['id'])return true;if(!$r['team_id'])return false;
         $sql=$r['visibility']==='team'?'SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1':"SELECT 1 FROM team_members WHERE team_id=? AND user_id=? AND role IN ('owner','admin') LIMIT 1";$q=$pdo->prepare($sql);$q->execute([$r['team_id'],$viewer['id']]);return (bool)$q->fetchColumn();
     }
+    if($type==='conversation'){
+        if(!function_exists('conversation_access'))return false;return conversation_access($pdo,$viewer,$public)!==null;
+    }
     if($type==='saved_search')return $viewer&&function_exists('search_saved_notification_access')&&search_saved_notification_access($pdo,$viewer,$public);
     if($type==='live_message'){
         $q=$pdo->prepare('SELECT lm.source_id,lm.room_type,t.public_id team_public_id,rp.public_id project_public_id,s.public_id source_public_id FROM live_messages lm JOIN sources s ON s.id=lm.source_id LEFT JOIN teams t ON t.id=lm.team_id LEFT JOIN research_projects rp ON rp.id=lm.project_id WHERE lm.public_id=? LIMIT 1');$q->execute([$public]);$m=$q->fetch();if(!$m)return false;
@@ -91,11 +94,16 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
     if($type==='annotation')return '/annotation.php?id='.rawurlencode($public).(!empty($context['comment_id'])?'#discussion':'');
     if($type==='source')return '/source.php?id='.rawurlencode($public).(!empty($context['source_change_event_id'])?'#change-'.rawurlencode((string)$context['source_change_event_id']):'');
     if($type==='user'){
-        $q=$pdo->prepare('SELECT username FROM users WHERE public_id=?');$q->execute([$public]);$u=(string)($q->fetchColumn()?:'');return $u!==''?'/profile.php?u='.rawurlencode($u):null;
+        $q=$pdo->prepare('SELECT username FROM users WHERE public_id=?');$q->execute([$public]);$u=(string)($q->fetchColumn()?:'');return $u!==''?profile_path($u):null;
     }
     if($type==='rights_claim')return '/claim-status.php?id='.rawurlencode($public);
     if($type==='moderation_report')return '/report-status.php?id='.rawurlencode($public);
     if($type==='research_report')return '/research-report.php?id='.rawurlencode($public);
+    if($type==='conversation'){
+        if(!function_exists('conversation_access'))return null;$conversation=conversation_access($pdo,$viewer,$public);if(!$conversation)return null;
+        if(($conversation['conversation_type']??'')==='team'&&!empty($conversation['team_public_id']))return '/home.php?team='.rawurlencode((string)$conversation['team_public_id']).'#team-chat';
+        return '/home.php?conversation='.rawurlencode($public).'#agent-chat';
+    }
     if($type==='saved_search')return '/search.php?saved='.rawurlencode($public);
     if($type==='live_message'){
         $q=$pdo->prepare('SELECT s.public_id source_public_id,lm.room_type,t.public_id team_public_id,rp.public_id project_public_id FROM live_messages lm JOIN sources s ON s.id=lm.source_id LEFT JOIN teams t ON t.id=lm.team_id LEFT JOIN research_projects rp ON rp.id=lm.project_id WHERE lm.public_id=?');$q->execute([$public]);$m=$q->fetch();if(!$m)return null;$url='/live.php?id='.rawurlencode((string)$m['source_public_id']).'&room_type='.rawurlencode((string)$m['room_type']);$roomId=$m['room_type']==='team'?$m['team_public_id']:($m['room_type']==='project'?$m['project_public_id']:null);if($roomId)$url.='&room_id='.rawurlencode((string)$roomId);return $url.'#message-'.rawurlencode($public);

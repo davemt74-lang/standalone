@@ -85,6 +85,31 @@ $init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_ma
 $avoid('home.php','YOUR FEED','Home feed must not render the redundant feed heading block.');
 $avoid('home.php','data-annotation-highlight-picker','Home feed must begin with feed content, not display preference controls.');
 $need('home.php','homeAgentDock','Home feed must expose the sticky Agent composer shell.');
+$need('home.php','data-team-chat-rail','Home must expose Team Chat rail for users with Team memberships.');
+$need('home.php','teamChatMobileToggle','Team Chat must expose a mobile drawer trigger.');
+$need('assets/js/team-chat.js',"request('send'",'Team Chat client must send through the unified conversation API.');
+$need('assets/js/team-chat.js',"request('read'",'Team Chat client must maintain read state.');
+$need('api/conversations.php','UPGRADE_REQUIRED','Team Chat API must fail clearly when migration 019 is missing.');
+$need('api/conversations.php','require_api_mutation_auth','Team Chat mutations must enforce authenticated CSRF/bearer mutation auth.');
+$need('app/conversations.php','conversation_access','Conversation authorization must remain server-side.');
+$need('app/conversations.php','client_message_id','Conversation sends must remain retry-idempotent.');
+$need('team.php','#team-chat','Team workspace must deep-link into its Home Team Chat.');
+$need('extension/manifest.json','"version": "0.11.0"','Phase 12A must bump the Chrome extension to v0.11.0.');
+$need('home.php','teamChatSettingsButton','Team Chat rail must expose a footer settings icon.');
+$need('home.php','data-team-chat-popout','Team Chat rail must expose an active-chat popout control.');
+$need('home.php','data-team-chat-popups','Home must expose the desktop active-chat popup layer.');
+$need('chat-settings.php','Chat Status','Team Chat must have a dedicated status settings page.');
+$need('chat-settings.php',"'invisible'",'Chat Status settings must support Invisible mode.');
+$need('assets/js/chat-presence.js',"post('heartbeat'",'Authenticated Annotated shell must maintain heartbeat-based Chat presence.');
+$need('app/shell.php','chat-presence.js?v=12.0','Authenticated pages must load the shared Chat presence client.');
+$need('app/shell.php','data-chat-presence-csrf','Shared Chat presence must use the authenticated shell CSRF token.');
+$need('assets/js/team-chat.js','function openPopup','Team Chat client must support Facebook-style active popout chats.');
+$need('assets/js/team-chat.js','POPUP_KEY','Active chat popouts must persist across Home reloads.');
+$need('assets/css/app.css','.chatPresenceDot.status-online','Team Chat must visually distinguish online presence.');
+$need('assets/css/app.css','.teamChatPopupLayer','Desktop active chat popouts must be styled.');
+$need('settings.php','/chat-settings.php','Account Settings must link to Chat Status.');
+
+
 $need('assets/css/app.css','.homeFeedPage .layout>aside{position:sticky','Home feed right rail must remain sticky on desktop.');
 $need('app/annotation-ui.php','Evidence-first feed rendering','Website annotation cards must render preserved screenshots as the primary visual post when available.');
 $need('app/annotation-ui.php','data-annotation-transcript-toggle','Website post menus must expose Show transcript when transcript text exists.');

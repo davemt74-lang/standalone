@@ -48,6 +48,7 @@ require_once __DIR__ . '/access.php';
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/source-integrity.php';
 require_once __DIR__ . '/live.php';
+require_once __DIR__ . '/conversations.php';
 require_once __DIR__ . '/moderation.php';
 require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/release.php';
