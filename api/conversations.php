@@ -4,6 +4,7 @@ require dirname(__DIR__).'/app/bootstrap.php';
 api_headers();
 $action=(string)($_GET['action']??'list');
 $input=$_SERVER['REQUEST_METHOD']==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
+if(!conversation_runtime_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Annotated database upgrade is required for Team Chat.']],503);
 try{
     if($action==='list'){
         $viewer=require_api_user($pdo);
