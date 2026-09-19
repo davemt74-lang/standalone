@@ -33,20 +33,33 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     $id=(string)($a['public_id']??'');$author=(string)($a['display_name']??'');$username=(string)($a['username']??'');
     $type=annotation_type_label($a);$sourceLabel=annotation_source_label($a);$snapshot=annotation_snapshot_url($a);$media=annotation_media_url($a);
     $comments=(int)($a['comment_count']??0);$likes=(int)($a['like_count']??0);$liked=!empty($a['viewer_liked']);$saved=!empty($a['is_saved']);
-    $published=(string)($a['published_at']??'');$visibility=(string)($a['visibility']??'public');
+    $published=(string)($a['published_at']??'');$visibility=(string)($a['visibility']??'public');$publicPost=$visibility==='public';
     $commentary=trim((string)($a['text_commentary']??''));$selected=trim((string)($a['selected_text']??''));
+    $commentaryLong=mb_strlen($commentary)>420||substr_count($commentary,"\n")>5;
     $canonical=(string)($a['canonical_url']??'');$sourceId=(string)($a['source_public_id']??'');
     $captureVersion=(int)($a['capture_version_number']??0);$currentVersion=(int)($a['current_version_number']??0);
     $integrity=is_array($a['integrity']??null)?$a['integrity']:null;$integrityLabel=(string)($integrity['label']??($a['source_status']??''));
+    $postUrl='/annotation.php?id='.rawurlencode($id);
     ob_start();?>
 <article class="card annotationPost" data-annotation-id="<?=h($id)?>">
   <div class="annotationPostHead">
     <div class="annotationPostIdentity">
       <?php if($showAuthor&&$author!==''):?><?php if($username!==''):?><a href="/profile.php?u=<?=h($username)?>" class="annotationAuthor"><?=app_shell_avatar(['display_name'=>$author,'profile_image_url'=>$a['profile_image_url']??null],'avatarSm')?><span><strong><?=h($author)?></strong><small>@<?=h($username)?></small></span></a><?php else:?><strong><?=h($author)?></strong><?php endif?><?php endif?>
     </div>
-    <div class="annotationPostMeta"><span class="annotationTypeBadge"><?=h($type)?></span><?php if($visibility!=='public'):?><span class="badge"><?=h(ucfirst($visibility))?></span><?php endif?><?php if($published!==''):?><time><?=h($published)?></time><?php endif?></div>
+    <div class="annotationPostHeadRight">
+      <div class="annotationPostMeta"><span class="annotationTypeBadge"><?=h($type)?></span><?php if($visibility!=='public'):?><span class="badge"><?=h(ucfirst($visibility))?></span><?php endif?><?php if($published!==''):?><time><?=h($published)?></time><?php endif?></div>
+      <details class="annotationHeaderMenu">
+        <summary aria-label="Post options">•••</summary>
+        <div class="annotationHeaderMenuPanel">
+          <?php if($showOpen):?><a href="<?=h($postUrl)?>">Open post</a><?php endif?>
+          <button type="button" data-copy-annotation-link data-url="<?=h($postUrl)?>">Copy link</button>
+          <?php if($publicPost):?><a href="/file-a-claim.php?id=<?=h($id)?>">File a claim</a><a href="/report.php?type=annotation&id=<?=h($id)?>">Report post</a><?php endif?>
+          <?=$extraActions?>
+        </div>
+      </details>
+    </div>
   </div>
-  <?php if($commentary!==''):?><p class="annotationCaption"><?=nl2br(h($commentary))?></p><?php endif?>
+  <?php if($commentary!==''):?><div class="annotationCaptionWrap"><p class="annotationCaption <?=$commentaryLong?'is-collapsed':''?>" <?=$commentaryLong?'data-collapsible="1"':''?>><?=nl2br(h($commentary))?></p><?php if($commentaryLong):?><button type="button" class="annotationReadMore" data-annotation-expand aria-expanded="false">Read more</button><?php endif?></div><?php endif?>
   <?php if($selected!==''):?><blockquote class="annotationQuote"><?=h(mb_substr($selected,0,1200))?></blockquote><?php endif?>
   <?php if($snapshot):?><img class="snapshot annotationPostImage" src="<?=h($snapshot)?>" alt="Preserved annotation capture"><?php endif?>
   <?php if($media):?><?php if(($a['capture_type']??'')==='video_clip'):?><video class="webMedia" controls src="<?=h($media)?>"></video><?php else:?><audio class="wideAudio" controls src="<?=h($media)?>"></audio><?php endif?><?php endif?>
@@ -62,15 +75,13 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
   <div class="annotationSocialBar">
     <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$liked?'active':''?>" data-web-annotation-action="like" data-id="<?=h($id)?>"><span aria-hidden="true">♥</span> <span>Like</span> <strong data-like-count><?=h((string)$likes)?></strong></button><?php else:?><a class="annotationSocialAction" href="/login.php"><span aria-hidden="true">♡</span> Like <strong><?=h((string)$likes)?></strong></a><?php endif?>
     <a class="annotationSocialAction" href="<?=h($commentsHref)?>"><span aria-hidden="true">💬</span> Comments <strong><?=h((string)$comments)?></strong></a>
-    <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$saved?'active':''?>" data-web-annotation-action="save" data-id="<?=h($id)?>"><span aria-hidden="true">🔖</span> <span data-save-label><?=$saved?'Saved':'Save'?></span></button><?php endif?>
-    <?php if($extraActions!==''):?><details class="annotationMore"><summary class="annotationSocialAction">•••</summary><div class="annotationMoreMenu"><?=$extraActions?></div></details><?php endif?>
-    <?php if($showOpen):?><a class="annotationSocialAction annotationOpenAction" href="/annotation.php?id=<?=h($id)?>">Open</a><?php endif?>
+    <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$saved?'active':''?>" data-web-annotation-action="save" data-id="<?=h($id)?>"><span aria-hidden="true">🔖</span> <span data-save-label><?=$saved?'Saved':'Save'?></span></button><button type="button" class="annotationSocialAction" data-web-annotation-action="research" data-id="<?=h($id)?>"><span aria-hidden="true">▣</span> <span data-research-label>Research</span></button><?php endif?>
   </div>
 </article>
 <?php return (string)ob_get_clean();
 }
 
 function annotation_ui_scripts(?array $viewer): string {
-    if(!$viewer)return '';
-    return '<script>window.ANNOTATED_CSRF='.json_encode(csrf_token()).';</script><script src="/assets/js/annotation-cards.js"></script>';
+    $csrf=$viewer?csrf_token():'';
+    return '<script>window.ANNOTATED_CSRF='.json_encode($csrf).';</script><script src="/assets/js/annotation-cards.js?v=0.11.0"></script>';
 }
