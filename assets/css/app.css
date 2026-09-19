@@ -98,3 +98,5 @@
 .profilePhotoRemove{display:flex;align-items:center;gap:8px;font-size:.86rem;color:#555}
 .profilePhotoRemove input{width:auto}
 @media(max-width:620px){.annotationHeaderMenuPanel{right:-4px;min-width:168px}}
+
+.commentAuthorIdentity{display:flex;align-items:center;gap:9px;color:inherit;text-decoration:none}.commentAuthorIdentity span{min-width:0}.commentAuthorIdentity strong,.commentAuthorIdentity small{display:block}.commentAuthorIdentity small{margin-top:2px;color:#777}
