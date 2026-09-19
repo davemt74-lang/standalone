@@ -75,4 +75,16 @@ $need('extension/sidepanel-init.js','function sidebarBind','Sidebar event wiring
 $avoid('extension/sidepanel-init.js',").onclick=",'Sidebar initialization must not use brittle direct onclick chains.');
 $init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(preg_match("/(?<!\\$)\\$\\('nav button'\\)\\.forEach/",$init))$fail[]='Sidebar nav wiring must not call forEach on a single selector.';if(preg_match("/(?<!\\$)\\$\\('\\.modes button'\\)\\.forEach/",$init))$fail[]='Capture mode wiring must not call forEach on a single selector.';
 
+$avoid('home.php','YOUR FEED','Home feed must not render the redundant feed heading block.');
+$need('home.php','data-annotation-highlight-picker','Home feed must expose the user highlight color preference.');
+$need('home.php','homeAgentDock','Home feed must expose the sticky Agent composer shell.');
+$need('app/annotation-ui.php','annotationHeaderMenu','Annotation post actions must live in the post-header overflow menu.');
+$need('app/annotation-ui.php','data-annotation-expand','Long annotation notes must expose Read more / Show less behavior.');
+$need('app/annotation-ui.php','data-web-annotation-action="research"','Annotation social actions must include Research.');
+$need('assets/js/annotation-cards.js','annotated.highlightColor','Annotation highlight color must persist as a viewer display preference.');
+$need('assets/css/app.css','--annotation-highlight','Annotation quotes must use the configurable highlight color.');
+$need('profile.php','profileActivity','Profile annotations must render in a single-column activity area.');
+$avoid('profile.php','profileColumns','Profile page must not restore the old two-column sidebar layout.');
+$avoid('profile.php','PUBLISHED RESEARCH','Profile page must not render the old Research sidebar.');
+
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "V1.1 RC1 end-to-end release contract passed.\n";
