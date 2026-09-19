@@ -11,3 +11,20 @@
 
 /* Phase 10 Search & Discovery */
 .searchPanel{display:grid;gap:8px;margin:8px 0 12px}.searchBarMini{display:grid;grid-template-columns:1fr auto;gap:6px}.searchBarMini input{min-width:0}.searchFiltersMini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.searchFiltersMini label{display:grid;gap:3px;font-size:10px}.searchAlertToggle{display:flex;gap:5px;align-items:center;font-size:10px}.searchWorkspaceLists{display:grid;gap:6px;margin-bottom:10px}.searchWorkspaceLists details{border:1px solid #e5e5e5;border-radius:10px;padding:7px}.searchWorkspaceLists summary{font-weight:700;font-size:11px}.searchSaved,.searchRecent{display:grid;gap:5px;margin-top:6px}.searchListRow{display:flex;align-items:center;justify-content:space-between;gap:5px;padding:5px 0;border-top:1px solid #eee}.searchListRow:first-child{border-top:0}.searchListRow>button,.searchListButton{border:0;background:none;text-align:left;padding:0;display:grid;gap:2px;flex:1}.searchListRow small,.searchListButton small{color:#777;font-size:9px}.searchListRow>div{display:flex;gap:3px}.searchListRow>div button{font-size:9px;padding:3px 5px}.searchResults{display:grid;gap:10px}.searchResults section{display:grid;gap:6px}.searchResults h3{margin:3px 0;font-size:12px}.searchResultCard{border:1px solid #ddd;border-radius:10px;padding:9px;background:#fff;display:grid;gap:5px}.searchResultCard p{margin:0;font-size:11px;line-height:1.4}.searchResultCard strong{font-size:12px}.searchResultCard .cardActions{margin-top:2px}@media(max-width:390px){.searchFiltersMini{grid-template-columns:1fr}.searchBarMini{grid-template-columns:1fr}}
+
+
+/* Extension account page */
+.authPanel{padding:12px;background:#f6f6f3;min-height:calc(100vh - 50px)}
+body.auth-open nav,body.auth-open main{display:none}
+.authCard{background:#fff;border:1px solid #e2e2de;border-radius:16px;padding:18px;display:grid;gap:12px}
+.authCard h2{margin:0;font-size:20px}
+.authCard p{margin:0;color:#666;line-height:1.45}
+.authEyebrow{font-size:10px;letter-spacing:.14em;font-weight:800;color:#777}
+.authChoiceRow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.authChoiceRow button,.authSubmit,.authBack,.authTextButton{border:1px solid #ccc;border-radius:10px;padding:10px 12px;background:#fff}
+.authChoiceRow .primary,.authSubmit.primary{background:#111;color:#fff;border-color:#111}
+.authTextButton,.authBack{border:0;background:none;padding:0;text-align:left;color:#666;text-decoration:underline}
+.authForm label{display:grid;gap:5px;font-size:12px;font-weight:700}
+.authForm input{width:100%;padding:10px 11px;border:1px solid #ccc;border-radius:10px;background:#fff}
+.authError{padding:10px 11px;border-radius:10px;background:#fff0f0;border:1px solid #efc3c3;color:#8a1f1f;font-size:12px;line-height:1.4}
+.authSubmit{width:100%;margin-top:2px}
