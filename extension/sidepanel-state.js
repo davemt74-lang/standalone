@@ -1,6 +1,7 @@
 let API_BASE='http://localhost',token='',page=null,context=null,captureMode='text',regionRect=null,pendingResearchAnnotation=null,liveTimer=null,captureOptions={teams:[],projects:[]};
 let liveClientSessionId='',liveRoomSelection='public',liveMessageCursor=0,liveEventCursor=0,liveRoomKey='',liveMessageCache=new Map(),liveEventCache=new Map(),liveReplyTo=null,livePollFailures=0,livePollCount=0,pendingLiveSend=null;
 let audioBlob=null,audioDataUrl='',mediaRecorder=null,audioStream=null;
+let accountUser=null,landingLoadedFor='';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function normalizeApiBase(raw){const value=String(raw||'').trim().replace(/\/$/,'');const u=new URL(value);const loopback=['localhost','127.0.0.1','::1'].includes(u.hostname);if(u.username||u.password||u.hash||u.search)throw new Error('Invalid Annotated server URL.');if(u.protocol!=='https:'&&!(u.protocol==='http:'&&loopback))throw new Error('Annotated server must use HTTPS.');return value;}
@@ -34,25 +35,120 @@ async function settings(){
     if(!a.liveClientSessionId)await chrome.storage.local.set({liveClientSessionId});
 }
 async function api(path,opts={}){const headers={'Content-Type':'application/json',...(opts.headers||{})};if(token)headers.Authorization='Bearer '+token;const r=await fetch(API_BASE+path,{...opts,headers});let j={};try{j=await r.json()}catch{}if(!r.ok||j.ok===false){const e=new Error(j.error?.message||j.error?.code||('HTTP '+r.status));e.code=j.error?.code||'HTTP_'+r.status;e.status=r.status;throw e;}return j;}
+
+function clearSidebarViewClasses(){document.body.classList.remove('sidebar-booting','landing-open','auth-open');}
+function hideLanding(){const host=$('#landingPanel');if(host)host.hidden=true;document.body.classList.remove('landing-open');}
 function authShow(mode='chooser'){
-    $('#authPanel').hidden=false;document.body.classList.add('auth-open');
-    $('#authChooser').hidden=mode!=='chooser';$('#authLoginForm').hidden=mode!=='login';$('#authRegisterForm').hidden=mode!=='register';
+    hideLanding();
+    const panel=$('#authPanel');if(panel)panel.hidden=false;
+    document.body.classList.remove('sidebar-booting');document.body.classList.add('auth-open');
+    $('#authChooser').hidden=mode!=='chooser';
+    $('#authLoginForm').hidden=mode!=='login';
+    $('#authRegisterForm').hidden=mode!=='register';
+    $('#authAccount').hidden=mode!=='account';
     $('#authLoginError').hidden=true;$('#authRegisterError').hidden=true;
     if(mode==='login')setTimeout(()=>$('#authLoginIdentifier')?.focus(),0);
     if(mode==='register')setTimeout(()=>$('#authRegisterName')?.focus(),0);
 }
-function authClose(){$('#authPanel').hidden=true;document.body.classList.remove('auth-open');}
-function authSetError(id,message){const el=$(id);el.textContent=message||'Unable to continue.';el.hidden=false;}
+function authClose(){const panel=$('#authPanel');if(panel)panel.hidden=true;document.body.classList.remove('auth-open');}
+function authSetError(id,message){const el=$(id);if(!el)return;el.textContent=message||'Unable to continue.';el.hidden=false;}
+function accountInitial(user){return String(user?.display_name||user?.username||'A').trim().charAt(0).toUpperCase()||'A';}
+function showAccount(user){
+    accountUser=user||accountUser;if(!accountUser)return;
+    $('#authAccountName').textContent=accountUser.display_name||accountUser.username||'Annotated user';
+    $('#authAccountUsername').textContent='@'+(accountUser.username||'user');
+    $('#authAccountAvatar').textContent=accountInitial(accountUser);
+    $('#authAccountRole').textContent=(accountUser.role==='admin'?'Administrator':'Annotated account')+' · Same account as the website';
+    $('#status').textContent='@'+(accountUser.username||'user');
+    $('#connect').textContent='Account';
+    authShow('account');
+}
+async function enterWorkspace(){
+    authClose();hideLanding();document.body.classList.remove('sidebar-booting');
+    await loadPage();
+    if(token)await loadNotifications();
+}
+function landingAbsolute(value){
+    try{return new URL(value,API_BASE+'/').href;}catch{return value;}
+}
+async function loadLandingPage(force=false){
+    const host=$('#landingPanel');if(!host)return;
+    if(!force&&landingLoadedFor===API_BASE&&host.shadowRoot){host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');return;}
+    try{
+        const [pageResponse,appCssResponse,landingCssResponse]=await Promise.all([
+            fetch(API_BASE+'/?extension_sidebar=1',{headers:{Accept:'text/html'}}),
+            fetch(API_BASE+'/assets/css/app.css'),
+            fetch(API_BASE+'/assets/css/landing.css')
+        ]);
+        if(!pageResponse.ok||!appCssResponse.ok||!landingCssResponse.ok)throw new Error('Annotated landing page is unavailable.');
+        const [html,appCss,landingCss]=await Promise.all([pageResponse.text(),appCssResponse.text(),landingCssResponse.text()]);
+        const doc=new DOMParser().parseFromString(html,'text/html');
+        const parts=[doc.querySelector('.landingHeader'),doc.querySelector('main'),doc.querySelector('.landingFooter')].filter(Boolean);
+        if(parts.length<2)throw new Error('Annotated landing page could not be loaded.');
+        const wrap=document.createElement('div');wrap.className='landingBody';
+        for(const part of parts)wrap.appendChild(part.cloneNode(true));
+        wrap.querySelectorAll('img[src]').forEach(el=>el.setAttribute('src',landingAbsolute(el.getAttribute('src'))));
+        wrap.querySelectorAll('a[href]').forEach(el=>{
+            const raw=el.getAttribute('href')||'';
+            if(raw==='/login.php'){el.dataset.sidebarAuth='login';el.setAttribute('href','#');return;}
+            if(raw==='/register.php'){el.dataset.sidebarAuth='register';el.setAttribute('href','#');return;}
+            if(raw.startsWith('#'))return;
+            el.setAttribute('href',landingAbsolute(raw));
+        });
+        const shadow=host.shadowRoot||host.attachShadow({mode:'open'});
+        shadow.innerHTML='';
+        const sheet=new CSSStyleSheet();
+        sheet.replaceSync(appCss+'\n'+landingCss+'\n:host{display:block;background:#fff;min-height:100vh}.landingBody{min-height:100vh}.landingHeader{position:sticky;top:0}');
+        shadow.adoptedStyleSheets=[sheet];
+        shadow.appendChild(wrap);
+        shadow.addEventListener('click',e=>{
+            const a=e.target.closest?.('a');if(!a)return;
+            const auth=a.dataset.sidebarAuth;
+            if(auth){e.preventDefault();authShow(auth);return;}
+            const href=a.getAttribute('href')||'';
+            if(href.startsWith('#')){
+                e.preventDefault();shadow.querySelector(href)?.scrollIntoView({behavior:'smooth',block:'start'});return;
+            }
+            if(/^https?:/i.test(href)){e.preventDefault();chrome.tabs.create({url:href});}
+        });
+        landingLoadedFor=API_BASE;
+        host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');
+    }catch(e){
+        const shadow=host.shadowRoot||host.attachShadow({mode:'open'});shadow.innerHTML='<div style="font:14px system-ui;padding:24px"><h2>Annotated</h2><p>Open your Annotated website in Chrome, then reopen this sidebar.</p><button id="landingOptions">Extension settings</button></div>';
+        shadow.getElementById('landingOptions')?.addEventListener('click',()=>chrome.runtime.openOptionsPage());
+        host.hidden=false;authClose();document.body.classList.remove('sidebar-booting');document.body.classList.add('landing-open');
+    }
+}
+async function websiteSessionHandoff(){
+    if(token)return null;
+    let origin='';try{origin=new URL(API_BASE).origin;}catch{return null;}
+    const tabs=await chrome.tabs.query({currentWindow:true});
+    const candidates=tabs.filter(tab=>{try{return new URL(tab.url||'').origin===origin;}catch{return false;}}).sort((a,b)=>(b.active?1:0)-(a.active?1:0));
+    for(const tab of candidates){
+        if(!tab.id)continue;
+        try{
+            const j=await chrome.tabs.sendMessage(tab.id,{type:'annotated:website-session',origin,extensionId:chrome.runtime.id,clientVersion:chrome.runtime.getManifest().version});
+            if(j?.ok&&j.data?.signed_in&&j.data?.token){
+                token=j.data.token;accountUser=j.data.user||null;
+                await chrome.storage.local.set({annotatedToken:token});
+                return accountUser;
+            }
+        }catch{}
+    }
+    return null;
+}
 async function finishExtensionAuth(j){
-    token=j.data.token;await chrome.storage.local.set({annotatedToken:token});authClose();$('#status').textContent='Signed in';
-    await loadMe();await loadPage();await loadNotifications();
+    token=j.data.token;accountUser=j.data.user||null;
+    await chrome.storage.local.set({annotatedToken:token});
+    $('#authLoginPassword').value='';$('#authRegisterPassword').value='';$('#authRegisterConfirm').value='';
+    await loadMe(true);
 }
 async function submitExtensionLogin(e){
     e.preventDefault();const button=$('#authLoginSubmit');button.disabled=true;button.textContent='Logging in…';$('#authLoginError').hidden=true;
     try{
         await settings();
         const j=await api('/api/extension-account.php',{method:'POST',body:JSON.stringify({action:'login',identifier:$('#authLoginIdentifier').value.trim(),password:$('#authLoginPassword').value,client_version:chrome.runtime.getManifest().version})});
-        $('#authLoginPassword').value='';await finishExtensionAuth(j);
+        await finishExtensionAuth(j);
     }catch(err){authSetError('#authLoginError',err?.message||'Unable to log in.');}
     finally{button.disabled=false;button.textContent='Log in';}
 }
@@ -61,23 +157,29 @@ async function submitExtensionRegister(e){
     try{
         await settings();
         const j=await api('/api/extension-account.php',{method:'POST',body:JSON.stringify({action:'register',display_name:$('#authRegisterName').value.trim(),username:$('#authRegisterUsername').value.trim(),email:$('#authRegisterEmail').value.trim(),password:$('#authRegisterPassword').value,confirm_password:$('#authRegisterConfirm').value,client_version:chrome.runtime.getManifest().version})});
-        $('#authRegisterPassword').value='';$('#authRegisterConfirm').value='';await finishExtensionAuth(j);
+        await finishExtensionAuth(j);
     }catch(err){authSetError('#authRegisterError',err?.message||'Unable to create account.');}
     finally{button.disabled=false;button.textContent='Create account';}
 }
 async function extensionLogout(){
     try{await api('/api/extension-account.php',{method:'POST',body:JSON.stringify({action:'logout'})});}catch{}
-    token='';await chrome.storage.local.remove('annotatedToken');$('#status').textContent='Not signed in';$('#connect').textContent='Log in';authClose();
+    token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');
+    $('#status').textContent='Not signed in';$('#connect').textContent='Log in';
+    await loadLandingPage(true);
 }
-async function connect(){if(token){await extensionLogout();return;}authShow('chooser');}
-async function loadMe(){
+async function connect(){if(token){showAccount(accountUser);return;}authShow('chooser');}
+async function loadMe(showAccountView=false){
     if(!token){$('#status').textContent='Not signed in';$('#connect').textContent='Log in';return false;}
     try{
-        const j=await api('/api/extension.php?action=me');$('#status').textContent='@'+j.data.user.username;$('#connect').textContent='Sign out';
-        $('#presence').value=j.data.user.live_presence_mode||'cloaked';const dv=j.data.user.default_annotation_visibility;if(['public','team','private'].includes(dv))$('#visibility').value=dv;
-        await loadCaptureOptions();return true;
+        const j=await api('/api/extension.php?action=me');accountUser=j.data.user;
+        $('#status').textContent='@'+j.data.user.username;$('#connect').textContent='Account';
+        $('#presence').value=j.data.user.live_presence_mode||'cloaked';
+        const dv=j.data.user.default_annotation_visibility;if(['public','team','private'].includes(dv))$('#visibility').value=dv;
+        await loadCaptureOptions();
+        if(showAccountView)showAccount(accountUser);
+        return true;
     }catch{
-        token='';await chrome.storage.local.remove('annotatedToken');$('#status').textContent='Not signed in';$('#connect').textContent='Log in';return false;
+        token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');$('#status').textContent='Not signed in';$('#connect').textContent='Log in';return false;
     }
 }
 
