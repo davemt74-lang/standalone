@@ -22,7 +22,7 @@ $labels=['auto'=>'Automatic','available'=>'Available','away'=>'Away','busy'=>'Bu
   <form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>">
     <fieldset class="chatStatusChoices"><legend>Status</legend>
       <?php foreach([
-        'auto'=>['Automatic','Online while Annotated Team Chat is active; offline shortly after you leave.'],
+        'auto'=>['Automatic','Online while Annotated is active in this browser tab; offline shortly after you leave.'],
         'available'=>['Available','Show as available whenever this browser is actively connected.'],
         'away'=>['Away','Show an away indicator while connected.'],
         'busy'=>['Busy','Show that you are online but should not be interrupted.'],
