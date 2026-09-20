@@ -33,6 +33,13 @@ $workspaceHighlights=($workspaceRecord&&($workspaceRecord['status']??'')==='read
     <?php elseif($workspaceReady):?><p>This project currently contains <?=h((string)($workspaceCounts['claims']??0))?> claims, <?=h((string)($workspaceCounts['findings']??0))?> findings, and <?=h((string)($workspaceCounts['recent_source_changes']??0))?> recent source changes. The deterministic workspace below is current<?= $workspaceAiAvailable?' while the AI synthesis is '.h((string)($workspaceRecord['status']??'pending')):'; no Research/default AI model is configured, so no background model job is being queued' ?>.</p>
     <?php else:?><p>Research Workspace Intelligence requires the Phase 14 database upgrade.</p><?php endif?>
   </div>
+  <?php if(user_is_pro($pdo,$u)||($u['role']??'')==='admin'):?><div class="researchAgentQuickActions" aria-label="Agent research actions">
+    <button type="button" data-research-agent-prompt="Summarize the strongest supported evidence and findings in this Research project. Distinguish evidence from inference.">Summarize</button>
+    <button type="button" data-research-agent-prompt="Investigate the highest-priority research gaps in this project. Tell me what evidence is missing and what should be checked next.">Investigate gaps</button>
+    <button type="button" data-research-agent-prompt="Compare the conflicting or disputed claims in this project and explain what evidence would resolve them.">Compare conflicts</button>
+    <?php if($canWrite):?><button type="button" data-research-agent-prompt="Review the current Research gaps and propose the most useful follow-up tasks. Do not execute anything without my confirmation.">Propose tasks</button>
+    <button type="button" data-research-agent-prompt="Review the strongest supported Claims and propose a draft Finding if the evidence is sufficient. Do not create it without my confirmation.">Draft finding</button><?php endif?>
+  </div><?php endif?>
   <?php if($workspaceHighlights):?><div class="researchNowHighlights"><?php foreach(array_slice($workspaceHighlights,0,4) as $item):?><article><span><?=h(ucfirst((string)($item['priority']??'medium')))?></span><strong><?=h((string)$item['title'])?></strong><p><?=h((string)$item['detail'])?></p></article><?php endforeach?></div><?php endif?>
 </section>
 
@@ -66,7 +73,7 @@ $workspaceHighlights=($workspaceRecord&&($workspaceRecord['status']??'')==='read
 <?php if(user_is_pro($pdo,$u)||($u['role']??'')==='admin'):?>
 <section class="researchAgentPanel" data-research-agent-panel data-project="<?=h($project['public_id'])?>" data-csrf="<?=h(csrf_token())?>" hidden><header><div><span class="eyebrow">PROJECT AGENT</span><strong><?=h($project['title'])?></strong></div><div><button type="button" data-research-agent-new title="New chat">＋</button><button type="button" data-research-agent-close aria-label="Close Agent panel">×</button></div></header><div class="researchAgentMessages" data-research-agent-messages role="log" aria-live="polite"></div></section>
 <form class="researchAgentDock" data-research-agent-composer><button type="button" data-research-agent-context aria-label="Project context">◎</button><textarea rows="1" maxlength="12000" placeholder="Ask Annotated about this research project…" aria-label="Ask Annotated"></textarea><button type="submit" aria-label="Send to Agent">↑</button></form>
-<script src="/assets/js/research-agent.js?v=14.0"></script>
+<script src="/assets/js/research-agent.js?v=15.0"></script>
 <?php endif?>
-<script src="/assets/js/research-workspace.js?v=14.0"></script>
+<script src="/assets/js/research-workspace.js?v=15.0"></script>
 <?=annotation_ui_scripts($u)?></body></html>
