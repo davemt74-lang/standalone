@@ -9,6 +9,7 @@ $showDiscussion=(string)($_GET['comments']??'')==='1';
 $extraActions=[];
 if($viewer&&(int)$viewer['id']!==(int)$a['user_id'])$extraActions[]='<button type="button" id="followAuthor" data-user="'.h($a['author_public_id']).'">'.($a['is_following']?'Following':'Follow author').'</button>';
 if($viewer)$extraActions[]='<button type="button" id="followSource" data-source="'.h($a['source_public_id']).'">'.($a['source_following']?'Following source':'Follow source').'</button>';
+if($viewer&&((int)$viewer['id']===(int)$a['user_id']||($viewer['role']??'')==='admin')$extraActions[]='<button type="button" data-intelligence-refresh data-id="'.h($a['public_id']).'">Refresh intelligence</button>';
 $extraActionsHtml=implode('',$extraActions);
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($metaTitle)?> · Annotated</title><meta name="description" content="<?=h($desc)?>"><?php if(!$isPublic):?><meta name="robots" content="noindex,nofollow"><?php endif?><link rel="canonical" href="<?=h($canonical)?>">
 <?php if($isPublic):?><meta property="og:type" content="article"><meta property="og:title" content="<?=h($metaTitle)?> · Annotated"><meta property="og:description" content="<?=h($desc)?>"><meta property="og:url" content="<?=h($canonical)?>"><?php if($a['screenshot_url']):?><meta property="og:image" content="<?=h(public_discovery_absolute_url($config,$a['screenshot_url']))?>"><?php endif?><?php endif?><link rel="stylesheet" href="/assets/css/app.css"></head><body>
