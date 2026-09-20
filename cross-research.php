@@ -25,7 +25,7 @@ foreach($suggestions as $s){
     elseif($s['type']==='claim_overlap')$sections['claims'][]=$s;
     elseif($s['type']==='evidence_reuse')$sections['opportunities'][]=$s;
 }
-$relationTypes=cross_research_relation_types();
+$relationTypes=cross_research_relation_types();$projectRelationTypes=cross_research_project_relation_types();
 function cross_research_page_object_links(array $s): array {
     $out=[];$type=(string)$s['object_type'];$a=(string)$s['source_object_public_id'];$b=(string)$s['target_object_public_id'];
     if($type==='claim'){$out[]=['label'=>'Claim A','href'=>'/research-claim.php?id='.rawurlencode($a)];if($b!==$a)$out[]=['label'=>'Claim B','href'=>'/research-claim.php?id='.rawurlencode($b)];}
@@ -93,7 +93,7 @@ foreach($labels as $sectionKey=>$label):$items=$sections[$sectionKey];if(!$items
 <?php if($ready&&count($projects)>=2):?><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="action" value="project_link"><input type="hidden" name="project" value="<?=h($projectFilter)?>">
 <label>First project<select name="source_project" required><?php foreach($projects as $p):?><option value="<?=h((string)$p['public_id'])?>"><?=h((string)$p['title'])?></option><?php endforeach?></select></label>
 <label>Second project<select name="target_project" required><?php foreach($projects as $i=>$p):?><option value="<?=h((string)$p['public_id'])?>" <?=$i===1?'selected':''?>><?=h((string)$p['title'])?></option><?php endforeach?></select></label>
-<label>Relationship<select name="relation"><?php foreach($relationTypes as $key=>$labelText):?><option value="<?=h($key)?>"><?=h($labelText)?></option><?php endforeach?></select></label>
+<label>Relationship<select name="relation"><?php foreach($projectRelationTypes as $key=>$labelText):?><option value="<?=h($key)?>"><?=h($labelText)?></option><?php endforeach?></select></label>
 <label>Note<textarea name="rationale" rows="4" maxlength="1000" placeholder="Why these projects are related"></textarea></label><button>Add relationship</button></form><?php endif?></div>
 <div class="card"><h3>How Phase 19 works</h3><p class="meta">Suggestions are recalculated from current accessible Research. Rejected suggestions are private to you. Accepted links stay explicit, but disappear from your view immediately if you lose access to either project.</p></div>
 </aside>
