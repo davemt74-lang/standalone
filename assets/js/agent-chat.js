@@ -41,7 +41,7 @@
     feedScroll=window.scrollY||0;feed.hidden=true;canvas.hidden=false;document.body.classList.add('agentChatMode');input.placeholder='Message Annotated Agent…';saveState(true);window.scrollTo({top:0,behavior:'instant'});
   }
   function setModeFeed(){
-    canvas.hidden=true;feed.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
+    canvas.hidden=true;feed.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);const url=new URL(location.href);if(url.searchParams.has('agent')){url.searchParams.delete('agent');history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);}requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
   }
   function clearWelcome(){messages.querySelector('.agentChatWelcome')?.remove();}
   function renderAttachment(a){
