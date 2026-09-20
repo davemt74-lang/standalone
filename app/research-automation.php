@@ -225,12 +225,9 @@ function research_automation_source_refresh(PDO $pdo,array $project): string {
 }
 
 function research_automation_execute(PDO $pdo,array $config,array $run): array {
-    $q=$pdo->prepare("SELECT ra.*,rp.public_id project_public_id,rp.title project_title,c.public_id conversation_public_id,u.*
-      FROM research_automations ra JOIN research_projects rp ON rp.id=ra.project_id JOIN users u ON u.id=ra.user_id LEFT JOIN conversations c ON c.id=ra.conversation_id
-      WHERE ra.id=? LIMIT 1");$q->execute([$run['automation_id']]);$row=$q->fetch();if(!$row)throw new RuntimeException('Automation no longer exists.');
-    $viewer=[];foreach($row as $k=>$v)$viewer[$k]=$v;
-    $uq=$pdo->prepare('SELECT * FROM users WHERE id=? AND status=\'active\' LIMIT 1');$uq->execute([$run['user_id']]);$viewer=$uq->fetch();if(!$viewer)return ['status'=>'skipped','output'=>'Automation owner is no longer active.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
-    $automation=research_automation_access($pdo,$viewer,(string)$row['public_id']);if(!$automation||$automation['status']!=='active')return ['status'=>'skipped','output'=>'Automation is paused, archived, or no longer accessible.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
+    $aq=$pdo->prepare("SELECT ra.public_id FROM research_automations ra WHERE ra.id=? LIMIT 1");$aq->execute([$run['automation_id']]);$automationPublic=(string)($aq->fetchColumn()?:'');if($automationPublic==='')throw new RuntimeException('Automation no longer exists.');
+    $uq=$pdo->prepare("SELECT * FROM users WHERE id=? AND status='active' LIMIT 1");$uq->execute([$run['user_id']]);$viewer=$uq->fetch();if(!$viewer)return ['status'=>'skipped','output'=>'Automation owner is no longer active.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
+    $automation=research_automation_access($pdo,$viewer,$automationPublic);if(!$automation||$automation['status']!=='active')return ['status'=>'skipped','output'=>'Automation is paused, archived, or no longer accessible.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
     $project=research_automation_project($pdo,$viewer,(string)$automation['project_public_id'],(string)$automation['workflow_type']);
     $inputHash=function_exists('research_workspace_input_hash')?research_workspace_input_hash($pdo,(int)$project['id']):hash('sha256',$project['updated_at']??$project['public_id']);
     if($automation['workflow_type']!=='source_refresh'&&$run['trigger_type']==='schedule'){
