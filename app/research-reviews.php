@@ -158,7 +158,9 @@ function research_review_cancel(PDO $pdo,array $viewer,string $publicId): bool {
 
 function research_review_restart(PDO $pdo,array $viewer,string $publicId,?string $dueAt=null): array {
     $review=research_review_access($pdo,$viewer,$publicId);if(!$review)throw new RuntimeException('Review is unavailable.');if(!research_review_can_manage($viewer,$review))throw new RuntimeException('You cannot restart this review.');
-    $assignments=research_review_assignments($pdo,$review);$ids=array_map(fn($a)=>(int)$a['reviewer_user_id'],$assignments);$new=research_review_create($pdo,$viewer,(string)$review['subject_type'],(string)$review['subject_public_id'],$ids,$dueAt,(string)($review['instructions']??''));
+    $assignments=research_review_assignments($pdo,$review);$ids=array_map(fn($a)=>(int)$a['reviewer_user_id'],$assignments);$subjectPublic=(string)$review['subject_public_id'];
+    if($review['subject_type']==='report_version'&&!empty($review['subject']['current_version_id'])&&(int)$review['subject']['current_version_id']!==(int)($review['subject']['version_id']??0)){$q=$pdo->prepare('SELECT public_id FROM research_report_versions WHERE id=? LIMIT 1');$q->execute([(int)$review['subject']['current_version_id']]);$latest=(string)($q->fetchColumn()?:'');if($latest!=='')$subjectPublic=$latest;}
+    $new=research_review_create($pdo,$viewer,(string)$review['subject_type'],$subjectPublic,$ids,$dueAt,(string)($review['instructions']??''));
     if($review['status']==='open'){$pdo->prepare("UPDATE research_reviews SET status='cancelled',cancelled_at=NOW(),updated_at=NOW() WHERE id=? AND status='open'")->execute([$review['id']]);research_review_event($pdo,(int)$review['id'],'superseded',(int)$viewer['id'],['new_review_public_id'=>$new['public_id']]);}
     research_review_event($pdo,(int)$new['id'],'restarted_from',(int)$viewer['id'],['previous_review_public_id'=>$review['public_id']]);return $new;
 }
