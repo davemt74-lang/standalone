@@ -1,10 +1,12 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/annotation-ui.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/annotation-ui.php';require_once __DIR__.'/app/cognitive-feed-ui.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
 
-$feed=feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations'];
 $conversationReady=conversation_runtime_ready($pdo);$chatTeams=$conversationReady?conversation_team_list($pdo,$u):[];$preferredTeam=trim((string)($_GET['team']??''));$chatStatus=conversation_presence_ready($pdo)?conversation_status_get($pdo,(int)$u['id']):['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
+$cognitiveReady=cognitive_feed_ready($pdo);$requestedFeedMode=strtolower(trim((string)($_GET['view']??'')));$feedMode=in_array($requestedFeedMode,['cognitive','latest'],true)?$requestedFeedMode:cognitive_feed_mode_get($pdo,$u);if(!$cognitiveReady)$feedMode='latest';
+$cognitiveFeed=$feedMode==='cognitive'?cognitive_feed_compose($pdo,$u,$chatTeams,4,28):['ready'=>$cognitiveReady,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+$feed=$feedMode==='latest'?feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations']:[];
 
 $q=$pdo->prepare("SELECT u.username,u.display_name,u.profile_image_url,u.bio,(SELECT COUNT(*) FROM annotations a WHERE a.user_id=u.id AND a.visibility='public' AND a.status='published') annotation_count FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.id<>? AND u.status='active' AND COALESCE(p.profile_visibility,'public')='public' AND COALESCE(p.search_visibility,1)=1 AND NOT EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=u.id) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=u.id) OR (b.blocker_user_id=u.id AND b.blocked_user_id=?)) ORDER BY annotation_count DESC,u.created_at DESC LIMIT 5");
 $q->execute([$u['id'],$u['id'],$u['id'],$u['id']]);$people=$q->fetchAll();
@@ -15,9 +17,25 @@ $q->execute([$u['id']]);$teams=$q->fetchAll();
 $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
 $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'following_count'=>0,'annotation_count'=>0];
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage">
-<main class="layout"><section id="homeFeedCanvas" data-home-feed-canvas>
-<?php if(!$feed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations and captures from people or sources you follow will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
-<?php foreach($feed as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?>
+<main class="layout"><section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
+<div class="homeFeedModeBar" data-cognitive-feed data-csrf="<?=h(csrf_token())?>">
+  <nav class="homeFeedModeTabs" aria-label="Home feed view">
+    <a href="/home.php?view=cognitive" data-cognitive-mode="cognitive" class="<?=$feedMode==='cognitive'?'active':''?>" <?=$feedMode==='cognitive'?'aria-current="page"':''?>>Now</a>
+    <a href="/home.php?view=latest" data-cognitive-mode="latest" class="<?=$feedMode==='latest'?'active':''?>" <?=$feedMode==='latest'?'aria-current="page"':''?>>Latest</a>
+  </nav>
+  <div class="homeFeedModeActions">
+    <?php if($feedMode==='cognitive'&&($cognitiveFeed['hidden_count']??0)>0):?><button type="button" data-cognitive-restore-all>Show hidden (<?=h((string)$cognitiveFeed['hidden_count'])?>)</button><?php endif?>
+    <button type="button" data-cognitive-refresh>Refresh</button>
+  </div>
+</div>
+<?php if(!$cognitiveReady):?><div class="card empty cognitiveUpgradeCard"><h2>Cognitive Feed needs the Phase 16 database upgrade.</h2><p>The chronological Latest feed remains available until migration 023 is installed.</p><?php if(($u['role']??'')==='admin'):?><a class="button secondary" href="/upgrade.php">Run database upgrade</a><?php endif?></div><?php endif?>
+<?php if($feedMode==='cognitive'):?>
+  <details class="cognitiveRankingNote"><summary>How Now is ranked</summary><p><?=h((string)($cognitiveFeed['ranking']??''))?></p></details>
+  <?php if(!($cognitiveFeed['sections']??[])):?><div class="card empty cognitiveCaughtUp"><h2>You’re caught up.</h2><p>No unresolved Research, source, Team, or Agent items need priority right now.</p><a class="button secondary" href="/home.php?view=latest">See latest annotations</a></div><?php else:?><?=cognitive_feed_ui_sections($cognitiveFeed)?><?php endif?>
+<?php else:?>
+  <?php if(!$feed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations and captures from people or sources you follow will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
+  <?php foreach($feed as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?>
+<?php endif?>
 </section>
 <section class="agentChatCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" hidden>
   <header class="agentChatCanvasHeader">
