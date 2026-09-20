@@ -42,7 +42,8 @@ function living_research_reader_state(PDO $pdo,array $viewer,array $report): arr
 }
 
 function living_research_mark_read(PDO $pdo,array $viewer,array $report,int $versionId): void {
-    if(!living_research_ready($pdo)||$versionId<=0)return;$q=$pdo->prepare('SELECT report_id FROM research_report_versions WHERE id=? LIMIT 1');$q->execute([$versionId]);if((int)$q->fetchColumn()!==(int)$report['id'])throw new RuntimeException('Report version does not belong to this report.');
+    if(!living_research_ready($pdo)||$versionId<=0)return;$q=$pdo->prepare('SELECT report_id,version_number FROM research_report_versions WHERE id=? LIMIT 1');$q->execute([$versionId]);$target=$q->fetch();if(!$target||(int)$target['report_id']!==(int)$report['id'])throw new RuntimeException('Report version does not belong to this report.');
+    $state=living_research_reader_state($pdo,$viewer,$report);if($state['last_read_version_number']!==null&&(int)$state['last_read_version_number']>(int)$target['version_number'])return;
     $pdo->prepare("INSERT INTO research_report_reader_state(user_id,report_id,last_read_version_id,last_read_at) VALUES(?,?,?,NOW()) ON DUPLICATE KEY UPDATE last_read_version_id=VALUES(last_read_version_id),last_read_at=NOW(),updated_at=NOW()")->execute([$viewer['id'],$report['id'],$versionId]);
 }
 
