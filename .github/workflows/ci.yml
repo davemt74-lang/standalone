@@ -165,6 +165,12 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase14-research-workspace-db.php
+      - name: Phase 15 Agent-Driven Research MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase15-agent-driven-research-db.php
 
 
   mysql8-fresh-install:
