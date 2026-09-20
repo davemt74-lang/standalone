@@ -129,6 +129,22 @@ function agent_action_message_proposals(PDO $pdo,array $viewer,int $messageId): 
     $q->execute([$messageId,$viewer['id']]);$out=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$r=agent_action_proposal_row($pdo,$viewer,(string)$id);if($r)$out[]=$r;}return $out;
 }
 
+function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $project,string $capability,array $args): bool {
+    $projectId=(int)$project['id'];
+    if($capability==='research.attach_annotation_evidence'){
+        if(!agent_action_claim_row($pdo,$projectId,(string)$args['claim_id']))return false;
+        return annotation_access($pdo,(string)$args['annotation_id'],$viewer)!==null;
+    }
+    if($capability==='research.create_finding'){
+        foreach((array)$args['claim_ids'] as $id)if(!agent_action_claim_row($pdo,$projectId,(string)$id))return false;
+        return true;
+    }
+    if($capability==='research.link_claims'){
+        return agent_action_claim_row($pdo,$projectId,(string)$args['source_claim_id'])!==null&&agent_action_claim_row($pdo,$projectId,(string)$args['target_claim_id'])!==null;
+    }
+    return true;
+}
+
 function agent_action_create_proposals(PDO $pdo,array $viewer,array $conversation,int $assistantMessageId,array $context,array $rawActions,array $refs): array {
     if(!agent_actions_ready($pdo)||!$rawActions)return [];$capabilities=agent_action_capabilities();$projects=agent_action_project_map($pdo,$viewer,$context);if(!$projects)return [];
     $out=[];
@@ -137,6 +153,7 @@ function agent_action_create_proposals(PDO $pdo,array $viewer,array $conversatio
         $projectPublic=trim((string)($raw['project_id']??''));if($projectPublic===''&&count($projects)===1)$projectPublic=(string)array_key_first($projects);
         $project=$projects[$projectPublic]??null;if(!$project||!project_can_write($project))continue;
         try{$args=agent_action_clean_arguments($cap,is_array($raw['arguments']??null)?$raw['arguments']:[]);}catch(Throwable $e){continue;}
+        if(!agent_action_validate_project_arguments($pdo,$viewer,$project,$cap,$args))continue;
         $hash=research_workspace_input_hash($pdo,(int)$project['id']);$argsJson=json_encode($args,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
         $provenance=['refs'=>$refs,'conversation_id'=>$conversation['public_id'],'assistant_message_id'=>$assistantMessageId,'project_id'=>$projectPublic];
         $dedupe=hash('sha256',$viewer['id'].'|'.$conversation['id'].'|'.$assistantMessageId.'|'.$project['id'].'|'.$cap.'|'.$argsJson);
