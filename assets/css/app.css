@@ -282,3 +282,15 @@
 .stickyReviewRail{position:sticky;top:92px}.reviewGovernance pre{white-space:pre-wrap;overflow:auto;max-height:420px}
 @media(max-width:980px){.reviewCenterLayout{grid-template-columns:1fr}.stickyReviewRail{position:static}.reviewMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:620px){.reviewCenterLayout{padding:14px}.reviewHeader{display:grid}.reviewMetrics,.reviewMetrics.compact{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Phase 22 — Change Impact & Staleness Intelligence */
+.impactCenterLayout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;max-width:1500px;margin:0 auto;padding:24px}
+.impactPortfolio,.impactObjectList{display:grid;gap:14px}.impactProjectSummary,.impactSourceHeader,.impactProjectBlock{scroll-margin-top:90px}
+.impactProjectHeader,.impactObjectHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.impactProjectHeader h2,.impactObjectHeader h4{margin:4px 0}
+.impactMetrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:14px 0}.impactMetrics span{padding:9px 10px;border:1px solid var(--border,#e5e7eb);border-radius:10px;font-size:.82rem}.impactMetrics strong{display:block;font-size:1.05rem}
+.impactEventLink{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border,#e5e7eb);text-decoration:none}.impactEventLink small{display:block;margin-top:3px}
+.impactProjectBlock{margin-top:26px}.impactBadges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}.impactObject blockquote{margin:10px 0;padding:10px 12px;border-left:3px solid currentColor;background:rgba(127,127,127,.06)}
+.impactDecisionForm{display:grid;grid-template-columns:auto minmax(150px,220px) 1fr minmax(160px,220px) auto;gap:10px;align-items:end}.impactDecisionForm>strong{align-self:center}.impactDecisionForm label{display:grid;gap:5px;font-size:.78rem}.impactDecisionForm.compact{grid-template-columns:minmax(160px,220px) 1fr auto;margin-top:12px;padding:0;border:0;background:transparent;box-shadow:none}
+.impactNeedsReview{border-width:2px}.impactReviewed{opacity:.88}.stickyImpactRail{position:sticky;top:92px}
+@media(max-width:1000px){.impactCenterLayout{grid-template-columns:1fr}.stickyImpactRail{position:static}.impactMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}.impactDecisionForm{grid-template-columns:1fr 1fr}.impactDecisionForm>strong,.impactDecisionForm button{grid-column:1/-1}}
+@media(max-width:620px){.impactCenterLayout{padding:14px}.impactProjectHeader,.impactObjectHeader{display:grid}.impactMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.impactDecisionForm,.impactDecisionForm.compact{grid-template-columns:1fr}}
