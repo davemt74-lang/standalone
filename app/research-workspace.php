@@ -153,7 +153,8 @@ function research_workspace_queue(PDO $pdo,int $projectId,int $priority=5): bool
         if(($job['status']??'')==='queued')$obsolete[]=(int)$job['id'];
     }
     if($obsolete){$ph=implode(',',array_fill(0,count($obsolete),'?'));$pdo->prepare("UPDATE ai_jobs SET status='blocked',last_error='Superseded by newer Research workspace state.',completed_at=NOW() WHERE id IN ($ph) AND status='queued'")->execute($obsolete);}
-    if(!$matching)ai_queue_job($pdo,null,'research_workspace_intelligence',null,'research_project',(string)$project['public_id'],['input_hash'=>$hash],$priority);
+    if($matching)return false;
+    ai_queue_job($pdo,null,'research_workspace_intelligence',null,'research_project',(string)$project['public_id'],['input_hash'=>$hash],$priority);
     return true;
 }
 
