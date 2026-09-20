@@ -95,6 +95,8 @@ function cognitive_feed_dismiss(PDO $pdo,array $viewer,string $key,string $type)
     $key=strtolower(trim($key));if(!preg_match('/^[a-f0-9]{64}$/',$key))throw new InvalidArgumentException('Invalid cognitive feed item.');
     $type=mb_substr(trim($type),0,64);if($type==='')$type='observation';
     $pdo->prepare('INSERT INTO cognitive_feed_dismissals(user_id,observation_key,observation_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE observation_type=VALUES(observation_type),dismissed_at=NOW()')->execute([$viewer['id'],$key,$type]);
+    $q=$pdo->prepare('SELECT COUNT(*) FROM cognitive_feed_dismissals WHERE user_id=?');$q->execute([$viewer['id']]);$excess=max(0,(int)$q->fetchColumn()-500);
+    if($excess>0)$pdo->prepare("DELETE FROM cognitive_feed_dismissals WHERE user_id=? ORDER BY dismissed_at ASC LIMIT $excess")->execute([$viewer['id']]);
 }
 
 function cognitive_feed_restore(PDO $pdo,array $viewer,string $key): bool {
@@ -193,6 +195,7 @@ function cognitive_feed_collect_watched_source_changes(PDO $pdo,array $viewer,ar
       ORDER BY sce.id DESC LIMIT 12";
     $q=$pdo->prepare($sql);$q->execute([$viewer['id']]);
     foreach($q->fetchAll() as $row){
+        if(!source_access($pdo,(string)$row['source_public_id'],$viewer))continue;
         $priority=((bool)$row['target_changed']||(int)$row['affected_annotation_count']>0)?'high':'medium';
         $title=(string)($row['title']?:$row['domain']?:'A watched source');
         $body=trim((string)($row['diff_summary']??''));if($body==='')$body='This watched source was '.str_replace('_',' ',(string)($row['impact_type']?:$row['change_type'])).'.';
@@ -234,7 +237,8 @@ function cognitive_feed_collect_recent_agent_results(PDO $pdo,array $viewer,arra
 
 function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $project,array &$items): void {
     if(!research_workspace_ready($pdo))return;$projectId=(int)$project['id'];$projectPublic=(string)$project['public_id'];$projectTitle=(string)$project['title'];$writable=cognitive_feed_project_writable($project);
-    $context=[['type'=>'research','public_id'=>$projectPublic]];$snapshot=research_workspace_deterministic_snapshot($pdo,$projectId);
+    $context=[['type'=>'research','public_id'=>$projectPublic]];$snapshot=research_workspace_deterministic_snapshot($pdo,$projectId);$claimUpdated=[];
+    foreach((array)($snapshot['claims']??[]) as $claimRow)if(!empty($claimRow['public_id']))$claimUpdated[(string)$claimRow['public_id']]=(string)($claimRow['updated_at']??$project['updated_at']??'');
 
     foreach(array_slice((array)($snapshot['gaps']??[]),0,5) as $gap){
         $claim=(string)($gap['claim_id']??'');$detail=(string)($gap['detail']??'');$priority=(string)($gap['priority']??'medium');
@@ -244,7 +248,7 @@ function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $p
         if($writable)$actions[]=cognitive_feed_action_agent('Propose task','Review this Research gap and propose a bounded follow-up task. Do not execute anything without my confirmation.',$context);
         cognitive_feed_add($items,[
           'key'=>cognitive_feed_key('research_gap','claim',$claim!==''?$claim:$projectPublic,$revision),
-          'type'=>'research_gap','section'=>'needs_attention','priority'=>$priority,'created_at'=>$project['updated_at']??null,
+          'type'=>'research_gap','section'=>'needs_attention','priority'=>$priority,'created_at'=>$claimUpdated[$claim]??($project['updated_at']??null),
           'title'=>(string)($gap['title']??'Research gap in '.$projectTitle),
           'body'=>$detail,'meta'=>['project'=>$projectTitle],'actions'=>$actions
         ]);
@@ -257,7 +261,7 @@ function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $p
         if($claim!=='')array_unshift($actions,cognitive_feed_action_link('Open claim','/research-claim.php?id='.rawurlencode($claim)));
         cognitive_feed_add($items,[
           'key'=>cognitive_feed_key('research_conflict','claim',$claim!==''?$claim:$projectPublic,$revision),
-          'type'=>'research_conflict','section'=>'needs_attention','priority'=>$priority,'created_at'=>$project['updated_at']??null,
+          'type'=>'research_conflict','section'=>'needs_attention','priority'=>$priority,'created_at'=>$claimUpdated[$claim]??($project['updated_at']??null),
           'title'=>(string)($conflict['title']??'Conflicting Research evidence'),
           'body'=>$detail,'meta'=>['project'=>$projectTitle],'actions'=>$actions
         ]);
@@ -390,7 +394,7 @@ function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $p
 }
 
 function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): void {
-    foreach(cognitive_feed_projects($pdo,$viewer,8) as $project)cognitive_feed_collect_project_research($pdo,$viewer,$project,$items);
+    foreach(cognitive_feed_projects($pdo,$viewer,6) as $project)cognitive_feed_collect_project_research($pdo,$viewer,$project,$items);
 }
 
 
