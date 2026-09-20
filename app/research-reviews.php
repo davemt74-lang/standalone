@@ -211,3 +211,7 @@ function research_review_cognitive_observations(PDO $pdo,array $viewer,array &$i
 function research_review_digest(PDO $pdo,array $viewer,string $projectPublic): string {
     $s=research_review_project_summary($pdo,$viewer,$projectPublic);$lines=['Collaborative review digest.','Open: '.$s['open'].'. Assigned to you: '.$s['assigned_to_me'].'. Changes requested: '.$s['changes_requested'].'. Unresolved objections: '.$s['unresolved_objections'].'. Overdue: '.$s['overdue'].'. Stale: '.$s['stale'].'.'];foreach(array_slice($s['items'],0,15) as $i)$lines[]='- '.$i['title'].' · '.str_replace('_',' ',$i['consensus']).($i['is_stale']?' · stale':'').($i['due_at']?' · due '.$i['due_at']:'');return implode("\n",$lines);
 }
+function research_review_input_hash(PDO $pdo,array $viewer,string $projectPublic): string {
+    $s=research_review_project_summary($pdo,$viewer,$projectPublic);return hash('sha256',json_encode($s,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+}
+
