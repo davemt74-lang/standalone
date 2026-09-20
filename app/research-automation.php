@@ -14,6 +14,7 @@ function research_automation_workflows(): array {
       'briefing'=>['label'=>'Research Briefing','description'=>'Generate a read-only evidence-aware project briefing.','requires_ai'=>true,'requires_write'=>false],
       'review'=>['label'=>'Research Review','description'=>'Review the project and optionally prepare Stage 15 action proposals for confirmation.','requires_ai'=>true,'requires_write'=>true],
       'source_refresh'=>['label'=>'Source Refresh','description'=>'Queue the project sources through the existing Source Monitor.','requires_ai'=>false,'requires_write'=>true],
+      'cross_research_review'=>['label'=>'Cross-Research Review','description'=>'Review explainable relationships between this project and other accessible Research.','requires_ai'=>false,'requires_write'=>false],
     ];
 }
 
@@ -84,7 +85,7 @@ function research_automation_create(PDO $pdo,array $viewer,array $input): array 
     $prompt=mb_substr(trim((string)($input['prompt']??'')),0,4000);
     if($workflow==='briefing'&&$prompt==='')$prompt='Summarize meaningful changes, conflicting evidence, unresolved gaps, source risks, and the most useful next questions in this Research project.';
     if($workflow==='review'&&$prompt==='')$prompt='Review the current Research project for meaningful gaps, conflicts, weak evidence, and useful next actions. Propose bounded Research writes only when they would materially help.';
-    if($workflow==='source_refresh')$prompt='';
+    if(in_array($workflow,['source_refresh','cross_research_review'],true))$prompt='';
     $watch=null;if($trigger==='watch_alert'){$watch=research_automation_watch($pdo,$viewer,(string)($input['watch_id']??''));$cadence='manual';}
     $next=$trigger==='schedule'?research_automation_next_run($cadence,$timezone,$runTime,$weekday):null;$public=ulid_like();
     $pdo->prepare("INSERT INTO research_automations(public_id,user_id,project_id,watch_id,title,workflow_type,trigger_type,cadence,timezone_name,run_time_local,weekday,prompt,status,next_run_at)
@@ -119,7 +120,7 @@ function research_automation_update(PDO $pdo,array $viewer,string $publicId,arra
     $cadence=strtolower(trim((string)($input['cadence']??$current['cadence'])));if(!isset(research_automation_cadences()[$cadence]))$cadence='daily';
     $timezone=trim((string)($input['timezone_name']??$current['timezone_name']));research_automation_timezone($timezone);
     $runTime=research_automation_time((string)($input['run_time_local']??$current['run_time_local']??'09:00'));$weekday=max(0,min(6,(int)($input['weekday']??$current['weekday']??1)));
-    $prompt=mb_substr(trim((string)($input['prompt']??$current['prompt']??'')),0,4000);if($workflow==='source_refresh')$prompt='';
+    $prompt=mb_substr(trim((string)($input['prompt']??$current['prompt']??'')),0,4000);if(in_array($workflow,['source_refresh','cross_research_review'],true))$prompt='';
     $watch=null;if($trigger==='watch_alert'){$watch=research_automation_watch($pdo,$viewer,(string)($input['watch_id']??$current['watch_public_id']??''));$cadence='manual';}
     $next=$trigger==='schedule'?research_automation_next_run($cadence,$timezone,$runTime,$weekday):null;
     $pdo->prepare("UPDATE research_automations SET project_id=?,watch_id=?,title=?,workflow_type=?,trigger_type=?,cadence=?,timezone_name=?,run_time_local=?,weekday=?,prompt=?,next_run_at=?,updated_at=NOW() WHERE id=? AND user_id=?")
@@ -233,13 +234,21 @@ function research_automation_execute(PDO $pdo,array $config,array $run): array {
     $uq=$pdo->prepare("SELECT * FROM users WHERE id=? AND status='active' LIMIT 1");$uq->execute([$run['user_id']]);$viewer=$uq->fetch();if(!$viewer)return ['status'=>'skipped','output'=>'Automation owner is no longer active.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
     $automation=research_automation_access($pdo,$viewer,$automationPublic);if(!$automation||$automation['status']==='archived'||($run['trigger_type']!=='manual'&&$automation['status']!=='active'))return ['status'=>'skipped','output'=>'Automation is paused, archived, or no longer accessible for this trigger.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
     $project=research_automation_project($pdo,$viewer,(string)$automation['project_public_id'],(string)$automation['workflow_type']);
-    $inputHash=function_exists('research_workspace_input_hash')?research_workspace_input_hash($pdo,(int)$project['id']):hash('sha256',$project['updated_at']??$project['public_id']);
+    $inputHash=$automation['workflow_type']==='cross_research_review'&&function_exists('cross_research_input_hash')?cross_research_input_hash($pdo,$viewer,(string)$automation['project_public_id']):(function_exists('research_workspace_input_hash')?research_workspace_input_hash($pdo,(int)$project['id']):hash('sha256',$project['updated_at']??$project['public_id']));
     if($automation['workflow_type']!=='source_refresh'&&$run['trigger_type']==='schedule'){
         $previous=research_automation_previous_hash($pdo,(int)$automation['id']);
         if($previous!==null&&hash_equals($previous,$inputHash))return ['status'=>'skipped','output'=>'No Research state changes since the previous completed run.','proposals'=>0,'conversation'=>$automation['conversation_public_id']??null,'ai_run'=>null,'input_hash'=>$inputHash];
     }
     if($automation['workflow_type']==='source_refresh'){
         $output=research_automation_source_refresh($pdo,$project);return ['status'=>'completed','output'=>$output,'proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>$inputHash];
+    }
+    if($automation['workflow_type']==='cross_research_review'){
+        if(!function_exists('cross_research_context')||!cross_research_ready($pdo))throw new RuntimeException('Cross-Research Intelligence is unavailable.');
+        $cross=cross_research_context($pdo,$viewer,(string)$automation['project_public_id'],20);$lines=['Cross-Research review for '.$project['title'].'.'];
+        if(empty($cross['suggestions']))$lines[]='No undecided explainable Cross-Research suggestions are currently available.';
+        else foreach(array_slice((array)$cross['suggestions'],0,12) as $s)$lines[]='- '.$s['title'].' · '.$s['source_project_title'].' ↔ '.$s['target_project_title'].' · '.implode(' ',$s['reasons']);
+        if(!empty($cross['links']))$lines[]='Accepted Cross-Research links: '.count($cross['links']).'.';
+        return ['status'=>'completed','output'=>implode("\n",$lines),'proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>$inputHash];
     }
 
     $context=agent_chat_context_normalize($pdo,$viewer,[['type'=>'research','public_id'=>$automation['project_public_id']]]);if(!$context)throw new RuntimeException('Research project context is unavailable.');
