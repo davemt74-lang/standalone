@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/research-knowledge.php';require_once __DIR__.'/app/research-intelligence.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/research-knowledge.php';require_once __DIR__.'/app/research-intelligence.php';require_once __DIR__.'/app/research-workspace.php';
 $u=require_user($pdo);$id=(string)($_GET['id']??$_POST['id']??'');$project=project_access($pdo,(int)$u['id'],$id);if(!$project){http_response_code(404);exit('Research project not found.');}$canWrite=project_can_write($project);$success='';$error='';
 if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$op=(string)($_POST['op']??'');try{
     if(!$canWrite)throw new RuntimeException('You have view-only access to this project.');
@@ -11,6 +11,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$op=(string)($_POST['op']
         $pdo->prepare('INSERT INTO claim_relations(public_id,project_id,source_claim_id,target_claim_id,added_by_user_id,relation_type,note) VALUES(?,?,?,?,?,?,?)')->execute([ulid_like(),$project['id'],$source['id'],$target['id'],$u['id'],$type,trim((string)($_POST['note']??''))?:null]);$success='Claim relationship added.';
     }
     if($op==='remove_relation'){$pdo->prepare('DELETE FROM claim_relations WHERE public_id=? AND project_id=?')->execute([(string)($_POST['relation']??''),$project['id']]);$success='Claim relationship removed.';}
+    if($success!==''&&research_workspace_ready($pdo))research_workspace_queue($pdo,(int)$project['id'],3);
 }catch(Throwable $e){$error=$e->getMessage();}}
 $rows=research_project_graph_rows($pdo,(int)$project['id']);$q=$pdo->prepare('SELECT public_id,statement,status FROM research_claims WHERE project_id=? ORDER BY updated_at DESC');$q->execute([$project['id']]);$claims=$q->fetchAll();$counts=[];foreach($rows as $r)$counts[$r['relation_type']]=($counts[$r['relation_type']]??0)+1;
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claim Graph · <?=h($project['title'])?> · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><header class="topbar"><a class="brand" href="/home.php">Annotated</a><nav><a href="/research-knowledge.php?id=<?=h($project['public_id'])?>">Knowledge</a><a href="/research-brief.php?id=<?=h($project['public_id'])?>">Brief</a><a href="/research-timeline.php?id=<?=h($project['public_id'])?>">Timeline</a><a href="/research.php">Research</a></nav></header><main class="layout"><section><div class="pageTitle"><span class="eyebrow">CLAIM GRAPH · <?=h(strtoupper($project['access_role']))?></span><h1><?=h($project['title'])?></h1><p>Connect Claims explicitly so support, contradiction, dependency, refinement and contextual relationships are reviewable instead of hidden inside prose.</p></div><?php if($success):?><div class="success"><?=h($success)?></div><?php endif?><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>

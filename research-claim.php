@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/research-knowledge.php';require_once __DIR__.'/app/research-intelligence.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/research-knowledge.php';require_once __DIR__.'/app/research-intelligence.php';require_once __DIR__.'/app/research-workspace.php';
 $u=require_user($pdo);$id=(string)($_GET['id']??$_POST['id']??'');$claim=research_claim_access($pdo,$u,$id);if(!$claim){http_response_code(404);exit('Research claim not found.');}$canWrite=project_can_write($claim);$success='';$error='';
 if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$op=(string)($_POST['op']??'');try{
     if(!$canWrite)throw new RuntimeException('You have view-only access to this project.');
@@ -20,6 +20,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$op=(string)($_POST['op']
         $pdo->prepare('INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,annotation_id,source_version_id,relationship,note) VALUES(?,?,?,?,?,?,?,?)')->execute([ulid_like(),$claim['id'],$u['id'],$evidenceType,$annotationId,$versionId,$relationship,trim((string)($_POST['note']??''))?:null]);$success='Evidence attached to the exact captured Source Version.';
     }
     if($op==='remove_evidence'){$evidence=(string)($_POST['evidence']??'');$pdo->prepare('DELETE FROM claim_evidence WHERE public_id=? AND claim_id=?')->execute([$evidence,$claim['id']]);$success='Evidence removed.';}
+    if($success!==''&&research_workspace_ready($pdo))research_workspace_queue($pdo,(int)$claim['project_id'],3);
 }catch(Throwable $e){$error=$e->getMessage();}
 $claim=research_claim_access($pdo,$u,$id)??$claim;}
 $evidence=research_claim_evidence_rows($pdo,(int)$claim['id']);$relations=research_claim_relation_rows($pdo,(int)$claim['project_id'],(int)$claim['id']);
