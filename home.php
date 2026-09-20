@@ -71,6 +71,7 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
   <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
-<script src="/assets/js/agent-chat.js?v=12.1"></script>
+<script src="/assets/js/agent-chat.js?v=16.0"></script>
+<script src="/assets/js/cognitive-feed.js?v=16.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=12.0"></script><?php endif?>
 <?=annotation_ui_scripts($u)?></body></html>
