@@ -132,6 +132,7 @@ php worker/transcription-worker.php
 php worker/source-monitor-worker.php 5
 php worker/ai-worker.php 5
 php worker/saved-search-worker.php 50
+php bin/research-automations.php --limit=25
 ```
 
 Before every RC/production deploy, back up both MariaDB and `storage.private_root`, run the preflight command, apply pending migrations through `upgrade.php`, and verify Admin → System Health & Release. See the full runbook for rollback rules.
