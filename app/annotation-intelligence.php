@@ -38,6 +38,11 @@ function annotation_intelligence_input_hash(array $row): string {
     return hash('sha256',annotation_intelligence_text($row).'|'.(string)($row['source_version_id']??0));
 }
 
+function annotation_intelligence_has_analyzable_content(array $row): bool {
+    foreach(['text_commentary','selected_text','transcript_text','media_title'] as $key)if(trim((string)($row[$key]??''))!=='')return true;
+    return false;
+}
+
 function annotation_intelligence_terms(string $text): array {
     $text=mb_strtolower((string)preg_replace('/[^\pL\pN]+/u',' ',$text));
     $stop=array_flip(['the','and','that','this','with','from','have','has','for','are','was','were','but','not','you','your','they','their','its','into','about','would','could','should','will','can','than','then','when','where','what','which','who','why','how','our','out','all','any','some']);
@@ -92,16 +97,18 @@ function annotation_intelligence_seed_relationships(PDO $pdo,array $row): int {
 }
 
 function annotation_intelligence_queue(PDO $pdo,int $annotationId,?int $requestedByUserId=null,int $priority=5): bool {
-    if(!annotation_intelligence_ready($pdo))return false;$row=annotation_intelligence_source_row($pdo,$annotationId);if(!$row||$row['status']!=='published')return false;
+    if(!annotation_intelligence_ready($pdo))return false;$row=annotation_intelligence_source_row($pdo,$annotationId);if(!$row||$row['status']!=='published'||!annotation_intelligence_has_analyzable_content($row))return false;
     $hash=annotation_intelligence_input_hash($row);
     $q=$pdo->prepare('SELECT status,input_hash FROM annotation_intelligence WHERE annotation_id=?');$q->execute([$annotationId]);$existing=$q->fetch();
     if($existing&&$existing['status']==='ready'&&hash_equals((string)$existing['input_hash'],$hash))return false;
+    $changed=$existing&&!hash_equals((string)($existing['input_hash']??''),$hash);
+    if($changed)$pdo->prepare("DELETE FROM annotation_relationships WHERE (source_annotation_id=? OR target_annotation_id=?)")->execute([$annotationId,$annotationId]);
     $pdo->prepare("INSERT INTO annotation_intelligence(annotation_id,status,input_hash,queued_at,last_error)
       VALUES(?,'pending',?,NOW(),NULL)
       ON DUPLICATE KEY UPDATE status=IF(input_hash=VALUES(input_hash) AND status='processing','processing','pending'),input_hash=VALUES(input_hash),queued_at=NOW(),last_error=NULL")->execute([$annotationId,$hash]);
     annotation_intelligence_seed_relationships($pdo,$row);
     $q=$pdo->prepare("SELECT 1 FROM ai_jobs WHERE task_type='annotation_intelligence' AND object_type='annotation' AND object_public_id=? AND status IN ('queued','processing') LIMIT 1");$q->execute([$row['public_id']]);
-    if(!$q->fetchColumn())ai_queue_job($pdo,$requestedByUserId?:((int)$row['user_id']?:null),'annotation_intelligence',null,'annotation',(string)$row['public_id'],['input_hash'=>$hash],$priority);
+    if(!$q->fetchColumn())ai_queue_job($pdo,null,'annotation_intelligence',null,'annotation',(string)$row['public_id'],['input_hash'=>$hash],$priority);
     return true;
 }
 
