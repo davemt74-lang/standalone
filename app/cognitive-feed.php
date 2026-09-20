@@ -397,6 +397,7 @@ function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $p
 function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): void {
     foreach(cognitive_feed_projects($pdo,$viewer,6) as $project)cognitive_feed_collect_project_research($pdo,$viewer,$project,$items);
     if(function_exists('cross_research_ready')&&cross_research_ready($pdo))cross_research_cognitive_observations($pdo,$viewer,$items,14);
+    if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo))research_outcome_cognitive_observations($pdo,$viewer,$items,12);
 }
 
 
