@@ -79,3 +79,7 @@ body.auth-open>nav,body.auth-open>main,body.auth-open>.landingPanel{display:none
 .intelligenceClaims{display:grid;gap:6px}.intelligenceClaims>div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px}.intelligenceClaims p{margin:0;font-size:11px;line-height:1.4}.intelligenceClaimBadge{padding:2px 5px;border-radius:999px;font-size:9px;font-weight:800;text-transform:uppercase;background:#eee;color:#555}.intelligenceClaimBadge.explicit{background:#e8f4ea;color:#286637}.intelligenceClaimBadge.inferred{background:#f4efe2;color:#7a5b17}
 .intelligenceRelations{display:grid;gap:5px}.intelligenceRelations button{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 7px;width:100%;padding:7px;border:1px solid #ddd;border-radius:8px;background:#fff;text-align:left;color:inherit}.intelligenceRelations button span{font-size:9px;font-weight:800;text-transform:uppercase;color:#666}.intelligenceRelations button b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.intelligenceRelations button small{grid-column:2;font-size:9px;color:#888}
 .intelligenceIntegrity{display:flex;justify-content:space-between;gap:8px;margin-top:8px;padding:7px;border-radius:8px;background:#fff3df;font-size:10px}.intelligenceMeta{margin-top:9px;color:#888;font-size:9px;line-height:1.4}
+
+/* Phase 17 proactive notifications */
+.notificationWhy{margin:8px 0;padding:8px 10px;border:1px solid #e5e7eb;border-radius:9px;background:#fafafa;display:grid;gap:3px}
+.notificationWhy strong{font-size:11px}.notificationWhy span{font-size:12px;line-height:1.35}
