@@ -173,6 +173,8 @@ function annotation_intelligence_attach(PDO $pdo,array $annotation,?array $viewe
 function annotation_intelligence_context_text(PDO $pdo,string $annotationPublicId,?array $viewer): string {
     $access=annotation_access($pdo,$annotationPublicId,$viewer);if(!$access)return '';$record=annotation_intelligence_record($pdo,(int)$access['id']);if(!$record||($record['status']??'')!=='ready')return '';
     $lines=['Derived annotation intelligence (AI-assisted; captured evidence remains authoritative):','Summary: '.(string)$record['summary']];
+    $q=$pdo->prepare('SELECT a.source_version_id,s.current_version_id current_source_version_id FROM annotations a JOIN sources s ON s.id=a.source_id WHERE a.id=?');$q->execute([$access['id']]);$versions=$q->fetch();
+    if($versions){$integrity=source_integrity_annotation_state($pdo,['id'=>(int)$access['id'],'source_version_id'=>(int)$versions['source_version_id'],'current_source_version_id'=>(int)$versions['current_source_version_id']]);$label=(string)($integrity['label']??'');if($label!==''&&$label!=='Source unchanged')$lines[]='Source integrity: '.$label.(!empty($integrity['diff_summary'])?' — '.mb_substr((string)$integrity['diff_summary'],0,500):'');}
     if($record['topics'])$lines[]='Topics: '.implode(', ',array_map('strval',$record['topics']));
     if($record['entities'])$lines[]='Entities: '.implode(', ',array_map(fn($e)=>(string)($e['name']??''),$record['entities']));
     foreach(array_slice($record['claims'],0,6) as $claim)$lines[]='Claim ('.($claim['certainty']??'inferred').'): '.($claim['statement']??'');
