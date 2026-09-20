@@ -224,3 +224,165 @@ function cognitive_feed_collect_recent_agent_results(PDO $pdo,array $viewer,arra
         ]);
     }
 }
+
+
+function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $project,array &$items): void {
+    if(!research_workspace_ready($pdo))return;$projectId=(int)$project['id'];$projectPublic=(string)$project['public_id'];$projectTitle=(string)$project['title'];$writable=cognitive_feed_project_writable($project);
+    $context=[['type'=>'research','public_id'=>$projectPublic]];$snapshot=research_workspace_deterministic_snapshot($pdo,$projectId);
+
+    foreach(array_slice((array)($snapshot['gaps']??[]),0,5) as $gap){
+        $claim=(string)($gap['claim_id']??'');$detail=(string)($gap['detail']??'');$priority=(string)($gap['priority']??'medium');
+        $revision=hash('sha256',$detail.'|'.$priority);
+        $actions=[cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode($projectPublic)),cognitive_feed_action_agent('Investigate','Investigate this Research gap: '.$detail.' Explain what evidence is missing and what should be checked next.',$context)];
+        if($claim!=='')array_unshift($actions,cognitive_feed_action_link('Open claim','/research-claim.php?id='.rawurlencode($claim)));
+        if($writable)$actions[]=cognitive_feed_action_agent('Propose task','Review this Research gap and propose a bounded follow-up task. Do not execute anything without my confirmation.',$context);
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('research_gap','claim',$claim!==''?$claim:$projectPublic,$revision),
+          'type'=>'research_gap','section'=>'needs_attention','priority'=>$priority,'created_at'=>$project['updated_at']??null,
+          'title'=>(string)($gap['title']??'Research gap in '.$projectTitle),
+          'body'=>$detail,'meta'=>['project'=>$projectTitle],'actions'=>$actions
+        ]);
+    }
+
+    foreach(array_slice((array)($snapshot['conflicts']??[]),0,5) as $conflict){
+        $claim=(string)($conflict['claim_id']??'');$target=(string)($conflict['target_claim_id']??'');$detail=(string)($conflict['detail']??'');$priority=(string)($conflict['priority']??'high');
+        $revision=hash('sha256',$detail.'|'.$target.'|'.$priority);
+        $actions=[cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode($projectPublic)),cognitive_feed_action_agent('Compare evidence','Compare the conflicting evidence in this Research project and explain what would resolve the disagreement.',$context)];
+        if($claim!=='')array_unshift($actions,cognitive_feed_action_link('Open claim','/research-claim.php?id='.rawurlencode($claim)));
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('research_conflict','claim',$claim!==''?$claim:$projectPublic,$revision),
+          'type'=>'research_conflict','section'=>'needs_attention','priority'=>$priority,'created_at'=>$project['updated_at']??null,
+          'title'=>(string)($conflict['title']??'Conflicting Research evidence'),
+          'body'=>$detail,'meta'=>['project'=>$projectTitle],'actions'=>$actions
+        ]);
+    }
+
+    foreach(array_slice((array)($snapshot['source_risks']??[]),0,5) as $risk){
+        $source=(string)($risk['source_public_id']??'');if($source==='')continue;$changed=(string)($risk['last_change_at']??($project['updated_at']??''));
+        $body=trim((string)($risk['latest_diff']??''));if($body==='')$body='This project source changed after evidence was captured.';
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('source_change','source',$source,$changed),
+          'type'=>'source_change','section'=>'source_changed','priority'=>!empty($risk['target_changed'])?'high':'medium','created_at'=>$changed,
+          'score_extra'=>min(6,(int)($risk['affected_claims']??0)),
+          'title'=>'Project source changed: '.(string)($risk['title']?:$risk['domain']?:'Source'),'body'=>$body,
+          'meta'=>['project'=>$projectTitle,'affected_claims'=>(int)($risk['affected_claims']??0)],
+          'actions'=>[
+            cognitive_feed_action_link('Open source','/source.php?id='.rawurlencode($source)),
+            cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode($projectPublic)),
+            cognitive_feed_action_agent('Review impact','Review this changed source in the context of the Research project. Identify affected Claims or Findings and what should be re-verified.',$context)
+          ]
+        ]);
+    }
+
+    foreach(array_slice((array)($snapshot['next_actions']??[]),0,8) as $next){
+        $type=(string)($next['type']??'');if(!in_array($type,['create_finding','continue_tasks'],true))continue;
+        $section=$type==='create_finding'?'opportunities':'continue_researching';$obsType=$type==='create_finding'?'research_opportunity':'research_task';
+        $reason=(string)($next['reason']??$next['detail']??'');$title=(string)($next['title']??($type==='create_finding'?'Synthesize a finding':'Continue Research'));
+        $prompt=$type==='create_finding'?'Review the strongest supported Claims and propose a draft Finding if the evidence is sufficient. Do not create it without my confirmation.':'Review the open Research tasks and tell me the most useful one to continue next.';
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key($obsType,'project',$projectPublic,hash('sha256',$type.'|'.$reason)),
+          'type'=>$obsType,'section'=>$section,'priority'=>(string)($next['priority']??'medium'),'created_at'=>$project['updated_at']??null,
+          'title'=>$title,'body'=>$reason,'meta'=>['project'=>$projectTitle],
+          'actions'=>[
+            cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode($projectPublic)),
+            cognitive_feed_action_agent($type==='create_finding'?'Draft finding':'Ask Agent',$prompt,$context)
+          ]
+        ]);
+    }
+
+    $q=$pdo->prepare("SELECT public_id,title,description,task_type,status,due_at,updated_at FROM research_tasks
+      WHERE project_id=? AND status IN ('open','in_progress') AND (assigned_user_id IS NULL OR assigned_user_id=?)
+      ORDER BY (status='in_progress') DESC,(due_at IS NULL),due_at,updated_at DESC LIMIT 4");
+    $q->execute([$projectId,$viewer['id']]);
+    foreach($q->fetchAll() as $task){
+        $priority='medium';$extra=0;if(!empty($task['due_at'])&&strtotime((string)$task['due_at'])<time()){$priority='high';$extra=8;}elseif($task['status']==='in_progress')$extra=4;
+        $body=trim((string)($task['description']??''));if($body==='')$body='This Research task is '.str_replace('_',' ',(string)$task['status']).'.';
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('research_task','task',(string)$task['public_id'],(string)$task['updated_at']),
+          'type'=>'research_task','section'=>'continue_researching','priority'=>$priority,'created_at'=>$task['updated_at'],'score_extra'=>$extra,
+          'title'=>(string)$task['title'],'body'=>$body,'meta'=>['project'=>$projectTitle,'status'=>$task['status'],'due_at'=>$task['due_at']],
+          'actions'=>[
+            cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode($projectPublic).'#tasks'),
+            cognitive_feed_action_agent('Ask Agent','Help me continue this Research task: '.(string)$task['title'].'. Recommend the next concrete step using the current project evidence.',$context)
+          ]
+        ]);
+    }
+
+    $q=$pdo->prepare("SELECT pa.created_at added_at,a.id annotation_id,a.public_id annotation_public_id,a.text_commentary,s.title source_title,s.domain,u.display_name
+      FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id JOIN sources s ON s.id=a.source_id JOIN users u ON u.id=a.user_id
+      WHERE pa.project_id=? AND a.status='published' AND pa.created_at>=DATE_SUB(NOW(),INTERVAL 14 DAY)
+      ORDER BY pa.created_at DESC LIMIT 5");
+    $q->execute([$projectId]);
+    foreach($q->fetchAll() as $evidence){
+        $access=annotation_access($pdo,(string)$evidence['annotation_public_id'],$viewer);if(!$access)continue;
+        $body=trim((string)($evidence['text_commentary']??''));if($body==='')$body='Evidence from '.(string)($evidence['source_title']?:$evidence['domain']?:'a source').' was added to this project.';
+        $annotationContext=['type'=>'annotation','public_id'=>(string)$evidence['annotation_public_id']];
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('new_evidence','project_annotation',$projectPublic.':'.$evidence['annotation_public_id'],(string)$evidence['added_at']),
+          'type'=>'new_evidence','section'=>'new_evidence','priority'=>'medium','created_at'=>$evidence['added_at'],
+          'title'=>'New evidence in '.$projectTitle,'body'=>mb_substr($body,0,500),
+          'meta'=>['project'=>$projectTitle,'author'=>$evidence['display_name']],
+          'actions'=>[
+            cognitive_feed_action_link('Open annotation','/annotation.php?id='.rawurlencode((string)$evidence['annotation_public_id'])),
+            cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode($projectPublic)),
+            cognitive_feed_action_agent('Ask Agent','Explain how this annotation affects the current Research project and whether it changes any Claims or gaps.',[$context[0],$annotationContext])
+          ]
+        ]);
+    }
+
+    foreach(array_slice((array)($snapshot['annotation_links']??[]),0,10) as $link){
+        $rel=(string)($link['relation_type']??'related');$source=(string)($link['source_annotation_id']??'');$target=(string)($link['target_annotation_id']??'');if($source===''||$target==='')continue;
+        $isConflict=$rel==='conflicts';$section=$isConflict?'needs_attention':'related_research';$type=$isConflict?'related_conflict':'related_research';$priority=$isConflict?'high':'medium';
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key($type,'annotation_pair',$source.':'.$target,$rel),
+          'type'=>$type,'section'=>$section,'priority'=>$priority,'created_at'=>$project['updated_at']??null,'score_extra'=>(int)round(((float)($link['confidence']??0))*4),
+          'title'=>ucfirst($rel).' evidence in '.$projectTitle,
+          'body'=>(string)($link['source_title']?:'Annotation').' ↔ '.(string)($link['target_title']?:'Annotation'),
+          'meta'=>['project'=>$projectTitle,'analysis_confidence'=>(float)($link['confidence']??0)],
+          'actions'=>[
+            cognitive_feed_action_link('Open evidence','/annotation.php?id='.rawurlencode($source)),
+            cognitive_feed_action_agent($isConflict?'Compare evidence':'Ask Agent',$isConflict?'Compare these related annotations and explain the conflict in the context of the Research project.':'Explain how these related annotations strengthen or change the Research project.',[$context[0],['type'=>'annotation','public_id'=>$source],['type'=>'annotation','public_id'=>$target]])
+          ]
+        ]);
+    }
+
+    $projectAnnotationIds=[];$q=$pdo->prepare("SELECT a.id,a.public_id FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id WHERE pa.project_id=? AND a.status='published' ORDER BY pa.created_at DESC LIMIT 10");$q->execute([$projectId]);$recentProjectAnnotations=$q->fetchAll();
+    foreach($recentProjectAnnotations as $x)$projectAnnotationIds[(string)$x['public_id']]=true;
+    foreach(array_slice($recentProjectAnnotations,0,6) as $sourceAnnotation){
+        foreach(annotation_intelligence_visible_relationships($pdo,(int)$sourceAnnotation['id'],$viewer,3) as $rel){
+            $target=(string)($rel['public_id']??'');if($target===''||isset($projectAnnotationIds[$target]))continue;
+            $relation=(string)($rel['relation_type']??'related');$conflict=$relation==='conflicts';
+            cognitive_feed_add($items,[
+              'key'=>cognitive_feed_key($conflict?'related_conflict':'related_research','external_annotation',$projectPublic.':'.$target,$relation),
+              'type'=>$conflict?'related_conflict':'related_research','section'=>$conflict?'needs_attention':'related_research','priority'=>$conflict?'high':'medium','created_at'=>$project['updated_at']??null,
+              'score_extra'=>(int)round(((float)($rel['confidence']??0))*5),
+              'title'=>$conflict?'Conflicting evidence related to '.$projectTitle:'Related evidence outside '.$projectTitle,
+              'body'=>mb_substr((string)($rel['text_commentary']?:$rel['selected_text']?:$rel['source_title']?:'A related annotation was detected.'),0,500),
+              'meta'=>['project'=>$projectTitle,'relationship'=>$relation,'analysis_confidence'=>(float)($rel['confidence']??0)],
+              'actions'=>[
+                cognitive_feed_action_link('Open annotation','/annotation.php?id='.rawurlencode($target)),
+                cognitive_feed_action_agent($conflict?'Compare':'Review relation',$conflict?'Compare this external evidence with the current Research project and explain the conflict.':'Review this related annotation and explain whether it should influence the current Research project.',[$context[0],['type'=>'annotation','public_id'=>$target]])
+              ]
+            ]);
+        }
+    }
+
+    $activityCount=0;
+    foreach((array)($snapshot['recent_activity']??[]) as $event){
+        if($activityCount>=2)break;$when=(string)($event['occurred_at']??'');if($when===''||strtotime($when)<time()-7*86400)continue;
+        $type=(string)($event['type']??'change');if(in_array($type,['source_change','task'],true))continue;
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('recent_change','research_activity',$projectPublic.':'.(string)($event['href']??$event['title']??''),$when),
+          'type'=>'recent_change','section'=>'recent_changes','priority'=>'low','created_at'=>$when,
+          'title'=>(string)($event['title']??'Research updated'),'body'=>(string)($event['body']??''),'meta'=>['project'=>$projectTitle],
+          'actions'=>array_values(array_filter([
+            !empty($event['href'])?cognitive_feed_action_link('Open',(string)$event['href']):null,
+            cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode($projectPublic))
+          ]))
+        ]);$activityCount++;
+    }
+}
+
+function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): void {
+    foreach(cognitive_feed_projects($pdo,$viewer,8) as $project)cognitive_feed_collect_project_research($pdo,$viewer,$project,$items);
+}
