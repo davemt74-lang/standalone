@@ -216,7 +216,7 @@ function research_automation_notify(PDO $pdo,array $viewer,array $automation,arr
 }
 
 function research_automation_source_refresh(PDO $pdo,array $project): string {
-    $q=$pdo->prepare("SELECT s.id FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id=? AND s.monitoring_enabled=1 AND s.status<>'blocked' ORDER BY ps.created_at");$q->execute([$project['id']]);$queued=0;$already=0;
+    $q=$pdo->prepare("SELECT s.id FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id=? AND s.monitoring_enabled=1 ORDER BY ps.created_at");$q->execute([$project['id']]);$queued=0;$already=0;
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $sourceId){
         $x=$pdo->prepare("SELECT 1 FROM source_monitor_jobs WHERE source_id=? AND status IN ('queued','processing') LIMIT 1");$x->execute([$sourceId]);if($x->fetchColumn()){$already++;continue;}
         $pdo->prepare("INSERT INTO source_monitor_jobs(source_id,priority,status,scheduled_at) VALUES(?,5,'queued',NOW())")->execute([$sourceId]);$queued++;
