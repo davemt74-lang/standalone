@@ -1,17 +1,17 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/research-knowledge.php';require_once __DIR__.'/app/research-intelligence.php';require_once __DIR__.'/app/research-entities.php';require_once __DIR__.'/app/ai.php';require_once __DIR__.'/app/ai-access.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/research-knowledge.php';require_once __DIR__.'/app/research-intelligence.php';require_once __DIR__.'/app/research-entities.php';require_once __DIR__.'/app/ai.php';require_once __DIR__.'/app/ai-access.php';require_once __DIR__.'/app/research-workspace.php';
 $u=require_user($pdo);$id=(string)($_GET['id']??$_POST['id']??'');$project=project_access($pdo,(int)$u['id'],$id);if(!$project){http_response_code(404);exit('Research project not found.');}$canWrite=project_can_write($project);$success='';$error='';$aiAnswer='';
 if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$op=(string)($_POST['op']??'');try{
     if(!$canWrite)throw new RuntimeException('You have view-only access to this project.');
     if($op==='create_claim'){
         $statement=trim((string)($_POST['statement']??''));if($statement==='')throw new RuntimeException('Claim statement is required.');
         $type=(string)($_POST['claim_type']??'factual');if(!in_array($type,['factual','disputed','prediction','interpretation','data_point'],true))$type='factual';
-        $public=ulid_like();$pdo->prepare('INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type) VALUES(?,?,?,?,?)')->execute([$public,$project['id'],$u['id'],$statement,$type]);header('Location:/research-claim.php?id='.rawurlencode($public));exit;
+        $public=ulid_like();$pdo->prepare('INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type) VALUES(?,?,?,?,?)')->execute([$public,$project['id'],$u['id'],$statement,$type]);if(research_workspace_ready($pdo))research_workspace_queue($pdo,(int)$project['id'],3);header('Location:/research-claim.php?id='.rawurlencode($public));exit;
     }
     if($op==='create_finding'){
         $title=trim((string)($_POST['title']??''));$summary=trim((string)($_POST['summary']??''));if($title===''||$summary==='')throw new RuntimeException('Finding title and summary are required.');
-        $public=ulid_like();$pdo->prepare('INSERT INTO research_findings(public_id,project_id,created_by_user_id,title,summary) VALUES(?,?,?,?,?)')->execute([$public,$project['id'],$u['id'],$title,$summary]);header('Location:/research-finding.php?id='.rawurlencode($public));exit;
+        $public=ulid_like();$pdo->prepare('INSERT INTO research_findings(public_id,project_id,created_by_user_id,title,summary) VALUES(?,?,?,?,?)')->execute([$public,$project['id'],$u['id'],$title,$summary]);if(research_workspace_ready($pdo))research_workspace_queue($pdo,(int)$project['id'],3);header('Location:/research-finding.php?id='.rawurlencode($public));exit;
     }
     if($op==='ask_ai'){
         if(!user_is_pro($pdo,$u))throw new RuntimeException('Knowledge synthesis is available to Pro users.');$isAdmin=($u['role']??'')==='admin';$quota=rate_limit_consume($pdo,$isAdmin?'ai-admin':'ai-pro','user:'.(string)$u['id'],$isAdmin?240:40,3600);if(!$quota['allowed'])throw new RuntimeException('AI request limit reached. Try again later.');
