@@ -231,3 +231,11 @@
 .cognitiveCaughtUp,.cognitiveUpgradeCard{margin-top:10px}.cognitiveToast{position:fixed;left:50%;bottom:82px;z-index:220;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:9px 12px;border-radius:10px;background:#111;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.24);font-size:.75rem}.cognitiveToast button{padding:4px 6px;background:transparent;color:#fff;text-decoration:underline}
 @media(max-width:900px){.homeFeedModeBar{top:62px}.cognitiveSectionHead{display:block}.cognitiveSectionHead p{margin-top:4px;text-align:left;max-width:none}}
 @media(max-width:620px){.homeFeedModeBar{top:56px;margin-left:-2px;margin-right:-2px}.homeFeedModeActions [data-cognitive-restore-all]{max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cognitiveCard{padding:12px}.cognitiveCardBody,.cognitiveCardMeta,.cognitiveCardActions{margin-left:0}.cognitiveCardHeader{grid-template-columns:28px minmax(0,1fr) 26px}.cognitiveCardActions a,.cognitiveCardActions button{flex:1 1 auto;justify-content:center}.cognitiveToast{bottom:76px;width:calc(100vw - 24px);justify-content:space-between}}
+
+/* Phase 17 — Proactive Research Intelligence */
+.proactiveWhy{margin:12px 0;padding:12px 14px;border:1px solid var(--border,#e5e7eb);border-radius:12px;background:rgba(127,127,127,.04)}
+.proactiveWhy strong{font-size:.82rem}.proactiveWhy p{margin:5px 0 0}
+.agentProactiveBriefing{margin-top:18px;text-align:left;border-top:1px solid var(--border,#e5e7eb);padding-top:14px}
+.agentProactiveBriefing h3{margin:4px 0 10px}.agentProactiveBriefing article{padding:10px 0;border-top:1px solid var(--border,#e5e7eb)}
+.agentProactiveBriefing article:first-of-type{border-top:0}.agentProactiveBriefing article p{margin:4px 0 6px;font-size:.9rem}
+.proactiveWatchForm{margin:10px 0 16px}

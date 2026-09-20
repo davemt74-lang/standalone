@@ -37,7 +37,7 @@ function cognitive_feed_ui_reason(string $type): string {
 
 function cognitive_feed_ui_card(array $item): string {
     $key=(string)($item['key']??'');$type=(string)($item['type']??'observation');$priority=(string)($item['priority']??'medium');
-    $meta=is_array($item['meta']??null)?$item['meta']:[];$actions=is_array($item['actions']??null)?$item['actions']:[];
+    $meta=is_array($item['meta']??null)?$item['meta']:[];$actions=is_array($item['actions']??null)?$item['actions']:[];$watchTarget=function_exists('proactive_observation_watch_target')?proactive_observation_watch_target($item):null;
     ob_start();?>
 <article class="cognitiveCard cognitiveCard-<?=h($type)?>" data-cognitive-card data-key="<?=h($key)?>" data-type="<?=h($type)?>">
   <header class="cognitiveCardHeader">
@@ -52,7 +52,8 @@ function cognitive_feed_ui_card(array $item): string {
     <?php endforeach?>
     <?php if($priority==='high'):?><span class="cognitivePriority high">High priority</span><?php endif?>
   </div><?php endif?>
-  <?php if($actions):?><footer class="cognitiveCardActions">
+  <?php if($actions||$watchTarget):?><footer class="cognitiveCardActions">
+    <?php if($watchTarget):?><button type="button" data-proactive-watch data-watch-type="<?=h((string)$watchTarget['type'])?>" data-watch-id="<?=h((string)$watchTarget['public_id'])?>">Watch</button><?php endif?>
     <?php foreach($actions as $action):?>
       <?php if(($action['type']??'')==='link'&&!empty($action['href'])):?><a href="<?=h((string)$action['href'])?>"><?=h((string)($action['label']??'Open'))?></a>
       <?php elseif(($action['type']??'')==='agent'):?><button type="button" data-cognitive-agent data-prompt="<?=h((string)($action['prompt']??''))?>" data-context="<?=h(json_encode($action['context']??[],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE))?>"><?=h((string)($action['label']??'Ask Agent'))?></button>

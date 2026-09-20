@@ -79,6 +79,10 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
         if(($viewer['role']??'')==='admin'||(int)$r['owner_user_id']===(int)$viewer['id'])return true;if(!$r['team_id'])return false;
         $sql=$r['visibility']==='team'?'SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1':"SELECT 1 FROM team_members WHERE team_id=? AND user_id=? AND role IN ('owner','admin') LIMIT 1";$q=$pdo->prepare($sql);$q->execute([$r['team_id'],$viewer['id']]);return (bool)$q->fetchColumn();
     }
+    if($type==='cognitive_alert'){
+        $context=json_decode((string)($n['context_json']??''),true)?:[];
+        return function_exists('proactive_context_access')&&proactive_context_access($pdo,$viewer,$context);
+    }
     if($type==='conversation'){
         if(!function_exists('conversation_access'))return false;return conversation_access($pdo,$viewer,$public)!==null;
     }
@@ -91,6 +95,7 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
 }
 function notification_url(PDO $pdo,array $viewer,array $n): ?string {
     if(!notification_object_access($pdo,$viewer,$n))return null;$type=(string)($n['object_type']??'');$public=(string)($n['object_public_id']??'');$context=json_decode((string)($n['context_json']??''),true)?:[];
+    if($type==='cognitive_alert'){$url=(string)($context['primary_url']??'');return ($url!==''&&str_starts_with($url,'/')&&!str_starts_with($url,'//'))?$url:'/home.php?view=cognitive';}
     if($type==='annotation')return '/annotation.php?id='.rawurlencode($public).(!empty($context['comment_id'])?'#discussion':'');
     if($type==='source')return '/source.php?id='.rawurlencode($public).(!empty($context['source_change_event_id'])?'#change-'.rawurlencode((string)$context['source_change_event_id']):'');
     if($type==='user'){

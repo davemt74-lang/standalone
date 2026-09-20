@@ -5,7 +5,7 @@ $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: C
 
 $conversationReady=conversation_runtime_ready($pdo);$chatTeams=$conversationReady?conversation_team_list($pdo,$u):[];$preferredTeam=trim((string)($_GET['team']??''));$chatStatus=conversation_presence_ready($pdo)?conversation_status_get($pdo,(int)$u['id']):['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
 $cognitiveReady=cognitive_feed_ready($pdo);$requestedFeedMode=strtolower(trim((string)($_GET['view']??'')));$feedMode=in_array($requestedFeedMode,['cognitive','latest'],true)?$requestedFeedMode:cognitive_feed_mode_get($pdo,$u);if(!$cognitiveReady)$feedMode='latest';
-$cognitiveFeed=$feedMode==='cognitive'?cognitive_feed_compose($pdo,$u,$chatTeams,4,28):['ready'=>$cognitiveReady,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+$cognitiveFeed=$feedMode==='cognitive'?cognitive_feed_compose($pdo,$u,$chatTeams,4,28):['ready'=>$cognitiveReady,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];$proactiveReady=proactive_intelligence_ready($pdo);if($proactiveReady&&$feedMode==='cognitive')proactive_intelligence_sync($pdo,$u,$cognitiveFeed);$proactiveBriefing=$proactiveReady?proactive_briefing($pdo,$u,3):['ready'=>false,'items'=>[],'count'=>0];$proactiveAgentKey=trim((string)($_GET['proactive_agent']??''));$proactiveAgentHandoff=$proactiveReady&&$proactiveAgentKey!==''?proactive_agent_handoff($pdo,$u,$proactiveAgentKey):null;
 $feed=$feedMode==='latest'?feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations']:[];
 
 $q=$pdo->prepare("SELECT u.username,u.display_name,u.profile_image_url,u.bio,(SELECT COUNT(*) FROM annotations a WHERE a.user_id=u.id AND a.visibility='public' AND a.status='published') annotation_count FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.id<>? AND u.status='active' AND COALESCE(p.profile_visibility,'public')='public' AND COALESCE(p.search_visibility,1)=1 AND NOT EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=u.id) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=u.id) OR (b.blocker_user_id=u.id AND b.blocked_user_id=?)) ORDER BY annotation_count DESC,u.created_at DESC LIMIT 5");
@@ -43,7 +43,7 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
     <div class="agentChatCanvasActions"><button type="button" class="button secondary" data-agent-history-toggle>History</button><button type="button" class="button" data-agent-new>New chat</button></div>
   </header>
   <div class="agentChatHistoryPanel" data-agent-history hidden><div class="agentChatHistoryHead"><strong>Recent chats</strong><button type="button" data-agent-history-close aria-label="Close chat history">×</button></div><div data-agent-history-list></div></div>
-  <div class="agentChatMessages" data-agent-messages role="log" aria-live="polite"><div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p></div></div>
+  <div class="agentChatMessages" data-agent-messages role="log" aria-live="polite"><div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p><?php if(($proactiveBriefing['count']??0)>0):?><section class="agentProactiveBriefing"><div class="eyebrow">RESEARCH BRIEFING</div><h3><?=h((string)$proactiveBriefing['count'])?> things worth reviewing</h3><?php foreach((array)$proactiveBriefing['items'] as $brief):?><article><strong><?=h((string)($brief['title']??'Research update'))?></strong><p><?=h((string)($brief['why']??''))?></p><?php if(!empty($brief['primary_url'])):?><a href="<?=h((string)$brief['primary_url'])?>">Open context</a><?php endif?></article><?php endforeach?></section><?php endif?></div></div>
   <div class="agentChatContextTray" data-agent-context-tray hidden></div>
   <div class="agentChatContextPicker" data-agent-context-picker hidden><div class="agentChatContextPickerHead"><strong>Add Annotated context</strong><button type="button" data-agent-context-close aria-label="Close context picker">×</button></div><div class="agentChatContextPickerBody" data-agent-context-options><div class="meta">Loading context…</div></div></div>
 </section><aside class="homeRightRail <?=$chatTeams?'teamChatRightRail':''?>">
@@ -71,7 +71,8 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
   <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
-<script src="/assets/js/agent-chat.js?v=16.0"></script>
-<script src="/assets/js/cognitive-feed.js?v=16.0"></script>
+<script src="/assets/js/agent-chat.js?v=17.0"></script>
+<script src="/assets/js/cognitive-feed.js?v=17.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=12.0"></script><?php endif?>
+<?php if($proactiveAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$proactiveAgentHandoff['prompt'],'context'=>$proactiveAgentHandoff['context'],'source'=>'proactive_notification'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?=annotation_ui_scripts($u)?></body></html>
