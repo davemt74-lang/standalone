@@ -21,7 +21,7 @@ function living_research_topics(PDO $pdo,int $reportId): array {
 }
 
 function living_research_set_topics(PDO $pdo,int $reportId,string|array $topics): void {
-    if(!living_research_ready($pdo))return;$parsed=living_research_parse_topics($topics);$pdo->beginTransaction();try{$pdo->prepare('DELETE FROM research_report_topics WHERE report_id=?')->execute([$reportId]);$q=$pdo->prepare('INSERT INTO research_report_topics(report_id,topic_slug,topic_label,position) VALUES(?,?,?,?)');$pos=0;foreach($parsed as $slug=>$label)$q->execute([$reportId,$slug,$label,$pos++]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    if(!living_research_ready($pdo))return;$parsed=living_research_parse_topics($topics);$own=!$pdo->inTransaction();if($own)$pdo->beginTransaction();try{$pdo->prepare('DELETE FROM research_report_topics WHERE report_id=?')->execute([$reportId]);$q=$pdo->prepare('INSERT INTO research_report_topics(report_id,topic_slug,topic_label,position) VALUES(?,?,?,?)');$pos=0;foreach($parsed as $slug=>$label)$q->execute([$reportId,$slug,$label,$pos++]);if($own)$pdo->commit();}catch(Throwable $e){if($own&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 
 function living_research_subscription(PDO $pdo,array $viewer,array $report): array {
