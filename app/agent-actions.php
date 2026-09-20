@@ -129,17 +129,22 @@ function agent_action_message_proposals(PDO $pdo,array $viewer,int $messageId): 
     $q->execute([$messageId,$viewer['id']]);$out=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$r=agent_action_proposal_row($pdo,$viewer,(string)$id);if($r)$out[]=$r;}return $out;
 }
 
-function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $project,string $capability,array $args): bool {
-    $projectId=(int)$project['id'];
+function agent_action_ref_set(array $refs): array {
+    $set=[];foreach($refs as $ref){if(!is_array($ref))continue;$type=strtolower(trim((string)($ref['type']??'')));$id=trim((string)($ref['id']??''));if($type!==''&&$id!=='')$set[$type.':'.$id]=true;}return $set;
+}
+function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $project,string $capability,array $args,array $refs): bool {
+    $projectId=(int)$project['id'];$seen=agent_action_ref_set($refs);
     if($capability==='research.attach_annotation_evidence'){
+        if(!isset($seen['claim:'.$args['claim_id']],$seen['annotation:'.$args['annotation_id']]))return false;
         if(!agent_action_claim_row($pdo,$projectId,(string)$args['claim_id']))return false;
         return annotation_access($pdo,(string)$args['annotation_id'],$viewer)!==null;
     }
     if($capability==='research.create_finding'){
-        foreach((array)$args['claim_ids'] as $id)if(!agent_action_claim_row($pdo,$projectId,(string)$id))return false;
+        foreach((array)$args['claim_ids'] as $id)if(!isset($seen['claim:'.$id])||!agent_action_claim_row($pdo,$projectId,(string)$id))return false;
         return true;
     }
     if($capability==='research.link_claims'){
+        if(!isset($seen['claim:'.$args['source_claim_id']],$seen['claim:'.$args['target_claim_id']]))return false;
         return agent_action_claim_row($pdo,$projectId,(string)$args['source_claim_id'])!==null&&agent_action_claim_row($pdo,$projectId,(string)$args['target_claim_id'])!==null;
     }
     return true;
@@ -153,7 +158,7 @@ function agent_action_create_proposals(PDO $pdo,array $viewer,array $conversatio
         $projectPublic=trim((string)($raw['project_id']??''));if($projectPublic===''&&count($projects)===1)$projectPublic=(string)array_key_first($projects);
         $project=$projects[$projectPublic]??null;if(!$project||!project_can_write($project))continue;
         try{$args=agent_action_clean_arguments($cap,is_array($raw['arguments']??null)?$raw['arguments']:[]);}catch(Throwable $e){continue;}
-        if(!agent_action_validate_project_arguments($pdo,$viewer,$project,$cap,$args))continue;
+        if(!agent_action_validate_project_arguments($pdo,$viewer,$project,$cap,$args,$refs))continue;
         $hash=research_workspace_input_hash($pdo,(int)$project['id']);$argsJson=json_encode($args,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
         $provenance=['refs'=>$refs,'conversation_id'=>$conversation['public_id'],'assistant_message_id'=>$assistantMessageId,'project_id'=>$projectPublic];
         $dedupe=hash('sha256',$viewer['id'].'|'.$conversation['id'].'|'.$assistantMessageId.'|'.$project['id'].'|'.$cap.'|'.$argsJson);
