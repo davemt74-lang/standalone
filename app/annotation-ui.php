@@ -28,6 +28,29 @@ function annotation_media_url(array $a): ?string {
     return null;
 }
 
+function annotation_intelligence_ui(array $a): string {
+    $intel=$a['intelligence']??null;if(!is_array($intel)||($intel['status']??'')!=='ready')return '';
+    $summary=trim((string)($intel['summary']??''));$topics=is_array($intel['topics']??null)?$intel['topics']:[];
+    $entities=is_array($intel['entities']??null)?$intel['entities']:[];$claims=is_array($intel['claims']??null)?$intel['claims']:[];
+    $relations=is_array($intel['relationships']??null)?$intel['relationships']:[];$confidence=$intel['confidence']??null;
+    $integrity=is_array($a['integrity']??null)?$a['integrity']:null;$integrityLabel=(string)($integrity['label']??'');
+    $relationLabels=['related'=>'Related','duplicate'=>'Possible duplicate','corroborates'=>'Corroborating','conflicts'=>'Conflicting'];
+    ob_start();?>
+  <details class="annotationIntelligencePanel">
+    <summary><span class="annotationIntelligenceIcon" aria-hidden="true">✦</span><span><small>Derived analysis</small><strong>Intelligence</strong></span><span class="annotationIntelligenceChevron" aria-hidden="true">⌄</span></summary>
+    <div class="annotationIntelligenceBody">
+      <?php if($summary!==''):?><p class="annotationIntelligenceSummary"><?=h($summary)?></p><?php endif?>
+      <?php if($topics):?><div class="annotationIntelligenceChips"><?php foreach(array_slice($topics,0,10) as $topic):?><span><?=h((string)$topic)?></span><?php endforeach?></div><?php endif?>
+      <?php if($entities):?><div class="annotationIntelligenceSection"><strong>Entities</strong><div class="annotationIntelligenceEntities"><?php foreach(array_slice($entities,0,12) as $entity):?><span><b><?=h((string)($entity['name']??''))?></b><?php if(!empty($entity['type'])):?><small><?=h((string)$entity['type'])?></small><?php endif?></span><?php endforeach?></div></div><?php endif?>
+      <?php if($claims):?><div class="annotationIntelligenceSection"><strong>Claims detected</strong><div class="annotationIntelligenceClaims"><?php foreach(array_slice($claims,0,6) as $claim):?><div><span class="intelligenceClaimBadge <?=($claim['certainty']??'')==='explicit'?'explicit':'inferred'?>"><?=h(ucfirst((string)($claim['certainty']??'inferred')))?></span><p><?=h((string)($claim['statement']??''))?></p></div><?php endforeach?></div></div><?php endif?>
+      <?php if($relations):?><div class="annotationIntelligenceSection"><strong>Related evidence</strong><div class="annotationIntelligenceRelations"><?php foreach(array_slice($relations,0,6) as $rel):?><a href="/annotation.php?id=<?=h((string)$rel['public_id'])?>"><span><?=h($relationLabels[(string)($rel['relation_type']??'related')]??'Related')?></span><b><?=h(mb_substr((string)($rel['text_commentary']?:$rel['selected_text']?:$rel['source_title']?:'Annotation'),0,100))?></b><small><?=h(number_format((float)($rel['confidence']??0)*100,0))?>% analysis confidence</small></a><?php endforeach?></div></div><?php endif?>
+      <?php if($integrityLabel!==''&&$integrityLabel!=='Source unchanged'):?><div class="annotationIntelligenceIntegrity"><strong>Source integrity</strong><span><?=h($integrityLabel)?></span></div><?php endif?>
+      <div class="annotationIntelligenceMeta">AI-assisted derived analysis<?=is_numeric($confidence)?' · '.h(number_format((float)$confidence*100,0)).'% analysis confidence':''?>. Verify conclusions against the captured evidence and source.</div>
+    </div>
+  </details>
+<?php return (string)ob_get_clean();
+}
+
 function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): string {
     $showAuthor=$options['show_author']??true;$showSource=$options['show_source']??true;$showOpen=$options['show_open']??true;$commentsHref=(string)($options['comments_href']??('/annotation.php?id='.rawurlencode((string)($a['public_id']??'')).'&comments=1#discussion'));$extraActions=(string)($options['extra_actions_html']??'');
     $id=(string)($a['public_id']??'');$author=(string)($a['display_name']??'');$username=(string)($a['username']??'');
@@ -85,6 +108,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
       <div class="annotationSourceActions"><?php if($sourceId!==''):?><a href="/source.php?id=<?=h($sourceId)?>">Source page</a><?php endif?><?php if(!empty($a['source_changed'])&&$sourceId!==''&&!empty($a['source_version_id'])&&!empty($a['current_source_version_id'])):?><a href="/source-compare.php?id=<?=h($sourceId)?>&from=<?=h((string)$a['source_version_id'])?>&to=<?=h((string)$a['current_source_version_id'])?>">Compare versions</a><?php endif?></div>
     </div>
   </details><?php endif?>
+  <?=annotation_intelligence_ui($a)?>
   <div class="annotationSocialBar">
     <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$liked?'active':''?>" data-web-annotation-action="like" data-id="<?=h($id)?>"><span aria-hidden="true">♥</span> <span>Like</span> <strong data-like-count><?=h((string)$likes)?></strong></button><?php else:?><a class="annotationSocialAction" href="/login.php"><span aria-hidden="true">♡</span> Like <strong><?=h((string)$likes)?></strong></a><?php endif?>
     <a class="annotationSocialAction" href="<?=h($commentsHref)?>"><span aria-hidden="true">💬</span> Comments <strong><?=h((string)$comments)?></strong></a>
