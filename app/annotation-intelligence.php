@@ -149,18 +149,62 @@ function annotation_intelligence_mark_failed(PDO $pdo,string $annotationPublicId
 }
 
 function annotation_intelligence_record(PDO $pdo,int $annotationId): ?array {
-    if(!annotation_intelligence_ready($pdo))return null;$q=$pdo->prepare('SELECT * FROM annotation_intelligence WHERE annotation_id=? LIMIT 1');$q->execute([$annotationId]);$r=$q->fetch();if(!$r)return null;
+    if(!annotation_intelligence_ready($pdo))return null;$q=$pdo->prepare('SELECT * FROM annotation_intelligence WHERE annotation_id=? LIMIT 1');$q->execute([$annotationId]);$r=$q->fetch();return $r?annotation_intelligence_decode_record($r):null;
+}
+
+function annotation_intelligence_relation_access_sql(?array $viewer,string $annotationAlias='a',string $sourceAlias='s'): array {
+    $uid=(int)($viewer['id']??0);$admin=(($viewer['role']??'')==='admin');
+    if(!$uid)return ["$annotationAlias.status='published' AND $annotationAlias.visibility='public' AND COALESCE($sourceAlias.moderation_status,'visible')='visible'",[]];
+    if($admin)$access="$annotationAlias.status='published'";
+    else{
+        $access="$annotationAlias.status='published' AND COALESCE($sourceAlias.moderation_status,'visible')='visible' AND (
+          $annotationAlias.visibility='public'
+          OR $annotationAlias.user_id=?
+          OR ($annotationAlias.visibility='team' AND $annotationAlias.team_id IS NOT NULL AND EXISTS(SELECT 1 FROM team_members airtm WHERE airtm.team_id=$annotationAlias.team_id AND airtm.user_id=?))
+          OR EXISTS(SELECT 1 FROM project_annotations airpa JOIN research_projects airrp ON airrp.id=airpa.project_id LEFT JOIN team_members airpm ON airpm.team_id=airrp.team_id AND airpm.user_id=? WHERE airpa.annotation_id=$annotationAlias.id AND (airrp.owner_user_id=? OR airpm.user_id IS NOT NULL))
+        )";
+    }
+    $block="NOT EXISTS(SELECT 1 FROM blocks airb WHERE (airb.blocker_user_id=$uid AND airb.blocked_user_id=$annotationAlias.user_id) OR (airb.blocker_user_id=$annotationAlias.user_id AND airb.blocked_user_id=$uid))";
+    return ["($access) AND ($block)",$admin?[]:[$uid,$uid,$uid,$uid]];
+}
+
+function annotation_intelligence_decode_record(array $r): array {
     foreach(['topics_json'=>'topics','entities_json'=>'entities','claims_json'=>'claims'] as $json=>$key){$decoded=json_decode((string)($r[$json]??''),true);$r[$key]=is_array($decoded)?$decoded:[];unset($r[$json]);}
     $r['confidence']=$r['confidence']!==null?(float)$r['confidence']:null;return $r;
 }
 
+function annotation_intelligence_attach_many(PDO $pdo,array $annotations,?array $viewer=null,int $relationshipLimit=8): array {
+    if(!$annotations||!annotation_intelligence_ready($pdo)){foreach($annotations as &$a)$a['intelligence']=null;unset($a);return $annotations;}
+    $ids=[];$publicMissing=[];
+    foreach($annotations as $i=>$a){$id=(int)($a['id']??$a['internal_id']??0);if($id>0){$ids[$i]=$id;}elseif(!empty($a['public_id']))$publicMissing[$i]=(string)$a['public_id'];}
+    if($publicMissing){
+        $vals=array_values(array_unique($publicMissing));$ph=implode(',',array_fill(0,count($vals),'?'));$q=$pdo->prepare("SELECT id,public_id FROM annotations WHERE public_id IN ($ph)");$q->execute($vals);$byPublic=[];foreach($q->fetchAll() as $r)$byPublic[(string)$r['public_id']]=(int)$r['id'];foreach($publicMissing as $i=>$public)if(isset($byPublic[$public]))$ids[$i]=$byPublic[$public];
+    }
+    if(!$ids){foreach($annotations as &$a)$a['intelligence']=null;unset($a);return $annotations;}
+    $unique=array_values(array_unique(array_values($ids)));$ph=implode(',',array_fill(0,count($unique),'?'));
+    $q=$pdo->prepare("SELECT * FROM annotation_intelligence WHERE annotation_id IN ($ph)");$q->execute($unique);$records=[];foreach($q->fetchAll() as $r)$records[(int)$r['annotation_id']]=annotation_intelligence_decode_record($r);
+    $readyIds=[];foreach($records as $id=>$r)if(($r['status']??'')==='ready')$readyIds[]=$id;
+    $relations=[];
+    if($readyIds){
+        [$access,$accessParams]=annotation_intelligence_relation_access_sql($viewer,'a','s');$rph=implode(',',array_fill(0,count($readyIds),'?'));
+        $sql="SELECT ar.source_annotation_id,ar.relation_type,ar.confidence,ar.rationale,ar.generated_by,a.public_id,a.text_commentary,c.selected_text,s.title source_title,s.domain
+          FROM annotation_relationships ar JOIN annotations a ON a.id=ar.target_annotation_id JOIN captures c ON c.id=a.capture_id JOIN sources s ON s.id=a.source_id
+          WHERE ar.source_annotation_id IN ($rph) AND $access
+          ORDER BY ar.source_annotation_id,FIELD(ar.relation_type,'conflicts','corroborates','duplicate','related'),ar.confidence DESC";
+        $q=$pdo->prepare($sql);$q->execute(array_merge($readyIds,$accessParams));$counts=[];
+        foreach($q->fetchAll() as $r){$sid=(int)$r['source_annotation_id'];if(($counts[$sid]??0)>=$relationshipLimit)continue;$r['confidence']=(float)$r['confidence'];unset($r['source_annotation_id']);$relations[$sid][]=$r;$counts[$sid]=($counts[$sid]??0)+1;}
+    }
+    foreach($annotations as $i=>&$a){$id=$ids[$i]??0;$record=$id?($records[$id]??null):null;if($record)$record['relationships']=$relations[$id]??[];$a['intelligence']=$record;}unset($a);
+    return $annotations;
+}
+
 function annotation_intelligence_visible_relationships(PDO $pdo,int $annotationId,?array $viewer,int $limit=8): array {
-    if(!annotation_intelligence_ready($pdo))return [];$limit=max(1,min(20,$limit));
+    if(!annotation_intelligence_ready($pdo))return [];$limit=max(1,min(20,$limit));[$access,$params]=annotation_intelligence_relation_access_sql($viewer,'a','s');
     $q=$pdo->prepare("SELECT ar.relation_type,ar.confidence,ar.rationale,ar.generated_by,a.public_id,a.text_commentary,c.selected_text,s.title source_title,s.domain
       FROM annotation_relationships ar JOIN annotations a ON a.id=ar.target_annotation_id JOIN captures c ON c.id=a.capture_id JOIN sources s ON s.id=a.source_id
-      WHERE ar.source_annotation_id=? ORDER BY FIELD(ar.relation_type,'conflicts','corroborates','duplicate','related'),ar.confidence DESC LIMIT 30");
-    $q->execute([$annotationId]);$out=[];
-    foreach($q->fetchAll() as $row){$access=annotation_access($pdo,(string)$row['public_id'],$viewer);if(!$access||$access['status']!=='published')continue;$row['confidence']=(float)$row['confidence'];$out[]=$row;if(count($out)>=$limit)break;}
+      WHERE ar.source_annotation_id=? AND $access ORDER BY FIELD(ar.relation_type,'conflicts','corroborates','duplicate','related'),ar.confidence DESC LIMIT ".($limit*3));
+    $q->execute(array_merge([$annotationId],$params));$out=[];
+    foreach($q->fetchAll() as $row){$row['confidence']=(float)$row['confidence'];$out[]=$row;if(count($out)>=$limit)break;}
     return $out;
 }
 
