@@ -175,7 +175,7 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         $annotation=annotation_access($pdo,$args['annotation_id'],$viewer);if(!$annotation)throw new RuntimeException('Annotation evidence is no longer accessible.');
         $q=$pdo->prepare('SELECT source_version_id FROM annotations WHERE id=?');$q->execute([$annotation['id']]);$versionId=(int)($q->fetchColumn()?:0);if(!$versionId)throw new RuntimeException('Annotation evidence has no captured source version.');
         $q=$pdo->prepare('SELECT public_id FROM claim_evidence WHERE claim_id=? AND annotation_id=? AND relationship=? LIMIT 1');$q->execute([$claim['id'],$annotation['id'],$args['relationship']]);$existing=(string)($q->fetchColumn()?:'');
-        $public=$existing?:ulid_like();if(!$existing)$pdo->prepare("INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,annotation_id,source_version_id,relationship,note) VALUES(?,?,?,'annotation',?,?,?,?,?)")
+        $public=$existing?:ulid_like();if(!$existing)$pdo->prepare("INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,annotation_id,source_version_id,relationship,note) VALUES(?,?,?,'annotation',?,?,?,?)")
           ->execute([$public,$claim['id'],$userId,$annotation['id'],$versionId,$args['relationship'],$args['note']!==''?$args['note']:null]);
         return ['type'=>'claim_evidence','public_id'=>$public,'label'=>'Annotation evidence attached','url'=>'/research-claim.php?id='.rawurlencode($args['claim_id'])];
     }
