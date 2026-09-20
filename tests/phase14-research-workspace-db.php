@@ -8,6 +8,9 @@ $run='p14'.substr(bin2hex(random_bytes(6)),0,10);$pub=fn(string $p)=>$p.'-'.$run
 $makeUser=function(string $name)use($pdo,$run,$pub): array{$username=substr(strtolower($name).'_'.$run,0,48);$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,email_verified_at,status,role,live_presence_mode) VALUES(?,?,?,?,NOW(),'active','user','cloaked')")->execute([$pub('u'),$username,$name,$username.'@example.test']);$id=(int)$pdo->lastInsertId();$q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$id]);return $q->fetch();};
 $owner=$makeUser('WorkspaceOwner');$viewer=$makeUser('WorkspaceViewer');$outsider=$makeUser('WorkspaceOutsider');
 p14(research_workspace_ready($pdo),'Phase 14 Research Workspace schema is available');
+$providerPublic=$pub('provider');$pdo->prepare("INSERT INTO ai_providers(public_id,label,provider_type,api_base_url,enabled) VALUES(?,?,'openai_compatible','http://127.0.0.1:11434',1)")->execute([$providerPublic,'Phase 14 Test Provider']);$providerId=(int)$pdo->lastInsertId();
+$modelPublic=$pub('model');$pdo->prepare("INSERT INTO ai_models(public_id,provider_id,model_name,display_name,enabled,admin_enabled,pro_enabled) VALUES(?,?,'phase14-test','Phase 14 Test',1,1,1)")->execute([$modelPublic,$providerId]);$modelId=(int)$pdo->lastInsertId();
+$pdo->prepare('UPDATE ai_settings SET research_model_id=? WHERE id=1')->execute([$modelId]);p14(research_workspace_ai_model_configured($pdo),'Phase 14 test Research model route is configured');
 
 $teamPublic=$pub('team');$pdo->prepare('INSERT INTO teams(public_id,owner_user_id,name) VALUES(?,?,?)')->execute([$teamPublic,$owner['id'],'Workspace Team']);$teamId=(int)$pdo->lastInsertId();
 $pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'owner'),(?,?,'viewer')")->execute([$teamId,$owner['id'],$teamId,$viewer['id']]);
