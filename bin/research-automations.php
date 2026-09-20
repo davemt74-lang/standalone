@@ -4,6 +4,7 @@ require dirname(__DIR__).'/app/bootstrap.php';
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 $limit=25;foreach($argv??[] as $arg)if(str_starts_with((string)$arg,'--limit='))$limit=max(1,min(200,(int)substr((string)$arg,8)));
 if(!research_automation_ready($pdo)){fwrite(STDERR,"Phase 18 migration is required.\n");exit(2);}
+release_worker_heartbeat($pdo,'research_automation','starting','Worker invocation started.');
 $scheduled=research_automation_enqueue_due($pdo,100);$watch=research_automation_enqueue_watch_alerts($pdo,200);
 $completed=0;$skipped=0;$failed=0;$retried=0;
 for($i=0;$i<$limit;$i++){
@@ -26,4 +27,4 @@ for($i=0;$i<$limit;$i++){
         fwrite(STDERR,'Run '.$run['public_id'].': '.$e->getMessage()."\n");
     }
 }
-echo "Research automation scheduled=$scheduled watch=$watch completed=$completed skipped=$skipped retried=$retried failed=$failed\n";
+$processed=$completed+$skipped;$status=$failed>0?'failure':'success';$message="scheduled=$scheduled watch=$watch completed=$completed skipped=$skipped retried=$retried failed=$failed";release_worker_heartbeat($pdo,'research_automation',$status,$message,$processed);echo "Research automation $message\n";
