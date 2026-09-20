@@ -51,7 +51,7 @@ p16(($feed['ready']??false)&&($feed['total']??0)>0,'Cognitive Feed composes live
 p16(count(p16find($feed,'pending_agent_action'))===1,'pending Agent confirmation surfaces in Needs Attention');
 p16(count(p16find($feed,'research_gap'))>=1,'unverified unsupported Claim surfaces as Research gap');
 p16(count(p16find($feed,'research_conflict'))>=1,'contradicted Claim surfaces as conflict');
-p16(count(p16find($feed,'source_change'))>=1,'changed watched/project source surfaces once after deduplication');
+p16(count(p16find($feed,'source_change'))===1,'watched and project source-change signals deduplicate into one cognitive card');
 p16(count(p16find($feed,'research_task'))>=1,'open overdue Research task surfaces in Continue Researching');
 p16(count(p16find($feed,'new_evidence'))>=1,'new project Annotation surfaces as New Evidence');
 p16(count(p16find($feed,'related_research'))>=1,'permission-safe Annotation relationship surfaces as Related Research');
@@ -60,7 +60,7 @@ $pending=p16find($feed,'pending_agent_action')[0];$conflict=p16find($feed,'resea
 
 $outsiderFeed=cognitive_feed_compose($pdo,$outsider,null,8,60);
 p16(count(p16find($outsiderFeed,'research_gap'))===0&&count(p16find($outsiderFeed,'new_evidence'))===0&&count(p16find($outsiderFeed,'team_activity'))===0,'outsider cannot receive Team or Research cognitive observations');
-p16(!in_array($annotationPublic,array_map(fn($x)=>(string)($x['key']??''),p16items($outsiderFeed)),true),'private project evidence cannot leak to outsider feed');
+p16(!str_contains(json_encode($outsiderFeed,JSON_UNESCAPED_SLASHES),(string)$projectPublic)&&!str_contains(json_encode($outsiderFeed,JSON_UNESCAPED_SLASHES),(string)$annotationPublic),'private project identity and evidence cannot leak to outsider feed');
 
 $memberFeed=cognitive_feed_compose($pdo,$member,null,8,60);
 p16(count(p16find($memberFeed,'research_gap'))>=1,'Research collaborator receives shared project intelligence');
