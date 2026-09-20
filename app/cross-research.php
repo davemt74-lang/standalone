@@ -95,7 +95,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     $ids=array_keys($byId);$in=implode(',',array_map('intval',$ids));$out=[];$now=date('Y-m-d H:i:s');
 
     // Same canonical Source across projects.
-    $rows=$pdo->query("SELECT ps.project_id,s.id source_id,s.public_id source_public_id,s.title,s.domain,ps.created_at FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id IN ($in) ORDER BY ps.created_at DESC LIMIT 1200")->fetchAll();
+    $rows=$pdo->query("SELECT ps.project_id,s.id source_id,s.public_id source_public_id,s.title,s.domain,ps.created_at FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id IN ($in) ORDER BY ps.created_at DESC,ps.project_id,s.id LIMIT 1200")->fetchAll();
     $groups=[];foreach($rows as $r)$groups[(int)$r['source_id']][]=$r;
     foreach($groups as $group){$n=count($group);for($i=0;$i<$n;$i++)for($j=$i+1;$j<$n;$j++){
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;
@@ -105,7 +105,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     }}
 
     // Same exact Annotation assigned to multiple projects.
-    $rows=$pdo->query("SELECT pa.project_id,a.id annotation_id,a.public_id annotation_public_id,a.text_commentary,s.title source_title,s.domain,pa.created_at FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id JOIN sources s ON s.id=a.source_id WHERE pa.project_id IN ($in) AND a.status='published' ORDER BY pa.created_at DESC LIMIT 1200")->fetchAll();
+    $rows=$pdo->query("SELECT pa.project_id,a.id annotation_id,a.public_id annotation_public_id,a.text_commentary,s.title source_title,s.domain,pa.created_at FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id JOIN sources s ON s.id=a.source_id WHERE pa.project_id IN ($in) AND a.status='published' ORDER BY pa.created_at DESC,pa.project_id,a.id LIMIT 1200")->fetchAll();
     $annotationRows=$rows;$groups=[];foreach($rows as $r)$groups[(int)$r['annotation_id']][]=$r;
     foreach($groups as $group){$n=count($group);for($i=0;$i<$n;$i++)for($j=$i+1;$j<$n;$j++){
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;
@@ -115,7 +115,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     }}
 
     // Same normalized Entity identity across projects.
-    $rows=$pdo->query("SELECT re.id,re.public_id,re.project_id,re.entity_type,re.canonical_name,re.normalized_name,re.status,re.updated_at FROM research_entities re WHERE re.project_id IN ($in) AND re.status<>'archived' ORDER BY re.updated_at DESC LIMIT 1500")->fetchAll();
+    $rows=$pdo->query("SELECT re.id,re.public_id,re.project_id,re.entity_type,re.canonical_name,re.normalized_name,re.status,re.updated_at FROM research_entities re WHERE re.project_id IN ($in) AND re.status<>'archived' ORDER BY re.updated_at DESC,re.project_id,re.id LIMIT 1500")->fetchAll();
     $entityRows=$rows;$groups=[];foreach($rows as $r)$groups[(string)$r['entity_type'].'|'.(string)$r['normalized_name']][]=$r;
     foreach($groups as $group){$n=count($group);if($n<2)continue;for($i=0;$i<$n;$i++)for($j=$i+1;$j<$n;$j++){
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;$p1=$byId[$a];$p2=$byId[$b];
@@ -124,7 +124,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     }}
 
     // Claims: deterministic wording overlap only. Do not infer semantic agreement/disagreement from text alone.
-    $claims=$pdo->query("SELECT id,public_id,project_id,statement,status,updated_at FROM research_claims WHERE project_id IN ($in) ORDER BY updated_at DESC LIMIT 240")->fetchAll();
+    $claims=$pdo->query("SELECT id,public_id,project_id,statement,status,updated_at FROM research_claims WHERE project_id IN ($in) ORDER BY updated_at DESC,project_id,id LIMIT 240")->fetchAll();
     $count=count($claims);for($i=0;$i<$count;$i++)for($j=$i+1;$j<$count;$j++){
         $a=(int)$claims[$i]['project_id'];$b=(int)$claims[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;
         $sim=cross_research_claim_similarity((string)$claims[$i]['statement'],(string)$claims[$j]['statement']);if($sim['score']<0.66||count($sim['shared'])<3)continue;
@@ -139,7 +139,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     // Exact claim evidence reuse / evidence-label disagreement.
     $evidence=$pdo->query("SELECT c.project_id,c.public_id claim_public_id,c.statement,c.status,ce.relationship,ce.source_version_id,sv.source_id,s.public_id source_public_id,s.title source_title,s.domain,ce.created_at
       FROM claim_evidence ce JOIN research_claims c ON c.id=ce.claim_id JOIN source_versions sv ON sv.id=ce.source_version_id JOIN sources s ON s.id=sv.source_id
-      WHERE c.project_id IN ($in) ORDER BY ce.created_at DESC LIMIT 1800")->fetchAll();
+      WHERE c.project_id IN ($in) ORDER BY ce.created_at DESC,c.project_id,c.id,ce.id LIMIT 1800")->fetchAll();
     $pairEvidence=[];$groups=[];foreach($evidence as $r){if(!cross_research_object_access($pdo,$viewer,'source',(string)$r['source_public_id']))continue;$groups[(int)$r['source_version_id']][]=$r;}
     foreach($groups as $group){$n=count($group);for($i=0;$i<$n;$i++)for($j=$i+1;$j<$n;$j++){
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;
@@ -161,7 +161,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     $attached=[];foreach($annotationRows as $r)$attached[(int)$r['annotation_id']][(int)$r['project_id']]=true;
     $annotationSourceRows=$pdo->query("SELECT pa.project_id,a.id annotation_id,a.public_id annotation_public_id,a.source_id,a.text_commentary,s.title source_title,s.domain,pa.created_at
       FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id JOIN sources s ON s.id=a.source_id
-      WHERE pa.project_id IN ($in) AND a.status='published' ORDER BY pa.created_at DESC LIMIT 400")->fetchAll();
+      WHERE pa.project_id IN ($in) AND a.status='published' ORDER BY pa.created_at DESC,pa.project_id,a.id LIMIT 400")->fetchAll();
     $reuseCount=0;foreach($annotationSourceRows as $r){if(!cross_research_object_access($pdo,$viewer,'annotation',(string)$r['annotation_public_id']))continue;$sourceProject=(int)$r['project_id'];foreach(array_keys($sourceProjects[(int)$r['source_id']]??[]) as $targetProject){
         if($targetProject===$sourceProject||isset($attached[(int)$r['annotation_id']][$targetProject])||!cross_research_pair_allowed($focus,$sourceProject,$targetProject))continue;
         $p1=$byId[$sourceProject];$p2=$byId[$targetProject];$label=trim((string)$r['text_commentary']);if($label==='')$label=(string)($r['source_title']?:$r['domain']?:'Annotation');
@@ -223,11 +223,15 @@ function cross_research_accept(PDO $pdo,array $viewer,string $key,?string $relat
 
 function cross_research_reject(PDO $pdo,array $viewer,string $key): bool {
     $candidate=cross_research_find_suggestion($pdo,$viewer,$key);if(!$candidate)return false;
+    $q=$pdo->prepare('SELECT decision,link_public_id FROM cross_research_decisions WHERE user_id=? AND suggestion_key=? LIMIT 1');$q->execute([$viewer['id'],$candidate['key']]);$existing=$q->fetch();
+    if($existing&&($existing['decision']??'')==='accepted'&&!empty($existing['link_public_id']))throw new RuntimeException('Remove the accepted Cross-Research relationship before dismissing this suggestion.');
     $pdo->prepare("INSERT INTO cross_research_decisions(user_id,suggestion_key,decision,link_public_id) VALUES(?,?,'rejected',NULL) ON DUPLICATE KEY UPDATE decision='rejected',link_public_id=NULL,updated_at=NOW()")->execute([$viewer['id'],$candidate['key']]);return true;
 }
 
 function cross_research_restore_decision(PDO $pdo,array $viewer,string $key): bool {
-    if(!cross_research_ready($pdo))return false;$q=$pdo->prepare('DELETE FROM cross_research_decisions WHERE user_id=? AND suggestion_key=?');$q->execute([$viewer['id'],strtolower(trim($key))]);return $q->rowCount()>0;
+    if(!cross_research_ready($pdo))return false;$key=strtolower(trim($key));$q=$pdo->prepare('SELECT decision,link_public_id FROM cross_research_decisions WHERE user_id=? AND suggestion_key=? LIMIT 1');$q->execute([$viewer['id'],$key]);$row=$q->fetch();if(!$row)return false;
+    if(($row['decision']??'')==='accepted'&&!empty($row['link_public_id']))throw new RuntimeException('Remove the accepted Cross-Research relationship before restoring the underlying suggestion.');
+    $q=$pdo->prepare('DELETE FROM cross_research_decisions WHERE user_id=? AND suggestion_key=?');$q->execute([$viewer['id'],$key]);return $q->rowCount()>0;
 }
 
 function cross_research_create_project_link(PDO $pdo,array $viewer,string $sourcePublic,string $targetPublic,string $relation,string $rationale=''): array {
