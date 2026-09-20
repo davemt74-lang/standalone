@@ -36,6 +36,9 @@ $proposals=agent_action_create_proposals($pdo,$owner,$conversation,(int)$assista
  ['capability'=>'research.create_task','project_id'=>$projectPublic,'arguments'=>['title'=>'Verify the claim','description'=>'Find independent evidence.','task_type'=>'verify_claim']],
  ['capability'=>'research.link_claims','project_id'=>$projectPublic,'arguments'=>['source_claim_id'=>'invented','target_claim_id'=>$claim2,'relation_type'=>'supports']]
 ],$refs);
+$notSuppliedClaim=$pub('claim');$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,'Real but not supplied to Agent','factual','unverified')")->execute([$notSuppliedClaim,$projectId,$owner['id']]);
+$hiddenRefAttempt=agent_action_create_proposals($pdo,$owner,$conversation,(int)$assistant['id'],$context,[['capability'=>'research.link_claims','project_id'=>$projectPublic,'arguments'=>['source_claim_id'=>$claim1,'target_claim_id'=>$notSuppliedClaim,'relation_type'=>'supports']]],$refs);
+p15(count($hiddenRefAttempt)===0,'real project IDs that were not supplied to the Agent cannot become proposal references');
 p15(count($proposals)===1&&$proposals[0]['capability_key']==='research.create_task','invalid hallucinated Research references are discarded before proposal display');
 $proposal=$proposals[0];$q=$pdo->prepare('SELECT COUNT(*) FROM research_tasks WHERE project_id=?');$q->execute([$projectId]);p15((int)$q->fetchColumn()===0,'proposal does not mutate Research before confirmation');
 p15(($proposal['status']??'')==='pending'&&count($proposal['provenance']['refs']??[])>0,'pending proposal stores provenance references');
