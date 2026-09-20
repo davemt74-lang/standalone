@@ -9,7 +9,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
 }catch(Throwable $e){$error=$e->getMessage();}}
 $view=$ready&&$eventId>0?change_impact_event_view($pdo,$u,$eventId):null;if($eventId>0&&!$view&&$ready){http_response_code(404);$error='Source change impact not found or unavailable.';}
 if($view&&$projectFilter!=='')$view['projects']=array_values(array_filter($view['projects'],fn($p)=>(string)$p['project']['public_id']===$projectFilter));
-$portfolio=[];if($ready&&$eventId===0){$q=$pdo->prepare("SELECT DISTINCT rp.public_id,rp.title FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.updated_at DESC LIMIT 30");$q->execute([$u['id'],$u['id'],$u['id']]);foreach($q->fetchAll() as $p){$s=change_impact_project_summary($pdo,$u,(string)$p['public_id'],8);if($s['events']>0)$portfolio[]=['project'=>$p,'summary'=>$s];}}
+$portfolio=[];if($ready&&$eventId===0){$q=$pdo->prepare("SELECT DISTINCT rp.public_id,rp.title FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.updated_at DESC LIMIT 30");$q->execute([$u['id'],$u['id'],$u['id']]);foreach($q->fetchAll() as $p){if($projectFilter!==''&&(string)$p['public_id']!==$projectFilter)continue;$s=change_impact_project_summary($pdo,$u,(string)$p['public_id'],8);if($s['events']>0)$portfolio[]=['project'=>$p,'summary'=>$s];}}
 $labels=change_impact_decisions();
 function impact_page_url(string $type,array $row): string {
     return match($type){
