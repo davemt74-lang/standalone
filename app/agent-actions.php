@@ -55,7 +55,7 @@ function agent_action_extract(string $text): array {
     $body=trim(substr($text,0,$pos));$json=trim(substr($text,$pos+strlen($marker)));
     if(str_starts_with($json,'```')){$json=preg_replace('/^```(?:json)?\s*/i','',$json)??$json;$json=preg_replace('/\s*```$/','',$json)??$json;}
     $actions=json_decode($json,true);
-    if(!is_array($actions))return ['body'=>$body!==''?$body:trim($text),'actions'=>[]];
+    if(!is_array($actions))return ['body'=>$body!==''?$body:'I was unable to prepare a valid Research action proposal.','actions'=>[]];
     if(array_is_list($actions)===false)$actions=[$actions];
     return ['body'=>$body!==''?$body:'I prepared the following Research action for your review.','actions'=>array_slice($actions,0,6)];
 }
@@ -236,7 +236,7 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
         $pdo->prepare("UPDATE agent_action_proposals SET status='executed',result_type=?,result_public_id=?,result_json=?,executed_at=NOW(),error_text=NULL WHERE id=?")
           ->execute([(string)($result['type']??''),(string)($result['public_id']??''),json_encode($result,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$proposal['id']]);
         agent_action_event($pdo,(int)$proposal['id'],'executed',(int)$viewer['id'],$result);
-        $pdo->commit();if(research_workspace_ready($pdo))research_workspace_queue($pdo,(int)$project['id'],2);
+        $pdo->commit();if(research_workspace_ready($pdo)){try{research_workspace_queue($pdo,(int)$project['id'],2);}catch(Throwable $ignored){}}
         return ['proposal_id'=>$proposalPublicId,'status'=>'executed','result'=>$result,'deduplicated'=>false];
     }catch(Throwable $e){
         if($pdo->inTransaction())$pdo->rollBack();throw $e;
