@@ -94,7 +94,7 @@ $need('api/conversations.php','require_api_mutation_auth','Team Chat mutations m
 $need('app/conversations.php','conversation_access','Conversation authorization must remain server-side.');
 $need('app/conversations.php','client_message_id','Conversation sends must remain retry-idempotent.');
 $need('team.php','#team-chat','Team workspace must deep-link into its Home Team Chat.');
-$need('extension/manifest.json','"version": "0.14.0"','The current Chrome extension release must remain v0.14.0 after Phase 14.');
+$need('extension/manifest.json','"version": "0.15.0"','The current Chrome extension release must remain v0.15.0 after Phase 15.');
 $need('home.php','teamChatSettingsButton','Team Chat rail must expose a footer settings icon.');
 $need('home.php','data-team-chat-popout','Team Chat rail must expose an active-chat popout control.');
 $need('home.php','data-team-chat-popups','Home must expose the desktop active-chat popup layer.');
@@ -153,6 +153,24 @@ $need('worker/source-monitor-worker.php','research_workspace_queue','Monitored s
 $need('api/extension-publish.php','workspace_intelligence_queued','Browser-added project evidence must refresh Research Workspace Intelligence.');
 $need('app/agent-chat.php','research_workspace_context','Agent Chat Research attachments must include live workspace state.');
 $need('assets/css/app.css','.researchAgentDock','Research Workspace Agent composer must have dedicated responsive styling.');
+
+$need('app/agent-actions.php','research.create_task','Agent action registry must expose bounded task creation.');
+$need('app/agent-actions.php','research.attach_annotation_evidence','Agent action registry must support provenance-safe Annotation evidence attachment.');
+$need('app/agent-actions.php','research.create_finding','Agent action registry must support draft Finding creation.');
+$need('app/agent-actions.php','project_state_hash','Every proposal must bind to the current Research project state.');
+$need('app/agent-actions.php','agent_action_event','Agent actions must emit immutable audit events.');
+$need('app/agent-actions.php','if($matching)return false','Agent proposal/workflow retries must remain idempotent.');
+$need('app/agent-chat.php','<<ANNOTATED_ACTIONS>>','Agent Chat must separate machine-readable proposals from user-visible prose.');
+$need('app/agent-chat.php','project_can_write','Read-only project viewers must not be offered write capabilities.');
+$need('api/agent-chat.php',"'action_confirm'",'Agent action execution must require an explicit confirmation endpoint.');
+$need('api/agent-chat.php',"'action_reject'",'Agent action proposals must support explicit rejection.');
+$need('api/agent-chat.php','require_api_mutation_auth','Agent action confirmation/rejection must enforce mutation authentication.');
+$need('assets/js/agent-chat.js','Confirm & execute','Home Agent canvas must render explicit confirmation cards.');
+$need('assets/js/research-agent.js','Confirm & execute','Project Agent dock must render explicit confirmation cards.');
+$need('research-project.php','Propose tasks','Research Now must expose contextual Agent-driven Research actions.');
+$need('research-project.php','Draft finding','Research Now must expose a Finding proposal shortcut.');
+$need('assets/css/app.css','.agentActionProposal','Agent action proposals must have dedicated review styling.');
+
 
 $need('extension/manifest.json','"version": "0.14.0"','Phase 14 must bump the Chrome extension to v0.14.0.');
 $need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
