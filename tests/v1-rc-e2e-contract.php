@@ -136,6 +136,23 @@ $need('extension/sidepanel-feed.js','function phase13Intelligence','Chrome This 
 $need('extension/sidepanel-feed.js','data-action="open-related"','Chrome intelligence relationships must open the referenced annotation.');
 $need('app/agent-chat.php','annotation_intelligence_context_text','Agent Chat must receive permission-filtered Annotation Intelligence context.');
 $need('bin/queue-annotation-intelligence.php','annotation_intelligence_queue','Existing published annotations must have a backfill path.');
+$need('extension/manifest.json','"version": "0.14.0"','Phase 14 must bump the Chrome extension to v0.14.0.');
+$need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
+$need('app/research-workspace.php','research_workspace_queue','Research Workspace must queue hash-specific background synthesis.');
+$need('app/research-workspace.php','research_workspace_apply_ai_output','Research Workspace must validate and persist derived AI synthesis.');
+$need('app/research-workspace.php','research_workspace_context','Agent Chat must receive current project-level workspace intelligence.');
+$need('api/research-workspace.php','UPGRADE_REQUIRED','Research Workspace API must fail clearly before migration 021.');
+$need('api/research-workspace.php','project_can_write','Workspace refresh must preserve project write permissions.');
+$need('research-project.php','data-research-now','Research project must start with the intelligent Now workspace.');
+$need('research-project.php','NEEDS ATTENTION','Research workspace must surface gaps, conflicts and source risks.');
+$need('research-project.php','NEXT ACTIONS','Research workspace must surface next research actions.');
+$need('research-project.php','data-research-agent-composer','Research workspace must expose a sticky project-scoped Agent composer.');
+$need('assets/js/research-agent.js',"context:[{type:'research',public_id:project}]",'Research Agent must automatically attach the current project as permission-checked context.');
+$need('assets/js/research-workspace.js','research-workspace.php?action=','Research Workspace refresh must use the permission-scoped API.');
+$need('worker/source-monitor-worker.php','research_workspace_queue','Monitored source changes must refresh affected Research workspaces.');
+$need('api/extension-publish.php','workspace_intelligence_queued','Browser-added project evidence must refresh Research Workspace Intelligence.');
+$need('app/agent-chat.php','research_workspace_context','Agent Chat Research attachments must include live workspace state.');
+$need('assets/css/app.css','.researchAgentDock','Research Workspace Agent composer must have dedicated responsive styling.');
 
 $need('extension/manifest.json','"version": "0.14.0"','Phase 14 must bump the Chrome extension to v0.14.0.');
 $need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
