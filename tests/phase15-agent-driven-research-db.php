@@ -31,6 +31,7 @@ $context=[agent_chat_context_item($pdo,$owner,'research',$projectPublic)];$refs=
 
 $parsed=agent_action_extract("I can prepare a task.\n<<ANNOTATED_ACTIONS>>[{\"capability\":\"research.create_task\",\"project_id\":\"".$projectPublic."\",\"arguments\":{\"title\":\"Verify the claim\",\"task_type\":\"verify_claim\"}}]");
 p15($parsed['body']==='I can prepare a task.'&&count($parsed['actions'])===1,'Agent action marker is removed from user-visible prose and parsed safely');
+$badParsed=agent_action_extract("<<ANNOTATED_ACTIONS>>not-json");p15(!str_contains((string)$badParsed['body'],'ANNOTATED_ACTIONS')&&count($badParsed['actions'])===0,'malformed machine-action payload cannot leak into user-visible Agent prose');
 
 $proposals=agent_action_create_proposals($pdo,$owner,$conversation,(int)$assistant['id'],$context,[
  ['capability'=>'research.create_task','project_id'=>$projectPublic,'arguments'=>['title'=>'Verify the claim','description'=>'Find independent evidence.','task_type'=>'verify_claim']],
