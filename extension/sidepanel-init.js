@@ -68,6 +68,7 @@ function initializeSidebarBindings(){
   sidebarBind('notificationList','click',markNotification);
   sidebarBindClick('markAllNotifications',markAllNotificationsRead);
   sidebarBindClick('openNotificationSettings',()=>chrome.tabs.create({url:API_BASE+'/settings.php#notifications'}));
+  sidebarBindClick('openAutomations',()=>chrome.tabs.create({url:API_BASE+'/research-automations.php'}));
   sidebarBind('liveMessages','click',liveMessageAction);
   sidebarBind('liveEvents','click',liveEventAction);
   sidebarBindClick('cancelLiveReply',cancelLiveReply);
