@@ -97,6 +97,7 @@ function cognitive_feed_dismiss(PDO $pdo,array $viewer,string $key,string $type)
     $pdo->prepare('INSERT INTO cognitive_feed_dismissals(user_id,observation_key,observation_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE observation_type=VALUES(observation_type),dismissed_at=NOW()')->execute([$viewer['id'],$key,$type]);
     $q=$pdo->prepare('SELECT COUNT(*) FROM cognitive_feed_dismissals WHERE user_id=?');$q->execute([$viewer['id']]);$excess=max(0,(int)$q->fetchColumn()-500);
     if($excess>0)$pdo->prepare("DELETE FROM cognitive_feed_dismissals WHERE user_id=? ORDER BY dismissed_at ASC LIMIT $excess")->execute([$viewer['id']]);
+    if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){try{research_outcome_sync_dismissals($pdo,$viewer,20);}catch(Throwable $ignored){}}
 }
 
 function cognitive_feed_restore(PDO $pdo,array $viewer,string $key): bool {
@@ -396,6 +397,7 @@ function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $p
 function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): void {
     foreach(cognitive_feed_projects($pdo,$viewer,6) as $project)cognitive_feed_collect_project_research($pdo,$viewer,$project,$items);
     if(function_exists('cross_research_ready')&&cross_research_ready($pdo))cross_research_cognitive_observations($pdo,$viewer,$items,14);
+    if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo))research_outcome_cognitive_observations($pdo,$viewer,$items,12);
 }
 
 

@@ -195,6 +195,12 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase19-cross-research-db.php
+      - name: Phase 20 Outcome Learning and Decision Memory MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase20-outcomes-db.php
 
 
   mysql8-fresh-install:

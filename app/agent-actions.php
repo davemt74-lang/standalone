@@ -236,7 +236,7 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
         $pdo->prepare("UPDATE agent_action_proposals SET status='executed',result_type=?,result_public_id=?,result_json=?,executed_at=NOW(),error_text=NULL WHERE id=?")
           ->execute([(string)($result['type']??''),(string)($result['public_id']??''),json_encode($result,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$proposal['id']]);
         agent_action_event($pdo,(int)$proposal['id'],'executed',(int)$viewer['id'],$result);
-        $pdo->commit();if(research_workspace_ready($pdo)){try{research_workspace_queue($pdo,(int)$project['id'],2);}catch(Throwable $ignored){}}
+        $pdo->commit();if(research_workspace_ready($pdo)){try{research_workspace_queue($pdo,(int)$project['id'],2);}catch(Throwable $ignored){}}if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){try{research_outcome_sync_agent_actions($pdo,$viewer,20);}catch(Throwable $ignored){}}
         return ['proposal_id'=>$proposalPublicId,'status'=>'executed','result'=>$result,'deduplicated'=>false];
     }catch(Throwable $e){
         if($pdo->inTransaction())$pdo->rollBack();throw $e;
@@ -249,7 +249,7 @@ function agent_action_reject(PDO $pdo,array $viewer,string $proposalPublicId): a
         $q=$pdo->prepare('SELECT * FROM agent_action_proposals WHERE public_id=? AND proposed_by_user_id=? FOR UPDATE');$q->execute([$proposalPublicId,$viewer['id']]);$proposal=$q->fetch();if(!$proposal)throw new AgentActionForbidden('Agent action proposal not found.');
         if($proposal['status']==='rejected'){$pdo->commit();return ['proposal_id'=>$proposalPublicId,'status'=>'rejected','deduplicated'=>true];}
         if($proposal['status']!=='pending')throw new RuntimeException('This Agent action is no longer pending.');
-        $pdo->prepare("UPDATE agent_action_proposals SET status='rejected',rejected_at=NOW() WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'rejected',(int)$viewer['id']);$pdo->commit();
+        $pdo->prepare("UPDATE agent_action_proposals SET status='rejected',rejected_at=NOW() WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'rejected',(int)$viewer['id']);$pdo->commit();if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){try{research_outcome_sync_agent_actions($pdo,$viewer,20);}catch(Throwable $ignored){}}
         return ['proposal_id'=>$proposalPublicId,'status'=>'rejected','deduplicated'=>false];
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
