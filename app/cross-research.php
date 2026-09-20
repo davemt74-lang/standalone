@@ -15,6 +15,22 @@ function cross_research_relation_types(): array {
     ];
 }
 
+function cross_research_project_relation_types(): array {
+    $all=cross_research_relation_types();$keys=['related','follow_up','supports','contradicts','depends_on','competes','derivative','context'];$out=[];foreach($keys as $k)$out[$k]=$all[$k];return $out;
+}
+
+function cross_research_object_access(PDO $pdo,array $viewer,string $type,string $publicId,?string $projectPublic=null): bool {
+    $type=strtolower(trim($type));$publicId=trim($publicId);if($publicId==='')return false;
+    if($projectPublic!==null&&$projectPublic!==''&&!project_access($pdo,(int)$viewer['id'],$projectPublic))return false;
+    if($type==='project')return project_access($pdo,(int)$viewer['id'],$publicId)!==null;
+    if($type==='source')return source_access($pdo,$publicId,$viewer)!==null;
+    if($type==='annotation')return annotation_access($pdo,$publicId,$viewer)!==null;
+    if($type==='entity')return function_exists('research_entity_access')&&research_entity_access($pdo,$viewer,$publicId)!==null;
+    if($type==='claim'){$q=$pdo->prepare('SELECT rp.public_id FROM research_claims rc JOIN research_projects rp ON rp.id=rc.project_id WHERE rc.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;}
+    if($type==='finding'){$q=$pdo->prepare('SELECT rp.public_id FROM research_findings rf JOIN research_projects rp ON rp.id=rf.project_id WHERE rf.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;}
+    return false;
+}
+
 function cross_research_accessible_projects(PDO $pdo,array $viewer,int $limit=40): array {
     $limit=max(1,min(100,$limit));
     $q=$pdo->prepare("SELECT DISTINCT rp.*,CASE WHEN rp.owner_user_id=? THEN 'owner' ELSE COALESCE(tm.role,'viewer') END access_role
