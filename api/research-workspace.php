@@ -18,6 +18,7 @@ try{
     }
     if($action==='refresh'){
         if(!project_can_write($project))json_response(['ok'=>false,'error'=>['code'=>'FORBIDDEN']],403);
+        if(!research_workspace_ai_model_configured($pdo))json_response(['ok'=>false,'error'=>['code'=>'AI_NOT_CONFIGURED','message'=>'Research Workspace deterministic intelligence is available, but no Research/default AI model is configured.']],409);
         rate_limit_api_or_429($pdo,'research-workspace-refresh','user:'.$viewer['id'],60,3600);
         $queued=research_workspace_queue($pdo,(int)$project['id'],2);
         $record=research_workspace_record($pdo,(int)$project['id']);
