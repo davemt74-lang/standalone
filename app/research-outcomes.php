@@ -108,12 +108,16 @@ function research_outcome_sync_dismissals(PDO $pdo,array $viewer,int $limit=300)
 }
 
 function research_outcome_sync(PDO $pdo,array $viewer): array {
-    if(!research_outcomes_ready($pdo))return ['ready'=>false,'recorded'=>0];$before=(int)$pdo->prepare('SELECT COUNT(*) FROM research_outcome_events WHERE user_id=?')->execute([$viewer['id']]);$counts=['agent_actions'=>research_outcome_sync_agent_actions($pdo,$viewer),'automations'=>research_outcome_sync_automations($pdo,$viewer),'cross_research'=>research_outcome_sync_cross_research($pdo,$viewer),'dismissals'=>research_outcome_sync_dismissals($pdo,$viewer)];$q=$pdo->prepare('SELECT COUNT(*) FROM research_outcome_events WHERE user_id=?');$q->execute([$viewer['id']]);return ['ready'=>true,'recorded'=>(int)$q->fetchColumn(),'sources'=>$counts];
+    if(!research_outcomes_ready($pdo))return ['ready'=>false,'recorded'=>0];$counts=['agent_actions'=>research_outcome_sync_agent_actions($pdo,$viewer),'automations'=>research_outcome_sync_automations($pdo,$viewer),'cross_research'=>research_outcome_sync_cross_research($pdo,$viewer),'dismissals'=>research_outcome_sync_dismissals($pdo,$viewer)];$q=$pdo->prepare('SELECT COUNT(*) FROM research_outcome_events WHERE user_id=?');$q->execute([$viewer['id']]);return ['ready'=>true,'recorded'=>(int)$q->fetchColumn(),'sources'=>$counts];
 }
 
 function research_outcome_summary(PDO $pdo,array $viewer,?string $projectPublic=null): array {
     $items=research_outcome_list($pdo,$viewer,$projectPublic,null,300);$counts=[];$sourceCounts=[];$helpful=0;$notHelpful=0;$follow=0;$reopened=0;foreach($items as $r){$counts[$r['decision_type']]=($counts[$r['decision_type']]??0)+1;$sourceCounts[$r['source_type']]=($sourceCounts[$r['source_type']]??0)+1;if(($r['usefulness']??'')==='helpful')$helpful++;if(($r['usefulness']??'')==='not_helpful')$notHelpful++;if(($r['follow_up_state']??'')==='follow_up')$follow++;if(($r['follow_up_state']??'')==='reopened')$reopened++;}
     arsort($counts);arsort($sourceCounts);return ['total'=>count($items),'decisions'=>$counts,'sources'=>$sourceCounts,'helpful'=>$helpful,'not_helpful'=>$notHelpful,'follow_up'=>$follow,'reopened'=>$reopened];
+}
+
+function research_outcome_input_hash(PDO $pdo,array $viewer,string $projectPublic): string {
+    $items=research_outcome_list($pdo,$viewer,$projectPublic,null,300);$rows=[];foreach($items as $r)$rows[]=[(string)$r['public_id'],(string)$r['decision_type'],(string)$r['updated_at'],(string)($r['usefulness']??''),(string)($r['follow_up_state']??''),(string)($r['feedback_comment']??'')];return hash('sha256',json_encode($rows,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
 }
 
 function research_outcome_context(PDO $pdo,array $viewer,string $projectPublic,int $limit=15): array {
