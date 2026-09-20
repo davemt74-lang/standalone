@@ -270,3 +270,15 @@
 .stickyOutcome{position:sticky;top:92px}.outcomeStatRow{display:flex;justify-content:space-between;gap:12px;margin:7px 0}
 @media(max-width:1050px){.outcomeLayout{grid-template-columns:1fr}.stickyOutcome{position:static}.outcomeSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.outcomeFeedback{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.outcomeSummary{grid-template-columns:1fr}.outcomeFilters,.outcomeCard header{display:grid}.outcomeFilters .inlineForm{display:grid}.outcomeFeedback{grid-template-columns:1fr}.outcomeFeedback button{width:100%}}
+
+/* Phase 21 — Collaborative Research Review & Governance */
+.reviewCenterLayout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;max-width:1500px;margin:0 auto;padding:24px}
+.reviewTabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.reviewTabs a{padding:8px 12px;border:1px solid var(--border,#e5e7eb);border-radius:999px;text-decoration:none}.reviewTabs a.active{font-weight:700;background:rgba(127,127,127,.08)}
+.reviewList,.reviewResponses,.reviewDiscussion{display:grid;gap:14px}.reviewListCard,.reviewDetail,.reviewRequestCard{scroll-margin-top:90px}
+.reviewHeader{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.reviewBadges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px}.reviewHeader h2{margin:4px 0}
+.reviewMetrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:14px 0}.reviewMetrics span{padding:9px 10px;border:1px solid var(--border,#e5e7eb);border-radius:10px;font-size:.82rem}.reviewMetrics strong{display:block;font-size:1.05rem}.reviewMetrics.compact{grid-template-columns:repeat(4,minmax(0,1fr))}
+.reviewStale{border-width:2px}.reviewOverdue{font-weight:700}.reviewInstructions{margin:14px 0;padding:12px 14px;border:1px solid var(--border,#e5e7eb);border-radius:12px}.reviewInstructions p{margin:6px 0 0}
+.reviewerChoice{display:flex;gap:8px;align-items:center;padding:7px 0}.reviewResponse .badge{margin-left:7px}.reviewRespond,.reviewGovernance{margin-top:18px}.reviewDiscussion{margin-top:24px}.reviewGovernance form{margin-top:10px}
+.stickyReviewRail{position:sticky;top:92px}.reviewGovernance pre{white-space:pre-wrap;overflow:auto;max-height:420px}
+@media(max-width:980px){.reviewCenterLayout{grid-template-columns:1fr}.stickyReviewRail{position:static}.reviewMetrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:620px){.reviewCenterLayout{padding:14px}.reviewHeader{display:grid}.reviewMetrics,.reviewMetrics.compact{grid-template-columns:repeat(2,minmax(0,1fr))}}
