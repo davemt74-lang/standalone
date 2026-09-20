@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Annotated",
-  "version": "0.15.0",
-  "description": "Annotated v0.15 Chrome sidebar paired with Agent-Driven Research, Research Workspace Intelligence, annotation intelligence, Team Chat, Agent Chat, capture, source integrity, search, notifications, and moderation.",
+  "version": "0.16.0",
+  "description": "Annotated v0.16 Chrome sidebar paired with Cognitive Feed, Agent-Driven Research, Research Workspace Intelligence, annotation intelligence, Team Chat, Agent Chat, capture, source integrity, search, notifications, and moderation.",
   "permissions": [
     "sidePanel",
     "activeTab",
