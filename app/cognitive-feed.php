@@ -96,6 +96,11 @@ function cognitive_feed_dismiss(PDO $pdo,array $viewer,string $key,string $type)
     $pdo->prepare('INSERT INTO cognitive_feed_dismissals(user_id,observation_key,observation_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE observation_type=VALUES(observation_type),dismissed_at=NOW()')->execute([$viewer['id'],$key,$type]);
 }
 
+function cognitive_feed_restore(PDO $pdo,array $viewer,string $key): bool {
+    if(!cognitive_feed_ready($pdo))return false;$key=strtolower(trim($key));if(!preg_match('/^[a-f0-9]{64}$/',$key))throw new InvalidArgumentException('Invalid cognitive feed item.');
+    $q=$pdo->prepare('DELETE FROM cognitive_feed_dismissals WHERE user_id=? AND observation_key=?');$q->execute([$viewer['id'],$key]);return $q->rowCount()>0;
+}
+
 function cognitive_feed_restore_all(PDO $pdo,array $viewer): int {
     if(!cognitive_feed_ready($pdo))return 0;$q=$pdo->prepare('DELETE FROM cognitive_feed_dismissals WHERE user_id=?');$q->execute([$viewer['id']]);return $q->rowCount();
 }
