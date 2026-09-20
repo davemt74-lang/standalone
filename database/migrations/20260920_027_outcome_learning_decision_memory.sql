@@ -56,3 +56,6 @@ CREATE TABLE IF NOT EXISTS research_outcome_feedback (
   CONSTRAINT fk_research_outcome_feedback_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_research_outcome_feedback_outcome FOREIGN KEY(outcome_id) REFERENCES research_outcome_events(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE research_automations
+  MODIFY COLUMN workflow_type ENUM('briefing','review','source_refresh','cross_research_review','outcome_review') NOT NULL;
