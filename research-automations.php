@@ -84,7 +84,7 @@ $watches=$ready&&proactive_intelligence_ready($pdo)?proactive_watch_list($pdo,$u
 <script>
 document.querySelectorAll('[data-automation-form]').forEach(form=>{
  const trigger=form.querySelector('[data-trigger]'),workflow=form.querySelector('[data-workflow]'),schedule=form.querySelector('[data-schedule-fields]'),watch=form.querySelector('[data-watch-fields]'),prompt=form.querySelector('[data-prompt-field]'),tz=form.querySelector('[data-timezone]');
- const sync=()=>{const watchMode=trigger?.value==='watch_alert';if(schedule)schedule.hidden=watchMode;if(watch)watch.hidden=!watchMode;if(prompt)prompt.hidden=workflow?.value==='source_refresh';};
+ const sync=()=>{const watchMode=trigger?.value==='watch_alert';if(schedule)schedule.hidden=watchMode;if(watch)watch.hidden=!watchMode;if(prompt)prompt.hidden=['source_refresh','cross_research_review'].includes(workflow?.value);};
  trigger?.addEventListener('change',sync);workflow?.addEventListener('change',sync);sync();
  if(tz&&(!tz.value||tz.value==='UTC')){try{const z=Intl.DateTimeFormat().resolvedOptions().timeZone;if(z)tz.value=z;}catch{}}
 });
