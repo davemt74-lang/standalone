@@ -28,7 +28,7 @@ $a=$createAnnotation($owner,'public',$duplicateText,'Primary annotation about th
 $b=$createAnnotation($other,'public',$duplicateText,'Another researcher captured the same evidence.');
 $team=$createAnnotation($owner,'team','Team-only evidence that should never leak to outsiders through relationship metadata.','Team private analysis.',$teamId);
 $private=$createAnnotation($owner,'private','Private evidence only the owner should be able to inspect.','Private analysis.');
-$imageOnly=$createAnnotation($owner,'public','','','', 'image_region');
+$imageOnly=$createAnnotation($owner,'public','','',null,'image_region');
 
 p13(!annotation_intelligence_queue($pdo,$imageOnly['id'],null,5),'image-only capture without analyzable text is not given fabricated text intelligence');
 p13(annotation_intelligence_queue($pdo,$a['id'],$owner['id'],4),'published text annotation queues intelligence');
