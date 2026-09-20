@@ -22,6 +22,10 @@ $entityPublic=$pub('entity');$pdo->prepare("INSERT INTO research_entities(public
 $watchProject=proactive_watch_upsert($pdo,$owner,'project',$projectPublic);$watchClaim=proactive_watch_upsert($pdo,$owner,'claim',$claimPublic);$watchEntity=proactive_watch_upsert($pdo,$owner,'entity',$entityPublic);$watchSource=proactive_watch_upsert($pdo,$owner,'source',$sourcePublic);$watchQuestion=proactive_watch_upsert($pdo,$owner,'question',null,'watched passage changed');
 p17(count(proactive_watch_list($pdo,$owner))===5,'source, project, claim, entity, and question watches persist');
 $denied=false;try{proactive_watch_upsert($pdo,$outsider,'project',$projectPublic);}catch(RuntimeException $e){$denied=true;}p17($denied,'inaccessible Research objects cannot be watched');
+$synthetic=['type'=>'recent_change','priority'=>'low','score'=>30,'title'=>'Routine project change','body'=>'Low priority project activity','actions'=>[cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode($projectPublic))]];
+$importantWatch=['status'=>'active','watch_type'=>'project','object_public_id'=>$projectPublic,'alert_level'=>'important'];$allWatch=$importantWatch;$allWatch['alert_level']='all';$matched=null;
+p17(!proactive_should_alert($synthetic,$owner,['proactive_notification_mode'=>'mentions'],[$importantWatch],$matched),'important-only watch does not escalate low-priority matching state');
+$matched=null;p17(proactive_should_alert($synthetic,$owner,['proactive_notification_mode'=>'mentions'],[$allWatch],$matched),'all-activity watch can surface low-priority matching state');
 
 $jobsBefore=(int)$pdo->query('SELECT COUNT(*) FROM ai_jobs')->fetchColumn();$sync=proactive_intelligence_sync($pdo,$owner);$jobsAfter=(int)$pdo->query('SELECT COUNT(*) FROM ai_jobs')->fetchColumn();
 p17($jobsBefore===$jobsAfter,'proactive evaluation creates no AI ranking jobs');p17(($sync['evaluated']??0)>0&&($sync['notified']??0)>0,'important cognitive observations create proactive notifications');
