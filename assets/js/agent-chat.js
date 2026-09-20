@@ -47,6 +47,51 @@
   function renderAttachment(a){
     const chip=document.createElement('span');chip.className='agentContextChip';chip.textContent=(a.metadata?.label||a.label||a.public_id||a.type);return chip;
   }
+  function capabilityLabel(key){
+    return ({'research.create_task':'Create research task','research.create_note':'Create research note','research.create_claim':'Create claim','research.attach_annotation_evidence':'Attach annotation evidence','research.create_finding':'Create finding','research.link_claims':'Link claims'})[key]||String(key||'Research action');
+  }
+  function proposalSummary(p){
+    const a=p.arguments||{},key=p.capability_key||'';
+    if(key==='research.create_task')return a.title||'New research task';
+    if(key==='research.create_note')return String(a.body||'').slice(0,180);
+    if(key==='research.create_claim')return String(a.statement||'').slice(0,180);
+    if(key==='research.attach_annotation_evidence')return (a.relationship||'supports')+' · '+(a.annotation_id||'annotation')+' → '+(a.claim_id||'claim');
+    if(key==='research.create_finding')return a.title||'New finding';
+    if(key==='research.link_claims')return (a.source_claim_id||'claim')+' '+(a.relation_type||'related')+' '+(a.target_claim_id||'claim');
+    return 'Review this proposed Research change.';
+  }
+  function updateProposalCard(card,p){
+    const status=String(p.status||'pending');card.dataset.status=status;card.querySelector('[data-proposal-status]').textContent=status.replace(/_/g,' ');
+    const actions=card.querySelector('[data-proposal-actions]');if(actions)actions.hidden=status!=='pending';
+    const result=card.querySelector('[data-proposal-result]');
+    if(result){result.replaceChildren();if(status==='executed'&&p.result?.url){const a=document.createElement('a');a.href=p.result.url;a.textContent='Open '+(p.result.label||p.result.type||'result');result.appendChild(a);}else if(p.error_text){result.textContent=p.error_text;}}
+  }
+  function renderProposal(p){
+    const card=document.createElement('section');card.className='agentActionProposal';card.dataset.proposal=p.public_id||'';
+    const top=document.createElement('div');top.className='agentActionProposalHead';
+    const title=document.createElement('strong');title.textContent=capabilityLabel(p.capability_key);
+    const status=document.createElement('span');status.dataset.proposalStatus='1';top.append(title,status);
+    const project=document.createElement('small');project.textContent=p.project_title?'Research · '+p.project_title:'Research action';
+    const summary=document.createElement('p');summary.textContent=proposalSummary(p);
+    const warning=document.createElement('div');warning.className='agentActionProposalWarning';warning.textContent='This changes Research only after you confirm.';
+    const actions=document.createElement('div');actions.className='agentActionProposalActions';actions.dataset.proposalActions='1';
+    const confirm=document.createElement('button');confirm.type='button';confirm.textContent='Confirm & execute';
+    const reject=document.createElement('button');reject.type='button';reject.className='secondary';reject.textContent='Reject';
+    actions.append(confirm,reject);
+    const result=document.createElement('div');result.className='agentActionProposalResult';result.dataset.proposalResult='1';
+    card.append(top,project,summary,warning,actions,result);
+    async function mutate(action){
+      confirm.disabled=true;reject.disabled=true;
+      try{
+        const data=await request(action,{method:'POST',data:{proposal_id:p.public_id}});
+        p={...p,...data,status:data.status||p.status,result:data.result||p.result};updateProposalCard(card,p);
+      }catch(err){
+        if(String(err.message||'').includes('changed after')||String(err.message||'').includes('expired')){p.status='stale';p.error_text=err.message;updateProposalCard(card,p);}
+        else alert(err.message||'Unable to update Agent action.');
+      }finally{confirm.disabled=false;reject.disabled=false;}
+    }
+    confirm.addEventListener('click',()=>mutate('action_confirm'));reject.addEventListener('click',()=>mutate('action_reject'));updateProposalCard(card,p);return card;
+  }
   function renderMessage(row){
     clearWelcome();
     const article=document.createElement('article');article.className='agentChatMessage '+(row.role==='assistant'||row.sender_type==='agent'?'is-agent':'is-user');
@@ -54,6 +99,7 @@
     const body=document.createElement('div');body.className='agentChatMessageBody';body.textContent=row.body||'';
     article.append(head,body);
     if(Array.isArray(row.attachments)&&row.attachments.length){const wrap=document.createElement('div');wrap.className='agentChatMessageContext';row.attachments.forEach(a=>wrap.appendChild(renderAttachment(a)));article.appendChild(wrap);}
+    if(Array.isArray(row.action_proposals)&&row.action_proposals.length){const proposals=document.createElement('div');proposals.className='agentActionProposalList';row.action_proposals.forEach(p=>proposals.appendChild(renderProposal(p)));article.appendChild(proposals);}
     messages.appendChild(article);return article;
   }
   function showThinking(){
