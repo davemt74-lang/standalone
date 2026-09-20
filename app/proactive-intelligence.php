@@ -69,4 +69,21 @@ function proactive_intelligence_sync(PDO $pdo,array $viewer,?array $feed=null): 
 }
 function proactive_alert_snooze(PDO $pdo,array $viewer,string $key,int $hours=24): bool {if(!proactive_intelligence_ready($pdo))return false;$hours=max(1,min(720,$hours));$key=strtolower(trim($key));if(!preg_match('/^[a-f0-9]{64}$/',$key))throw new InvalidArgumentException('Invalid proactive alert.');$q=$pdo->prepare("UPDATE cognitive_alert_states SET state='snoozed',snoozed_until=DATE_ADD(NOW(),INTERVAL ? HOUR),resolved_at=NULL WHERE user_id=? AND observation_key=?");$q->execute([$hours,$viewer['id'],$key]);if($q->rowCount()<1)return false;$q=$pdo->prepare('SELECT notification_public_id FROM cognitive_alert_states WHERE user_id=? AND observation_key=?');$q->execute([$viewer['id'],$key]);$n=(string)($q->fetchColumn()?:'');if($n!=='')$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()),archived_at=COALESCE(archived_at,NOW()) WHERE user_id=? AND public_id=?')->execute([$viewer['id'],$n]);return true;}
 function proactive_alert_resolve(PDO $pdo,array $viewer,string $key): bool {if(!proactive_intelligence_ready($pdo))return false;$key=strtolower(trim($key));if(!preg_match('/^[a-f0-9]{64}$/',$key))throw new InvalidArgumentException('Invalid proactive alert.');$q=$pdo->prepare("UPDATE cognitive_alert_states SET state='resolved',resolved_at=NOW(),snoozed_until=NULL WHERE user_id=? AND observation_key=?");$q->execute([$viewer['id'],$key]);if($q->rowCount()<1)return false;$q=$pdo->prepare('SELECT notification_public_id FROM cognitive_alert_states WHERE user_id=? AND observation_key=?');$q->execute([$viewer['id'],$key]);$n=(string)($q->fetchColumn()?:'');if($n!=='')$pdo->prepare('UPDATE notifications SET read_at=COALESCE(read_at,NOW()),archived_at=COALESCE(archived_at,NOW()) WHERE user_id=? AND public_id=?')->execute([$viewer['id'],$n]);return true;}
+function proactive_current_observation(PDO $pdo,array $viewer,string $key): ?array {
+    $key=strtolower(trim($key));if(!preg_match('/^[a-f0-9]{64}$/',$key))return null;
+    $feed=cognitive_feed_compose($pdo,$viewer,null,8,60);
+    foreach(proactive_feed_items($feed) as $item)if(hash_equals((string)($item['key']??''),$key))return $item;
+    return null;
+}
+function proactive_agent_handoff(PDO $pdo,array $viewer,string $key): ?array {
+    $item=proactive_current_observation($pdo,$viewer,$key);if(!$item)return null;
+    foreach((array)($item['actions']??[]) as $action){
+        if(($action['type']??'')!=='agent'||trim((string)($action['prompt']??''))==='')continue;
+        $context=is_array($action['context']??null)?$action['context']:[];
+        $refs=[];foreach($context as $ctx){$type=(string)($ctx['type']??'');if($type==='research')$type='project';$refs[]=['type'=>$type,'public_id'=>(string)($ctx['public_id']??'')];}
+        if(!proactive_context_access($pdo,$viewer,['refs'=>$refs]))return null;
+        return ['prompt'=>(string)$action['prompt'],'context'=>$context,'observation_key'=>$key,'title'=>(string)($item['title']??'Research update')];
+    }
+    return null;
+}
 function proactive_briefing(PDO $pdo,array $viewer,int $limit=3): array {$limit=max(1,min(8,$limit));if(!proactive_intelligence_ready($pdo))return ['ready'=>false,'items'=>[],'count'=>0];$prefs=proactive_preferences($pdo,$viewer);if(empty($prefs['proactive_briefing_enabled']))return ['ready'=>true,'enabled'=>false,'items'=>[],'count'=>0];$feed=cognitive_feed_compose($pdo,$viewer,null,8,60);$watches=proactive_watch_list($pdo,$viewer);$items=[];foreach(proactive_feed_items($feed) as $item){$matched=null;if(!proactive_should_alert($item,$viewer,['proactive_notification_mode'=>'important'],$watches,$matched))continue;$item['why']=proactive_why_this_matters($item,$matched!==null);$item['refs']=proactive_observation_refs($item);$item['primary_url']=proactive_primary_url($item);$items[]=$item;if(count($items)>=$limit)break;}return ['ready'=>true,'enabled'=>true,'items'=>$items,'count'=>count($items)];}
