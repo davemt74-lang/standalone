@@ -17,6 +17,7 @@ function research_automation_workflows(): array {
       'cross_research_review'=>['label'=>'Cross-Research Review','description'=>'Review explainable relationships between this project and other accessible Research.','requires_ai'=>false,'requires_write'=>false],
       'outcome_review'=>['label'=>'Outcome Review','description'=>'Review explicit Decision Memory outcomes, unresolved follow-ups, and reopened decisions.','requires_ai'=>false,'requires_write'=>false],
       'review_digest'=>['label'=>'Review Digest','description'=>'Summarize collaborative reviews, objections, requested changes, stale reviews, and deadlines.','requires_ai'=>false,'requires_write'=>false],
+      'impact_review'=>['label'=>'Change Impact Review','description'=>'Summarize downstream Research affected by Source changes without changing conclusions.','requires_ai'=>false,'requires_write'=>false],
     ];
 }
 
@@ -87,7 +88,7 @@ function research_automation_create(PDO $pdo,array $viewer,array $input): array 
     $prompt=mb_substr(trim((string)($input['prompt']??'')),0,4000);
     if($workflow==='briefing'&&$prompt==='')$prompt='Summarize meaningful changes, conflicting evidence, unresolved gaps, source risks, and the most useful next questions in this Research project.';
     if($workflow==='review'&&$prompt==='')$prompt='Review the current Research project for meaningful gaps, conflicts, weak evidence, and useful next actions. Propose bounded Research writes only when they would materially help.';
-    if(in_array($workflow,['source_refresh','cross_research_review','outcome_review','review_digest'],true))$prompt='';
+    if(in_array($workflow,['source_refresh','cross_research_review','outcome_review','review_digest','impact_review'],true))$prompt='';
     $watch=null;if($trigger==='watch_alert'){$watch=research_automation_watch($pdo,$viewer,(string)($input['watch_id']??''));$cadence='manual';}
     $next=$trigger==='schedule'?research_automation_next_run($cadence,$timezone,$runTime,$weekday):null;$public=ulid_like();
     $pdo->prepare("INSERT INTO research_automations(public_id,user_id,project_id,watch_id,title,workflow_type,trigger_type,cadence,timezone_name,run_time_local,weekday,prompt,status,next_run_at)
@@ -122,7 +123,7 @@ function research_automation_update(PDO $pdo,array $viewer,string $publicId,arra
     $cadence=strtolower(trim((string)($input['cadence']??$current['cadence'])));if(!isset(research_automation_cadences()[$cadence]))$cadence='daily';
     $timezone=trim((string)($input['timezone_name']??$current['timezone_name']));research_automation_timezone($timezone);
     $runTime=research_automation_time((string)($input['run_time_local']??$current['run_time_local']??'09:00'));$weekday=max(0,min(6,(int)($input['weekday']??$current['weekday']??1)));
-    $prompt=mb_substr(trim((string)($input['prompt']??$current['prompt']??'')),0,4000);if(in_array($workflow,['source_refresh','cross_research_review','outcome_review','review_digest'],true))$prompt='';
+    $prompt=mb_substr(trim((string)($input['prompt']??$current['prompt']??'')),0,4000);if(in_array($workflow,['source_refresh','cross_research_review','outcome_review','review_digest','impact_review'],true))$prompt='';
     $watch=null;if($trigger==='watch_alert'){$watch=research_automation_watch($pdo,$viewer,(string)($input['watch_id']??$current['watch_public_id']??''));$cadence='manual';}
     $next=$trigger==='schedule'?research_automation_next_run($cadence,$timezone,$runTime,$weekday):null;
     $pdo->prepare("UPDATE research_automations SET project_id=?,watch_id=?,title=?,workflow_type=?,trigger_type=?,cadence=?,timezone_name=?,run_time_local=?,weekday=?,prompt=?,next_run_at=?,updated_at=NOW() WHERE id=? AND user_id=?")
@@ -239,6 +240,7 @@ function research_automation_execute(PDO $pdo,array $config,array $run): array {
     if($automation['workflow_type']==='cross_research_review'&&function_exists('cross_research_input_hash'))$inputHash=cross_research_input_hash($pdo,$viewer,(string)$automation['project_public_id']);
     elseif($automation['workflow_type']==='outcome_review'&&function_exists('research_outcome_input_hash'))$inputHash=research_outcome_input_hash($pdo,$viewer,(string)$automation['project_public_id']);
     elseif($automation['workflow_type']==='review_digest'&&function_exists('research_review_input_hash'))$inputHash=research_review_input_hash($pdo,$viewer,(string)$automation['project_public_id']);
+    elseif($automation['workflow_type']==='impact_review'&&function_exists('change_impact_input_hash'))$inputHash=change_impact_input_hash($pdo,$viewer,(string)$automation['project_public_id']);
     else $inputHash=function_exists('research_workspace_input_hash')?research_workspace_input_hash($pdo,(int)$project['id']):hash('sha256',$project['updated_at']??$project['public_id']);
     if($automation['workflow_type']!=='source_refresh'&&$run['trigger_type']==='schedule'){
         $previous=research_automation_previous_hash($pdo,(int)$automation['id']);
@@ -265,6 +267,10 @@ function research_automation_execute(PDO $pdo,array $config,array $run): array {
     if($automation['workflow_type']==='review_digest'){
         if(!function_exists('research_review_digest')||!research_reviews_ready($pdo))throw new RuntimeException('Collaborative Research Review is unavailable.');
         return ['status'=>'completed','output'=>research_review_digest($pdo,$viewer,(string)$automation['project_public_id']),'proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>$inputHash];
+    }
+    if($automation['workflow_type']==='impact_review'){
+        if(!function_exists('change_impact_digest')||!change_impact_ready($pdo))throw new RuntimeException('Change Impact Intelligence is unavailable.');
+        return ['status'=>'completed','output'=>change_impact_digest($pdo,$viewer,(string)$automation['project_public_id']),'proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>$inputHash];
     }
 
     $context=agent_chat_context_normalize($pdo,$viewer,[['type'=>'research','public_id'=>$automation['project_public_id']]]);if(!$context)throw new RuntimeException('Research project context is unavailable.');

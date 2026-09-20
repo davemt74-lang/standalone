@@ -47,8 +47,10 @@ function research_review_subject_state(PDO $pdo,array $viewer,array $review): ar
         $newer=!empty($subject['current_version_id'])&&(int)$subject['current_version_id']!==(int)$subject['version_id'];
         return ['available'=>true,'stale'=>$newer,'reason'=>$newer?'A newer report version has been published. This review remains pinned to '.$review['subject_version_label'].'.':'','subject'=>$subject];
     }
-    $stale=!hash_equals((string)$review['subject_hash'],(string)$subject['hash']);
-    return ['available'=>true,'stale'=>$stale,'reason'=>$stale?'The Research object changed after this review was requested. Start an updated review before relying on prior responses.':'','subject'=>$subject];
+    $stale=!hash_equals((string)$review['subject_hash'],(string)$subject['hash']);$reason=$stale?'The Research object changed after this review was requested. Start an updated review before relying on prior responses.':'';
+    $upstream=null;if(!$stale&&function_exists('change_impact_review_upstream_staleness'))$upstream=change_impact_review_upstream_staleness($pdo,$viewer,$review);
+    if($upstream){$stale=true;$reason=(string)$upstream['reason'].' Source: '.($upstream['source_title']??$upstream['source_public_id']).'.';}
+    return ['available'=>true,'stale'=>$stale,'reason'=>$reason,'subject'=>$subject,'upstream_impact'=>$upstream];
 }
 
 function research_review_eligible_reviewers(PDO $pdo,array $viewer,string $projectPublic): array {
