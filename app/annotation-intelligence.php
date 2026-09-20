@@ -108,8 +108,9 @@ function annotation_intelligence_queue(PDO $pdo,int $annotationId,?int $requeste
       VALUES(?,'pending',?,NOW(),NULL)
       ON DUPLICATE KEY UPDATE status=IF(input_hash=VALUES(input_hash) AND status='processing','processing','pending'),input_hash=VALUES(input_hash),queued_at=NOW(),last_error=NULL")->execute([$annotationId,$hash]);
     annotation_intelligence_seed_relationships($pdo,$row);
-    $q=$pdo->prepare("SELECT input_json FROM ai_jobs WHERE task_type='annotation_intelligence' AND object_type='annotation' AND object_public_id=? AND status IN ('queued','processing')");$q->execute([$row['public_id']]);$matchingActive=false;
-    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $inputJson){$input=json_decode((string)$inputJson,true);if(is_array($input)&&hash_equals((string)($input['input_hash']??''),$hash)){$matchingActive=true;break;}}
+    $q=$pdo->prepare("SELECT id,status,input_json FROM ai_jobs WHERE task_type='annotation_intelligence' AND object_type='annotation' AND object_public_id=? AND status IN ('queued','processing')");$q->execute([$row['public_id']]);$matchingActive=false;$obsoleteQueued=[];
+    foreach($q->fetchAll() as $activeJob){$input=json_decode((string)($activeJob['input_json']??''),true);if(is_array($input)&&hash_equals((string)($input['input_hash']??''),$hash)){$matchingActive=true;continue;}if(($activeJob['status']??'')==='queued')$obsoleteQueued[]=(int)$activeJob['id'];}
+    if($obsoleteQueued){$iph=implode(',',array_fill(0,count($obsoleteQueued),'?'));$pdo->prepare("UPDATE ai_jobs SET status='blocked',last_error='Superseded by newer annotation evidence.',completed_at=NOW() WHERE id IN ($iph) AND status='queued'")->execute($obsoleteQueued);}
     if(!$matchingActive)ai_queue_job($pdo,null,'annotation_intelligence',null,'annotation',(string)$row['public_id'],['input_hash'=>$hash],$priority);
     return true;
 }
