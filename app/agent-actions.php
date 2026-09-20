@@ -158,10 +158,10 @@ function agent_action_create_proposals(PDO $pdo,array $viewer,array $conversatio
         $provenance=['refs'=>$refs,'conversation_id'=>$conversation['public_id'],'assistant_message_id'=>$assistantMessageId,'project_id'=>$projectPublic];
         $dedupe=hash('sha256',$viewer['id'].'|'.$conversation['id'].'|'.$assistantMessageId.'|'.$project['id'].'|'.$cap.'|'.$argsJson);
         $public=ulid_like();
-        $pdo->prepare("INSERT IGNORE INTO agent_action_proposals(public_id,conversation_id,assistant_message_id,proposed_by_user_id,project_id,capability_key,arguments_json,provenance_json,project_state_hash,dedupe_key,expires_at)
-          VALUES(?,?,?,?,?,?,?,?,?,?,DATE_ADD(NOW(),INTERVAL 24 HOUR))")
-          ->execute([$public,$conversation['id'],$assistantMessageId,$viewer['id'],$project['id'],$cap,$argsJson,json_encode($provenance,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$hash,$dedupe]);
-        if($pdo->lastInsertId()){$proposalId=(int)$pdo->lastInsertId();agent_action_event($pdo,$proposalId,'proposed',(int)$viewer['id'],['capability'=>$cap]);$row=agent_action_proposal_row($pdo,$viewer,$public);if($row)$out[]=$row;}
+        $insert=$pdo->prepare("INSERT IGNORE INTO agent_action_proposals(public_id,conversation_id,assistant_message_id,proposed_by_user_id,project_id,capability_key,arguments_json,provenance_json,project_state_hash,dedupe_key,expires_at)
+          VALUES(?,?,?,?,?,?,?,?,?,?,DATE_ADD(NOW(),INTERVAL 24 HOUR))");
+        $insert->execute([$public,$conversation['id'],$assistantMessageId,$viewer['id'],$project['id'],$cap,$argsJson,json_encode($provenance,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$hash,$dedupe]);
+        if($insert->rowCount()>0){$proposalId=(int)$pdo->lastInsertId();agent_action_event($pdo,$proposalId,'proposed',(int)$viewer['id'],['capability'=>$cap]);$row=agent_action_proposal_row($pdo,$viewer,$public);if($row)$out[]=$row;}
         else{$q=$pdo->prepare('SELECT public_id FROM agent_action_proposals WHERE dedupe_key=?');$q->execute([$dedupe]);$existing=(string)($q->fetchColumn()?:'');if($existing){$row=agent_action_proposal_row($pdo,$viewer,$existing);if($row)$out[]=$row;}}
     }
     return $out;
