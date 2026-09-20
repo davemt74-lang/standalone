@@ -159,7 +159,7 @@ $need('app/agent-actions.php','research.attach_annotation_evidence','Agent actio
 $need('app/agent-actions.php','research.create_finding','Agent action registry must support draft Finding creation.');
 $need('app/agent-actions.php','project_state_hash','Every proposal must bind to the current Research project state.');
 $need('app/agent-actions.php','agent_action_event','Agent actions must emit immutable audit events.');
-$need('app/agent-actions.php',"if($proposal['status']==='executed')",'Agent confirmation retries must replay executed results idempotently.');
+$need('app/agent-actions.php',"status']==='executed'",'Agent confirmation retries must replay executed results idempotently.');
 $need('app/agent-chat.php','<<ANNOTATED_ACTIONS>>','Agent Chat must separate machine-readable proposals from user-visible prose.');
 $need('app/agent-chat.php','project_can_write','Read-only project viewers must not be offered write capabilities.');
 $need('api/agent-chat.php',"'action_confirm'",'Agent action execution must require an explicit confirmation endpoint.');
