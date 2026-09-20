@@ -246,8 +246,12 @@ function cross_research_create_project_link(PDO $pdo,array $viewer,string $sourc
 }
 
 function cross_research_delete_link(PDO $pdo,array $viewer,string $publicId): bool {
-    if(!cross_research_ready($pdo))return false;$q=$pdo->prepare('SELECT suggestion_key FROM cross_research_links WHERE public_id=? AND user_id=? LIMIT 1');$q->execute([trim($publicId),$viewer['id']]);$suggestion=$q->fetchColumn();if($suggestion===false)return false;
-    $pdo->beginTransaction();try{$pdo->prepare('DELETE FROM cross_research_links WHERE public_id=? AND user_id=?')->execute([trim($publicId),$viewer['id']]);if($suggestion)$pdo->prepare('DELETE FROM cross_research_decisions WHERE user_id=? AND suggestion_key=?')->execute([$viewer['id'],$suggestion]);$pdo->commit();return true;}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    if(!cross_research_ready($pdo))return false;$publicId=trim($publicId);$q=$pdo->prepare('SELECT suggestion_key FROM cross_research_links WHERE public_id=? AND user_id=? LIMIT 1');$q->execute([$publicId,$viewer['id']]);$suggestion=$q->fetchColumn();if($suggestion===false)return false;
+    $pdo->beginTransaction();try{
+        $pdo->prepare('DELETE FROM cross_research_decisions WHERE user_id=? AND (link_public_id=? OR suggestion_key=?)')->execute([$viewer['id'],$publicId,(string)$suggestion]);
+        $pdo->prepare('DELETE FROM cross_research_links WHERE public_id=? AND user_id=?')->execute([$publicId,$viewer['id']]);
+        $pdo->commit();return true;
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 
 function cross_research_entity_threads(PDO $pdo,array $viewer,?string $focusPublic=null,int $limit=30): array {
