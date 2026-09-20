@@ -99,7 +99,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     $groups=[];foreach($rows as $r)$groups[(int)$r['source_id']][]=$r;
     foreach($groups as $group){$n=count($group);for($i=0;$i<$n;$i++)for($j=$i+1;$j<$n;$j++){
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;
-        $p1=$byId[$a];$p2=$byId[$b];$src=(string)$group[$i]['source_public_id'];$label=(string)($group[$i]['title']?:$group[$i]['domain']?:'Source');
+        $p1=$byId[$a];$p2=$byId[$b];$src=(string)$group[$i]['source_public_id'];if(!cross_research_object_access($pdo,$viewer,'source',$src))continue;$label=(string)($group[$i]['title']?:$group[$i]['domain']?:'Source');
         cross_research_add_candidate($out,cross_research_candidate('shared_source',$p1,$p2,'source',$src,$src,'Same Source appears in two Research projects',
           $label.' is included in both '.$p1['title'].' and '.$p2['title'].',['Exact same canonical Source record.'],84,'medium','shared_source',max((string)$group[$i]['created_at'],(string)$group[$j]['created_at']),['source_public_id'=>$src,'source_label'=>$label]));
     }}
@@ -109,7 +109,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     $annotationRows=$rows;$groups=[];foreach($rows as $r)$groups[(int)$r['annotation_id']][]=$r;
     foreach($groups as $group){$n=count($group);for($i=0;$i<$n;$i++)for($j=$i+1;$j<$n;$j++){
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;
-        $p1=$byId[$a];$p2=$byId[$b];$ann=(string)$group[$i]['annotation_public_id'];$label=trim((string)$group[$i]['text_commentary']);if($label==='')$label=(string)($group[$i]['source_title']?:$group[$i]['domain']?:'Annotation');
+        $p1=$byId[$a];$p2=$byId[$b];$ann=(string)$group[$i]['annotation_public_id'];if(!cross_research_object_access($pdo,$viewer,'annotation',$ann))continue;$label=trim((string)$group[$i]['text_commentary']);if($label==='')$label=(string)($group[$i]['source_title']?:$group[$i]['domain']?:'Annotation');
         cross_research_add_candidate($out,cross_research_candidate('shared_annotation',$p1,$p2,'annotation',$ann,$ann,'Same evidence Annotation is used in two projects',
           mb_substr($label,0,420),['Exact same Annotation record is attached to both projects.'],92,'high','shared_annotation',max((string)$group[$i]['created_at'],(string)$group[$j]['created_at']),['annotation_public_id'=>$ann]));
     }}
@@ -140,7 +140,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     $evidence=$pdo->query("SELECT c.project_id,c.public_id claim_public_id,c.statement,c.status,ce.relationship,ce.source_version_id,sv.source_id,s.public_id source_public_id,s.title source_title,s.domain,ce.created_at
       FROM claim_evidence ce JOIN research_claims c ON c.id=ce.claim_id JOIN source_versions sv ON sv.id=ce.source_version_id JOIN sources s ON s.id=sv.source_id
       WHERE c.project_id IN ($in) ORDER BY ce.created_at DESC LIMIT 1800")->fetchAll();
-    $pairEvidence=[];$groups=[];foreach($evidence as $r)$groups[(int)$r['source_version_id']][]=$r;
+    $pairEvidence=[];$groups=[];foreach($evidence as $r){if(!cross_research_object_access($pdo,$viewer,'source',(string)$r['source_public_id']))continue;$groups[(int)$r['source_version_id']][]=$r;}
     foreach($groups as $group){$n=count($group);for($i=0;$i<$n;$i++)for($j=$i+1;$j<$n;$j++){
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;
         $tuple=[(string)$group[$i]['claim_public_id'],(string)$group[$j]['claim_public_id']];sort($tuple,SORT_STRING);$pk=$tuple[0].'|'.$tuple[1];
@@ -156,13 +156,13 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     }
 
     // Evidence reuse opportunity: annotation from a Source already in another project, but Annotation itself is not attached there.
-    $sourceProjects=[];foreach($rows=[] as $noop){} // placeholder to keep following structure explicit
+    $sourceProjects=[];
     $psRows=$pdo->query("SELECT project_id,source_id FROM project_sources WHERE project_id IN ($in)")->fetchAll();foreach($psRows as $r)$sourceProjects[(int)$r['source_id']][(int)$r['project_id']]=true;
     $attached=[];foreach($annotationRows as $r)$attached[(int)$r['annotation_id']][(int)$r['project_id']]=true;
     $annotationSourceRows=$pdo->query("SELECT pa.project_id,a.id annotation_id,a.public_id annotation_public_id,a.source_id,a.text_commentary,s.title source_title,s.domain,pa.created_at
       FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id JOIN sources s ON s.id=a.source_id
       WHERE pa.project_id IN ($in) AND a.status='published' ORDER BY pa.created_at DESC LIMIT 400")->fetchAll();
-    $reuseCount=0;foreach($annotationSourceRows as $r){$sourceProject=(int)$r['project_id'];foreach(array_keys($sourceProjects[(int)$r['source_id']]??[]) as $targetProject){
+    $reuseCount=0;foreach($annotationSourceRows as $r){if(!cross_research_object_access($pdo,$viewer,'annotation',(string)$r['annotation_public_id']))continue;$sourceProject=(int)$r['project_id'];foreach(array_keys($sourceProjects[(int)$r['source_id']]??[]) as $targetProject){
         if($targetProject===$sourceProject||isset($attached[(int)$r['annotation_id']][$targetProject])||!cross_research_pair_allowed($focus,$sourceProject,$targetProject))continue;
         $p1=$byId[$sourceProject];$p2=$byId[$targetProject];$label=trim((string)$r['text_commentary']);if($label==='')$label=(string)($r['source_title']?:$r['domain']?:'Annotation');
         cross_research_add_candidate($out,cross_research_candidate('evidence_reuse',$p1,$p2,'annotation',(string)$r['annotation_public_id'],(string)$r['annotation_public_id'],'Evidence from a shared Source may belong in another project',
