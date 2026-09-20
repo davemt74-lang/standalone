@@ -53,11 +53,21 @@ $output=json_encode([
 $applied=annotation_intelligence_apply_ai_output($pdo,$a['public_id'],$output,$pub('run'),0);
 p13(($applied['summary']??'')!==''&&count($applied['claims']??[])===2,'AI output is normalized into summary and explicit/inferred claims');
 $record=annotation_intelligence_record($pdo,$a['id']);p13(($record['status']??'')==='ready'&&abs((float)$record['confidence']-0.82)<0.001,'ready intelligence retains bounded analysis confidence and provenance state');
+$batch=annotation_intelligence_attach_many($pdo,[['internal_id'=>$a['id'],'public_id'=>$a['public_id']],['internal_id'=>$b['id'],'public_id'=>$b['public_id']]],$outsider,8);
+p13(($batch[0]['intelligence']['status']??'')==='ready','feed/profile batch hydration returns ready intelligence without per-card record lookup');
 p13(($record['claims'][0]['certainty']??'')==='explicit'&&($record['claims'][1]['certainty']??'')==='inferred','claim certainty remains explicit versus inferred');
 
 $rels=annotation_intelligence_visible_relationships($pdo,$a['id'],$outsider,20);
 p13(count(array_filter($rels,fn($r)=>($r['public_id']??'')==='invented-id'))===0,'model cannot invent relationship targets outside supplied candidate IDs');
 p13(count(array_filter($rels,fn($r)=>($r['public_id']??'')===$b['public_id']&&($r['relation_type']??'')==='corroborates'))===1,'AI corroboration relationship is stored for a supplied accessible candidate');
+$pdo->prepare('INSERT INTO blocks(blocker_user_id,blocked_user_id) VALUES(?,?)')->execute([$outsider['id'],$other['id']]);
+p13(count(array_filter(annotation_intelligence_visible_relationships($pdo,$a['id'],$outsider,20),fn($r)=>($r['public_id']??'')===$b['public_id']))===0,'blocked users are removed from related-evidence delivery');
+$pdo->prepare('DELETE FROM blocks WHERE blocker_user_id=? AND blocked_user_id=?')->execute([$outsider['id'],$other['id']]);
+$pdo->prepare('INSERT INTO blocks(blocker_user_id,blocked_user_id) VALUES(?,?)')->execute([$owner['id'],$other['id']]);
+$candidateIds=array_column(annotation_intelligence_candidate_rows($pdo,annotation_intelligence_source_row($pdo,$a['id']),40),'public_id');
+p13(!in_array($b['public_id'],$candidateIds,true),'blocked users are excluded before Annotation Intelligence candidate prompting');
+$pdo->prepare('DELETE FROM blocks WHERE blocker_user_id=? AND blocked_user_id=?')->execute([$owner['id'],$other['id']]);
+
 
 annotation_intelligence_relation_upsert($pdo,$a['id'],$team['id'],'conflicts',0.74,'Team evidence differs from the public annotation.','ai',$pub('rel'));
 $outsiderRels=annotation_intelligence_visible_relationships($pdo,$a['id'],$outsider,20);
