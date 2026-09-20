@@ -157,9 +157,9 @@ function cognitive_feed_collect_pending_actions(PDO $pdo,array $viewer,array &$i
     }
 }
 
-function cognitive_feed_collect_team_activity(PDO $pdo,array $viewer,array &$items): void {
+function cognitive_feed_collect_team_activity(PDO $pdo,array $viewer,array &$items,?array $teamList=null): void {
     if(!conversation_runtime_ready($pdo))return;
-    foreach(conversation_team_list($pdo,$viewer) as $team){
+    foreach($teamList??conversation_team_list($pdo,$viewer) as $team){
         $unread=(int)($team['unread_count']??0);if($unread<1)continue;
         $created=(string)($team['last_message_at']??'');$revision=$created!==''?$created:(string)$unread;
         cognitive_feed_add($items,[
@@ -385,4 +385,39 @@ function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $p
 
 function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): void {
     foreach(cognitive_feed_projects($pdo,$viewer,8) as $project)cognitive_feed_collect_project_research($pdo,$viewer,$project,$items);
+}
+
+
+function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int $perSection=4,int $maxTotal=28): array {
+    $perSection=max(1,min(8,$perSection));$maxTotal=max(4,min(60,$maxTotal));
+    if(!cognitive_feed_ready($pdo))return ['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+    $items=[];
+    cognitive_feed_collect_pending_actions($pdo,$viewer,$items);
+    cognitive_feed_collect_research($pdo,$viewer,$items);
+    cognitive_feed_collect_watched_source_changes($pdo,$viewer,$items);
+    cognitive_feed_collect_team_activity($pdo,$viewer,$items,$teamList);
+    cognitive_feed_collect_recent_agent_results($pdo,$viewer,$items);
+
+    $dismissed=cognitive_feed_dismissed_keys($pdo,(int)$viewer['id']);
+    foreach(array_keys($items) as $key)if(isset($dismissed[$key]))unset($items[$key]);
+
+    $rows=array_values($items);
+    usort($rows,function($a,$b){
+        $score=((int)($b['score']??0))<=>((int)($a['score']??0));if($score!==0)return $score;
+        return (strtotime((string)($b['created_at']??''))?:0)<=>(strtotime((string)($a['created_at']??''))?:0);
+    });
+
+    $defs=cognitive_feed_section_definitions();$buckets=[];$total=0;
+    foreach($rows as $row){
+        if($total>=$maxTotal)break;$section=(string)($row['section']??'recent_changes');if(!isset($defs[$section]))$section='recent_changes';
+        if(count($buckets[$section]??[])>=$perSection)continue;$buckets[$section][]=$row;$total++;
+    }
+    $sections=[];foreach($defs as $key=>$def)if(!empty($buckets[$key]))$sections[]=['key'=>$key,'label'=>$def['label'],'description'=>$def['description'],'items'=>$buckets[$key]];
+    return [
+      'ready'=>true,
+      'sections'=>$sections,
+      'total'=>$total,
+      'hidden_count'=>cognitive_feed_hidden_count($pdo,$viewer),
+      'ranking'=>'Ranked from authoritative Annotated state using unresolved urgency, evidence impact, freshness, unread collaboration, and active Research context. No separate AI ranking model is required.'
+    ];
 }
