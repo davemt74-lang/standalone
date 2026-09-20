@@ -119,8 +119,10 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
     $entityRows=$rows;$groups=[];foreach($rows as $r)$groups[(string)$r['entity_type'].'|'.(string)$r['normalized_name']][]=$r;
     foreach($groups as $group){$n=count($group);if($n<2)continue;for($i=0;$i<$n;$i++)for($j=$i+1;$j<$n;$j++){
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;$p1=$byId[$a];$p2=$byId[$b];
-        cross_research_add_candidate($out,cross_research_candidate('same_entity',$p1,$p2,'entity',(string)$group[$i]['public_id'],(string)$group[$j]['public_id'],'Same Entity appears across Research',
-          (string)$group[$i]['canonical_name'].' appears as a '.(string)$group[$i]['entity_type'].' in both projects.',['Entity type matches.','Normalized entity name matches exactly.'],88,'medium','same_entity',max((string)$group[$i]['updated_at'],(string)$group[$j]['updated_at']),['entity_type'=>$group[$i]['entity_type'],'normalized_name'=>$group[$i]['normalized_name'],'entity_name'=>$group[$i]['canonical_name']));
+        $entityName=(string)$group[$i]['canonical_name'];$entityType=(string)$group[$i]['entity_type'];$entityBody=$entityName.' appears as a '.$entityType.' in both projects.';
+        $entityReasons=['Entity type matches.','Normalized entity name matches exactly.'];$entityMeta=['entity_type'=>$entityType,'normalized_name'=>$group[$i]['normalized_name'],'entity_name'=>$entityName];
+        $candidate=cross_research_candidate('same_entity',$p1,$p2,'entity',(string)$group[$i]['public_id'],(string)$group[$j]['public_id'],'Same Entity appears across Research',$entityBody,$entityReasons,88,'medium','same_entity',max((string)$group[$i]['updated_at'],(string)$group[$j]['updated_at']),$entityMeta);
+        cross_research_add_candidate($out,$candidate);
     }}
 
     // Claims: deterministic wording overlap only. Do not infer semantic agreement/disagreement from text alone.
