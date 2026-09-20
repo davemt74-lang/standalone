@@ -257,3 +257,16 @@
 .entityThreadProjects{display:grid;gap:7px;margin-top:10px}.entityThreadProjects a{display:flex;justify-content:space-between;gap:10px}.stickyCrossResearch{position:sticky;top:92px}
 @media(max-width:1050px){.crossResearchLayout{grid-template-columns:1fr}.stickyCrossResearch{position:static}.crossResearchSummary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.crossResearchSummary{grid-template-columns:1fr}.crossResearchToolbar{align-items:stretch}.crossResearchToolbar .inlineForm{display:grid}.crossResearchCard header,.entityThread header{display:grid}.crossResearchActions{align-items:stretch}.crossResearchAccept{display:grid;width:100%}.crossResearchAccept select,.crossResearchAccept button{width:100%}}
+
+/* Phase 20 — Outcome Learning & Decision Memory */
+.outcomeLayout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
+.outcomeMain{min-width:0}.outcomeSummary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.outcomeSummary .card{display:flex;flex-direction:column;gap:4px}.outcomeSummary strong{font-size:1.55rem}.outcomeSummary span{font-size:.82rem;color:var(--muted,#6b7280)}
+.outcomeFilters{display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;margin-bottom:18px}.outcomeFilters .inlineForm{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.outcomeFilters label{display:grid;gap:5px}
+.outcomeTimeline{display:grid;gap:14px}.outcomeCard{scroll-margin-top:90px}.outcomeCard header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.outcomeCard h2{margin:4px 0}.outcomeBadges,.outcomeRefs{display:flex;gap:6px;flex-wrap:wrap}.outcomeRefs{margin:12px 0}
+.outcomeNote{margin:12px 0;padding:12px 14px;border:1px solid var(--border,#e5e7eb);border-radius:12px;background:rgba(127,127,127,.04)}.outcomeNote p{margin:5px 0 0}
+.outcomeFeedback{display:grid;grid-template-columns:180px 200px minmax(220px,1fr) auto;gap:8px;align-items:end;border-top:1px solid var(--border,#e5e7eb);padding-top:12px;margin-top:12px}.outcomeFeedback label{display:grid;gap:5px}.outcomeComment{min-width:0}
+.stickyOutcome{position:sticky;top:92px}.outcomeStatRow{display:flex;justify-content:space-between;gap:12px;margin:7px 0}
+@media(max-width:1050px){.outcomeLayout{grid-template-columns:1fr}.stickyOutcome{position:static}.outcomeSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.outcomeFeedback{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.outcomeSummary{grid-template-columns:1fr}.outcomeFilters,.outcomeCard header{display:grid}.outcomeFilters .inlineForm{display:grid}.outcomeFeedback{grid-template-columns:1fr}.outcomeFeedback button{width:100%}}
