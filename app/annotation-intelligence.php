@@ -108,8 +108,9 @@ function annotation_intelligence_queue(PDO $pdo,int $annotationId,?int $requeste
       VALUES(?,'pending',?,NOW(),NULL)
       ON DUPLICATE KEY UPDATE status=IF(input_hash=VALUES(input_hash) AND status='processing','processing','pending'),input_hash=VALUES(input_hash),queued_at=NOW(),last_error=NULL")->execute([$annotationId,$hash]);
     annotation_intelligence_seed_relationships($pdo,$row);
-    $q=$pdo->prepare("SELECT 1 FROM ai_jobs WHERE task_type='annotation_intelligence' AND object_type='annotation' AND object_public_id=? AND status IN ('queued','processing') LIMIT 1");$q->execute([$row['public_id']]);
-    if(!$q->fetchColumn())ai_queue_job($pdo,null,'annotation_intelligence',null,'annotation',(string)$row['public_id'],['input_hash'=>$hash],$priority);
+    $q=$pdo->prepare("SELECT input_json FROM ai_jobs WHERE task_type='annotation_intelligence' AND object_type='annotation' AND object_public_id=? AND status IN ('queued','processing')");$q->execute([$row['public_id']]);$matchingActive=false;
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $inputJson){$input=json_decode((string)$inputJson,true);if(is_array($input)&&hash_equals((string)($input['input_hash']??''),$hash)){$matchingActive=true;break;}}
+    if(!$matchingActive)ai_queue_job($pdo,null,'annotation_intelligence',null,'annotation',(string)$row['public_id'],['input_hash'=>$hash],$priority);
     return true;
 }
 
@@ -119,15 +120,16 @@ function annotation_intelligence_parse_json(string $text): array {
     return $data;
 }
 
-function annotation_intelligence_apply_ai_output(PDO $pdo,string $annotationPublicId,string $output,string $runPublicId,int $modelId): array {
+function annotation_intelligence_apply_ai_output(PDO $pdo,string $annotationPublicId,string $output,string $runPublicId,int $modelId,?string $expectedInputHash=null): array {
     $q=$pdo->prepare("SELECT a.id FROM annotations a WHERE a.public_id=? AND a.status='published' LIMIT 1");$q->execute([$annotationPublicId]);$annotationId=(int)($q->fetchColumn()?:0);if(!$annotationId)throw new RuntimeException('Annotation missing.');
     $row=annotation_intelligence_source_row($pdo,$annotationId);if(!$row)throw new RuntimeException('Annotation intelligence source missing.');
+    $currentHash=annotation_intelligence_input_hash($row);if($expectedInputHash!==null&&$expectedInputHash!==''&&!hash_equals($expectedInputHash,$currentHash))return ['annotation_id'=>$annotationPublicId,'stale'=>true,'current_input_hash'=>$currentHash];
     $data=annotation_intelligence_parse_json($output);
     $summary=mb_substr(trim((string)($data['summary']??'')),0,1200);if($summary==='')throw new RuntimeException('Annotation intelligence summary is empty.');
     $topics=[];foreach(is_array($data['topics']??null)?$data['topics']:[] as $topic){$topic=mb_substr(trim((string)$topic),0,80);if($topic!==''&&!in_array($topic,$topics,true))$topics[]=$topic;if(count($topics)>=12)break;}
     $entities=[];foreach(is_array($data['entities']??null)?$data['entities']:[] as $entity){if(!is_array($entity))continue;$name=mb_substr(trim((string)($entity['name']??'')),0,160);$type=mb_substr(trim((string)($entity['type']??'entity')),0,60);if($name!=='')$entities[]=['name'=>$name,'type'=>$type?:'entity'];if(count($entities)>=20)break;}
     $claims=[];foreach(is_array($data['claims']??null)?$data['claims']:[] as $claim){if(!is_array($claim))continue;$statement=mb_substr(trim((string)($claim['statement']??'')),0,1000);$certainty=in_array((string)($claim['certainty']??''),['explicit','inferred'],true)?(string)$claim['certainty']:'inferred';if($statement!=='')$claims[]=['statement'=>$statement,'certainty'=>$certainty];if(count($claims)>=12)break;}
-    $confidence=max(0,min(1,(float)($data['confidence']??0.65)));$hash=annotation_intelligence_input_hash($row);$storedModelId=$modelId>0?$modelId:null;
+    $confidence=max(0,min(1,(float)($data['confidence']??0.65)));$hash=$currentHash;$storedModelId=$modelId>0?$modelId:null;
     $pdo->prepare("INSERT INTO annotation_intelligence(annotation_id,status,input_hash,summary,topics_json,entities_json,claims_json,confidence,model_id,ai_run_public_id,prompt_version,last_error,processed_at)
       VALUES(?,'ready',?,?,?,?,?,?,?,?,'phase13-v1',NULL,NOW())
       ON DUPLICATE KEY UPDATE status='ready',input_hash=VALUES(input_hash),summary=VALUES(summary),topics_json=VALUES(topics_json),entities_json=VALUES(entities_json),claims_json=VALUES(claims_json),confidence=VALUES(confidence),model_id=VALUES(model_id),ai_run_public_id=VALUES(ai_run_public_id),prompt_version='phase13-v1',last_error=NULL,processed_at=NOW()")
