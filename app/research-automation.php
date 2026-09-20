@@ -60,8 +60,8 @@ function research_automation_project(PDO $pdo,array $viewer,string $publicId,str
     return $project;
 }
 
-function research_automation_watch(PDO $pdo,array $viewer,?string $watchPublicId): ?array {
-    $watchPublicId=trim((string)$watchPublicId);if($watchPublicId==='')return null;
+function research_automation_watch(PDO $pdo,array $viewer,?string $watchPublicId): array {
+    $watchPublicId=trim((string)$watchPublicId);if($watchPublicId==='')throw new InvalidArgumentException('Choose an active Research watch for this trigger.');
     if(!proactive_intelligence_ready($pdo))throw new RuntimeException('Watch-triggered automations require Stage 17 Proactive Research Intelligence.');
     $q=$pdo->prepare("SELECT * FROM cognitive_watches WHERE public_id=? AND user_id=? AND status='active' LIMIT 1");$q->execute([$watchPublicId,$viewer['id']]);$watch=$q->fetch();
     if(!$watch)throw new RuntimeException('The selected Research watch is unavailable or paused.');
@@ -130,7 +130,11 @@ function research_automation_update(PDO $pdo,array $viewer,string $publicId,arra
 function research_automation_set_status(PDO $pdo,array $viewer,string $publicId,string $status): bool {
     $row=research_automation_access($pdo,$viewer,$publicId);if(!$row)return false;if(!in_array($status,['active','paused','archived'],true))throw new InvalidArgumentException('Invalid automation status.');
     $next=$row['next_run_at'];
-    if($status==='active'&&$row['trigger_type']==='schedule')$next=research_automation_next_run((string)$row['cadence'],(string)$row['timezone_name'],(string)$row['run_time_local'],isset($row['weekday'])?(int)$row['weekday']:null);
+    if($status==='active'){
+        research_automation_project($pdo,$viewer,(string)$row['project_public_id'],(string)$row['workflow_type']);
+        if($row['trigger_type']==='watch_alert')research_automation_watch($pdo,$viewer,(string)($row['watch_public_id']??''));
+        if($row['trigger_type']==='schedule')$next=research_automation_next_run((string)$row['cadence'],(string)$row['timezone_name'],(string)$row['run_time_local'],isset($row['weekday'])?(int)$row['weekday']:null);
+    }
     if($status!=='active')$next=null;
     $q=$pdo->prepare('UPDATE research_automations SET status=?,next_run_at=?,updated_at=NOW() WHERE id=? AND user_id=?');$q->execute([$status,$next,$row['id'],$viewer['id']]);return $q->rowCount()===1;
 }
@@ -227,7 +231,7 @@ function research_automation_source_refresh(PDO $pdo,array $project): string {
 function research_automation_execute(PDO $pdo,array $config,array $run): array {
     $aq=$pdo->prepare("SELECT ra.public_id FROM research_automations ra WHERE ra.id=? LIMIT 1");$aq->execute([$run['automation_id']]);$automationPublic=(string)($aq->fetchColumn()?:'');if($automationPublic==='')throw new RuntimeException('Automation no longer exists.');
     $uq=$pdo->prepare("SELECT * FROM users WHERE id=? AND status='active' LIMIT 1");$uq->execute([$run['user_id']]);$viewer=$uq->fetch();if(!$viewer)return ['status'=>'skipped','output'=>'Automation owner is no longer active.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
-    $automation=research_automation_access($pdo,$viewer,$automationPublic);if(!$automation||$automation['status']!=='active')return ['status'=>'skipped','output'=>'Automation is paused, archived, or no longer accessible.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
+    $automation=research_automation_access($pdo,$viewer,$automationPublic);if(!$automation||$automation['status']==='archived'||($run['trigger_type']!=='manual'&&$automation['status']!=='active'))return ['status'=>'skipped','output'=>'Automation is paused, archived, or no longer accessible for this trigger.','proposals'=>0,'conversation'=>null,'ai_run'=>null,'input_hash'=>null];
     $project=research_automation_project($pdo,$viewer,(string)$automation['project_public_id'],(string)$automation['workflow_type']);
     $inputHash=function_exists('research_workspace_input_hash')?research_workspace_input_hash($pdo,(int)$project['id']):hash('sha256',$project['updated_at']??$project['public_id']);
     if($automation['workflow_type']!=='source_refresh'&&$run['trigger_type']==='schedule'){
@@ -262,7 +266,8 @@ function research_automation_complete_run(PDO $pdo,array $viewer,array $automati
     $pdo->prepare("UPDATE research_automation_runs SET input_hash=?,output_text=?,ai_run_public_id=?,conversation_public_id=?,proposal_count=? WHERE id=? AND status='processing' AND claim_token=?")
       ->execute([$result['input_hash'],$result['output'],$result['ai_run'],$result['conversation'],$result['proposals'],$run['id'],$run['claim_token']]);
     job_claim_complete($pdo,'research_automation_runs',(int)$run['id'],(string)$run['claim_token'],$status);
-    $pdo->prepare("UPDATE research_automations SET last_run_at=NOW(),run_count=run_count+1,failure_count=0,updated_at=NOW() WHERE id=?")->execute([$automation['id']]);
+    if($status==='completed')$pdo->prepare("UPDATE research_automations SET last_run_at=NOW(),run_count=run_count+1,failure_count=0,updated_at=NOW() WHERE id=?")->execute([$automation['id']]);
+    else $pdo->prepare("UPDATE research_automations SET last_run_at=NOW(),run_count=run_count+1,updated_at=NOW() WHERE id=?")->execute([$automation['id']]);
     if($status==='completed'){
         $body=$automation['title'].' completed.'.((int)$result['proposals']>0?' '.(int)$result['proposals'].' Research action proposal'.((int)$result['proposals']===1?' is':'s are').' waiting for confirmation.':'');
         $notification=research_automation_notify($pdo,$viewer,$automation,$run,'research_automation_completed',$body,['conversation_public_id'=>$result['conversation'],'proposal_count'=>(int)$result['proposals']]);
