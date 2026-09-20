@@ -15,9 +15,19 @@ $q->execute([$u['id']]);$teams=$q->fetchAll();
 $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
 $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'following_count'=>0,'annotation_count'=>0];
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage">
-<main class="layout"><section>
+<main class="layout"><section id="homeFeedCanvas" data-home-feed-canvas>
 <?php if(!$feed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations and captures from people or sources you follow will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
 <?php foreach($feed as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?>
+</section>
+<section class="agentChatCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" hidden>
+  <header class="agentChatCanvasHeader">
+    <div class="agentChatCanvasHeaderLeft"><button type="button" class="button secondary" data-agent-back>← Back to Feed</button><div><span class="eyebrow">AGENT CHAT</span><h2 data-agent-title>New chat</h2></div></div>
+    <div class="agentChatCanvasActions"><button type="button" class="button secondary" data-agent-history-toggle>History</button><button type="button" class="button" data-agent-new>New chat</button></div>
+  </header>
+  <div class="agentChatHistoryPanel" data-agent-history hidden><div class="agentChatHistoryHead"><strong>Recent chats</strong><button type="button" data-agent-history-close aria-label="Close chat history">×</button></div><div data-agent-history-list></div></div>
+  <div class="agentChatMessages" data-agent-messages role="log" aria-live="polite"><div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p></div></div>
+  <div class="agentChatContextTray" data-agent-context-tray hidden></div>
+  <div class="agentChatContextPicker" data-agent-context-picker hidden><div class="agentChatContextPickerHead"><strong>Add Annotated context</strong><button type="button" data-agent-context-close aria-label="Close context picker">×</button></div><div class="agentChatContextPickerBody" data-agent-context-options><div class="meta">Loading context…</div></div></div>
 </section><aside class="homeRightRail <?=$chatTeams?'teamChatRightRail':''?>">
 <?php if($chatTeams):?>
 <section class="teamChatRail" id="team-chat" data-team-chat-rail data-csrf="<?=h(csrf_token())?>" data-preferred-team="<?=h($preferredTeam)?>">
@@ -43,13 +53,6 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
   <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
-<script>
-(()=>{const form=document.querySelector('#homeAgentComposer'),input=document.querySelector('#homeAgentPrompt'),add=document.querySelector('#homeAgentAdd');if(!form||!input)return;
-const size=()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,132)+'px';};input.addEventListener('input',size);
-input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
-add?.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
-form.addEventListener('submit',e=>{e.preventDefault();const prompt=input.value.trim();if(!prompt)return;window.ANNOTATED_PENDING_AGENT_PROMPT=prompt;try{sessionStorage.setItem('annotated.pendingAgentPrompt',prompt);}catch{}document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{prompt,source:'home_feed'},bubbles:true,cancelable:true}));});
-})();
-</script>
+<script src="/assets/js/agent-chat.js?v=12.1"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=12.0"></script><?php endif?>
 <?=annotation_ui_scripts($u)?></body></html>

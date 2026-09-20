@@ -1,0 +1,118 @@
+(()=>{
+  const feed=document.querySelector('[data-home-feed-canvas]');
+  const canvas=document.querySelector('[data-agent-chat-canvas]');
+  const form=document.querySelector('#homeAgentComposer');
+  const input=document.querySelector('#homeAgentPrompt');
+  const add=document.querySelector('#homeAgentAdd');
+  if(!feed||!canvas||!form||!input)return;
+
+  const messages=canvas.querySelector('[data-agent-messages]');
+  const title=canvas.querySelector('[data-agent-title]');
+  const back=canvas.querySelector('[data-agent-back]');
+  const newChat=canvas.querySelector('[data-agent-new]');
+  const historyToggle=canvas.querySelector('[data-agent-history-toggle]');
+  const historyPanel=canvas.querySelector('[data-agent-history]');
+  const historyList=canvas.querySelector('[data-agent-history-list]');
+  const historyClose=canvas.querySelector('[data-agent-history-close]');
+  const contextTray=canvas.querySelector('[data-agent-context-tray]');
+  const contextPicker=canvas.querySelector('[data-agent-context-picker]');
+  const contextOptions=canvas.querySelector('[data-agent-context-options]');
+  const contextClose=canvas.querySelector('[data-agent-context-close]');
+  const csrf=canvas.dataset.csrf||'';
+  let activeConversation='';
+  let selectedContext=[];
+  let feedScroll=0;
+  let sending=false;
+
+  const esc=s=>String(s??'');
+  async function request(action,{method='GET',data=null,params={}}={}){
+    const url=new URL('/api/agent-chat.php',location.origin);url.searchParams.set('action',action);
+    Object.entries(params).forEach(([k,v])=>{if(v!==null&&v!==undefined&&v!=='')url.searchParams.set(k,String(v));});
+    const options={method,headers:{Accept:'application/json'}};
+    if(method!=='GET'){options.headers['Content-Type']='application/json';options.headers['X-CSRF-Token']=csrf;options.body=JSON.stringify(data||{});}
+    const response=await fetch(url,options);const json=await response.json().catch(()=>({ok:false,error:{message:'Invalid server response'}}));
+    if(!response.ok||json.ok===false)throw new Error(json.error?.message||json.error?.code||'Agent Chat request failed.');
+    return json.data||{};
+  }
+  function sizeInput(){input.style.height='auto';input.style.height=Math.min(input.scrollHeight,132)+'px';}
+  function saveState(open){try{sessionStorage.setItem('annotated.agentCanvasOpen',open?'1':'0');sessionStorage.setItem('annotated.agentConversation',activeConversation||'');sessionStorage.setItem('annotated.feedScroll',String(feedScroll||0));}catch{}}
+  function setModeAgent(){
+    if(!canvas.hidden)return;
+    feedScroll=window.scrollY||0;feed.hidden=true;canvas.hidden=false;document.body.classList.add('agentChatMode');input.placeholder='Message Annotated Agent…';saveState(true);window.scrollTo({top:0,behavior:'instant'});
+  }
+  function setModeFeed(){
+    canvas.hidden=true;feed.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));
+  }
+  function clearWelcome(){messages.querySelector('.agentChatWelcome')?.remove();}
+  function renderAttachment(a){
+    const chip=document.createElement('span');chip.className='agentContextChip';chip.textContent=(a.metadata?.label||a.label||a.public_id||a.type);return chip;
+  }
+  function renderMessage(row){
+    clearWelcome();
+    const article=document.createElement('article');article.className='agentChatMessage '+(row.role==='assistant'||row.sender_type==='agent'?'is-agent':'is-user');
+    const head=document.createElement('div');head.className='agentChatMessageHead';head.textContent=row.role==='assistant'||row.sender_type==='agent'?'Annotated Agent':'You';
+    const body=document.createElement('div');body.className='agentChatMessageBody';body.textContent=row.body||'';
+    article.append(head,body);
+    if(Array.isArray(row.attachments)&&row.attachments.length){const wrap=document.createElement('div');wrap.className='agentChatMessageContext';row.attachments.forEach(a=>wrap.appendChild(renderAttachment(a)));article.appendChild(wrap);}
+    messages.appendChild(article);return article;
+  }
+  function showThinking(){
+    clearWelcome();const el=document.createElement('article');el.className='agentChatMessage is-agent is-thinking';el.dataset.agentThinking='1';el.innerHTML='<div class="agentChatMessageHead">Annotated Agent</div><div class="agentChatThinking">Thinking…</div>';messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el;
+  }
+  function renderContextTray(){
+    contextTray.replaceChildren();
+    selectedContext.forEach((item,index)=>{const chip=document.createElement('span');chip.className='agentContextChip';chip.textContent=item.label;const x=document.createElement('button');x.type='button';x.textContent='×';x.setAttribute('aria-label','Remove context');x.addEventListener('click',()=>{selectedContext.splice(index,1);renderContextTray();});chip.appendChild(x);contextTray.appendChild(chip);});
+    contextTray.hidden=!selectedContext.length;
+  }
+  async function loadContextOptions(){
+    contextOptions.innerHTML='<div class="meta">Loading context…</div>';
+    try{
+      const data=await request('context_options');contextOptions.replaceChildren();
+      const groups=[['annotations','Recent annotations'],['research','Research projects'],['teams','Teams']];
+      groups.forEach(([key,label])=>{const rows=data[key]||[];if(!rows.length)return;const section=document.createElement('section');const h=document.createElement('h4');h.textContent=label;section.appendChild(h);rows.forEach(item=>{const b=document.createElement('button');b.type='button';b.className='agentContextOption';b.textContent=item.label;b.addEventListener('click',()=>{if(!selectedContext.some(x=>x.type===item.type&&x.public_id===item.public_id)&&selectedContext.length<6)selectedContext.push(item);renderContextTray();contextPicker.hidden=true;});section.appendChild(b);});contextOptions.appendChild(section);});
+      if(!contextOptions.children.length)contextOptions.innerHTML='<div class="meta">No recent Annotated context is available yet.</div>';
+    }catch(err){contextOptions.innerHTML='<div class="error">'+esc(err.message)+'</div>';}
+  }
+  async function loadHistory(){
+    historyList.innerHTML='<div class="meta">Loading chats…</div>';
+    try{
+      const data=await request('list');historyList.replaceChildren();
+      (data.conversations||[]).forEach(chat=>{const b=document.createElement('button');b.type='button';b.className='agentHistoryItem';const strong=document.createElement('strong');strong.textContent=chat.title||'New chat';const small=document.createElement('small');small.textContent=chat.last_message||'';b.append(strong,small);b.addEventListener('click',()=>{historyPanel.hidden=true;openConversation(chat.public_id,chat.title);});historyList.appendChild(b);});
+      if(!historyList.children.length)historyList.innerHTML='<div class="meta">No previous Agent chats yet.</div>';
+    }catch(err){historyList.innerHTML='<div class="error">'+esc(err.message)+'</div>';}
+  }
+  async function openConversation(publicId,chatTitle=''){
+    setModeAgent();activeConversation=publicId;title.textContent=chatTitle||'Agent chat';messages.innerHTML='<div class="agentChatLoading">Loading conversation…</div>';
+    try{
+      const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length)messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New conversation</h2><p>Ask a question or attach Annotated context.</p></div>';saveState(true);messages.scrollTop=messages.scrollHeight;
+    }catch(err){messages.innerHTML='<div class="error">'+esc(err.message)+'</div>';}
+  }
+  function resetConversation(){
+    activeConversation='';selectedContext=[];renderContextTray();title.textContent='New chat';messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p></div>';saveState(true);input.focus();
+  }
+  async function sendPrompt(prompt){
+    if(sending||!prompt.trim())return;sending=true;setModeAgent();const text=prompt.trim();renderMessage({role:'user',body:text,attachments:selectedContext.map(x=>({metadata:{label:x.label},public_id:x.public_id,type:x.type}))});input.value='';sizeInput();const thinking=showThinking();
+    const client=globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(16).slice(2);
+    try{
+      const data=await request('send',{method:'POST',data:{conversation:activeConversation||null,prompt:text,context:selectedContext.map(({type,public_id})=>({type,public_id})),client_message_id:client}});
+      activeConversation=data.conversation?.public_id||activeConversation;title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(true);messages.scrollTop=messages.scrollHeight;loadHistory();
+    }catch(err){thinking.remove();const error=document.createElement('div');error.className='error agentChatError';error.textContent=err.message||'Agent Chat failed.';messages.appendChild(error);}
+    finally{sending=false;input.focus();}
+  }
+
+  form.addEventListener('submit',e=>{e.preventDefault();const prompt=input.value.trim();if(!prompt)return;if(canvas.hidden){window.ANNOTATED_PENDING_AGENT_PROMPT=prompt;try{sessionStorage.setItem('annotated.pendingAgentPrompt',prompt);}catch{}document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{prompt,source:'home_feed'},bubbles:true,cancelable:true}));}else sendPrompt(prompt);});
+  document.addEventListener('annotated:agent-chat-request',e=>{const prompt=String(e.detail?.prompt||'').trim();setModeAgent();if(prompt)sendPrompt(prompt);});
+  document.addEventListener('annotated:agent-chat-add-context',()=>{setModeAgent();contextPicker.hidden=false;loadContextOptions();});
+  add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
+  input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
+  back.addEventListener('click',setModeFeed);newChat.addEventListener('click',resetConversation);
+  historyToggle.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose.addEventListener('click',()=>historyPanel.hidden=true);
+  contextClose.addEventListener('click',()=>contextPicker.hidden=true);
+
+  try{
+    feedScroll=Number(sessionStorage.getItem('annotated.feedScroll')||0)||0;
+    const restoreOpen=sessionStorage.getItem('annotated.agentCanvasOpen')==='1',restoreConversation=sessionStorage.getItem('annotated.agentConversation')||'',pending=sessionStorage.getItem('annotated.pendingAgentPrompt')||'';
+    if(restoreOpen){setModeAgent();if(restoreConversation)openConversation(restoreConversation);}
+    if(pending){sessionStorage.removeItem('annotated.pendingAgentPrompt');setModeAgent();sendPrompt(pending);}
+  }catch{}
+})();

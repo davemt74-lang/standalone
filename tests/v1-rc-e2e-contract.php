@@ -94,7 +94,7 @@ $need('api/conversations.php','require_api_mutation_auth','Team Chat mutations m
 $need('app/conversations.php','conversation_access','Conversation authorization must remain server-side.');
 $need('app/conversations.php','client_message_id','Conversation sends must remain retry-idempotent.');
 $need('team.php','#team-chat','Team workspace must deep-link into its Home Team Chat.');
-$need('extension/manifest.json','"version": "0.11.0"','Phase 12A must bump the Chrome extension to v0.11.0.');
+$need('extension/manifest.json','"version": "0.12.0"','Phase 12B must bump the Chrome extension to v0.12.0.');
 $need('home.php','teamChatSettingsButton','Team Chat rail must expose a footer settings icon.');
 $need('home.php','data-team-chat-popout','Team Chat rail must expose an active-chat popout control.');
 $need('home.php','data-team-chat-popups','Home must expose the desktop active-chat popup layer.');
@@ -108,6 +108,18 @@ $need('assets/js/team-chat.js','POPUP_KEY','Active chat popouts must persist acr
 $need('assets/css/app.css','.chatPresenceDot.status-online','Team Chat must visually distinguish online presence.');
 $need('assets/css/app.css','.teamChatPopupLayer','Desktop active chat popouts must be styled.');
 $need('settings.php','/chat-settings.php','Account Settings must link to Chat Status.');
+$need('home.php','data-agent-chat-canvas','Home must expose the in-place Agent Chat canvas.');
+$need('home.php','data-agent-back','Agent Chat must expose Back to Feed.');
+$need('home.php','data-agent-new','Agent Chat must expose New Chat.');
+$need('assets/js/agent-chat.js','annotated:agent-chat-request','Home composer must use the existing Agent Chat request event.');
+$need('assets/js/agent-chat.js','annotated.feedScroll','Agent Chat must restore the exact feed scroll position.');
+$need('assets/js/agent-chat.js','context_options','Agent Chat must expose permission-scoped structured context selection.');
+$need('app/agent-chat.php','agent_chat_context_normalize','Agent context must be validated server-side.');
+$need('app/agent-chat.php',"sender_type='agent'",'Agent replies must persist in the unified conversation runtime.');
+$need('app/agent-chat.php','agent_chat_available','Agent Chat must enforce plan/model access server-side.');
+$need('api/agent-chat.php','require_api_mutation_auth','Agent Chat mutations must enforce authenticated CSRF/bearer auth.');
+$need('assets/css/app.css','.agentChatCanvas','Agent Chat canvas must have dedicated responsive styling.');
+
 
 
 $need('assets/css/app.css','.homeFeedPage .layout>aside{position:sticky','Home feed right rail must remain sticky on desktop.');
