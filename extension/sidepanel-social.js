@@ -31,12 +31,15 @@ async function loadNotifications(){
       const href=notificationHref(n),count=Number(n.group_count||1);
       const scope=n.context?.source_public_id?'source':(n.context?.conversation_public_id?'conversation':'');
       const scopeId=n.context?.source_public_id||n.context?.conversation_public_id||'';
-      let actions='';
+      let actions='';const proactive=n.object_type==='cognitive_alert'&&n.context?.observation_key;const observationKey=proactive?String(n.context.observation_key):'';
       if(href)actions+='<button type="button" data-notification-action="open" data-notification-href="'+esc(href)+'">Open</button>';
+      if(proactive&&n.context?.has_agent_action)actions+='<button type="button" data-notification-action="agent" data-observation-key="'+esc(observationKey)+'">Ask Agent</button>';
+      if(proactive){actions+='<button type="button" data-notification-action="snooze" data-observation-key="'+esc(observationKey)+'">Snooze 1 day</button>';actions+='<button type="button" data-notification-action="resolve" data-observation-key="'+esc(observationKey)+'">Resolve</button>';}
       if(!n.read_at)actions+='<button type="button" data-notification-action="read">Mark read</button>';
       actions+='<button type="button" data-notification-action="archive">Archive</button>';
       if(scope)actions+='<button type="button" data-notification-action="mute" data-scope-type="'+esc(scope)+'" data-scope-id="'+esc(scopeId)+'" data-category="'+esc(n.category||'all')+'">Mute</button>';
-      return '<div class="notification '+(n.read_at?'':'unread')+'" data-id="'+esc(n.public_id)+'"><div class="notificationHead"><strong>'+esc(notificationLabel(n))+'</strong>'+(count>1?'<span class="badge">'+count+'</span>':'')+'</div><div>'+esc(n.body||'')+'</div><div class="hint">'+esc(n.created_at)+'</div><div class="notificationActions">'+actions+'</div></div>';
+      const why=proactive&&n.context?.why?'<div class="notificationWhy"><strong>Why this matters</strong><span>'+esc(n.context.why)+'</span></div>':'';
+      return '<div class="notification '+(n.read_at?'':'unread')+'" data-id="'+esc(n.public_id)+'"><div class="notificationHead"><strong>'+esc(notificationLabel(n))+'</strong>'+(count>1?'<span class="badge">'+count+'</span>':'')+'</div><div>'+esc(n.body||'')+'</div>'+why+'<div class="hint">'+esc(n.created_at)+'</div><div class="notificationActions">'+actions+'</div></div>';
     }).join(''):'<div class="hint">No notifications yet.</div>';
   }catch(e){$('#notificationList').innerHTML='<div class="hint">Unable to load notifications.</div>';}
 }
@@ -45,6 +48,9 @@ async function markNotification(e){
   const id=row.dataset.id,action=btn.dataset.notificationAction;
   try{
     if(action==='open'){if(!row.classList.contains('read'))await api('/api/extension.php?action=notification_read',{method:'POST',body:JSON.stringify({notification_id:id})});chrome.tabs.create({url:API_BASE+btn.dataset.notificationHref});return;}
+    if(action==='agent'){if(!row.classList.contains('read'))await api('/api/extension.php?action=notification_read',{method:'POST',body:JSON.stringify({notification_id:id})});chrome.tabs.create({url:API_BASE+'/home.php?proactive_agent='+encodeURIComponent(btn.dataset.observationKey||'')});return;}
+    if(action==='snooze')await api('/api/extension.php?action=notification_snooze',{method:'POST',body:JSON.stringify({observation_key:btn.dataset.observationKey||'',hours:24})});
+    if(action==='resolve')await api('/api/extension.php?action=notification_resolve',{method:'POST',body:JSON.stringify({observation_key:btn.dataset.observationKey||''})});
     if(action==='read')await api('/api/extension.php?action=notification_read',{method:'POST',body:JSON.stringify({notification_id:id})});
     if(action==='archive')await api('/api/extension.php?action=notification_archive',{method:'POST',body:JSON.stringify({notification_id:id})});
     if(action==='mute'){if(!confirm('Mute similar notifications from this scope?'))return;await api('/api/extension.php?action=notification_mute',{method:'POST',body:JSON.stringify({scope_type:btn.dataset.scopeType,scope_id:btn.dataset.scopeId,category:btn.dataset.category||'all',muted:true})});}
