@@ -33,9 +33,9 @@ function research_review_subject(PDO $pdo,array $viewer,string $type,string $pub
         return ['type'=>'report_version','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Report v'.(int)$r['version_number'].': '.(string)$r['title'],'hash'=>(string)$r['snapshot_hash'],'version_label'=>'Report version '.(int)$r['version_number'],'url'=>'/research-report.php?id='.rawurlencode((string)$r['report_public_id']).'&v='.(int)$r['version_number'],'summary'=>(string)($r['summary']??''),'report_public_id'=>$r['report_public_id'],'version_number'=>(int)$r['version_number'],'version_id'=>(int)$r['id'],'current_version_id'=>(int)($r['current_version_id']??0)];
     }
     if($type==='agent_action'){
-        if(!agent_actions_ready($pdo))return null;$q=$pdo->prepare("SELECT aap.*,rp.public_id project_public_id,rp.title project_title FROM agent_action_proposals aap JOIN research_projects rp ON rp.id=aap.project_id WHERE aap.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
+        if(!agent_actions_ready($pdo))return null;$q=$pdo->prepare("SELECT aap.*,rp.public_id project_public_id,rp.title project_title,c.public_id conversation_public_id FROM agent_action_proposals aap JOIN research_projects rp ON rp.id=aap.project_id JOIN conversations c ON c.id=aap.conversation_id WHERE aap.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
         $args=json_decode((string)$r['arguments_json'],true)?:[];$hash=hash('sha256',json_encode([$r['capability_key'],$args,$r['project_state_hash'],$r['status']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
-        return ['type'=>'agent_action','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Agent proposal: '.(string)$r['capability_key'],'hash'=>$hash,'version_label'=>'Proposal state '.(string)$r['status'],'url'=>'/home.php?conversation='.rawurlencode((string)$r['conversation_id']).'#agent-chat','summary'=>json_encode($args,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),'proposal_status'=>$r['status']];
+        return ['type'=>'agent_action','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Agent proposal: '.(string)$r['capability_key'],'hash'=>$hash,'version_label'=>'Proposal state '.(string)$r['status'],'url'=>'/home.php?conversation='.rawurlencode((string)$r['conversation_public_id']).'#agent-chat','summary'=>json_encode($args,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),'proposal_status'=>$r['status']];
     }
     return null;
 }
@@ -95,7 +95,7 @@ function research_review_is_assigned(PDO $pdo,array $viewer,array $review): bool
 }
 
 function research_review_notify(PDO $pdo,int $userId,?int $actorId,string $type,array $review,string $body,array $context=[]): void {
-    notification_create($pdo,$userId,$actorId,$type,'research_review',(string)$review['public_id'],$body,['category'=>'research','dedupe_key'=>$type.':'.$review['public_id'].':'.hash('sha256',$body),'group_key'=>'research_review:'.$review['public_id'],'context'=>array_merge(['project_public_id'=>$review['project_public_id']??null],$context)]);
+    notification_create($pdo,$userId,$actorId,$type,'research_review',(string)$review['public_id'],$body,['category'=>'research','dedupe_key'=>$type.':'.$review['public_id'].':'.hash('sha256',$body.'|'.(string)$actorId.'|'.(string)($context['event_public_id']??'')),'group_key'=>'research_review:'.$review['public_id'],'context'=>array_merge(['project_public_id'=>$review['project_public_id']??null],$context)]);
 }
 
 function research_review_record_outcome(PDO $pdo,array $viewer,array $review,string $decision,string $title,string $summary,array $extra=[]): void {
@@ -130,7 +130,7 @@ function research_review_respond(PDO $pdo,array $viewer,string $publicId,string 
         $pdo->prepare('UPDATE research_review_assignments SET latest_response_id=?,responded_at=NOW() WHERE review_id=? AND reviewer_user_id=?')->execute([$responseId,$review['id'],$viewer['id']]);
         research_review_event($pdo,(int)$review['id'],'responded',(int)$viewer['id'],['response_public_id'=>$public,'decision'=>$decision]);$pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    if((int)$review['requested_by_user_id']!==(int)$viewer['id'])research_review_notify($pdo,(int)$review['requested_by_user_id'],(int)$viewer['id'],'research_review_response',$review,(string)($viewer['display_name']?:$viewer['username']).' responded to '.$review['title'].': '.(research_review_decisions()[$decision]??$decision));
+    if((int)$review['requested_by_user_id']!==(int)$viewer['id'])research_review_notify($pdo,(int)$review['requested_by_user_id'],(int)$viewer['id'],'research_review_response',$review,(string)($viewer['display_name']?:$viewer['username']).' responded to '.$review['title'].': '.(research_review_decisions()[$decision]??$decision),['event_public_id'=>$public]);
     research_review_record_outcome($pdo,$viewer,$review,$decision,'Research review response: '.(research_review_decisions()[$decision]??$decision),$comment,['response_public_id'=>$public]);
     return research_review_access($pdo,$viewer,$publicId)??[];
 }
@@ -138,7 +138,7 @@ function research_review_respond(PDO $pdo,array $viewer,string $publicId,string 
 function research_review_comment(PDO $pdo,array $viewer,string $publicId,string $body): array {
     $review=research_review_access($pdo,$viewer,$publicId);if(!$review)throw new RuntimeException('Review is unavailable.');if($review['status']!=='open')throw new RuntimeException('Completed or cancelled reviews are read-only.');$body=mb_substr(trim($body),0,12000);if($body==='')throw new InvalidArgumentException('Review comment cannot be empty.');
     $public=ulid_like();$pdo->prepare('INSERT INTO research_review_comments(public_id,review_id,user_id,body) VALUES(?,?,?,?)')->execute([$public,$review['id'],$viewer['id'],$body]);research_review_event($pdo,(int)$review['id'],'commented',(int)$viewer['id'],['comment_public_id'=>$public]);
-    if((int)$review['requested_by_user_id']!==(int)$viewer['id'])research_review_notify($pdo,(int)$review['requested_by_user_id'],(int)$viewer['id'],'research_review_comment',$review,'New comment on '.$review['title']);
+    if((int)$review['requested_by_user_id']!==(int)$viewer['id'])research_review_notify($pdo,(int)$review['requested_by_user_id'],(int)$viewer['id'],'research_review_comment',$review,'New comment on '.$review['title'],['event_public_id'=>$public]);
     return ['public_id'=>$public,'body'=>$body];
 }
 
