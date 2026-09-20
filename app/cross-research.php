@@ -221,6 +221,7 @@ function cross_research_accept(PDO $pdo,array $viewer,string $key,?string $relat
     $q=$pdo->prepare("SELECT public_id FROM cross_research_links WHERE user_id=? AND source_project_id=? AND target_project_id=? AND object_type=? AND source_object_public_id=? AND target_object_public_id=? AND relation_type=? LIMIT 1");
     $q->execute([$viewer['id'],$candidate['source_project_id'],$candidate['target_project_id'],$candidate['object_type'],$candidate['source_object_public_id'],$candidate['target_object_public_id'],$relation]);$linkPublic=(string)$q->fetchColumn();
     $pdo->prepare("INSERT INTO cross_research_decisions(user_id,suggestion_key,decision,link_public_id) VALUES(?,?,'accepted',?) ON DUPLICATE KEY UPDATE decision='accepted',link_public_id=VALUES(link_public_id),updated_at=NOW()")->execute([$viewer['id'],$candidate['key'],$linkPublic]);
+    if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){try{research_outcome_sync_cross_research($pdo,$viewer,20);}catch(Throwable $ignored){}}
     return cross_research_link_access($pdo,$viewer,$linkPublic)??[];
 }
 
@@ -228,7 +229,7 @@ function cross_research_reject(PDO $pdo,array $viewer,string $key): bool {
     $candidate=cross_research_find_suggestion($pdo,$viewer,$key);if(!$candidate)return false;
     $q=$pdo->prepare('SELECT decision,link_public_id FROM cross_research_decisions WHERE user_id=? AND suggestion_key=? LIMIT 1');$q->execute([$viewer['id'],$candidate['key']]);$existing=$q->fetch();
     if($existing&&($existing['decision']??'')==='accepted'&&!empty($existing['link_public_id']))throw new RuntimeException('Remove the accepted Cross-Research relationship before dismissing this suggestion.');
-    $pdo->prepare("INSERT INTO cross_research_decisions(user_id,suggestion_key,decision,link_public_id) VALUES(?,?,'rejected',NULL) ON DUPLICATE KEY UPDATE decision='rejected',link_public_id=NULL,updated_at=NOW()")->execute([$viewer['id'],$candidate['key']]);return true;
+    $pdo->prepare("INSERT INTO cross_research_decisions(user_id,suggestion_key,decision,link_public_id) VALUES(?,?,'rejected',NULL) ON DUPLICATE KEY UPDATE decision='rejected',link_public_id=NULL,updated_at=NOW()")->execute([$viewer['id'],$candidate['key']]);if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){try{research_outcome_sync_cross_research($pdo,$viewer,20);}catch(Throwable $ignored){}}return true;
 }
 
 function cross_research_restore_decision(PDO $pdo,array $viewer,string $key): bool {
