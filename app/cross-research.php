@@ -196,7 +196,10 @@ function cross_research_find_suggestion(PDO $pdo,array $viewer,string $key): ?ar
 function cross_research_link_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!cross_research_ready($pdo))return null;$q=$pdo->prepare("SELECT l.*,sp.public_id source_project_public_id,sp.title source_project_title,tp.public_id target_project_public_id,tp.title target_project_title
       FROM cross_research_links l JOIN research_projects sp ON sp.id=l.source_project_id JOIN research_projects tp ON tp.id=l.target_project_id WHERE l.public_id=? AND l.user_id=? LIMIT 1");$q->execute([trim($publicId),$viewer['id']]);$row=$q->fetch();if(!$row)return null;
-    if(!project_access($pdo,(int)$viewer['id'],(string)$row['source_project_public_id'])||!project_access($pdo,(int)$viewer['id'],(string)$row['target_project_public_id']))return null;return $row;
+    if(!project_access($pdo,(int)$viewer['id'],(string)$row['source_project_public_id'])||!project_access($pdo,(int)$viewer['id'],(string)$row['target_project_public_id']))return null;
+    if(!cross_research_object_access($pdo,$viewer,(string)$row['object_type'],(string)$row['source_object_public_id'],(string)$row['source_project_public_id']))return null;
+    if(!cross_research_object_access($pdo,$viewer,(string)$row['object_type'],(string)$row['target_object_public_id'],(string)$row['target_project_public_id']))return null;
+    return $row;
 }
 
 function cross_research_links(PDO $pdo,array $viewer,?string $focusPublic=null,int $limit=100): array {
@@ -229,7 +232,7 @@ function cross_research_restore_decision(PDO $pdo,array $viewer,string $key): bo
 
 function cross_research_create_project_link(PDO $pdo,array $viewer,string $sourcePublic,string $targetPublic,string $relation,string $rationale=''): array {
     $source=project_access($pdo,(int)$viewer['id'],trim($sourcePublic));$target=project_access($pdo,(int)$viewer['id'],trim($targetPublic));if(!$source||!$target)throw new RuntimeException('Both Research projects must be accessible.');if((int)$source['id']===(int)$target['id'])throw new InvalidArgumentException('Choose two different Research projects.');
-    $relations=cross_research_relation_types();if(!isset($relations[$relation]))throw new InvalidArgumentException('Invalid project relationship.');$public=ulid_like();
+    $relations=cross_research_project_relation_types();if(!isset($relations[$relation]))throw new InvalidArgumentException('Invalid project relationship.');$public=ulid_like();
     $pdo->prepare("INSERT INTO cross_research_links(public_id,user_id,source_project_id,target_project_id,object_type,source_object_public_id,target_object_public_id,relation_type,rationale)
       VALUES(?,?,?,?, 'project',?,?,?,?) ON DUPLICATE KEY UPDATE rationale=VALUES(rationale),updated_at=NOW()")->execute([$public,$viewer['id'],$source['id'],$target['id'],$source['public_id'],$target['public_id'],$relation,mb_substr(trim($rationale),0,1000)]);
     $q=$pdo->prepare("SELECT public_id FROM cross_research_links WHERE user_id=? AND source_project_id=? AND target_project_id=? AND object_type='project' AND source_object_public_id=? AND target_object_public_id=? AND relation_type=? LIMIT 1");$q->execute([$viewer['id'],$source['id'],$target['id'],$source['public_id'],$target['public_id'],$relation]);$id=(string)$q->fetchColumn();return cross_research_link_access($pdo,$viewer,$id)??[];
