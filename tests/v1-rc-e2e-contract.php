@@ -136,7 +136,7 @@ $need('extension/sidepanel-feed.js','function phase13Intelligence','Chrome This 
 $need('extension/sidepanel-feed.js','data-action="open-related"','Chrome intelligence relationships must open the referenced annotation.');
 $need('app/agent-chat.php','annotation_intelligence_context_text','Agent Chat must receive permission-filtered Annotation Intelligence context.');
 $need('bin/queue-annotation-intelligence.php','annotation_intelligence_queue','Existing published annotations must have a backfill path.');
-$need('extension/manifest.json','"version": "0.14.0"','Phase 14 must bump the Chrome extension to v0.14.0.');
+$need('extension/manifest.json','"version": "0.15.0"','The current Chrome extension release must remain v0.15.0 after Phase 15.');
 $need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
 $need('app/research-workspace.php','research_workspace_queue','Research Workspace must queue hash-specific background synthesis.');
 $need('app/research-workspace.php','research_workspace_apply_ai_output','Research Workspace must validate and persist derived AI synthesis.');
@@ -172,7 +172,7 @@ $need('research-project.php','Draft finding','Research Now must expose a Finding
 $need('assets/css/app.css','.agentActionProposal','Agent action proposals must have dedicated review styling.');
 
 
-$need('extension/manifest.json','"version": "0.14.0"','Phase 14 must bump the Chrome extension to v0.14.0.');
+$need('extension/manifest.json','"version": "0.15.0"','The current Chrome extension release must remain v0.15.0 after Phase 15.');
 $need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
 $need('app/research-workspace.php','research_workspace_queue','Research Workspace must queue hash-specific background synthesis.');
 $need('app/research-workspace.php','research_workspace_apply_ai_output','Research Workspace must validate and persist derived AI synthesis.');
