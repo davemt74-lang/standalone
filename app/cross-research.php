@@ -101,7 +101,7 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
         $a=(int)$group[$i]['project_id'];$b=(int)$group[$j]['project_id'];if(!cross_research_pair_allowed($focus,$a,$b))continue;
         $p1=$byId[$a];$p2=$byId[$b];$src=(string)$group[$i]['source_public_id'];if(!cross_research_object_access($pdo,$viewer,'source',$src))continue;$label=(string)($group[$i]['title']?:$group[$i]['domain']?:'Source');
         cross_research_add_candidate($out,cross_research_candidate('shared_source',$p1,$p2,'source',$src,$src,'Same Source appears in two Research projects',
-          $label.' is included in both '.$p1['title'].' and '.$p2['title'].',['Exact same canonical Source record.'],84,'medium','shared_source',max((string)$group[$i]['created_at'],(string)$group[$j]['created_at']),['source_public_id'=>$src,'source_label'=>$label]));
+          $label.' is included in both '.$p1['title'].' and '.$p2['title'].'.',['Exact same canonical Source record.'],84,'medium','shared_source',max((string)$group[$i]['created_at'],(string)$group[$j]['created_at']),['source_public_id'=>$src,'source_label'=>$label]));
     }}
 
     // Same exact Annotation assigned to multiple projects.
