@@ -26,6 +26,10 @@ function research_outcome_ref_access(PDO $pdo,array $viewer,string $type,string 
         if(function_exists('research_finding_access'))return research_finding_access($pdo,$viewer,$publicId)!==null;
         $q=$pdo->prepare('SELECT rp.public_id FROM research_findings rf JOIN research_projects rp ON rp.id=rf.project_id WHERE rf.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;
     }
+    if($type==='task'){$q=$pdo->prepare('SELECT rp.public_id FROM research_tasks rt JOIN research_projects rp ON rp.id=rt.project_id WHERE rt.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;}
+    if($type==='note'){$q=$pdo->prepare('SELECT rp.public_id FROM research_notes rn JOIN research_projects rp ON rp.id=rn.project_id WHERE rn.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;}
+    if($type==='claim_evidence'){$q=$pdo->prepare('SELECT rp.public_id FROM claim_evidence ce JOIN research_claims rc ON rc.id=ce.claim_id JOIN research_projects rp ON rp.id=rc.project_id WHERE ce.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;}
+    if($type==='claim_relation'){$q=$pdo->prepare('SELECT rp.public_id FROM claim_relations cr JOIN research_projects rp ON rp.id=cr.project_id WHERE cr.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;}
     if($type==='entity')return function_exists('research_entity_access')&&research_entity_access($pdo,$viewer,$publicId)!==null;
     if($type==='conversation')return function_exists('conversation_access')&&conversation_access($pdo,$viewer,$publicId)!==null;
     if($type==='automation')return function_exists('research_automation_access')&&research_automation_access($pdo,$viewer,$publicId)!==null;
