@@ -70,7 +70,8 @@ function cognitive_feed_base_score(string $type): int {
 }
 
 function cognitive_feed_score(string $type,string $priority='medium',?string $createdAt=null,int $extra=0): int {
-    return max(0,min(100,cognitive_feed_base_score($type)+cognitive_feed_priority_bonus($priority)+cognitive_feed_recency_bonus($createdAt)+$extra));
+    $cap=$type==='pending_agent_action'?100:98;
+    return max(0,min($cap,cognitive_feed_base_score($type)+cognitive_feed_priority_bonus($priority)+cognitive_feed_recency_bonus($createdAt)+$extra));
 }
 
 function cognitive_feed_observation(array $data): array {
