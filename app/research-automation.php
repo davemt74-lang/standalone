@@ -282,6 +282,7 @@ function research_automation_complete_run(PDO $pdo,array $viewer,array $automati
         $notification=research_automation_notify($pdo,$viewer,$automation,$run,'research_automation_completed',$body,['conversation_public_id'=>$result['conversation'],'proposal_count'=>(int)$result['proposals']]);
         if($notification)$pdo->prepare('UPDATE research_automation_runs SET notification_public_id=? WHERE id=?')->execute([$notification,$run['id']]);
     }
+    if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){try{research_outcome_sync_automations($pdo,$viewer,20);}catch(Throwable $ignored){}}
 }
 
 function research_automation_fail_run(PDO $pdo,array $viewer,array $automation,array $run,Throwable $e): string {
@@ -292,5 +293,6 @@ function research_automation_fail_run(PDO $pdo,array $viewer,array $automation,a
         if($failures>=3){$pdo->prepare("UPDATE research_automations SET status='paused',next_run_at=NULL,updated_at=NOW() WHERE id=?")->execute([$automation['id']]);$paused=true;}
         research_automation_notify($pdo,$viewer,$automation,$run,'research_automation_failed',$automation['title'].' failed'.($paused?' repeatedly and was paused.':'.'),['error'=>mb_substr($e->getMessage(),0,500),'paused'=>$paused]);
     }
+    if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){try{research_outcome_sync_automations($pdo,$viewer,20);}catch(Throwable $ignored){}}
     return $status;
 }
