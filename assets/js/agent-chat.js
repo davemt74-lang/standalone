@@ -74,12 +74,14 @@
     const project=document.createElement('small');project.textContent=p.project_title?'Research · '+p.project_title:'Research action';
     const summary=document.createElement('p');summary.textContent=proposalSummary(p);
     const warning=document.createElement('div');warning.className='agentActionProposalWarning';warning.textContent='This changes Research only after you confirm.';
+    const details=document.createElement('details');details.className='agentActionProposalDetails';const detailsSummary=document.createElement('summary');detailsSummary.textContent='Review exact details';const dl=document.createElement('dl');Object.entries(p.arguments||{}).forEach(([k,v])=>{const dt=document.createElement('dt');dt.textContent=k.replace(/_/g,' ');const dd=document.createElement('dd');dd.textContent=Array.isArray(v)?v.join(', '):String(v??'');dl.append(dt,dd);});details.append(detailsSummary,dl);
+    const provenance=document.createElement('small');provenance.className='agentActionProposalProvenance';const refCount=Array.isArray(p.provenance?.refs)?p.provenance.refs.length:0;provenance.textContent='Provenance: '+refCount+' attached Annotated reference'+(refCount===1?'':'s')+'.';
     const actions=document.createElement('div');actions.className='agentActionProposalActions';actions.dataset.proposalActions='1';
     const confirm=document.createElement('button');confirm.type='button';confirm.textContent='Confirm & execute';
     const reject=document.createElement('button');reject.type='button';reject.className='secondary';reject.textContent='Reject';
     actions.append(confirm,reject);
     const result=document.createElement('div');result.className='agentActionProposalResult';result.dataset.proposalResult='1';
-    card.append(top,project,summary,warning,actions,result);
+    card.append(top,project,summary,warning,details,provenance,actions,result);
     async function mutate(action){
       confirm.disabled=true;reject.disabled=true;
       try{
