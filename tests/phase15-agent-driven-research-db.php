@@ -28,6 +28,7 @@ $claim1=$pub('claim');$claim2=$pub('claim');$pdo->prepare("INSERT INTO research_
 
 $conversation=agent_chat_create($pdo,$owner,'Phase 15 action test');$userMessage=conversation_message_create($pdo,$owner,$conversation['public_id'],'Create a follow-up task',null,'client-'.$run);$assistant=agent_chat_insert_agent_message($pdo,$conversation,'I can prepare that for confirmation.',(int)$userMessage['id']);
 $context=[agent_chat_context_item($pdo,$owner,'research',$projectPublic)];$refs=$context[0]['refs'];
+$notSuppliedClaim=$pub('claim');$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,'Real but not supplied to Agent','factual','unverified')")->execute([$notSuppliedClaim,$projectId,$owner['id']]);
 
 $parsed=agent_action_extract("I can prepare a task.\n<<ANNOTATED_ACTIONS>>[{\"capability\":\"research.create_task\",\"project_id\":\"".$projectPublic."\",\"arguments\":{\"title\":\"Verify the claim\",\"task_type\":\"verify_claim\"}}]");
 p15($parsed['body']==='I can prepare a task.'&&count($parsed['actions'])===1,'Agent action marker is removed from user-visible prose and parsed safely');
@@ -37,7 +38,6 @@ $proposals=agent_action_create_proposals($pdo,$owner,$conversation,(int)$assista
  ['capability'=>'research.create_task','project_id'=>$projectPublic,'arguments'=>['title'=>'Verify the claim','description'=>'Find independent evidence.','task_type'=>'verify_claim']],
  ['capability'=>'research.link_claims','project_id'=>$projectPublic,'arguments'=>['source_claim_id'=>'invented','target_claim_id'=>$claim2,'relation_type'=>'supports']]
 ],$refs);
-$notSuppliedClaim=$pub('claim');$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,'Real but not supplied to Agent','factual','unverified')")->execute([$notSuppliedClaim,$projectId,$owner['id']]);
 $hiddenRefAttempt=agent_action_create_proposals($pdo,$owner,$conversation,(int)$assistant['id'],$context,[['capability'=>'research.link_claims','project_id'=>$projectPublic,'arguments'=>['source_claim_id'=>$claim1,'target_claim_id'=>$notSuppliedClaim,'relation_type'=>'supports']]],$refs);
 p15(count($hiddenRefAttempt)===0,'real project IDs that were not supplied to the Agent cannot become proposal references');
 p15(count($proposals)===1&&$proposals[0]['capability_key']==='research.create_task','invalid hallucinated Research references are discarded before proposal display');
