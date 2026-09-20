@@ -59,12 +59,12 @@ function release_worker_heartbeat(PDO $pdo,string $worker,string $status='idle',
           last_message=VALUES(last_message)")->execute([$worker,$status,$status,$status,$status,$processed,$failed,$message?:null]);}catch(PDOException $e){}
 }
 function release_worker_health(PDO $pdo): array {
-    $expected=['media','transcription','source_monitor','ai','saved_search'];$rows=[];try{$q=$pdo->query('SELECT * FROM worker_heartbeats');foreach($q->fetchAll() as $r)$rows[$r['worker_name']]=$r;}catch(PDOException $e){}
+    $expected=['media','transcription','source_monitor','ai','saved_search','research_automation'];$rows=[];try{$q=$pdo->query('SELECT * FROM worker_heartbeats');foreach($q->fetchAll() as $r)$rows[$r['worker_name']]=$r;}catch(PDOException $e){}
     $out=[];$now=time();foreach($expected as $name){$r=$rows[$name]??null;$seen=$r&&$r['last_seen_at']?strtotime((string)$r['last_seen_at']):0;$age=$seen?max(0,$now-$seen):null;$status=!$r?'never':(($age!==null&&$age>3600)?'stale':(string)$r['last_status']);$out[$name]=['name'=>$name,'status'=>$status,'age_seconds'=>$age,'last_seen_at'=>$r['last_seen_at']??null,'last_success_at'=>$r['last_success_at']??null,'last_failure_at'=>$r['last_failure_at']??null,'processed_total'=>(int)($r['processed_total']??0),'failed_total'=>(int)($r['failed_total']??0),'last_message'=>$r['last_message']??null];}return $out;
 }
 function release_queue_health(PDO $pdo): array {
-    $tables=['media'=>'media_jobs','transcription'=>'transcription_jobs','source_monitor'=>'source_monitor_jobs','ai'=>'ai_jobs'];$out=[];
-    foreach($tables as $name=>$table){try{$q=$pdo->query("SELECT status,COUNT(*) c FROM $table GROUP BY status");$counts=[];foreach($q->fetchAll() as $r)$counts[$r['status']]=(int)$r['c'];$out[$name]=['queued'=>$counts['queued']??0,'processing'=>$counts['processing']??0,'failed'=>$counts['failed']??0,'blocked'=>$counts['blocked']??0,'done'=>$counts['done']??0];}catch(PDOException $e){$out[$name]=['error'=>'unavailable'];}}
+    $tables=['media'=>'media_jobs','transcription'=>'transcription_jobs','source_monitor'=>'source_monitor_jobs','ai'=>'ai_jobs','research_automation'=>'research_automation_runs'];$out=[];
+    foreach($tables as $name=>$table){try{$q=$pdo->query("SELECT status,COUNT(*) c FROM $table GROUP BY status");$counts=[];foreach($q->fetchAll() as $r)$counts[$r['status']]=(int)$r['c'];$out[$name]=['queued'=>$counts['queued']??0,'processing'=>$counts['processing']??0,'failed'=>$counts['failed']??0,'blocked'=>$counts['blocked']??0,'done'=>$counts['done']??0,'completed'=>$counts['completed']??0,'skipped'=>$counts['skipped']??0];}catch(PDOException $e){$out[$name]=['error'=>'unavailable'];}}
     return $out;
 }
 function release_command_available(string $command): bool {
