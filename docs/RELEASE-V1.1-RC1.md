@@ -38,7 +38,8 @@ media-worker.php             continuously / at least every minute
 transcription-worker.php     continuously / at least every minute
 source-monitor-worker.php    every 5 minutes
 ai-worker.php                continuously / at least every minute
-saved-search-worker.php      every 5 minutes
+saved-search-worker.php
+php bin/research-automations.php --limit=25      every 5 minutes
 ```
 
 After starting each worker, reload **Admin → System Health & Release** and verify a fresh heartbeat.
