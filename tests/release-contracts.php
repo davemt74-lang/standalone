@@ -51,6 +51,8 @@ foreach(['app/proactive-intelligence.php','api/proactive-intelligence.php','bin/
 $phase17Migration=(string)file_get_contents($root.'/database/migrations/20260920_024_proactive_research_intelligence.sql');foreach(['proactive_notification_mode','cognitive_watches','cognitive_alert_states','snoozed_until','resolved_at'] as $needle)if(!str_contains($phase17Migration,$needle))$fail[]="Phase 17 migration contract missing: $needle";
 $phase17=(string)file_get_contents($root.'/app/proactive-intelligence.php');foreach(['proactive_intelligence_sync','proactive_watch_upsert','proactive_alert_snooze','proactive_alert_resolve','proactive_briefing','proactive_context_access','proactive_agent_handoff'] as $needle)if(!str_contains($phase17,$needle))$fail[]="Phase 17 runtime contract missing: $needle";
 $phase17Home=(string)file_get_contents($root.'/home.php');foreach(['proactive_intelligence_sync','agentProactiveBriefing','proactive_agent_handoff','proactive_agent'] as $needle)if(!str_contains($phase17Home,$needle))$fail[]="Phase 17 Home contract missing: $needle";
+$phase17Extension=(string)file_get_contents($root.'/extension/sidepanel-social.js');foreach(['notification_snooze','notification_resolve','notificationWhy','proactive_agent'] as $needle)if(!str_contains($phase17Extension,$needle))$fail[]="Phase 17 Chrome proactive notification contract missing: $needle";
+$phase17ExtensionApi=(string)file_get_contents($root.'/api/extension-trust.php');foreach(['proactive_intelligence_sync','notification_snooze','notification_resolve'] as $needle)if(!str_contains($phase17ExtensionApi,$needle))$fail[]="Phase 17 Chrome proactive API contract missing: $needle";
 
 
 
