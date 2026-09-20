@@ -110,14 +110,16 @@ function change_impact_cross_rows(PDO $pdo,array $viewer,array $event,array $pro
 }
 
 function change_impact_decision_state(array $map,string $type,string $public): ?array {return $map[$type.':'.$public]??null;}
-function change_impact_is_resolved(?array $state): bool {return $state&&in_array((string)$state['decision'],change_impact_final_decisions(),true)&& (empty($state['snoozed_until'])||strtotime((string)$state['snoozed_until'])<=time());}
+function change_impact_is_snoozed(?array $state): bool {return $state&&!empty($state['snoozed_until'])&&strtotime((string)$state['snoozed_until'])>time();}
+function change_impact_is_resolved(?array $state): bool {return $state&&in_array((string)$state['decision'],change_impact_final_decisions(),true);}
 
 function change_impact_project(PDO $pdo,array $viewer,array $event,array $project,?array $reviewMap=null): array {
     $reviewMap=$reviewMap??change_impact_review_map($pdo,$viewer,(int)$event['id']);$annotations=change_impact_annotation_rows($pdo,$event,$project);$claims=change_impact_claim_rows($pdo,$event,$project);$findings=change_impact_finding_rows($pdo,$project,$claims);$reports=change_impact_report_rows($pdo,$event,$project,$claims,$findings);$reviews=change_impact_review_rows($pdo,$viewer,$event,$project,$claims,$findings,$reports);$cross=change_impact_cross_rows($pdo,$viewer,$event,$project,$claims,$findings);
-    $attach=function(array $rows,string $type)use($reviewMap){foreach($rows as &$r){$r['review_state']=change_impact_decision_state($reviewMap,$type,(string)$r['public_id']);$r['needs_review']=!change_impact_is_resolved($r['review_state']);}unset($r);return $rows;};
+    $attach=function(array $rows,string $type)use($reviewMap){foreach($rows as &$r){$r['review_state']=change_impact_decision_state($reviewMap,$type,(string)$r['public_id']);$r['is_snoozed']=change_impact_is_snoozed($r['review_state']);$r['needs_review']=!change_impact_is_resolved($r['review_state'])&&!$r['is_snoozed'];}unset($r);return $rows;};
     $annotations=$attach($annotations,'annotation');$claims=$attach($claims,'claim');$findings=$attach($findings,'finding');$reports=$attach($reports,'report_version');$reviews=$attach($reviews,'research_review');$cross=$attach($cross,'cross_research_link');
     $projectState=change_impact_decision_state($reviewMap,'project',(string)$project['public_id']);$counts=['annotations'=>count($annotations),'claims'=>count($claims),'findings'=>count($findings),'reports'=>count($reports),'reviews'=>count($reviews),'cross_research_links'=>count($cross)];
     $unresolved=0;foreach([$annotations,$claims,$findings,$reports,$reviews,$cross] as $rows)foreach($rows as $r)if($r['needs_review'])$unresolved++;
+    if(change_impact_is_resolved($projectState)||change_impact_is_snoozed($projectState))$unresolved=0;
     $severity=($claims||$findings||array_filter($reports,fn($r)=>$r['is_current'])||$reviews)?'high':(($annotations||$reports||$cross)?'medium':'low');
     return ['project'=>['id'=>(int)$project['id'],'public_id'=>$project['public_id'],'title'=>$project['title'],'access_role'=>$project['access_role']??null],'event'=>$event,'counts'=>$counts,'unresolved_count'=>$unresolved,'severity'=>$severity,'project_review_state'=>$projectState,'annotations'=>$annotations,'claims'=>$claims,'findings'=>$findings,'reports'=>$reports,'reviews'=>$reviews,'cross_research_links'=>$cross];
 }
