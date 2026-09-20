@@ -62,10 +62,11 @@ function annotation_intelligence_candidate_rows(PDO $pdo,array $row,int $limit=2
       COALESCE(at.edited_text,at.raw_text) transcript_text,s.public_id source_public_id,s.title source_title
       FROM annotations a JOIN captures c ON c.id=a.capture_id JOIN sources s ON s.id=a.source_id
       LEFT JOIN annotation_transcripts at ON at.annotation_id=a.id
-      WHERE a.id<>? AND a.status='published'
+      WHERE a.id<>? AND a.status='published' AND COALESCE(s.moderation_status,'visible')='visible'
+        AND NOT EXISTS(SELECT 1 FROM blocks aircb WHERE (aircb.blocker_user_id=? AND aircb.blocked_user_id=a.user_id) OR (aircb.blocker_user_id=a.user_id AND aircb.blocked_user_id=?))
         AND (a.user_id=? OR a.visibility='public'".($team>0?" OR (a.visibility='team' AND a.team_id=?)":"").")
       ORDER BY (a.source_id=? ) DESC,a.id DESC LIMIT $limit";
-    $params=[(int)$row['id'],$uid];if($team>0)$params[]=$team;$params[]=(int)$row['source_id'];
+    $params=[(int)$row['id'],$uid,$uid,$uid];if($team>0)$params[]=$team;$params[]=(int)$row['source_id'];
     $q=$pdo->prepare($sql);$q->execute($params);return $q->fetchAll();
 }
 
