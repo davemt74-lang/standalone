@@ -212,7 +212,7 @@ function research_workspace_apply_ai_output(PDO $pdo,string $projectPublicId,str
     $actions=research_workspace_normalize_items((array)($data['next_actions']??[]),$allowed,12);
     $confidence=max(0,min(1,(float)($data['confidence']??0.65)));$storedModel=$modelId>0?$modelId:null;
     $pdo->prepare("INSERT INTO research_workspace_intelligence(project_id,status,input_hash,summary,highlights_json,gaps_json,conflicts_json,source_risks_json,next_actions_json,confidence,model_id,ai_run_public_id,prompt_version,last_error,processed_at)
-      VALUES(?,'ready',?,?,?,?,?,?,?,?,?,?,?,'phase14-v1',NULL,NOW())
+      VALUES(?,'ready',?,?,?,?,?,?,?,?,?,?,'phase14-v1',NULL,NOW())
       ON DUPLICATE KEY UPDATE status='ready',input_hash=VALUES(input_hash),summary=VALUES(summary),highlights_json=VALUES(highlights_json),gaps_json=VALUES(gaps_json),conflicts_json=VALUES(conflicts_json),source_risks_json=VALUES(source_risks_json),next_actions_json=VALUES(next_actions_json),confidence=VALUES(confidence),model_id=VALUES(model_id),ai_run_public_id=VALUES(ai_run_public_id),prompt_version='phase14-v1',last_error=NULL,processed_at=NOW()")
       ->execute([$projectId,$currentHash,$summary,json_encode($highlights,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($gaps,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($conflicts,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($risks,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($actions,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),$confidence,$storedModel,$runPublicId]);
     return ['project_id'=>$projectPublicId,'summary'=>$summary,'highlights'=>$highlights,'gaps'=>$gaps,'conflicts'=>$conflicts,'source_risks'=>$risks,'next_actions'=>$actions,'confidence'=>$confidence];
