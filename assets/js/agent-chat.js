@@ -41,7 +41,7 @@
     feedScroll=window.scrollY||0;feed.hidden=true;canvas.hidden=false;document.body.classList.add('agentChatMode');input.placeholder='Message Annotated Agent…';saveState(true);window.scrollTo({top:0,behavior:'instant'});
   }
   function setModeFeed(){
-    canvas.hidden=true;feed.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));
+    canvas.hidden=true;feed.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
   }
   function clearWelcome(){messages.querySelector('.agentChatWelcome')?.remove();}
   function renderAttachment(a){
@@ -86,7 +86,7 @@
       confirm.disabled=true;reject.disabled=true;
       try{
         const data=await request(action,{method:'POST',data:{proposal_id:p.public_id}});
-        p={...p,...data,status:data.status||p.status,result:data.result||p.result};updateProposalCard(card,p);
+        p={...p,...data,status:data.status||p.status,result:data.result||p.result};updateProposalCard(card,p);if(p.status==='executed')document.dispatchEvent(new CustomEvent('annotated:research-action-executed',{detail:p}));
       }catch(err){
         if(String(err.message||'').includes('changed after')||String(err.message||'').includes('expired')){p.status='stale';p.error_text=err.message;updateProposalCard(card,p);}
         else alert(err.message||'Unable to update Agent action.');
@@ -149,7 +149,7 @@
   }
 
   form.addEventListener('submit',e=>{e.preventDefault();const prompt=input.value.trim();if(!prompt)return;if(canvas.hidden){window.ANNOTATED_PENDING_AGENT_PROMPT=prompt;try{sessionStorage.setItem('annotated.pendingAgentPrompt',prompt);}catch{}document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{prompt,source:'home_feed'},bubbles:true,cancelable:true}));}else sendPrompt(prompt);});
-  document.addEventListener('annotated:agent-chat-request',e=>{const prompt=String(e.detail?.prompt||'').trim();setModeAgent();if(prompt)sendPrompt(prompt);});
+  document.addEventListener('annotated:agent-chat-request',e=>{const prompt=String(e.detail?.prompt||'').trim();const supplied=Array.isArray(e.detail?.context)?e.detail.context:[];if(supplied.length){selectedContext=supplied.slice(0,6).filter(x=>x&&x.type&&x.public_id).map(x=>({type:String(x.type),public_id:String(x.public_id),label:String(x.label||x.type)}));renderContextTray();}setModeAgent();if(prompt)sendPrompt(prompt);});
   document.addEventListener('annotated:agent-chat-add-context',()=>{setModeAgent();contextPicker.hidden=false;loadContextOptions();});
   add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
   input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
@@ -159,8 +159,9 @@
 
   try{
     feedScroll=Number(sessionStorage.getItem('annotated.feedScroll')||0)||0;
-    const restoreOpen=sessionStorage.getItem('annotated.agentCanvasOpen')==='1',restoreConversation=sessionStorage.getItem('annotated.agentConversation')||'',pending=sessionStorage.getItem('annotated.pendingAgentPrompt')||'';
-    if(restoreOpen){setModeAgent();if(restoreConversation)openConversation(restoreConversation);}
+    const restoreOpen=sessionStorage.getItem('annotated.agentCanvasOpen')==='1',restoreConversation=sessionStorage.getItem('annotated.agentConversation')||'',pending=sessionStorage.getItem('annotated.pendingAgentPrompt')||'',requestedConversation=new URLSearchParams(location.search).get('agent')||'';
+    if(requestedConversation){setModeAgent();openConversation(requestedConversation);}
+    else if(restoreOpen){setModeAgent();if(restoreConversation)openConversation(restoreConversation);}
     if(pending){sessionStorage.removeItem('annotated.pendingAgentPrompt');setModeAgent();sendPrompt(pending);}
   }catch{}
 })();
