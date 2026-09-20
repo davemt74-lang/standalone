@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__.'/ai.php';
 require_once __DIR__.'/ai-access.php';
+require_once __DIR__.'/research-workspace.php';
 
 function agent_chat_available(PDO $pdo,array $viewer): bool {
     return user_is_pro($pdo,$viewer)||(($viewer['role']??'')==='admin');
@@ -61,8 +62,9 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         return ['type'=>'source','public_id'=>$publicId,'label'=>$r['title']?:$r['domain'],'text'=>"[SOURCE {$r['public_id']}]\n".($r['title']?:$r['canonical_url'])."\n".mb_substr((string)$r['extracted_text'],0,9000),'refs'=>[['type'=>'source','id'=>$publicId]]];
     }
     if($type==='research'){
-        $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;$ctx=ai_research_context($pdo,(int)$p['id']);
-        return ['type'=>'research','public_id'=>$publicId,'label'=>$p['title'],'text'=>mb_substr("[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'],0,18000),'refs'=>array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'])];
+        $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;$ctx=ai_research_context($pdo,(int)$p['id']);$workspace=research_workspace_ready($pdo)?research_workspace_context($pdo,(int)$p['id']):null;
+        $text="[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'];if($workspace)$text.="\n\n".$workspace['text'];
+        return ['type'=>'research','public_id'=>$publicId,'label'=>$p['title'],'text'=>mb_substr($text,0,24000),'refs'=>array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'])];
     }
     if($type==='team'){
         $team=conversation_team_by_public($pdo,$viewer,$publicId);if(!$team)return null;$c=conversation_team_ensure($pdo,$team,$viewer);
