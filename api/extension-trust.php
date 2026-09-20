@@ -1,6 +1,6 @@
 <?php
 if($action==='notifications'){
-    $u=require_api_user($pdo);$rows=notification_rows($pdo,$u,(int)($input['limit']??100),!empty($input['unread_only']));
+    $u=require_api_user($pdo);if(proactive_intelligence_ready($pdo)){try{proactive_intelligence_sync($pdo,$u);}catch(Throwable $e){}}$rows=notification_rows($pdo,$u,(int)($input['limit']??100),!empty($input['unread_only']));
     json_response(['ok'=>true,'data'=>['notifications'=>$rows,'unread_count'=>notification_unread_count($pdo,$u)]]);
 }
 if($action==='notification_read'){
@@ -15,6 +15,16 @@ if($action==='notification_archive'){
     $u=require_api_mutation_auth($pdo);$public=trim((string)($input['notification_id']??''));
     if($public===''||!notification_archive($pdo,$u,$public))json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
     json_response(['ok'=>true,'data'=>['archived'=>true,'unread_count'=>notification_unread_count($pdo,$u)]]);
+}
+if($action==='notification_snooze'){
+    $u=require_api_mutation_auth($pdo);$key=(string)($input['observation_key']??'');$hours=(int)($input['hours']??24);
+    try{if(!proactive_alert_snooze($pdo,$u,$key,$hours))json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);json_response(['ok'=>true,'data'=>['snoozed'=>true,'unread_count'=>notification_unread_count($pdo,$u)]]);}
+    catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_ALERT','message'=>$e->getMessage()]],422);}
+}
+if($action==='notification_resolve'){
+    $u=require_api_mutation_auth($pdo);$key=(string)($input['observation_key']??'');
+    try{if(!proactive_alert_resolve($pdo,$u,$key))json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);json_response(['ok'=>true,'data'=>['resolved'=>true,'unread_count'=>notification_unread_count($pdo,$u)]]);}
+    catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_ALERT','message'=>$e->getMessage()]],422);}
 }
 if($action==='notification_mute'){
     $u=require_api_mutation_auth($pdo);
