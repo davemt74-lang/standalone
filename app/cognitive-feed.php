@@ -129,3 +129,98 @@ function cognitive_feed_section_definitions(): array {
       'recent_changes'=>['label'=>'Recent changes','description'=>'Meaningful updates across your Annotated workspace.'],
     ];
 }
+
+
+function cognitive_feed_collect_pending_actions(PDO $pdo,array $viewer,array &$items): void {
+    if(!agent_actions_ready($pdo))return;
+    $q=$pdo->prepare("SELECT aap.public_id,aap.capability_key,aap.created_at,aap.expires_at,rp.public_id project_public_id,rp.title project_title,c.public_id conversation_public_id
+      FROM agent_action_proposals aap
+      JOIN research_projects rp ON rp.id=aap.project_id
+      JOIN conversations c ON c.id=aap.conversation_id
+      WHERE aap.proposed_by_user_id=? AND aap.status='pending' AND aap.expires_at>NOW()
+      ORDER BY aap.created_at DESC LIMIT 8");
+    $q->execute([$viewer['id']]);$caps=agent_action_capabilities();
+    foreach($q->fetchAll() as $row){
+        $project=project_access($pdo,(int)$viewer['id'],(string)$row['project_public_id']);if(!$project||!cognitive_feed_project_writable($project))continue;
+        $label=(string)($caps[$row['capability_key']]['label']??'Research action');
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('pending_agent_action','proposal',(string)$row['public_id']),
+          'type'=>'pending_agent_action','section'=>'needs_attention','priority'=>'high','created_at'=>$row['created_at'],
+          'title'=>'Research action waiting for confirmation',
+          'body'=>$label.' in '.$row['project_title'].' is still pending. Review the exact write before it expires.',
+          'meta'=>['project'=>$row['project_title'],'expires_at'=>$row['expires_at']],
+          'actions'=>[
+            cognitive_feed_action_link('Review in Agent','/home.php?agent='.rawurlencode((string)$row['conversation_public_id'])),
+            cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode((string)$row['project_public_id']))
+          ]
+        ]);
+    }
+}
+
+function cognitive_feed_collect_team_activity(PDO $pdo,array $viewer,array &$items): void {
+    if(!conversation_runtime_ready($pdo))return;
+    foreach(conversation_team_list($pdo,$viewer) as $team){
+        $unread=(int)($team['unread_count']??0);if($unread<1)continue;
+        $created=(string)($team['last_message_at']??'');$revision=$created!==''?$created:(string)$unread;
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('team_activity','conversation',(string)$team['public_id'],$revision),
+          'type'=>'team_activity','section'=>'team_activity','priority'=>$unread>=5?'high':'medium','created_at'=>$created,
+          'score_extra'=>min(8,$unread),
+          'title'=>$unread.' unread '.($unread===1?'message':'messages').' in '.$team['team_name'],
+          'body'=>trim((string)($team['last_message']??''))!==''?'Latest: '.mb_substr((string)$team['last_message'],0,220):'Your team has new activity.',
+          'meta'=>['team'=>$team['team_name'],'unread'=>$unread],
+          'actions'=>[
+            cognitive_feed_action_link('Open Team Chat','/home.php?team='.rawurlencode((string)$team['team_public_id']).'#team-chat'),
+            cognitive_feed_action_link('Open Team','/team.php?id='.rawurlencode((string)$team['team_public_id']))
+          ]
+        ]);
+    }
+}
+
+function cognitive_feed_collect_watched_source_changes(PDO $pdo,array $viewer,array &$items): void {
+    $admin=(($viewer['role']??'')==='admin');$sql="SELECT sce.id,sce.created_at,sce.change_type,sce.impact_type,sce.target_changed,sce.affected_annotation_count,sce.diff_summary,
+      s.public_id source_public_id,s.title,s.domain
+      FROM source_change_events sce
+      JOIN source_watches sw ON sw.source_id=sce.source_id AND sw.user_id=?
+      JOIN sources s ON s.id=sce.source_id
+      WHERE sce.created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY)".($admin?'':" AND COALESCE(s.moderation_status,'visible')='visible'")."
+      ORDER BY sce.id DESC LIMIT 12";
+    $q=$pdo->prepare($sql);$q->execute([$viewer['id']]);
+    foreach($q->fetchAll() as $row){
+        $priority=((bool)$row['target_changed']||(int)$row['affected_annotation_count']>0)?'high':'medium';
+        $title=(string)($row['title']?:$row['domain']?:'A watched source');
+        $body=trim((string)($row['diff_summary']??''));if($body==='')$body='This watched source was '.str_replace('_',' ',(string)($row['impact_type']?:$row['change_type'])).'.';
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('source_change','source',(string)$row['source_public_id'],(string)$row['created_at']),
+          'type'=>'source_change','section'=>'source_changed','priority'=>$priority,'created_at'=>$row['created_at'],
+          'score_extra'=>min(6,(int)$row['affected_annotation_count']),
+          'title'=>'Source changed: '.$title,'body'=>$body,
+          'meta'=>['affected_annotations'=>(int)$row['affected_annotation_count']],
+          'actions'=>[
+            cognitive_feed_action_link('Open source','/source.php?id='.rawurlencode((string)$row['source_public_id'])),
+            cognitive_feed_action_agent('Ask Agent','Explain what changed in this source and what I should review next.',[['type'=>'source','public_id'=>(string)$row['source_public_id']]])
+          ]
+        ]);
+    }
+}
+
+function cognitive_feed_collect_recent_agent_results(PDO $pdo,array $viewer,array &$items): void {
+    if(!agent_actions_ready($pdo))return;
+    $q=$pdo->prepare("SELECT aap.public_id,aap.capability_key,aap.executed_at,aap.result_json,rp.public_id project_public_id,rp.title project_title
+      FROM agent_action_proposals aap JOIN research_projects rp ON rp.id=aap.project_id
+      WHERE aap.proposed_by_user_id=? AND aap.status='executed' AND aap.executed_at>=DATE_SUB(NOW(),INTERVAL 7 DAY)
+      ORDER BY aap.executed_at DESC LIMIT 8");
+    $q->execute([$viewer['id']]);$caps=agent_action_capabilities();
+    foreach($q->fetchAll() as $row){
+        $project=project_access($pdo,(int)$viewer['id'],(string)$row['project_public_id']);if(!$project)continue;
+        $result=json_decode((string)($row['result_json']??''),true)?:[];$label=(string)($caps[$row['capability_key']]['label']??'Research action');
+        $actions=[];if(!empty($result['url']))$actions[]=cognitive_feed_action_link('Open result',(string)$result['url']);$actions[]=cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode((string)$row['project_public_id']));
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('recent_change','agent_action',(string)$row['public_id']),
+          'type'=>'recent_change','section'=>'recent_changes','priority'=>'low','created_at'=>$row['executed_at'],
+          'title'=>$label.' completed',
+          'body'=>(string)($result['label']??$label).' was added to '.$row['project_title'].'.',
+          'meta'=>['project'=>$row['project_title']],'actions'=>$actions
+        ]);
+    }
+}
