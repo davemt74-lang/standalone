@@ -12,6 +12,11 @@ function research_workspace_ready(PDO $pdo): bool {
     catch(Throwable $e){return false;}
 }
 
+function research_workspace_ai_model_configured(PDO $pdo): bool {
+    try{return ai_setting_model_id($pdo,'research')>0;}
+    catch(Throwable $e){return false;}
+}
+
 function research_workspace_project_row(PDO $pdo,int $projectId): ?array {
     $q=$pdo->prepare('SELECT rp.* FROM research_projects rp WHERE rp.id=? LIMIT 1');
     $q->execute([$projectId]);return $q->fetch()?:null;
@@ -133,7 +138,7 @@ function research_workspace_record(PDO $pdo,int $projectId): ?array {
 
 
 function research_workspace_queue(PDO $pdo,int $projectId,int $priority=5): bool {
-    if(!research_workspace_ready($pdo))return false;
+    if(!research_workspace_ready($pdo)||!research_workspace_ai_model_configured($pdo))return false;
     $project=research_workspace_project_row($pdo,$projectId);if(!$project)return false;
     $hash=research_workspace_input_hash($pdo,$projectId);
     $q=$pdo->prepare('SELECT status,input_hash FROM research_workspace_intelligence WHERE project_id=?');$q->execute([$projectId]);$existing=$q->fetch();
