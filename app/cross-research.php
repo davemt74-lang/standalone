@@ -89,7 +89,7 @@ function cross_research_decisions(PDO $pdo,array $viewer): array {
     foreach($q->fetchAll() as $r)$out[(string)$r['suggestion_key']]=$r;return $out;
 }
 
-function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=null,int $limit=100,bool $includeDecided=false): array {
+function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=null,int $limit=100,bool $includeDecided=false,?string $exactKey=null): array {
     if(!cross_research_ready($pdo))return [];
     [$projects,$byId,$byPublic,$focus]=cross_research_project_maps($pdo,$viewer,$focusPublic);if(count($projects)<2)return [];
     $ids=array_keys($byId);$in=implode(',',array_map('intval',$ids));$out=[];$now=date('Y-m-d H:i:s');
@@ -184,15 +184,16 @@ function cross_research_suggestions(PDO $pdo,array $viewer,?string $focusPublic=
           $p1['title'].' ↔ '.$p2['title'],['Detected: '.implode('; ',$labels).'.'],$score,'medium','related',(string)$stat['last'],['signal_counts'=>$stat['types']]));
     }
 
-    $decisions=cross_research_decisions($pdo,$viewer);$items=[];
-    foreach($out as $key=>$c){$decision=$decisions[$key]??null;$c['decision']=$decision['decision']??null;$c['link_public_id']=$decision['link_public_id']??null;if(!$includeDecided&&$decision)continue;$items[]=$c;}
+    $decisions=cross_research_decisions($pdo,$viewer);
+    if($exactKey!==null){$exactKey=strtolower(trim($exactKey));$item=$out[$exactKey]??null;if(!$item)return [];$decision=$decisions[$exactKey]??null;$item['decision']=$decision['decision']??null;$item['link_public_id']=$decision['link_public_id']??null;if(!$includeDecided&&$decision)return [];return [$item];}
+    $items=[];foreach($out as $key=>$candidate){$decision=$decisions[$key]??null;$candidate['decision']=$decision['decision']??null;$candidate['link_public_id']=$decision['link_public_id']??null;if(!$includeDecided&&$decision)continue;$items[]=$candidate;}
     usort($items,function($a,$b){$p=['high'=>3,'medium'=>2,'low'=>1];$cmp=($p[$b['priority']]??0)<=>($p[$a['priority']]??0);if($cmp!==0)return $cmp;$cmp=(int)$b['score']<=>(int)$a['score'];if($cmp!==0)return $cmp;return strcmp((string)$b['created_at'],(string)$a['created_at']);});
     return array_slice($items,0,max(1,min(300,$limit)));
 }
 
 function cross_research_find_suggestion(PDO $pdo,array $viewer,string $key): ?array {
     $key=strtolower(trim($key));if(!preg_match('/^[a-f0-9]{64}$/',$key))return null;
-    foreach(cross_research_suggestions($pdo,$viewer,null,300,true) as $item)if(hash_equals((string)$item['key'],$key))return $item;return null;
+    $items=cross_research_suggestions($pdo,$viewer,null,1,true,$key);return $items[0]??null;
 }
 
 function cross_research_link_access(PDO $pdo,array $viewer,string $publicId): ?array {
