@@ -33,12 +33,13 @@ if($action==='publish'){
         if($isMedia&&$upload){$duration=$end-$start;$pdo->prepare('INSERT INTO media_derivatives(capture_id,media_type,duration_seconds,resolution_label,processing_status) VALUES(?,?,?,?,"queued")')->execute([$captureId,$mediaKind,$duration,$mediaKind==='video'?'240p':null]);$derivative=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO media_jobs(derivative_id,source_url,input_path,input_is_clip,start_seconds,end_seconds) VALUES(?,?,?,1,?,?)')->execute([$derivative,$canonical,$upload['storage_path'],$start,$end]);rich_capture_mark_consumed($pdo,(int)$upload['id'],(string)$upload['checksum']);}
         if($project){$pdo->prepare('INSERT IGNORE INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$project['id'],$annotationId,$u['id']]);$pdo->prepare('INSERT IGNORE INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([$project['id'],$sourceId,$u['id']]);}
         live_event_emit_for_annotation($pdo,$annotationId,'annotation');if($project)live_event_emit_research_add($pdo,(int)$project['id'],$annotationId,(int)$u['id']);
-        $pdo->commit();json_response(['ok'=>true,'data'=>['annotation_id'=>$publicId,'url'=>'/annotation.php?id='.$publicId,'media_queued'=>$isMedia,'transcription_queued'=>$transcriptionQueued,'research_added'=>(bool)$project]],201);
+        $intelligenceQueued=annotation_intelligence_queue($pdo,$annotationId,(int)$u['id'],4);
+        $pdo->commit();json_response(['ok'=>true,'data'=>['annotation_id'=>$publicId,'url'=>'/annotation.php?id='.$publicId,'media_queued'=>$isMedia,'transcription_queued'=>$transcriptionQueued,'research_added'=>(bool)$project,'intelligence_queued'=>$intelligenceQueued]],201);
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();foreach([$contextPath,$targetPath,$audioPath] as $stored){$abs=$stored?storage_path_to_absolute($config,(string)$stored):null;if($abs&&is_file($abs))@unlink($abs);}json_response(['ok'=>false,'error'=>['code'=>'PUBLISH_FAILED','message'=>$e->getMessage()?:'Unable to publish annotation.']],500);}
 }
 
 if($action==='transcript_edit'){
     $u=require_api_mutation_auth($pdo);$a=ext_annotation($pdo,(string)($input['annotation_id']??''),$u);if(!$a||((int)$a['user_id']!==(int)$u['id']&&$u['role']!=='admin'))json_response(['ok'=>false,'error'=>['code'=>'FORBIDDEN']],403);
     $text=trim((string)($input['text']??''));if(mb_strlen($text)>50000)json_response(['ok'=>false,'error'=>['code'=>'TRANSCRIPT_TOO_LONG']],422);
-    $q=$pdo->prepare('UPDATE annotation_transcripts SET edited_text=?,updated_at=NOW() WHERE annotation_id=?');$q->execute([$text?:null,$a['id']]);json_response(['ok'=>true,'data'=>['updated'=>true]]);
+    $q=$pdo->prepare('UPDATE annotation_transcripts SET edited_text=?,updated_at=NOW() WHERE annotation_id=?');$q->execute([$text?:null,$a['id']]);$queued=annotation_intelligence_queue($pdo,(int)$a['id'],(int)$u['id'],3);json_response(['ok'=>true,'data'=>['updated'=>true,'intelligence_queued'=>$queued]]);
 }

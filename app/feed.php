@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/source-integrity.php';
+require_once __DIR__.'/annotation-intelligence.php';
 
 function feed_cursor_encode(int $id): string {
     return rtrim(strtr(base64_encode((string)$id),'+/','-_'),'=');
@@ -127,8 +128,9 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $row['integrity']=source_integrity_annotation_state($pdo,['id'=>(int)$row['internal_id'],'source_version_id'=>(int)$row['source_version_id'],'current_source_version_id'=>(int)$row['current_version_id']]);
         foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','viewer_liked','is_self'] as $k)$row[$k]=(bool)$row[$k];
         $row['like_count']=(int)($row['like_count']??0);$row['comment_count']=(int)($row['comment_count']??0);$row['post_type']=feed_annotation_post_type($row);
-        unset($row['internal_id'],$row['screenshot_target_path'],$row['audio_commentary_path'],$row['media_path']);
     }unset($row);
+    $rows=annotation_intelligence_attach_many($pdo,$rows,$viewer,8);
+    foreach($rows as &$row)unset($row['internal_id'],$row['screenshot_target_path'],$row['audio_commentary_path'],$row['media_path']);unset($row);
     $unread=$mode==='following'&&$uid?feed_following_unread_count($pdo,$viewer):0;
     return ['annotations'=>$rows,'next_cursor'=>$next,'unread_count'=>$unread];
 }

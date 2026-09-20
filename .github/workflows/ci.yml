@@ -153,6 +153,12 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase12b-agent-chat-db.php
+      - name: Phase 13 Annotation Intelligence MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase13-annotation-intelligence-db.php
 
 
   mysql8-fresh-install:

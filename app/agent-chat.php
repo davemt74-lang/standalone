@@ -52,6 +52,7 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         $a=annotation_access($pdo,$publicId,$viewer);if(!$a)return null;
         $q=$pdo->prepare("SELECT a.public_id,a.text_commentary,c.selected_text,COALESCE(at.edited_text,at.raw_text) transcript_text,s.public_id source_public_id,s.title,s.canonical_url,s.domain FROM annotations a JOIN captures c ON c.id=a.capture_id JOIN sources s ON s.id=a.source_id LEFT JOIN annotation_transcripts at ON at.annotation_id=a.id WHERE a.id=?");$q->execute([$a['id']]);$r=$q->fetch();if(!$r)return null;
         $text="[ANNOTATION {$r['public_id']}]\nSource: ".($r['title']?:$r['canonical_url'])."\nCommentary: ".mb_substr((string)$r['text_commentary'],0,2500)."\nCaptured text: ".mb_substr((string)$r['selected_text'],0,4000).(!empty($r['transcript_text'])?"\nTranscript: ".mb_substr((string)$r['transcript_text'],0,5000):'');
+        $derived=annotation_intelligence_context_text($pdo,$publicId,$viewer);if($derived!=='')$text.="\n\n".$derived;
         return ['type'=>'annotation','public_id'=>$publicId,'label'=>mb_substr((string)($r['text_commentary']?:($r['title']?:$r['domain'])),0,90),'text'=>$text,'refs'=>[['type'=>'annotation','id'=>$publicId],['type'=>'source','id'=>$r['source_public_id']]]];
     }
     if($type==='source'){

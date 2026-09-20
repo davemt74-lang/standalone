@@ -94,7 +94,7 @@ $need('api/conversations.php','require_api_mutation_auth','Team Chat mutations m
 $need('app/conversations.php','conversation_access','Conversation authorization must remain server-side.');
 $need('app/conversations.php','client_message_id','Conversation sends must remain retry-idempotent.');
 $need('team.php','#team-chat','Team workspace must deep-link into its Home Team Chat.');
-$need('extension/manifest.json','"version": "0.12.0"','Phase 12B must bump the Chrome extension to v0.12.0.');
+$need('extension/manifest.json','"version": "0.13.0"','Phase 13 must bump the Chrome extension to v0.13.0.');
 $need('home.php','teamChatSettingsButton','Team Chat rail must expose a footer settings icon.');
 $need('home.php','data-team-chat-popout','Team Chat rail must expose an active-chat popout control.');
 $need('home.php','data-team-chat-popups','Home must expose the desktop active-chat popup layer.');
@@ -119,6 +119,24 @@ $need('app/agent-chat.php',"sender_type='agent'",'Agent replies must persist in 
 $need('app/agent-chat.php','agent_chat_available','Agent Chat must enforce plan/model access server-side.');
 $need('api/agent-chat.php','require_api_mutation_auth','Agent Chat mutations must enforce authenticated CSRF/bearer auth.');
 $need('assets/css/app.css','.agentChatCanvas','Agent Chat canvas must have dedicated responsive styling.');
+
+$need('app/annotation-intelligence.php','annotation_intelligence_queue','Phase 13 must queue Annotation Intelligence asynchronously.');
+$need('app/annotation-intelligence.php','annotation_intelligence_visible_relationships','Phase 13 relationships must be filtered through current viewer access.');
+$need('app/annotation-intelligence.php','annotation_intelligence_has_analyzable_content','Phase 13 must not invent text intelligence for captures without analyzable content.');
+$need('app/annotation-intelligence.php','Source integrity:','Agent annotation intelligence context must include source-change state when relevant.');
+$need('worker/ai-worker.php',"'annotation_intelligence'=>'annotation_intelligence'",'The shared AI worker must route Annotation Intelligence jobs.');
+$need('api/extension-publish.php','annotation_intelligence_queue','Published annotations must automatically queue intelligence.');
+$need('worker/transcription-worker.php','annotation_intelligence_queue','Completed transcripts must refresh annotation intelligence.');
+$need('api/annotation-intelligence.php','UPGRADE_REQUIRED','Annotation Intelligence API must fail clearly before migration 020.');
+$need('api/annotation-intelligence.php','require_api_mutation_auth','Manual intelligence refresh must enforce authenticated mutation authorization.');
+$need('annotation.php','data-intelligence-refresh','Annotation owners/admins must have a manual intelligence refresh action.');
+$need('app/annotation-ui.php','annotationIntelligencePanel','Website annotation posts must expose a collapsed Intelligence panel.');
+$need('app/annotation-ui.php','AI-assisted derived analysis','Website intelligence UI must label AI output as derived analysis.');
+$need('extension/sidepanel-feed.js','function phase13Intelligence','Chrome This Page and Following must render Annotation Intelligence.');
+$need('extension/sidepanel-feed.js','data-action="open-related"','Chrome intelligence relationships must open the referenced annotation.');
+$need('app/agent-chat.php','annotation_intelligence_context_text','Agent Chat must receive permission-filtered Annotation Intelligence context.');
+$need('bin/queue-annotation-intelligence.php','annotation_intelligence_queue','Existing published annotations must have a backfill path.');
+
 
 
 
@@ -150,7 +168,7 @@ $need('settings.php','name="profile_photo"','Settings must expose a profile phot
 $need('settings.php','data-annotation-highlight-picker','Account Settings must expose the annotation highlight color preference.');
 $need('settings.php','settingsSidebar','Account Settings must expose a dedicated right sidebar hook.');
 $need('assets/css/app.css','.settingsSidebar{position:sticky','Account Settings right sidebar must stay sticky on desktop.');
-$need('settings.php','annotation-cards.js?v=0.11.0','Account Settings highlight control must reuse the shared highlight preference runtime.');
+$need('settings.php','annotation-cards.js?v=0.13.0','Account Settings highlight control must reuse the shared highlight preference runtime.');
 $need('app/storage.php','function profile_image_upload','Profile photo uploads must use the validated storage helper.');
 $need('app/storage.php',"'image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'",'Profile photo uploads must be restricted to safe raster image types.');
 $need('app/feed.php','u.profile_image_url','Annotation feed rows must carry author profile photos.');

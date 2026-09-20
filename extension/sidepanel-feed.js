@@ -44,6 +44,18 @@ function phase6SourceName(a){
   if(a.source_domain)return String(a.source_domain).replace(/^www\./i,'');
   try{return new URL(a.canonical_url||'').hostname.replace(/^www\./i,'')||'Source';}catch{return 'Source';}
 }
+function phase13Intelligence(a){
+  const intel=a?.intelligence;if(!intel||intel.status!=='ready')return '';
+  const summary=String(intel.summary||'').trim(),topics=Array.isArray(intel.topics)?intel.topics:[],entities=Array.isArray(intel.entities)?intel.entities:[],claims=Array.isArray(intel.claims)?intel.claims:[],relations=Array.isArray(intel.relationships)?intel.relationships:[];
+  const relLabels={related:'Related',duplicate:'Possible duplicate',corroborates:'Corroborating',conflicts:'Conflicting'};
+  const topicHtml=topics.length?'<div class="intelligenceChips">'+topics.slice(0,8).map(x=>'<span>'+esc(String(x))+'</span>').join('')+'</div>':'';
+  const entityHtml=entities.length?'<div class="intelligenceSection"><strong>Entities</strong><div class="intelligenceEntities">'+entities.slice(0,10).map(x=>'<span><b>'+esc(String(x?.name||''))+'</b>'+(x?.type?'<small>'+esc(String(x.type))+'</small>':'')+'</span>').join('')+'</div></div>':'';
+  const claimHtml=claims.length?'<div class="intelligenceSection"><strong>Claims detected</strong><div class="intelligenceClaims">'+claims.slice(0,5).map(x=>'<div><span class="intelligenceClaimBadge '+(x?.certainty==='explicit'?'explicit':'inferred')+'">'+esc(x?.certainty==='explicit'?'Explicit':'Inferred')+'</span><p>'+esc(String(x?.statement||''))+'</p></div>').join('')+'</div></div>':'';
+  const relHtml=relations.length?'<div class="intelligenceSection"><strong>Related evidence</strong><div class="intelligenceRelations">'+relations.slice(0,5).map(x=>'<button type="button" data-action="open-related" data-related="'+esc(String(x?.public_id||''))+'"><span>'+esc(relLabels[x?.relation_type]||'Related')+'</span><b>'+esc(String(x?.text_commentary||x?.selected_text||x?.source_title||'Annotation').slice(0,90))+'</b><small>'+Math.round(Number(x?.confidence||0)*100)+'% analysis confidence</small></button>').join('')+'</div></div>':'';
+  const integrity=a?.integrity?.label&&a.integrity.label!=='Source unchanged'?'<div class="intelligenceIntegrity"><strong>Source integrity</strong><span>'+esc(String(a.integrity.label))+'</span></div>':'';
+  const confidence=Number(intel.confidence);const meta='AI-assisted derived analysis'+(Number.isFinite(confidence)?' · '+Math.round(confidence*100)+'% analysis confidence':'')+'. Verify conclusions against captured evidence.';
+  return '<details class="annotationIntelligence"><summary><span>✦</span><span><small>Derived analysis</small><strong>Intelligence</strong></span><span>⌄</span></summary><div class="annotationIntelligenceBody">'+(summary?'<p class="intelligenceSummary">'+esc(summary)+'</p>':'')+topicHtml+entityHtml+claimHtml+relHtml+integrity+'<div class="intelligenceMeta">'+esc(meta)+'</div></div></details>';
+}
 const phase6EvidenceCache=new Map();
 function phase6EvidenceAbsolute(raw){try{return new URL(String(raw||''),API_BASE+'/').href;}catch{return String(raw||'');}}
 async function phase6EvidenceBlob(raw){
@@ -80,6 +92,7 @@ function phase6AnnotationCard(a){
   const transcriptStatus=!hasTranscript&&(a.capture_type==='video_clip'||a.capture_type==='audio_clip')&&a.transcript_status?'<div class="hint">Transcript: '+esc(a.transcript_status)+'</div>':'';
   const time=a.start_seconds!==null&&a.start_seconds!==undefined?'<div class="hint">Clip '+fmtTime(a.start_seconds)+' → '+fmtTime(a.end_seconds)+'</div>':'';
   const version='Captured v'+(Number(a.capture_version_number||0)||'—')+(a.current_version_number&&Number(a.current_version_number)!==Number(a.capture_version_number)?' · current v'+Number(a.current_version_number):'');
+  const intelligence=phase13Intelligence(a);
   const unread=token&&!a.is_read?' unread':'';
   const authorButton=a.is_self?'':'<button class="authorFollow" data-action="follow" data-user="'+esc(a.author_public_id)+'">'+follow+'</button>';
   const likeClass=a.viewer_liked?' active':'';
@@ -89,7 +102,7 @@ function phase6AnnotationCard(a){
     (a.text_commentary?'<p class="postCaption">'+esc(a.text_commentary)+'</p>':'')+
     (showSelected?'<div class="excerpt postQuote">'+esc(selected.slice(0,1000))+'</div>':'')+
     shot+transcriptPanel+media+(a.media_provider?'<div class="provenance">'+esc(a.media_provider==='youtube'?'YouTube':a.media_provider)+(a.media_title?' · '+esc(a.media_title):'')+(a.media_author?' · '+esc(a.media_author):'')+'</div>':'')+audio+transcriptStatus+time+
-    '<details class="sourceDetails"><summary><span class="sourceDetailsIcon">↗</span><span><small>Source content</small><strong>'+esc(sourceName)+'</strong></span><span class="sourceChevron">⌄</span></summary><div class="sourceDetailsBody"><div class="sourceDetailsUrl">'+esc(a.canonical_url||'')+'</div><div class="sourceDetailsStats"><span>'+esc(version)+'</span>'+(a.integrity?.label?'<span>'+esc(a.integrity.label)+'</span>':'')+'</div><div class="sourceDetailsActions"><button data-action="source" data-source="'+esc(a.source_public_id)+'">Source page</button><button data-action="source-follow" data-source="'+esc(a.source_public_id)+'">'+sourceFollow+'</button></div></div></details>'+
+    '<details class="sourceDetails"><summary><span class="sourceDetailsIcon">↗</span><span><small>Source content</small><strong>'+esc(sourceName)+'</strong></span><span class="sourceChevron">⌄</span></summary><div class="sourceDetailsBody"><div class="sourceDetailsUrl">'+esc(a.canonical_url||'')+'</div><div class="sourceDetailsStats"><span>'+esc(version)+'</span>'+(a.integrity?.label?'<span>'+esc(a.integrity.label)+'</span>':'')+'</div><div class="sourceDetailsActions"><button data-action="source" data-source="'+esc(a.source_public_id)+'">Source page</button><button data-action="source-follow" data-source="'+esc(a.source_public_id)+'">'+sourceFollow+'</button></div></div></details>'+intelligence+
     '<div class="postActions">'+
       '<button class="postAction'+likeClass+'" data-action="like">♥ <span>Like</span> <strong data-like-count>'+Number(a.like_count||0)+'</strong></button>'+
       '<button class="postAction" data-action="comments">💬 <span>Comments</span> <strong data-comment-count>'+Number(a.comment_count||0)+'</strong></button>'+
@@ -196,6 +209,7 @@ async function phase6CardAction(e){
     if(action==='save'){if(!token){await connect();if(!token)return;}const j=await api('/api/extension.php?action=save',{method:'POST',body:JSON.stringify({annotation_id:id})});b.classList.toggle('active',!!j.data.saved);const label=b.querySelector('[data-save-label]');if(label)label.textContent=j.data.saved?'Saved':'Save';return;}
     if(action==='research')return openResearch(id);
     if(action==='open')return chrome.tabs.create({url:API_BASE+'/annotation.php?id='+encodeURIComponent(id)});
+    if(action==='open-related')return chrome.tabs.create({url:API_BASE+'/annotation.php?id='+encodeURIComponent(String(b.dataset.related||''))});
     if(action==='report')return reportObject('annotation',id);
     if(action==='source')return chrome.tabs.create({url:API_BASE+'/source.php?id='+encodeURIComponent(b.dataset.source)});
     if(action==='seek'){const tab=await activeTab();if(tab?.id)await chrome.tabs.sendMessage(tab.id,{type:'annotated:seek',time:Number(b.dataset.time)});return;}

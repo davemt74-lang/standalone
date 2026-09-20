@@ -92,6 +92,19 @@ document.addEventListener('click',async e=>{
     return;
   }
 
+  const intelligenceRefresh=e.target.closest?.('[data-intelligence-refresh]');
+  if(intelligenceRefresh){
+    const id=String(intelligenceRefresh.dataset.id||'').trim();if(!id)return;
+    intelligenceRefresh.disabled=true;const old=intelligenceRefresh.textContent;intelligenceRefresh.textContent='Queuing…';
+    try{
+      const r=await fetch('/api/annotation-intelligence.php?action=refresh',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':window.ANNOTATED_CSRF||''},body:JSON.stringify({annotation_id:id})});
+      const j=await r.json();if(!r.ok||j.ok===false)throw new Error(j.error?.message||j.error?.code||'Unable to refresh intelligence');
+      intelligenceRefresh.textContent=j.data?.queued?'Queued':'Already current';setTimeout(()=>{intelligenceRefresh.textContent=old;},1600);
+    }catch(err){intelligenceRefresh.textContent=old;alert(err.message||'Unable to refresh intelligence.');}
+    finally{intelligenceRefresh.disabled=false;intelligenceRefresh.closest('details')?.removeAttribute('open');}
+    return;
+  }
+
   const copy=e.target.closest?.('[data-copy-annotation-link]');
   if(copy){
     const url=new URL(copy.dataset.url||location.href,location.origin).href;
