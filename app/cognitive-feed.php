@@ -158,10 +158,11 @@ function cognitive_feed_collect_pending_actions(PDO $pdo,array $viewer,array &$i
           'title'=>'Research action waiting for confirmation',
           'body'=>$label.' in '.$row['project_title'].' is still pending. Review the exact write before it expires.',
           'meta'=>['project'=>$row['project_title'],'expires_at'=>$row['expires_at']],
-          'actions'=>[
+          'actions'=>array_values(array_filter([
             cognitive_feed_action_link('Review in Agent','/home.php?agent='.rawurlencode((string)$row['conversation_public_id'])),
+            function_exists('research_reviews_ready')&&research_reviews_ready($pdo)?cognitive_feed_action_link('Request Team Review','/research-reviews.php?type=agent_action&subject='.rawurlencode((string)$row['public_id'])):null,
             cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode((string)$row['project_public_id']))
-          ]
+          ]))
         ]);
     }
 }
@@ -397,6 +398,7 @@ function cognitive_feed_collect_project_research(PDO $pdo,array $viewer,array $p
 function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): void {
     foreach(cognitive_feed_projects($pdo,$viewer,6) as $project)cognitive_feed_collect_project_research($pdo,$viewer,$project,$items);
     if(function_exists('cross_research_ready')&&cross_research_ready($pdo))cross_research_cognitive_observations($pdo,$viewer,$items,14);
+    if(function_exists('research_reviews_ready')&&research_reviews_ready($pdo))research_review_cognitive_observations($pdo,$viewer,$items,24);
     if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo))research_outcome_cognitive_observations($pdo,$viewer,$items,12);
 }
 

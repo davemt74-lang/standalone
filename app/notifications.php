@@ -79,6 +79,9 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
         if(($viewer['role']??'')==='admin'||(int)$r['owner_user_id']===(int)$viewer['id'])return true;if(!$r['team_id'])return false;
         $sql=$r['visibility']==='team'?'SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1':"SELECT 1 FROM team_members WHERE team_id=? AND user_id=? AND role IN ('owner','admin') LIMIT 1";$q=$pdo->prepare($sql);$q->execute([$r['team_id'],$viewer['id']]);return (bool)$q->fetchColumn();
     }
+    if($type==='research_review'){
+        return function_exists('research_review_access')&&research_review_access($pdo,$viewer,$public)!==null;
+    }
     if($type==='research_automation'){
         if(!function_exists('research_automation_access'))return false;
         return research_automation_access($pdo,$viewer,$public)!==null;
@@ -99,6 +102,9 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
 }
 function notification_url(PDO $pdo,array $viewer,array $n): ?string {
     if(!notification_object_access($pdo,$viewer,$n))return null;$type=(string)($n['object_type']??'');$public=(string)($n['object_public_id']??'');$context=json_decode((string)($n['context_json']??''),true)?:[];
+    if($type==='research_review'){
+        return function_exists('research_review_access')&&research_review_access($pdo,$viewer,$public)?'/research-reviews.php?id='.rawurlencode($public):null;
+    }
     if($type==='research_automation'){
         if(!function_exists('research_automation_access'))return null;$a=research_automation_access($pdo,$viewer,$public);if(!$a)return null;
         $url='/research-automations.php?id='.rawurlencode($public);if(!empty($context['run_public_id']))$url.='#run-'.rawurlencode((string)$context['run_public_id']);return $url;
