@@ -63,9 +63,10 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         return ['type'=>'source','public_id'=>$publicId,'label'=>$r['title']?:$r['domain'],'text'=>"[SOURCE {$r['public_id']}]\n".($r['title']?:$r['canonical_url'])."\n".mb_substr((string)$r['extracted_text'],0,9000),'refs'=>[['type'=>'source','id'=>$publicId]]];
     }
     if($type==='research'){
-        $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;$ctx=ai_research_context($pdo,(int)$p['id']);$workspace=research_workspace_ready($pdo)?research_workspace_context($pdo,(int)$p['id']):null;
-        $text="[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'];if($workspace)$text.="\n\n".$workspace['text'];
-        return ['type'=>'research','public_id'=>$publicId,'label'=>$p['title'],'text'=>mb_substr($text,0,24000),'refs'=>array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'])];
+        $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;$ctx=ai_research_context($pdo,(int)$p['id']);$workspace=research_workspace_ready($pdo)?research_workspace_context($pdo,(int)$p['id']):null;$workspaceRefs=[];
+        if($workspace){$snap=$workspace['snapshot']??[];foreach((array)($snap['claims']??[]) as $x)if(!empty($x['public_id']))$workspaceRefs[]=['type'=>'claim','id'=>$x['public_id']];foreach((array)($snap['entities']??[]) as $x)if(!empty($x['public_id']))$workspaceRefs[]=['type'=>'entity','id'=>$x['public_id']];foreach((array)($snap['source_risks']??[]) as $x)if(!empty($x['source_public_id']))$workspaceRefs[]=['type'=>'source','id'=>$x['source_public_id']];foreach((array)($snap['annotation_links']??[]) as $x){if(!empty($x['source_annotation_id']))$workspaceRefs[]=['type'=>'annotation','id'=>$x['source_annotation_id']];if(!empty($x['target_annotation_id']))$workspaceRefs[]=['type'=>'annotation','id'=>$x['target_annotation_id']];}}
+        $text="[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'];if($workspace)$text.="\n\n".$workspace['text'];$refs=array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'],$workspaceRefs);$seen=[];$refs=array_values(array_filter($refs,function($r)use(&$seen){$k=($r['type']??'').':'.($r['id']??'');if($k===':'||isset($seen[$k]))return false;$seen[$k]=true;return true;}));
+        return ['type'=>'research','public_id'=>$publicId,'label'=>$p['title'],'text'=>mb_substr($text,0,24000),'refs'=>$refs];
     }
     if($type==='team'){
         $team=conversation_team_by_public($pdo,$viewer,$publicId);if(!$team)return null;$c=conversation_team_ensure($pdo,$team,$viewer);
