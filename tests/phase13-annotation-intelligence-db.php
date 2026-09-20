@@ -82,12 +82,17 @@ $outsiderCtx=agent_chat_context_item($pdo,$outsider,'annotation',$a['public_id']
 
 $fenced=annotation_intelligence_parse_json("```json\n{\"summary\":\"ok\"}\n```");p13(($fenced['summary']??'')==='ok','fenced provider JSON is normalized safely');
 
-$q=$pdo->prepare("UPDATE ai_jobs SET status='done',completed_at=NOW() WHERE task_type='annotation_intelligence' AND object_public_id=?");$q->execute([$a['public_id']]);
+$q=$pdo->prepare("SELECT id,input_json FROM ai_jobs WHERE task_type='annotation_intelligence' AND object_public_id=? ORDER BY id ASC LIMIT 1");$q->execute([$a['public_id']]);$oldJob=$q->fetch();$oldInput=json_decode((string)$oldJob['input_json'],true);$oldHash=(string)($oldInput['input_hash']??'');
+$pdo->prepare("UPDATE ai_jobs SET status='processing',claim_token='phase13-race',lease_expires_at=DATE_ADD(NOW(),INTERVAL 10 MINUTE) WHERE id=?")->execute([$oldJob['id']]);
 $pdo->prepare('UPDATE captures SET selected_text=? WHERE id=?')->execute(['The captured evidence changed substantially after a transcript or capture correction and should invalidate stale derived relationships.',$a['capture_id']]);
-p13(annotation_intelligence_queue($pdo,$a['id'],$owner['id'],3),'changed annotation input requeues intelligence');
+p13(annotation_intelligence_queue($pdo,$a['id'],$owner['id'],3),'changed annotation input queues a new hash-specific job even while the old job is processing');
 $record=annotation_intelligence_record($pdo,$a['id']);p13(($record['status']??'')==='pending','changed evidence hides stale ready intelligence while reprocessing');
 $relsAfter=annotation_intelligence_visible_relationships($pdo,$a['id'],$owner,20);p13(count(array_filter($relsAfter,fn($r)=>($r['generated_by']??'')==='ai'))===0,'changed evidence removes stale AI relationships before re-analysis');
-$q=$pdo->prepare("SELECT COUNT(*) FROM ai_jobs WHERE task_type='annotation_intelligence' AND object_public_id=?");$q->execute([$a['public_id']]);p13((int)$q->fetchColumn()===2,'changed evidence creates a fresh background intelligence job');
+$stale=annotation_intelligence_apply_ai_output($pdo,$a['public_id'],$output,$pub('stale-run'),0,$oldHash);
+p13(!empty($stale['stale']),'in-flight AI output is rejected when its input hash no longer matches current evidence');
+$record=annotation_intelligence_record($pdo,$a['id']);p13(($record['status']??'')==='pending','rejected stale output cannot mark changed evidence ready');
+$q=$pdo->prepare("SELECT COUNT(*) FROM ai_jobs WHERE task_type='annotation_intelligence' AND object_public_id=?");$q->execute([$a['public_id']]);p13((int)$q->fetchColumn()===2,'evidence change preserves the in-flight job and creates one fresh follow-up job');
+$pdo->prepare("UPDATE ai_jobs SET status='done',claim_token=NULL,lease_expires_at=NULL,completed_at=NOW() WHERE id=?")->execute([$oldJob['id']]);
 
 annotation_intelligence_mark_failed($pdo,$a['public_id'],'Synthetic provider failure');$record=annotation_intelligence_record($pdo,$a['id']);p13(($record['status']??'')==='failed'&&str_contains((string)$record['last_error'],'Synthetic'),'final worker failure is represented explicitly without overwriting captured evidence');
 
