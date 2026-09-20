@@ -97,6 +97,7 @@ function cognitive_feed_dismiss(PDO $pdo,array $viewer,string $key,string $type)
     $pdo->prepare('INSERT INTO cognitive_feed_dismissals(user_id,observation_key,observation_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE observation_type=VALUES(observation_type),dismissed_at=NOW()')->execute([$viewer['id'],$key,$type]);
     $q=$pdo->prepare('SELECT COUNT(*) FROM cognitive_feed_dismissals WHERE user_id=?');$q->execute([$viewer['id']]);$excess=max(0,(int)$q->fetchColumn()-500);
     if($excess>0)$pdo->prepare("DELETE FROM cognitive_feed_dismissals WHERE user_id=? ORDER BY dismissed_at ASC LIMIT $excess")->execute([$viewer['id']]);
+    if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){try{research_outcome_sync_dismissals($pdo,$viewer,20);}catch(Throwable $ignored){}}
 }
 
 function cognitive_feed_restore(PDO $pdo,array $viewer,string $key): bool {
