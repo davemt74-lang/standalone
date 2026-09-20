@@ -130,3 +130,106 @@ function research_workspace_decode(array $row): array {
 function research_workspace_record(PDO $pdo,int $projectId): ?array {
     if(!research_workspace_ready($pdo))return null;$q=$pdo->prepare('SELECT * FROM research_workspace_intelligence WHERE project_id=? LIMIT 1');$q->execute([$projectId]);$r=$q->fetch();return $r?research_workspace_decode($r):null;
 }
+
+
+function research_workspace_queue(PDO $pdo,int $projectId,int $priority=5): bool {
+    if(!research_workspace_ready($pdo))return false;
+    $project=research_workspace_project_row($pdo,$projectId);if(!$project)return false;
+    $hash=research_workspace_input_hash($pdo,$projectId);
+    $q=$pdo->prepare('SELECT status,input_hash FROM research_workspace_intelligence WHERE project_id=?');$q->execute([$projectId]);$existing=$q->fetch();
+    if($existing&&$existing['status']==='ready'&&hash_equals((string)$existing['input_hash'],$hash))return false;
+    $pdo->prepare("INSERT INTO research_workspace_intelligence(project_id,status,input_hash,queued_at,last_error) VALUES(?,'pending',?,NOW(),NULL)
+      ON DUPLICATE KEY UPDATE status=IF(input_hash=VALUES(input_hash) AND status='processing','processing','pending'),input_hash=VALUES(input_hash),queued_at=NOW(),last_error=NULL")->execute([$projectId,$hash]);
+    $q=$pdo->prepare("SELECT id,status,input_json FROM ai_jobs WHERE task_type='research_workspace_intelligence' AND object_type='research_project' AND object_public_id=? AND status IN ('queued','processing')");
+    $q->execute([$project['public_id']]);$matching=false;$obsolete=[];
+    foreach($q->fetchAll() as $job){
+        $in=json_decode((string)($job['input_json']??''),true);
+        if(is_array($in)&&hash_equals((string)($in['input_hash']??''),$hash)){$matching=true;continue;}
+        if(($job['status']??'')==='queued')$obsolete[]=(int)$job['id'];
+    }
+    if($obsolete){$ph=implode(',',array_fill(0,count($obsolete),'?'));$pdo->prepare("UPDATE ai_jobs SET status='blocked',last_error='Superseded by newer Research workspace state.',completed_at=NOW() WHERE id IN ($ph) AND status='queued'")->execute($obsolete);}
+    if(!$matching)ai_queue_job($pdo,null,'research_workspace_intelligence',null,'research_project',(string)$project['public_id'],['input_hash'=>$hash],$priority);
+    return true;
+}
+
+function research_workspace_allowed_refs(array $snapshot): array {
+    $refs=['project'=>[],'claim'=>[],'source'=>[],'entity'=>[],'annotation'=>[],'finding'=>[],'task'=>[]];
+    $projectId=(string)($snapshot['project']['public_id']??'');if($projectId!=='')$refs['project'][$projectId]=true;
+    foreach((array)($snapshot['claims']??[]) as $x)if(!empty($x['public_id']))$refs['claim'][(string)$x['public_id']]=true;
+    foreach((array)($snapshot['source_risks']??[]) as $x)if(!empty($x['source_public_id']))$refs['source'][(string)$x['source_public_id']]=true;
+    foreach((array)($snapshot['entities']??[]) as $x)if(!empty($x['public_id']))$refs['entity'][(string)$x['public_id']]=true;
+    foreach((array)($snapshot['annotation_links']??[]) as $x){
+        if(!empty($x['source_annotation_id']))$refs['annotation'][(string)$x['source_annotation_id']]=true;
+        if(!empty($x['target_annotation_id']))$refs['annotation'][(string)$x['target_annotation_id']]=true;
+    }
+    return $refs;
+}
+
+function research_workspace_parse_json(string $text): array {
+    $text=trim($text);
+    if(str_starts_with($text,chr(96).chr(96).chr(96))){
+        $text=preg_replace('/^\x60\x60\x60(?:json)?\s*/i','',$text)??$text;
+        $text=preg_replace('/\s*\x60\x60\x60$/','',$text)??$text;
+    }
+    $d=json_decode($text,true);if(!is_array($d))throw new RuntimeException('Research workspace intelligence returned invalid JSON.');return $d;
+}
+
+function research_workspace_normalize_items(array $items,array $allowed,int $limit): array {
+    $out=[];
+    foreach($items as $item){
+        if(!is_array($item))continue;
+        $title=mb_substr(trim((string)($item['title']??'')),0,240);
+        $detail=mb_substr(trim((string)($item['detail']??$item['reason']??'')),0,1200);
+        if($title==='')continue;
+        $type=mb_substr(trim((string)($item['type']??'item')),0,80);
+        $priority=in_array((string)($item['priority']??''),['high','medium','low'],true)?(string)$item['priority']:'medium';
+        $refType=strtolower(trim((string)($item['ref_type']??'')));$refId=trim((string)($item['ref_id']??''));
+        if($refId!==''&&!isset($allowed[$refType][$refId]))continue;
+        $out[]=['type'=>$type,'title'=>$title,'detail'=>$detail,'priority'=>$priority,'ref_type'=>$refType,'ref_id'=>$refId];
+        if(count($out)>=$limit)break;
+    }
+    return $out;
+}
+
+function research_workspace_apply_ai_output(PDO $pdo,string $projectPublicId,string $output,string $runPublicId,int $modelId,?string $expectedInputHash=null): array {
+    $q=$pdo->prepare('SELECT id FROM research_projects WHERE public_id=? LIMIT 1');$q->execute([$projectPublicId]);$projectId=(int)($q->fetchColumn()?:0);
+    if(!$projectId)throw new RuntimeException('Research project missing.');
+    $snapshot=research_workspace_deterministic_snapshot($pdo,$projectId);
+    $currentHash=hash('sha256',json_encode($snapshot,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_PRESERVE_ZERO_FRACTION));
+    if($expectedInputHash!==null&&$expectedInputHash!==''&&!hash_equals($expectedInputHash,$currentHash))return ['project_id'=>$projectPublicId,'stale'=>true,'current_input_hash'=>$currentHash];
+    $data=research_workspace_parse_json($output);$allowed=research_workspace_allowed_refs($snapshot);
+    $summary=mb_substr(trim((string)($data['summary']??'')),0,4000);if($summary==='')throw new RuntimeException('Research workspace summary is empty.');
+    $highlights=research_workspace_normalize_items((array)($data['highlights']??[]),$allowed,10);
+    $gaps=research_workspace_normalize_items((array)($data['gaps']??[]),$allowed,12);
+    $conflicts=research_workspace_normalize_items((array)($data['conflicts']??[]),$allowed,12);
+    $risks=research_workspace_normalize_items((array)($data['source_risks']??[]),$allowed,12);
+    $actions=research_workspace_normalize_items((array)($data['next_actions']??[]),$allowed,12);
+    $confidence=max(0,min(1,(float)($data['confidence']??0.65)));$storedModel=$modelId>0?$modelId:null;
+    $pdo->prepare("INSERT INTO research_workspace_intelligence(project_id,status,input_hash,summary,highlights_json,gaps_json,conflicts_json,source_risks_json,next_actions_json,confidence,model_id,ai_run_public_id,prompt_version,last_error,processed_at)
+      VALUES(?,'ready',?,?,?,?,?,?,?,?,?,?,?,'phase14-v1',NULL,NOW())
+      ON DUPLICATE KEY UPDATE status='ready',input_hash=VALUES(input_hash),summary=VALUES(summary),highlights_json=VALUES(highlights_json),gaps_json=VALUES(gaps_json),conflicts_json=VALUES(conflicts_json),source_risks_json=VALUES(source_risks_json),next_actions_json=VALUES(next_actions_json),confidence=VALUES(confidence),model_id=VALUES(model_id),ai_run_public_id=VALUES(ai_run_public_id),prompt_version='phase14-v1',last_error=NULL,processed_at=NOW()")
+      ->execute([$projectId,$currentHash,$summary,json_encode($highlights,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($gaps,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($conflicts,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($risks,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),json_encode($actions,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),$confidence,$storedModel,$runPublicId]);
+    return ['project_id'=>$projectPublicId,'summary'=>$summary,'highlights'=>$highlights,'gaps'=>$gaps,'conflicts'=>$conflicts,'source_risks'=>$risks,'next_actions'=>$actions,'confidence'=>$confidence];
+}
+
+function research_workspace_mark_processing(PDO $pdo,string $projectPublicId): void {
+    $pdo->prepare("UPDATE research_workspace_intelligence rwi JOIN research_projects rp ON rp.id=rwi.project_id SET rwi.status='processing',rwi.last_error=NULL WHERE rp.public_id=?")->execute([$projectPublicId]);
+}
+
+function research_workspace_mark_failed(PDO $pdo,string $projectPublicId,string $message): void {
+    $pdo->prepare("UPDATE research_workspace_intelligence rwi JOIN research_projects rp ON rp.id=rwi.project_id SET rwi.status='failed',rwi.last_error=? WHERE rp.public_id=?")->execute([mb_substr($message,0,1000),$projectPublicId]);
+}
+
+function research_workspace_context(PDO $pdo,int $projectId): array {
+    $snapshot=research_workspace_deterministic_snapshot($pdo,$projectId);$record=research_workspace_record($pdo,$projectId);
+    $lines=['[RESEARCH WORKSPACE NOW]'];$c=$snapshot['counts'];
+    $lines[]='Sources '.$c['sources'].'; annotations '.$c['annotations'].'; claims '.$c['claims'].'; supported '.$c['supported'].'; disputed/contradicted '.$c['disputed'].'; unverified '.$c['unverified'].'; findings '.$c['findings'].'; open tasks '.$c['open_tasks'].'; recent source changes '.$c['recent_source_changes'].'.';
+    foreach(array_slice($snapshot['gaps'],0,8) as $x)$lines[]='Gap: '.$x['detail'].' [CLAIM '.$x['claim_id'].']';
+    foreach(array_slice($snapshot['conflicts'],0,8) as $x)$lines[]='Conflict: '.$x['detail'].(!empty($x['claim_id'])?' [CLAIM '.$x['claim_id'].']':'');
+    foreach(array_slice($snapshot['source_risks'],0,6) as $x)$lines[]='Source risk: '.($x['title']?:$x['domain']).' [SOURCE '.$x['source_public_id'].']'.($x['latest_diff']?' — '.$x['latest_diff']:'');
+    if($record&&($record['status']??'')==='ready'){
+        $lines[]='AI-derived live synthesis (verify against project evidence): '.$record['summary'];
+        foreach(array_slice($record['next_actions'],0,6) as $x)$lines[]='Suggested action: '.$x['title'].' — '.$x['detail'];
+    }
+    return ['snapshot'=>$snapshot,'intelligence'=>$record,'text'=>implode("\n",$lines)];
+}
