@@ -68,6 +68,7 @@ function initializeSidebarBindings(){
   sidebarBind('notificationList','click',markNotification);
   sidebarBindClick('markAllNotifications',markAllNotificationsRead);
   sidebarBindClick('openNotificationSettings',()=>chrome.tabs.create({url:API_BASE+'/settings.php#notifications'}));
+  sidebarBindClick('openPortfolio',()=>chrome.tabs.create({url:API_BASE+'/research-portfolio.php'}));
   sidebarBindClick('openImpact',()=>chrome.tabs.create({url:API_BASE+'/research-impact.php'}));
   sidebarBindClick('openReviews',()=>chrome.tabs.create({url:API_BASE+'/research-reviews.php'}));
   sidebarBindClick('openDecisionMemory',()=>chrome.tabs.create({url:API_BASE+'/research-outcomes.php'}));
