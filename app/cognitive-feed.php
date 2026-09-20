@@ -404,8 +404,8 @@ function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int
     cognitive_feed_collect_team_activity($pdo,$viewer,$items,$teamList);
     cognitive_feed_collect_recent_agent_results($pdo,$viewer,$items);
 
-    $dismissed=cognitive_feed_dismissed_keys($pdo,(int)$viewer['id']);
-    foreach(array_keys($items) as $key)if(isset($dismissed[$key]))unset($items[$key]);
+    $dismissed=cognitive_feed_dismissed_keys($pdo,(int)$viewer['id']);$activeHidden=0;
+    foreach(array_keys($items) as $key)if(isset($dismissed[$key])){$activeHidden++;unset($items[$key]);}
 
     $rows=array_values($items);
     usort($rows,function($a,$b){
@@ -423,7 +423,7 @@ function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int
       'ready'=>true,
       'sections'=>$sections,
       'total'=>$total,
-      'hidden_count'=>cognitive_feed_hidden_count($pdo,$viewer),
+      'hidden_count'=>$activeHidden,
       'ranking'=>'Ranked from authoritative Annotated state using unresolved urgency, evidence impact, freshness, unread collaboration, and active Research context. No separate AI ranking model is required.'
     ];
 }
