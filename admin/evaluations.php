@@ -137,7 +137,7 @@ $types=data_evaluation_types();
         <form method="post"><?=csrf_field()?><input type="hidden" name="op" value="queue_run"><input type="hidden" name="suite" value="<?=h($selected['public_id'])?>"><button class="button" type="submit">Queue benchmark run</button></form>
         <form method="post" onsubmit="return confirm('Retire this suite? Existing runs and reviews remain auditable.');"><?=csrf_field()?><input type="hidden" name="op" value="retire"><input type="hidden" name="suite" value="<?=h($selected['public_id'])?>"><button class="button secondary" type="submit">Retire suite</button></form>
       </div>
-      <p class="meta">Queued runs are processed by <code>php bin/evaluation-worker.php</code>. Model benchmarks use the configured provider only for inference; no model weights are modified.</p>
+      <p class="meta">Queued runs are processed by <code>php bin/evaluation-worker.php</code>. Model benchmarks send currently eligible frozen evaluation context to the selected configured inference provider. They do not create training jobs or modify model weights.</p>
     <?php else:?><p class="notice">This suite is retired. Historical runs, results, baselines, and human reviews remain available.</p><?php endif?>
   </section>
 
