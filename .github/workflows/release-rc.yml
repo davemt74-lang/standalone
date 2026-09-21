@@ -25,16 +25,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (cd extension && zip -qr ../Annotated-Chrome-Extension.zip .)
+          rm -rf package-website package-extension
+          mkdir package-website package-extension
+          cp -a extension/. package-extension/
+          (cd package-extension && zip -qr ../Annotated-Chrome-Extension.zip .)
           unzip -t Annotated-Chrome-Extension.zip
 
       - name: Package server
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .git
-          zip -qr Annotated-Website.zip . -x "Annotated-Website.zip" "Annotated-Chrome-Extension.zip" "SHA256SUMS.txt"
+          rsync -a ./ package-website/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'extension/' \
+            --exclude 'package-website/' \
+            --exclude 'package-extension/' \
+            --exclude 'Annotated-Website.zip' \
+            --exclude 'Annotated-Chrome-Extension.zip' \
+            --exclude 'SHA256SUMS.txt'
+          mkdir -p package-website/downloads
+          cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
+          (cd package-website && zip -qr ../Annotated-Website.zip .)
           unzip -t Annotated-Website.zip
+          test -f package-website/index.php
+          test -f package-website/install.php
+          test -f package-website/database/schema.sql
+          test -f package-website/downloads/Annotated-Chrome-Extension.zip
           sha256sum Annotated-Website.zip Annotated-Chrome-Extension.zip > SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
