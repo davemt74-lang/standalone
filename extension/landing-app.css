@@ -316,3 +316,12 @@
 .topicCloud{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.topicCard{display:grid;gap:6px;text-decoration:none}.topicCard strong{font-size:1.08rem}.stickyLivingRail{position:sticky;top:92px}
 @media(max-width:1100px){.livingReportLayout,.livingDiffLayout,.livingHubLayout,.topicResearchLayout{grid-template-columns:1fr}.stickyLivingRail{position:static}.topicCloud{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.livingReportLayout,.livingDiffLayout,.livingHubLayout,.topicResearchLayout{padding:14px}.livingReportGrid,.topicCloud{grid-template-columns:1fr}.publicationStats,.livingDiffSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.livingDiffControls{grid-template-columns:1fr}}
+
+/* Phase 25 — Research Network & Citation Intelligence */
+.citationWorkspaceLayout,.citationNetworkLayout,.researchNetworkHub{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;max-width:1500px;margin:0 auto;padding:24px}
+.citationReferenceList,.citationHubList{display:grid;gap:14px}.citationBadges{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:7px}.citationReference h3,.citationEdge h3,.citationHubCard h3{margin:5px 0}
+.citationUpdateAvailable{border-width:2px}.citationCompatibility{display:flex;gap:12px;flex-wrap:wrap;font-size:.78rem;margin:10px 0}.citationRemove{margin-top:10px}
+.citationNetworkSummary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}.citationNetworkSummary .card{display:flex;flex-direction:column;gap:4px}.citationNetworkSummary strong{font-size:1.4rem}.citationNetworkSummary span{font-size:.8rem;color:var(--muted,#6b7280)}
+.citationEdge{margin-bottom:12px}.citationHubCard{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.stickyCitationRail{position:sticky;top:92px}
+@media(max-width:1000px){.citationWorkspaceLayout,.citationNetworkLayout,.researchNetworkHub{grid-template-columns:1fr}.stickyCitationRail{position:static}.citationNetworkSummary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.citationWorkspaceLayout,.citationNetworkLayout,.researchNetworkHub{padding:14px}.citationHubCard{display:grid}.citationNetworkSummary{grid-template-columns:1fr 1fr}}
