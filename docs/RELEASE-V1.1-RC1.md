@@ -1,6 +1,6 @@
 # Annotated V1 RC1 Release Runbook
 
-This runbook applies to **Annotated V1 RC1 (`1.0.0-rc1`)** and must be executed against the exact merged `main` commit that passed CI.
+This runbook applies to **Annotated V1 RC1 (`1.0.0-rc1`)** and must be executed against the exact release-candidate commit that passed CI and package validation.
 
 ## Fresh installation
 
@@ -46,7 +46,7 @@ After starting each worker, reload **Admin → System Health & Release** and ver
 
 ## 3. Deployment
 
-1. Extract the exact-main server deploy ZIP over the application release directory.
+1. Extract the exact tested release-candidate server deploy ZIP over the application release directory.
 2. Preserve production `config.php` and the external private evidence directory.
 3. Sign in as an administrator.
 4. Open `/upgrade.php` and apply all pending forward-only migrations.
