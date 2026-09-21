@@ -23,6 +23,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             data_evaluation_set_baseline($pdo,$u,$suiteId,(string)($_POST['run_id']??''));$success='Completed run set as the suite regression baseline.';
         }elseif($op==='review'){
             data_evaluation_review_save($pdo,$u,(int)($_POST['result_id']??0),$_POST);$success='Human evaluation review saved.';
+        }elseif($op==='requeue_run'){
+            $rq=data_evaluation_run_requeue($pdo,$u,(string)($_POST['run_id']??''));$runId=(string)$rq['public_id'];$success='Evaluation run requeued.';
         }elseif($op==='retire'){
             data_evaluation_suite_retire($pdo,$u,$suiteId);$success='Evaluation suite retired.';
         }
@@ -39,6 +41,7 @@ $events=$selected?data_evaluation_events($pdo,(int)$selected['id'],80):[];
 $run=$runId!==''?data_evaluation_run_get($pdo,$runId):null;if($run&&$selected&&(int)$run['suite_id']!==(int)$selected['id'])$run=null;
 $results=$run&&$run['status']==='completed'?data_evaluation_results($pdo,(int)$run['id']):[];
 $human=$run&&$run['status']==='completed'?data_evaluation_human_summary($pdo,(int)$run['id']):null;
+$runIntegrity=$run&&$run['status']==='completed'?data_evaluation_run_integrity($pdo,$run):null;
 $regression=$run&&$selected?data_evaluation_regression($pdo,$selected,$run):null;
 $reviewsByResult=[];if($run){foreach(data_evaluation_reviews_for_run($pdo,(int)$run['id']) as $rv)$reviewsByResult[(int)$rv['result_id']]=$rv;}
 $itemRows=[];
@@ -151,13 +154,16 @@ $types=data_evaluation_types();
       <span><small>Suite config</small><?=h(substr((string)$run['suite_config_hash'],0,14))?>…</span>
       <span><small>Cases</small><?=h(substr((string)$run['cases_hash'],0,14))?>…</span>
       <span><small>Runner</small><?=h($run['runner'])?></span>
+      <?php if(!empty($run['run_hash'])):?><span><small>Run hash</small><?=h(substr((string)$run['run_hash'],0,14))?>…</span><?php endif?>
       <?php if(is_array($run['summary'])):?><span><small>Automated pass</small><?=h(number_format((float)$run['summary']['automated_pass_rate']*100,1))?>%</span><?php endif?>
       <?php if($human):?><span><small>Human reviews</small><?=h((string)$human['reviews'])?></span><?php endif?>
     </div>
     <?php if($run['status']==='queued'):?><p class="notice">Queued for the evaluation worker.</p><?php elseif($run['status']==='processing'):?><p class="notice">Evaluation worker is processing this run.</p><?php elseif($run['status']==='failed'):?><p class="error"><?=h((string)$run['error_text'])?></p><?php endif?>
+    <?php $staleProcessing=$run['status']==='processing'&&!empty($run['started_at'])&&strtotime((string)$run['started_at'])<time()-900;if($run['status']==='failed'||$staleProcessing):?><form method="post" class="inlineActions"><?=csrf_field()?><input type="hidden" name="op" value="requeue_run"><input type="hidden" name="suite" value="<?=h($selected['public_id'])?>"><input type="hidden" name="run" value="<?=h($run['public_id'])?>"><input type="hidden" name="run_id" value="<?=h($run['public_id'])?>"><button class="button secondary" type="submit">Requeue run</button></form><?php endif?>
     <?php if($run['status']==='completed'):?>
-      <form method="post" class="inlineActions"><?=csrf_field()?><input type="hidden" name="op" value="set_baseline"><input type="hidden" name="suite" value="<?=h($selected['public_id'])?>"><input type="hidden" name="run_id" value="<?=h($run['public_id'])?>"><button class="button secondary" type="submit"><?=((int)$selected['baseline_run_id']===(int)$run['id'])?'Current baseline':'Set as regression baseline'?></button></form>
-      <?php if($regression):?><div class="notice <?=$regression['regressed_metrics']>0?'error':'success'?>"><strong>BASELINE COMPARISON</strong><br><?=h((string)$regression['regressed_metrics'])?> metric<?=((int)$regression['regressed_metrics']===1?'':'s')?> declined by more than 2 percentage points. Automated comparison is diagnostic, not a release verdict.</div><?php endif?>
+      <div class="notice <?=$runIntegrity&&$runIntegrity['ok']?'success':'error'?>"><strong>RUN INTEGRITY <?=$runIntegrity&&$runIntegrity['ok']?'VALID':'FAILED'?></strong><br><?=h(str_replace('_',' ',(string)($runIntegrity['reason']??'unknown')))?><?=isset($runIntegrity['invalid_results'])?' · '.h((string)$runIntegrity['invalid_results']).' invalid result'.((int)$runIntegrity['invalid_results']===1?'':'s'):''?>.</div>
+      <form method="post" class="inlineActions"><?=csrf_field()?><input type="hidden" name="op" value="set_baseline"><input type="hidden" name="suite" value="<?=h($selected['public_id'])?>"><input type="hidden" name="run_id" value="<?=h($run['public_id'])?>"><button class="button secondary" type="submit" <?=!($runIntegrity&&$runIntegrity['ok'])?'disabled':''?>><?=((int)$selected['baseline_run_id']===(int)$run['id'])?'Current baseline':'Set as regression baseline'?></button></form>
+      <?php if($regression):?><div class="notice <?=!($regression['available']??true)||$regression['regressed_metrics']>0?'error':'success'?>"><strong>BASELINE COMPARISON</strong><br><?php if(!($regression['available']??true)):?>Unavailable: <?=h(str_replace('_',' ',(string)$regression['reason']))?>.<?php else:?><?=h((string)$regression['regressed_metrics'])?> metric<?=((int)$regression['regressed_metrics']===1?'':'s')?> declined by more than 2 percentage points. Automated comparison is diagnostic, not a release verdict.<?php endif?></div><?php endif?>
       <?php if($human):?><div class="cognitiveCardMeta"><span><small>Human pass</small><?=h((string)$human['pass'])?></span><span><small>Human fail</small><?=h((string)$human['fail'])?></span><span><small>Needs work</small><?=h((string)$human['needs_work'])?></span><span><small>Avg relevance</small><?=h($human['avg_relevance']!==null?number_format($human['avg_relevance'],2):'—')?></span><span><small>Avg groundedness</small><?=h($human['avg_groundedness']!==null?number_format($human['avg_groundedness'],2):'—')?></span><span><small>Avg accuracy</small><?=h($human['avg_accuracy']!==null?number_format($human['avg_accuracy'],2):'—')?></span></div><?php endif?>
     <?php endif?>
   </section>
