@@ -40,6 +40,17 @@
     return clean;
   }
 
+  function handoffPatch(){
+    const url=new URL(location.href),p=url.searchParams,patch={};let changed=false;
+    const team=ref(p.get('ws_team')),research=ref(p.get('ws_research')),object=ref(p.get('ws_object')),agent=ref(p.get('ws_agent')),objectType=String(p.get('ws_object_type')||'');
+    if(team)patch.team_public_id=team;if(research)patch.research_public_id=research;
+    if(object&&objectTypes.has(objectType)){patch.object_type=objectType;patch.object_public_id=object;}
+    if(agent)patch.agent_conversation_public_id=agent;
+    for(const key of ['ws_team','ws_research','ws_object_type','ws_object','ws_agent'])if(p.has(key)){p.delete(key);changed=true;}
+    if(changed)history.replaceState(history.state,'',url.pathname+(p.toString()?'?'+p.toString():'')+url.hash);
+    return patch;
+  }
+
   function pagePatch(){
     const d=body.dataset,patch={surface:String(d.workspaceSurface||'').slice(0,32)};
     if(ref(d.workspaceTeam))patch.team_public_id=ref(d.workspaceTeam);
@@ -151,7 +162,7 @@
   window.AnnotatedWorkspaceState={read,commit,clear:()=>commit({clear_all:true,surface:body.dataset.workspaceSurface||''})};
 
   (async()=>{
-    let state=merge(read(),pagePatch());
+    let state=merge(read(),handoffPatch());state=merge(state,pagePatch());
     const resolved=await resolve(state);
     if(resolved){state=normalizedFromResolved(state,resolved);render(resolved);}
   })();
