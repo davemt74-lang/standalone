@@ -13,6 +13,7 @@ function cognitive_feed_ui_icon(string $type): string {
       'research_task'=>'→',
       'team_activity'=>'◌',
       'related_research'=>'↔',
+      'workspace_activity'=>'◎',
       'recent_change'=>'•',
       default=>'•'
     };
@@ -30,6 +31,7 @@ function cognitive_feed_ui_reason(string $type): string {
       'research_task'=>'Open Research work',
       'team_activity'=>'Unread Team activity',
       'related_research'=>'Evidence relationship',
+      'workspace_activity'=>'Workspace activity',
       'recent_change'=>'Recent workspace change',
       default=>'Cognitive Feed'
     };
