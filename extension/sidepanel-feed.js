@@ -70,6 +70,41 @@ async function phase6HydrateEvidence(root){
   await Promise.all(nodes.map(async node=>{node.dataset.evidenceReady='1';try{const local=await phase6EvidenceBlob(node.dataset.evidenceSrc);if(local)node.src=local;}catch{node.closest('.evidenceFrame')?.classList.add('evidenceUnavailable');}}));
 }
 window.addEventListener('unload',()=>{for(const u of phase6EvidenceCache.values())try{URL.revokeObjectURL(u)}catch{}phase6EvidenceCache.clear();});
+function phase31TeamDialog(){
+  let dialog=document.querySelector('#phase31TeamShareDialog');if(dialog)return dialog;
+  dialog=document.createElement('dialog');dialog.id='phase31TeamShareDialog';dialog.className='researchDialog';
+  dialog.innerHTML='<form method="dialog"><h3>Share with Team</h3><select data-phase31-team-select></select><textarea data-phase31-team-note rows="3" maxlength="5000" placeholder="Add a note (optional)"></textarea><div class="hint" data-phase31-team-status></div><div class="row"><button value="cancel">Cancel</button><button type="button" class="primary" data-phase31-team-confirm>Share</button></div></form>';
+  document.body.appendChild(dialog);dialog.querySelector('[data-phase31-team-confirm]').addEventListener('click',phase31ConfirmTeamShare);return dialog;
+}
+async function phase31OpenTeamShare(id){
+  if(!token){await connect();if(!token)return;}
+  const item=phase6Items.get(String(id));if(!item)return;
+  const dialog=phase31TeamDialog(),select=dialog.querySelector('[data-phase31-team-select]'),status=dialog.querySelector('[data-phase31-team-status]'),confirm=dialog.querySelector('[data-phase31-team-confirm]');
+  dialog.dataset.annotationId=String(id);dialog.dataset.visibility=String(item.visibility||'public');dialog.dataset.teamPublicId=String(item.team_public_id||'');select.replaceChildren();status.textContent='Loading Teams…';confirm.disabled=true;
+  try{
+    const j=await api('/api/conversations.php?action=list');let rows=j.data?.conversations||[];
+    if(dialog.dataset.visibility==='team'&&dialog.dataset.teamPublicId)rows=rows.filter(x=>String(x.team_public_id||'')===dialog.dataset.teamPublicId);
+    if(dialog.dataset.visibility==='private')rows=[];
+    for(const row of rows){const option=document.createElement('option');option.value=String(row.public_id||'');option.textContent=String(row.team_name||'Team');select.appendChild(option);}
+    if(!rows.length)status.textContent=dialog.dataset.visibility==='private'?'Private Annotations cannot be shared to Team Chat.':'No eligible Team conversations are available.';
+    else{status.textContent='Shares an Annotated reference, not copied content.';confirm.disabled=false;}
+    if(!dialog.open)dialog.showModal();
+  }catch(err){status.textContent=err.message||'Unable to load Teams.';if(!dialog.open)dialog.showModal();}
+}
+async function phase31ConfirmTeamShare(){
+  const dialog=phase31TeamDialog(),select=dialog.querySelector('[data-phase31-team-select]'),note=dialog.querySelector('[data-phase31-team-note]'),status=dialog.querySelector('[data-phase31-team-status]'),confirm=dialog.querySelector('[data-phase31-team-confirm]'),id=dialog.dataset.annotationId;
+  if(!id||!select.value)return;confirm.disabled=true;status.textContent='Sharing…';
+  try{
+    await api('/api/conversations.php?action=send',{method:'POST',body:JSON.stringify({conversation:select.value,body:String(note.value||'').trim()||'Shared an Annotation.',client_message_id:crypto.randomUUID(),attachments:[{type:'annotation',public_id:id}]})});
+    note.value='';dialog.close();
+  }catch(err){status.textContent=err.message||'Unable to share Annotation.';}
+  finally{confirm.disabled=false;}
+}
+function phase31OpenAgent(id){
+  if(!API_BASE)return;
+  chrome.tabs.create({url:API_BASE+'/home.php?agent_context_type=annotation&agent_context_id='+encodeURIComponent(String(id||''))});
+}
+
 function phase6AnnotationCard(a){
   phase6Items.set(String(a.public_id),a);
   const follow=Number(a.is_following)?'Following':'Follow';
@@ -108,7 +143,7 @@ function phase6AnnotationCard(a){
       '<button class="postAction" data-action="comments">💬 <span>Comments</span> <strong data-comment-count>'+Number(a.comment_count||0)+'</strong></button>'+
       '<button class="postAction" data-action="save">🔖 <span data-save-label>'+saved+'</span></button>'+
       '<button class="postAction" data-action="research">▣ <span>Research</span></button>'+
-      '<details class="postMore"><summary class="postAction">•••</summary><div class="postMoreMenu"><button data-action="open">Open annotation</button>'+(hasTranscript?'<button data-action="toggle-transcript">Show transcript</button>':'')+'<button data-action="report">Report</button>'+(a.start_seconds!==null&&a.start_seconds!==undefined?'<button data-action="seek" data-time="'+Number(a.start_seconds)+'">Jump to clip</button>':'')+'</div></details>'+
+      '<details class="postMore"><summary class="postAction">•••</summary><div class="postMoreMenu"><button data-action="open">Open annotation</button><button data-action="team">Share with Team</button><button data-action="agent">Ask Agent</button>'+(hasTranscript?'<button data-action="toggle-transcript">Show transcript</button>':'')+'<button data-action="report">Report</button>'+(a.start_seconds!==null&&a.start_seconds!==undefined?'<button data-action="seek" data-time="'+Number(a.start_seconds)+'">Jump to clip</button>':'')+'</div></details>'+
     '</div>'+
     '<div class="thread" hidden><div class="threadBody"></div><form class="threadComposer"><div class="replyTarget hint" hidden></div><textarea name="comment" maxlength="5000" placeholder="Add a comment or reply…"></textarea><div class="row"><button type="button" data-action="cancel-reply" hidden>Cancel reply</button><button class="primary" type="submit">Post</button></div></form></div>'+
   '</article>';
@@ -208,6 +243,8 @@ async function phase6CardAction(e){
     if(action==='like'){if(!token){await connect();if(!token)return;}const j=await api('/api/extension.php?action=annotation_react',{method:'POST',body:JSON.stringify({annotation_id:id})});b.classList.toggle('active',!!j.data.liked);const count=b.querySelector('[data-like-count]');if(count)count.textContent=String(j.data.like_count||0);return;}
     if(action==='save'){if(!token){await connect();if(!token)return;}const j=await api('/api/extension.php?action=save',{method:'POST',body:JSON.stringify({annotation_id:id})});b.classList.toggle('active',!!j.data.saved);const label=b.querySelector('[data-save-label]');if(label)label.textContent=j.data.saved?'Saved':'Save';return;}
     if(action==='research')return openResearch(id);
+    if(action==='team')return phase31OpenTeamShare(id);
+    if(action==='agent')return phase31OpenAgent(id);
     if(action==='open')return chrome.tabs.create({url:API_BASE+'/annotation.php?id='+encodeURIComponent(id)});
     if(action==='open-related')return chrome.tabs.create({url:API_BASE+'/annotation.php?id='+encodeURIComponent(String(b.dataset.related||''))});
     if(action==='report')return reportObject('annotation',id);
