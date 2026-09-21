@@ -15,6 +15,7 @@ function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publ
     $type=strtolower(trim($type));$publicId=trim($publicId);
     if($type!=='annotation'||$publicId==='')return null;
     $access=annotation_access($pdo,$publicId,$viewer);if(!$access)return null;
+    if((int)$access['user_id']!==(int)$viewer['id']&&function_exists('is_blocked')&&is_blocked($pdo,(int)$viewer['id'],(int)$access['user_id']))return null;
     $q=$pdo->prepare("SELECT a.public_id,a.visibility,a.team_id,a.text_commentary,a.published_at,
       u.username,u.display_name,s.public_id source_public_id,s.title source_title,s.domain,
       c.capture_type,c.selected_text
