@@ -227,7 +227,7 @@ function unified_activity_collect(PDO $pdo,array $viewer,int $limit=60): array {
 function unified_activity_context_items(array $rows,int $limit=6): array {
     $out=[];foreach($rows as $row){
         if(count($out)>=$limit)break;
-        if(in_array((string)$row['type'],['team_message','research_evidence_added','agent_action_executed'],true))continue;
+        if(in_array((string)$row['type'],['team_message','research_evidence_added','agent_action_executed','claim_updated','finding_updated'],true))continue;
         $out[]=$row;
     }
     return $out;
