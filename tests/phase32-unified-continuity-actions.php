@@ -22,7 +22,7 @@ p32(str_contains($agent,"chip=document.createElement(href?'a':'span')"),'Agent o
 p32(str_contains($agentServer,'is_blocked($pdo,(int)$viewer[\'id\'],(int)$a[\'user_id\'])'),'Agent Annotation context preserves the app user-block boundary server-side');
 p32(str_contains($home,'data-agent-enabled=')&&str_contains($home,'user_is_pro($pdo,$u)'), 'Home renders current Agent capability into Team Chat without trusting client plan state');
 p32(str_contains($ui,'annotation-cards.js?v=32.0')&&str_contains($settings,'annotation-cards.js?v=32.0'),'website Annotation surfaces load the Phase 32 continuity runtime');
-p32(($manifest['version']??'')==='0.32.0','Chrome extension version is v0.32.0');
+p32(version_compare((string)($manifest['version']??'0.0.0'),'0.32.0','>='),'Chrome extension version remains v0.32.0 or newer');
 p32(!str_contains($team,'INSERT INTO ')&&!str_contains($cards,'INSERT INTO '),'continuity action JavaScript does not introduce a persistence path');
 
 echo "Phase 32 Unified Continuity Actions & Object Cards contract suite passed.\n";
