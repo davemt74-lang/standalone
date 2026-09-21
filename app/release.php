@@ -3,8 +3,9 @@ declare(strict_types=1);
 
 require_once __DIR__.'/migrations.php';
 
-const ANNOTATED_RELEASE = 'V1.1 RC1';
-const ANNOTATED_RELEASE_VERSION = '1.1.0-rc1';
+const ANNOTATED_RELEASE = 'V1 RC1';
+const ANNOTATED_RELEASE_VERSION = '1.0.0-rc1';
+const ANNOTATED_EXTENSION_VERSION = '0.36.0';
 
 function onboarding_ensure(PDO $pdo,int $userId): void {
     try{$pdo->prepare('INSERT IGNORE INTO user_onboarding(user_id) VALUES(?)')->execute([$userId]);}catch(PDOException $e){}
@@ -59,12 +60,12 @@ function release_worker_heartbeat(PDO $pdo,string $worker,string $status='idle',
           last_message=VALUES(last_message)")->execute([$worker,$status,$status,$status,$status,$processed,$failed,$message?:null]);}catch(PDOException $e){}
 }
 function release_worker_health(PDO $pdo): array {
-    $expected=['media','transcription','source_monitor','ai','saved_search'];$rows=[];try{$q=$pdo->query('SELECT * FROM worker_heartbeats');foreach($q->fetchAll() as $r)$rows[$r['worker_name']]=$r;}catch(PDOException $e){}
+    $expected=['media','transcription','source_monitor','ai','saved_search','research_automation'];$rows=[];try{$q=$pdo->query('SELECT * FROM worker_heartbeats');foreach($q->fetchAll() as $r)$rows[$r['worker_name']]=$r;}catch(PDOException $e){}
     $out=[];$now=time();foreach($expected as $name){$r=$rows[$name]??null;$seen=$r&&$r['last_seen_at']?strtotime((string)$r['last_seen_at']):0;$age=$seen?max(0,$now-$seen):null;$status=!$r?'never':(($age!==null&&$age>3600)?'stale':(string)$r['last_status']);$out[$name]=['name'=>$name,'status'=>$status,'age_seconds'=>$age,'last_seen_at'=>$r['last_seen_at']??null,'last_success_at'=>$r['last_success_at']??null,'last_failure_at'=>$r['last_failure_at']??null,'processed_total'=>(int)($r['processed_total']??0),'failed_total'=>(int)($r['failed_total']??0),'last_message'=>$r['last_message']??null];}return $out;
 }
 function release_queue_health(PDO $pdo): array {
-    $tables=['media'=>'media_jobs','transcription'=>'transcription_jobs','source_monitor'=>'source_monitor_jobs','ai'=>'ai_jobs'];$out=[];
-    foreach($tables as $name=>$table){try{$q=$pdo->query("SELECT status,COUNT(*) c FROM $table GROUP BY status");$counts=[];foreach($q->fetchAll() as $r)$counts[$r['status']]=(int)$r['c'];$out[$name]=['queued'=>$counts['queued']??0,'processing'=>$counts['processing']??0,'failed'=>$counts['failed']??0,'blocked'=>$counts['blocked']??0,'done'=>$counts['done']??0];}catch(PDOException $e){$out[$name]=['error'=>'unavailable'];}}
+    $tables=['media'=>'media_jobs','transcription'=>'transcription_jobs','source_monitor'=>'source_monitor_jobs','ai'=>'ai_jobs','research_automation'=>'research_automation_runs'];$out=[];
+    foreach($tables as $name=>$table){try{$q=$pdo->query("SELECT status,COUNT(*) c FROM $table GROUP BY status");$counts=[];foreach($q->fetchAll() as $r)$counts[$r['status']]=(int)$r['c'];$out[$name]=['queued'=>$counts['queued']??0,'processing'=>$counts['processing']??0,'failed'=>$counts['failed']??0,'blocked'=>$counts['blocked']??0,'done'=>$counts['done']??0,'completed'=>$counts['completed']??0,'skipped'=>$counts['skipped']??0];}catch(PDOException $e){$out[$name]=['error'=>'unavailable'];}}
     return $out;
 }
 function release_command_available(string $command): bool {
@@ -77,16 +78,16 @@ function release_environment_checks(PDO $pdo,array $config): array {
     $checks=[];$add=function(string $key,string $label,string $status,string $detail,bool $critical=true)use(&$checks){$checks[$key]=['key'=>$key,'label'=>$label,'status'=>$status,'detail'=>$detail,'critical'=>$critical];};
     $add('php','PHP '.PHP_VERSION,version_compare(PHP_VERSION,'8.1.0','>=')?'pass':'fail',version_compare(PHP_VERSION,'8.1.0','>=')?'PHP 8.1+ available':'PHP 8.1+ required');
     $base=(string)($config['app']['base_url']??'');$parts=parse_url($base);$https=$parts&&strtolower((string)($parts['scheme']??''))==='https'&&!empty($parts['host'])&&!release_is_placeholder($base);$add('base_url','HTTPS base URL',$https?'pass':'fail',$https?$base:'Production app.base_url must be a non-placeholder HTTPS URL.');
-    try{$pdo->query('SELECT 1')->fetchColumn();$add('database','Database connection','pass','MariaDB connection is healthy.');}catch(Throwable $e){$add('database','Database connection','fail','Database query failed.');}
+    try{$pdo->query('SELECT 1')->fetchColumn();$add('database','Database connection','pass','Database connection is healthy.');}catch(Throwable $e){$add('database','Database connection','fail','Database query failed.');}
     try{[$pending]=migration_inventory($pdo,dirname(__DIR__).'/database/migrations');$add('migrations','Database migrations',count($pending)===0?'pass':'fail',count($pending)===0?'All migrations applied.':count($pending).' migration(s) pending.');}catch(Throwable $e){$add('migrations','Database migrations','fail','Migration inventory failed: '.mb_substr($e->getMessage(),0,180));}
     $root=(string)($config['storage']['private_root']??'');$doc=realpath((string)($_SERVER['DOCUMENT_ROOT']??''));$real=$root!==''?realpath($root):false;$inside=$doc&&$real&&str_starts_with(rtrim($real,'/').'/',rtrim($doc,'/').'/');$storageOk=$root!==''&&is_dir($root)&&is_writable($root)&&!$inside;$add('storage','Private evidence storage',$storageOk?'pass':'fail',$storageOk?'Writable outside public web root.':'Configure a writable storage.private_root outside the public web root.');
     $enc=(string)($config['app']['encryption_key']??'');$add('encryption','Encryption key',strlen($enc)>=32&&!release_is_placeholder($enc)?'pass':'fail','Use a unique 32+ character app.encryption_key.');
-    $allowed=$config['extension']['allowed_ids']??[];$allowed=is_array($allowed)?array_values(array_filter(array_map(fn($v)=>strtolower(trim((string)$v)),$allowed),fn($v)=>preg_match('/^[a-p]{32}$/',$v)===1)):[];$add('extension_ids','Chrome extension allowlist',count($allowed)>0?'pass':'fail',count($allowed).' valid allowed extension ID(s) configured.');
+    $add('extension_version','Chrome extension version','pass','Bundled RC client '.ANNOTATED_EXTENSION_VERSION.'.');
+    $allowed=$config['extension']['allowed_ids']??[];$allowed=is_array($allowed)?array_values(array_filter(array_map(fn($v)=>strtolower(trim((string)$v)),$allowed),fn($v)=>preg_match('/^[a-p]{32}$/',$v)===1)):[];$add('extension_ids','Chrome extension pairing','pass',count($allowed)>0?count($allowed).' pinned Chrome extension ID(s) configured.':'Interactive user-approved pairing enabled for valid Chrome extension IDs.');
     foreach(['google','x'] as $provider){$p=$config['oauth'][$provider]??[];$redirect=(string)($p['redirect_uri']??'');$rp=parse_url($redirect);$ok=!empty($p['client_id'])&&!empty($p['client_secret'])&&$rp&&strtolower((string)($rp['scheme']??''))==='https'&&!empty($rp['host']);$add('oauth_'.$provider,ucfirst($provider).' OAuth',$ok?'pass':'warn',$ok?'Configured with HTTPS callback.':'Not configured with a complete HTTPS callback; users cannot use this provider.',false);}
     $ffmpeg=release_command_available('ffmpeg');$ffprobe=release_command_available('ffprobe');$add('media_tools','Media tools',$ffmpeg&&$ffprobe?'pass':'fail',$ffmpeg&&$ffprobe?'ffmpeg and ffprobe available.':'ffmpeg and ffprobe are required for media derivatives.');
     $trans=trim((string)($config['transcription']['command']??''));$add('transcription','Transcription command',$trans!==''?'pass':'warn',$trans!==''?'Configured.':'Not configured; audio transcripts will remain blocked.',false);
-    $bootstrap=(string)($config['app']['bootstrap_key']??'');$users=0;try{$users=(int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();}catch(Throwable $e){}$bootstrapSafe=$users===0?strlen($bootstrap)>=24:($bootstrap===''||!release_is_placeholder($bootstrap));$add('bootstrap','Bootstrap key',$bootstrapSafe?'pass':'warn',$users===0?'Strong bootstrap key required until first admin exists.':'Rotate or remove the first-admin bootstrap secret after setup.',false);
-    $workers=release_worker_health($pdo);foreach($workers as $name=>$w){$status=$w['status']==='never'?'warn':($w['status']==='stale'||$w['status']==='failure'?'warn':'pass');$add('worker_'.$name,ucwords(str_replace('_',' ',$name)).' worker',$status,$w['status']==='never'?'No heartbeat recorded yet.':('Last seen '.($w['last_seen_at']?:'unknown').' · '.$w['status']),false);}
+    $workers=release_worker_health($pdo);foreach($workers as $name=>$w){$broken=in_array($w['status'],['stale','failure'],true);$status=$w['status']==='never'?'warn':($broken?'fail':'pass');$detail=$w['status']==='never'?'No heartbeat recorded yet.':('Last seen '.($w['last_seen_at']?:'unknown').' · '.$w['status']);$add('worker_'.$name,ucwords(str_replace('_',' ',$name)).' worker',$status,$detail,$broken);}
     $criticalFail=false;$warnings=0;foreach($checks as $c){if($c['status']==='fail'&&$c['critical'])$criticalFail=true;if($c['status']==='warn')$warnings++;}
-    return ['release'=>ANNOTATED_RELEASE,'version'=>ANNOTATED_RELEASE_VERSION,'ready'=>!$criticalFail,'warnings'=>$warnings,'checks'=>$checks,'workers'=>$workers,'queues'=>release_queue_health($pdo)];
+    return ['release'=>ANNOTATED_RELEASE,'version'=>ANNOTATED_RELEASE_VERSION,'extension_version'=>ANNOTATED_EXTENSION_VERSION,'ready'=>!$criticalFail,'warnings'=>$warnings,'checks'=>$checks,'workers'=>$workers,'queues'=>release_queue_health($pdo)];
 }

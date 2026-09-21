@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 $configFile = dirname(__DIR__) . '/config.php';
 if (!is_file($configFile)) {
-    http_response_code(503);
-    exit('Annotated is not configured. Copy config.example.php to config.php and configure the database.');
+    if(PHP_SAPI!=='cli'){header('Location: /install.php');exit;}
+    throw new RuntimeException('Annotated is not configured. Run the web installer first.');
 }
 $config = require $configFile;
 date_default_timezone_set('UTC');
@@ -23,7 +23,7 @@ if (PHP_SAPI !== 'cli') {
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('X-Frame-Options: DENY');
-    header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://twitter.com");
+    header("Content-Security-Policy: default-src 'self'; img-src 'self' data: https:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://twitter.com");
     header('Permissions-Policy: camera=(), geolocation=(), payment=(), usb=()');
     if($secure)header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 }
@@ -34,15 +34,37 @@ $pdo = new PDO($db['dsn'], $db['user'], $db['pass'], [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::ATTR_EMULATE_PREPARES => false,
 ]);
+require_once __DIR__ . '/installer.php';
+if(PHP_SAPI!=='cli'&&!installer_table_exists($pdo,'users')){
+    header('Location: /install.php');
+    exit;
+}
 require_once __DIR__ . '/storage.php';
 require_once __DIR__ . '/jobs.php';
 require_once __DIR__ . '/concurrency.php';
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/shell.php';
 require_once __DIR__ . '/access.php';
+require_once __DIR__ . '/object-handoff.php';
 require_once __DIR__ . '/notifications.php';
 require_once __DIR__ . '/source-integrity.php';
+require_once __DIR__ . '/annotation-intelligence.php';
 require_once __DIR__ . '/live.php';
+require_once __DIR__ . '/conversations.php';
 require_once __DIR__ . '/moderation.php';
 require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/release.php';
 require_once __DIR__ . '/rate-limit.php';
+require_once __DIR__ . '/proactive-intelligence.php';
+require_once __DIR__ . '/research-automation.php';
+require_once __DIR__ . '/cross-research.php';
+require_once __DIR__ . '/research-outcomes.php';
+require_once __DIR__ . '/research-reviews.php';
+require_once __DIR__ . '/change-impact.php';
+require_once __DIR__ . '/research-portfolio.php';
+require_once __DIR__ . '/living-research.php';
+require_once __DIR__ . '/research-network.php';
+require_once __DIR__ . '/research-provenance.php';
+require_once __DIR__ . '/research-verification.php';
+require_once __DIR__ . '/research-evidence-packs.php';
+require_once __DIR__ . '/research-workflow.php';

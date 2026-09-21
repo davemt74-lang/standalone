@@ -1,0 +1,22 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/app/bootstrap.php';
+require_once __DIR__.'/app/action-center.php';
+$u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
+$center=action_center_compose($pdo,$u,null,100);
+function action_center_icon(string $kind): string {return match($kind){'confirm'=>'✓','respond'=>'↩','review'=>'!','continue'=>'→',default=>'•'};}
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Action Center · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head>
+<body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="actions">
+<header class="topbar"><a class="brand" href="/home.php">Annotated</a><nav><a href="/home.php">Home</a><a href="/action-center.php" aria-current="page">Actions</a><a href="/activity.php">Activity</a><a href="/research.php">Research</a><a href="/teams.php">Teams</a><a href="/settings.php">Settings</a></nav></header>
+<main class="panel actionCenterPage">
+  <div class="pageTitle actionCenterHero"><span class="eyebrow">ACTION CENTER</span><h1>What needs your attention</h1><p>Only unresolved work with a concrete next step. Completing the underlying work removes it automatically.</p><div class="actionCenterSummary"><span><strong><?=h((string)$center['total'])?></strong> open</span><span><strong><?=h((string)$center['high_count'])?></strong> high priority</span><?php foreach((array)$center['counts'] as $kind=>$count):if(!$count)continue;?><span><?=h(ucfirst((string)$kind))?> <?=h((string)$count)?></span><?php endforeach?></div></div>
+  <?php if(empty($center['items'])):?><div class="card empty actionCenterEmpty"><h2>You’re caught up.</h2><p>No Team, Research, Agent, source, review, or publication action currently needs you.</p><a class="button secondary" href="/activity.php">See workspace activity</a></div><?php endif?>
+  <?php foreach((array)$center['groups'] as $group):?><section class="actionCenterGroup" data-action-group="<?=h((string)$group['key'])?>"><div class="sectionHeadWeb"><div><span class="eyebrow"><?=h(strtoupper((string)$group['label']))?></span><h2><?=h((string)$group['label'])?></h2><p class="meta"><?=h((string)$group['description'])?></p></div><span class="badge"><?=h((string)count($group['items']))?></span></div>
+    <div class="actionCenterList"><?php foreach((array)$group['items'] as $item):?><article class="card actionCenterItem urgency-<?=h((string)$item['urgency'])?>" data-action-key="<?=h((string)$item['key'])?>">
+      <div class="actionCenterIcon" aria-hidden="true"><?=h(action_center_icon((string)$item['kind']))?></div><div class="actionCenterBody"><div class="actionCenterHead"><div><span class="badge"><?=h(ucfirst((string)$item['urgency']))?></span><strong><?=h((string)$item['title'])?></strong></div><?php if(!empty($item['created_at'])):?><time><?=h((string)$item['created_at'])?></time><?php endif?></div>
+      <?php if($item['body']!==''):?><p><?=h((string)$item['body'])?></p><?php endif?><?php if(!empty($item['meta'])):?><div class="cognitiveCardMeta"><?php foreach((array)$item['meta'] as $k=>$v):if($v===null||$v===''||is_array($v))continue;?><span><small><?=h(ucfirst(str_replace('_',' ',(string)$k)))?></small><?=h((string)$v)?></span><?php endforeach?></div><?php endif?>
+      <div class="inlineActions"><?php foreach((array)$item['actions'] as $index=>$action):?><?php if(($action['type']??'')==='link'):?><a class="button <?=$index===0?'':'secondary'?>" data-action-center-link href="<?=h((string)$action['href'])?>" data-workspace="<?=h(json_encode((array)$item['workspace'],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE))?>"><?=h((string)$action['label'])?></a><?php elseif(($action['type']??'')==='agent'&&(user_is_pro($pdo,$u)||($u['role']??'')==='admin')):?><button type="button" class="button secondary" data-action-center-agent data-prompt="<?=h((string)$action['prompt'])?>" data-context="<?=h(json_encode((array)($action['context']??[]),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE))?>" data-workspace="<?=h(json_encode((array)$item['workspace'],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE))?>"><?=h((string)$action['label'])?></button><?php endif?><?php endforeach?></div>
+      </div></article><?php endforeach?></div>
+  </section><?php endforeach?>
+</main>
+<script src="/assets/js/workspace-state.js?v=36.0"></script><script src="/assets/js/action-center.js?v=36.0"></script></body></html>

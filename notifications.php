@@ -2,13 +2,15 @@
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
-$error='';$success='';
+$error='';$success='';if(proactive_intelligence_ready($pdo)){try{proactive_intelligence_sync($pdo,$u);}catch(Throwable $e){}}
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$action=(string)($_POST['action']??'');
     try{
         if($action==='read'){$id=(string)($_POST['notification_id']??'');notification_mark_read($pdo,$u,$id);$success='Notification marked read.';}
         elseif($action==='read_all'){notification_mark_read($pdo,$u,null);$success='All notifications marked read.';}
         elseif($action==='archive'){$id=(string)($_POST['notification_id']??'');if(!notification_archive($pdo,$u,$id))throw new RuntimeException('Notification not found.');$success='Notification archived.';}
+        elseif($action==='snooze_proactive'){if(!proactive_alert_snooze($pdo,$u,(string)($_POST['observation_key']??''),(int)($_POST['hours']??24)))throw new RuntimeException('Proactive alert not found.');$success='Alert snoozed.';}
+        elseif($action==='resolve_proactive'){if(!proactive_alert_resolve($pdo,$u,(string)($_POST['observation_key']??'')))throw new RuntimeException('Proactive alert not found.');$success='Alert resolved.';}
         elseif($action==='mute'){notification_mute_set($pdo,$u,(string)($_POST['scope_type']??''),(string)($_POST['scope_id']??''),(string)($_POST['category']??'all'),true);$success='Similar notifications muted.';}
     }catch(Throwable $e){$error=$e->getMessage();}
 }
@@ -24,8 +26,9 @@ $categories=['social'=>'Social','comments'=>'Comments','follows'=>'Follows','res
 <?php if(!$items):?><div class="card empty">No notifications in this view.</div><?php endif?>
 <?php foreach($items as $n):$ctx=$n['context']??[];$scopeType=!empty($ctx['source_public_id'])?'source':(!empty($ctx['conversation_public_id'])?'conversation':null);$scopeId=$ctx['source_public_id']??$ctx['conversation_public_id']??null;?><article class="card notificationCard <?=$n['read_at']?'':'unreadCard'?>">
 <div class="notificationTitle"><div><span class="badge"><?=h(ucfirst((string)$n['category']))?></span><strong><?=h(ucwords(str_replace('_',' ',(string)$n['notification_type'])))?></strong><?php if((int)$n['group_count']>1):?><span class="badge"><?=h((string)$n['group_count'])?> updates</span><?php endif?></div><span class="meta"><?=h((string)$n['created_at'])?></span></div>
-<p><?=h((string)$n['body'])?></p><div class="inlineActions"><?php if($n['url']):?><a class="button" href="<?=h($n['url'])?>">Open</a><?php endif?>
+<p><?=h((string)$n['body'])?></p><?php if(($n['object_type']??'')==='cognitive_alert'&&!empty($ctx['why'])):?><div class="proactiveWhy"><strong>Why this matters</strong><p><?=h((string)$ctx['why'])?></p></div><?php endif?><div class="inlineActions"><?php if($n['url']):?><a class="button" href="<?=h($n['url'])?>">Open</a><?php endif?>
 <?php if(!$n['read_at']):?><form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="action" value="read"><input type="hidden" name="notification_id" value="<?=h((string)$n['public_id'])?>"><button class="button secondary">Mark read</button></form><?php endif?>
 <form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="action" value="archive"><input type="hidden" name="notification_id" value="<?=h((string)$n['public_id'])?>"><button class="button secondary">Archive</button></form>
+<?php if(($n['object_type']??'')==='cognitive_alert'&&!empty($ctx['observation_key'])):?><?php if(!empty($ctx['has_agent_action'])):?><a class="button secondary" href="/home.php?proactive_agent=<?=h((string)$ctx['observation_key'])?>">Ask Agent</a><?php endif?><form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="action" value="snooze_proactive"><input type="hidden" name="observation_key" value="<?=h((string)$ctx['observation_key'])?>"><input type="hidden" name="hours" value="24"><button class="button secondary">Snooze 1 day</button></form><form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="action" value="resolve_proactive"><input type="hidden" name="observation_key" value="<?=h((string)$ctx['observation_key'])?>"><button class="button secondary">Resolve</button></form><?php endif?>
 <?php if($scopeType&&$scopeId):?><form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="action" value="mute"><input type="hidden" name="scope_type" value="<?=h($scopeType)?>"><input type="hidden" name="scope_id" value="<?=h((string)$scopeId)?>"><input type="hidden" name="category" value="<?=h((string)$n['category'])?>"><button class="button secondary">Mute similar</button></form><?php endif?></div></article><?php endforeach?>
 </main></body></html>

@@ -6,8 +6,6 @@ return [
         'session_name' => 'annotated_session',
         // 32+ random characters. Used only to encrypt secrets stored by Admin (such as LLM API keys).
         'encryption_key' => 'replace-with-a-long-random-secret',
-        // Required only until the first administrator exists. Use 32+ random characters and remove/rotate it after setup.
-        'bootstrap_key' => 'replace-with-a-separate-long-random-bootstrap-secret',
     ],
     'db' => [
         'dsn' => 'mysql:host=127.0.0.1;dbname=annotated;charset=utf8mb4',
@@ -19,7 +17,8 @@ return [
         'private_root' => dirname(__DIR__) . '/annotated-private',
     ],
     'extension' => [
-        // Exact 32-character Chrome extension IDs allowed to connect to this Annotated server.
+        // Optional hard allowlist of 32-character Chrome extension IDs.
+        // Leave empty to allow any valid Chrome extension ID after the signed-in user explicitly approves pairing.
         'allowed_ids' => [],
         // Revocable extension bearer sessions expire even if they are not manually revoked.
         'session_ttl_days' => 30,

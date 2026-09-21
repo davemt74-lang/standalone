@@ -39,6 +39,12 @@ if($action==='comment'){
     catch(RuntimeException $e){json_response(['ok'=>false,'error'=>['code'=>'COMMENT_FORBIDDEN','message'=>$e->getMessage()]],403);}
     json_response(['ok'=>true,'data'=>$created],201);
 }
+if($action==='annotation_react'){
+    $viewer=require_api_mutation_auth($pdo);
+    try{$data=feed_toggle_annotation_like($pdo,$viewer,(string)($input['annotation_id']??''));}
+    catch(RuntimeException $e){json_response(['ok'=>false,'error'=>['code'=>'REACTION_FORBIDDEN','message'=>$e->getMessage()]],404);}
+    json_response(['ok'=>true,'data'=>$data]);
+}
 if($action==='watch_source'){
     $viewer=require_api_mutation_auth($pdo);$source=feed_source_by_public($pdo,(string)($input['source']??''));if(!$source)json_response(['ok'=>false,'error'=>['code'=>'SOURCE_NOT_FOUND']],404);
     $followed=feed_toggle_source_follow($pdo,(int)$source['id'],(int)$viewer['id']);json_response(['ok'=>true,'data'=>['watched'=>$followed,'following'=>$followed]]);

@@ -1,5 +1,7 @@
 <?php
-declare(strict_types=1);require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/evidence-access.php';$viewer=current_user($pdo);$asset=(string)($_GET['asset']??'');$stored=null;
+declare(strict_types=1);require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/evidence-access.php';require_once __DIR__.'/app/extension-auth.php';
+if(!empty($_SERVER['HTTP_ORIGIN'])&&str_starts_with((string)$_SERVER['HTTP_ORIGIN'],'chrome-extension://'))extension_api_headers($config);
+$viewer=current_user($pdo);$asset=(string)($_GET['asset']??'');$stored=null;
 if(!empty($_GET['annotation'])){
     $stored=evidence_annotation_asset($pdo,(string)$_GET['annotation'],$viewer,$asset);
 }elseif(!empty($_GET['source'])&&!empty($_GET['version'])&&$asset==='source_snapshot'){

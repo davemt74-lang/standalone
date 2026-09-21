@@ -6,14 +6,14 @@ This repository contains the Chrome Manifest V3 sidebar extension, PHP web/API a
 
 ## First deployment
 
-1. Copy `config.example.php` to `config.php` and set the database + OAuth configuration.
-2. Import `database/schema.sql` into the empty MariaDB database.
-3. Open `/first-admin.php` and create the first Annotated administrator.
-4. Sign in as the administrator and open `/upgrade.php` to apply the ordered files in `database/migrations/`.
-5. Configure `storage.private_root` to a writable directory **outside the public web root** and grant the PHP/worker user read/write access.
-6. Load the `extension/` folder as an unpacked Chrome extension for development, open Extension Options, and set the Annotated website/API URL.
+1. Create an **empty** MariaDB database and grant a database user access to it.
+2. Upload/extract the Annotated website package into the web root.
+3. Open `/install.php`. Enter the site URL, database host/port/name, database username, and database password.
+4. The installer tests the connection, creates `config.php` automatically, imports `database/schema.sql`, and applies every bundled forward migration.
+5. Create the first administrator when redirected to `/first-admin.php`. No bootstrap/setup key is used.
+6. Install the matching Chrome extension and connect it to the Annotated site URL.
 
-There is intentionally no installer. The base schema is imported once; all later database changes are forward-only SQL migrations applied through `upgrade.php`.
+Normal web requests automatically route to `/install.php` until configuration and the base schema exist. After the first administrator is created, `/first-admin.php` closes permanently. Existing deployments continue to use `/upgrade.php` for later forward-only migrations.
 
 ## Extension account model
 
@@ -111,9 +111,9 @@ Source Version allocation is serialized by locking the canonical `sources` row b
 `upgrade.php` now uses MariaDB `GET_LOCK()` so only one schema upgrade can run at a time. Because MariaDB DDL can implicitly commit, upgrades no longer pretend DDL rollback is atomic. `schema_migration_runs` records every attempt, statement position, failure, and checksum. Failed migrations remain checksum-pinned and must be retried unchanged after the environmental problem is corrected. Destructive `DROP`/`TRUNCATE`/`RENAME TABLE` migrations are rejected by the automated contract gate in favor of reviewed expand/contract changes.
 
 
-## V1.1 RC1 release hardening
+## V1 RC1 production readiness
 
-Phase 11 adds the release-candidate operating layer around the V1 product loop:
+The Phase 36 release-candidate tree uses the production-readiness layer introduced earlier in the build, now normalized for **V1 RC1 (`1.0.0-rc1`)**:
 
 - `/onboarding.php` — one-time first-run checklist based on real account activity
 - `/admin/system-health.php` — production readiness, migration, queue, and worker health
@@ -122,7 +122,7 @@ Phase 11 adds the release-candidate operating layer around the V1 product loop:
 - browser-session revocation epoch plus existing per-extension session revocation
 - OAuth callback state expiry and one-time consumption
 - worker heartbeats for media, transcription, source monitoring, AI, and saved-search alerts
-- Chrome extension version `0.9.0` with first-install setup and accessibility/keyboard hardening
+- Chrome extension version `0.36.0` with the Phase 36 end-to-end workspace hardening
 
 Recommended recurring workers for RC validation:
 
@@ -132,6 +132,7 @@ php worker/transcription-worker.php
 php worker/source-monitor-worker.php 5
 php worker/ai-worker.php 5
 php worker/saved-search-worker.php 50
+php bin/research-automations.php --limit=25
 ```
 
 Before every RC/production deploy, back up both MariaDB and `storage.private_root`, run the preflight command, apply pending migrations through `upgrade.php`, and verify Admin → System Health & Release. See the full runbook for rollback rules.

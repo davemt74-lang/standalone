@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/source-integrity.php';
+require_once __DIR__.'/annotation-intelligence.php';
 
 function feed_cursor_encode(int $id): string {
     return rtrim(strtr(base64_encode((string)$id),'+/','-_'),'=');
@@ -39,6 +40,20 @@ function feed_source_by_public(PDO $pdo,string $publicId): ?array {
     $q=$pdo->prepare('SELECT s.*,cv.version_number current_version_number,cv.captured_at current_version_captured_at FROM sources s LEFT JOIN source_versions cv ON cv.id=s.current_version_id WHERE s.public_id=? LIMIT 1');
     $q->execute([$publicId]);return $q->fetch()?:null;
 }
+function feed_annotation_post_type(array $row): string {
+    $type=(string)($row['capture_type']??'');$selected=trim((string)($row['selected_text']??''));$commentary=trim((string)($row['text_commentary']??''));
+    $sourceType=strtolower((string)($row['source_type']??''));$provider=strtolower((string)($row['media_provider']??''));$url=strtolower((string)($row['canonical_url']??''));
+    if($type==='video_clip')return 'video';
+    if($type==='audio_clip'){
+        if($sourceType==='podcast'||str_contains($provider,'podcast'))return 'podcast';
+        $musicProviders=['spotify','soundcloud','bandcamp','tidal','deezer','apple_music','music'];
+        if(in_array($provider,$musicProviders,true)||str_contains($url,'spotify.com')||str_contains($url,'soundcloud.com')||str_contains($url,'bandcamp.com')||str_contains($url,'music.apple.com')||str_contains($url,'tidal.com'))return 'music';
+        return 'audio';
+    }
+    if(in_array($type,['image_region','page_region'],true))return $selected!==''?'image_quote':'image';
+    if($type==='text')return $selected!==''?'quote':($commentary!==''?'note':'annotation');
+    return $commentary!==''?'note':'annotation';
+}
 function feed_context_url(array $row): string {
     $url=(string)($row['canonical_url']??'');if($url==='')return '';
     $start=$row['start_seconds']!==null?(float)$row['start_seconds']:null;$end=$row['end_seconds']!==null?(float)$row['end_seconds']:null;
@@ -63,8 +78,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $where[]='a.source_id=?';$params[]=$sourceId;
     }elseif($mode==='following'){
         if(!$uid)return ['annotations'=>[],'next_cursor'=>null,'unread_count'=>0];
-        $where[]="a.user_id<>$uid";
-        $where[]="(EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_user_id=$uid AND ff.followed_user_id=a.user_id) OR EXISTS(SELECT 1 FROM source_watches fsw WHERE fsw.user_id=$uid AND fsw.source_id=a.source_id))";
+        $where[]="(a.user_id=$uid OR EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_user_id=$uid AND ff.followed_user_id=a.user_id) OR EXISTS(SELECT 1 FROM source_watches fsw WHERE fsw.user_id=$uid AND fsw.source_id=a.source_id))";
     }else throw new InvalidArgumentException('Invalid feed mode.');
     if($cursorId){$where[]='a.id<?';$params[]=$cursorId;}
     $flags=$uid ? "
@@ -74,11 +88,12 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       EXISTS(SELECT 1 FROM source_watches sw WHERE sw.user_id=$uid AND sw.source_id=a.source_id) source_following,
       EXISTS(SELECT 1 FROM follows ff2 WHERE ff2.follower_user_id=$uid AND ff2.followed_user_id=a.user_id) from_followed_user,
       EXISTS(SELECT 1 FROM source_watches sw2 WHERE sw2.user_id=$uid AND sw2.source_id=a.source_id) from_followed_source,
-      (a.user_id=$uid) is_self" : "0 is_following,0 is_saved,1 is_read,0 source_following,0 from_followed_user,0 from_followed_source,0 is_self";
+      EXISTS(SELECT 1 FROM annotation_reactions arl WHERE arl.user_id=$uid AND arl.annotation_id=a.id AND arl.reaction='like') viewer_liked,
+      (a.user_id=$uid) is_self" : "0 is_following,0 is_saved,1 is_read,0 source_following,0 from_followed_user,0 from_followed_source,0 viewer_liked,0 is_self";
     $sql="SELECT
       a.id internal_id,a.public_id,a.source_version_id,a.text_commentary,a.published_at,a.visibility,a.team_id,
-      u.public_id author_public_id,u.username,u.display_name,
-      s.public_id source_public_id,s.title source_title,s.canonical_url,s.status source_record_status,s.current_version_id,
+      u.public_id author_public_id,u.username,u.display_name,u.profile_image_url,
+      s.public_id source_public_id,s.title source_title,s.domain source_domain,s.source_type,s.canonical_url,s.status source_record_status,s.current_version_id,
       sv.version_number capture_version_number,sv.captured_at capture_version_captured_at,
       cv.version_number current_version_number,cv.captured_at current_version_captured_at,
       CASE WHEN a.source_version_id<>s.current_version_id THEN s.status ELSE 'current' END source_status,
@@ -89,6 +104,7 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
       md.storage_path media_path,md.processing_status media_status,
       a.audio_commentary_path,at.status transcript_status,COALESCE(at.edited_text,at.raw_text) transcript_text,
       (SELECT COUNT(*) FROM comments cm WHERE cm.annotation_id=a.id AND COALESCE(cm.moderation_status,'visible')='visible') comment_count,
+      (SELECT COUNT(*) FROM annotation_reactions ar WHERE ar.annotation_id=a.id AND ar.reaction='like') like_count,
       $flags
       FROM annotations a
       JOIN users u ON u.id=a.user_id
@@ -108,10 +124,13 @@ function feed_annotation_rows(PDO $pdo,?array $viewer,string $mode,?int $sourceI
         $row['audio_url']=!empty($row['audio_commentary_path'])?evidence_url((string)$row['public_id'],'audio'):null;
         $row['media_url']=!empty($row['media_path'])?evidence_url((string)$row['public_id'],'media'):null;
         $row['context_url']=feed_context_url($row);
+        $row['post_type']=feed_annotation_post_type($row);
         $row['integrity']=source_integrity_annotation_state($pdo,['id'=>(int)$row['internal_id'],'source_version_id'=>(int)$row['source_version_id'],'current_source_version_id'=>(int)$row['current_version_id']]);
-        foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','is_self'] as $k)$row[$k]=(bool)$row[$k];
-        unset($row['internal_id'],$row['screenshot_target_path'],$row['audio_commentary_path'],$row['media_path']);
+        foreach(['source_changed','is_following','is_saved','is_read','source_following','from_followed_user','from_followed_source','viewer_liked','is_self'] as $k)$row[$k]=(bool)$row[$k];
+        $row['like_count']=(int)($row['like_count']??0);$row['comment_count']=(int)($row['comment_count']??0);$row['post_type']=feed_annotation_post_type($row);
     }unset($row);
+    $rows=annotation_intelligence_attach_many($pdo,$rows,$viewer,8);
+    foreach($rows as &$row)unset($row['internal_id'],$row['screenshot_target_path'],$row['audio_commentary_path'],$row['media_path']);unset($row);
     $unread=$mode==='following'&&$uid?feed_following_unread_count($pdo,$viewer):0;
     return ['annotations'=>$rows,'next_cursor'=>$next,'unread_count'=>$unread];
 }
@@ -140,11 +159,20 @@ function feed_toggle_source_follow(PDO $pdo,int $sourceId,int $userId): bool {
     if(feed_source_followed($pdo,$sourceId,$userId)){$pdo->prepare('DELETE FROM source_watches WHERE source_id=? AND user_id=?')->execute([$sourceId,$userId]);return false;}
     $pdo->prepare('INSERT IGNORE INTO source_watches(source_id,user_id) VALUES(?,?)')->execute([$sourceId,$userId]);return true;
 }
+function feed_toggle_annotation_like(PDO $pdo,array $viewer,string $annotationPublicId): array {
+    $a=annotation_access($pdo,$annotationPublicId,$viewer);if(!$a||$a['status']!=='published')throw new RuntimeException('Annotation not found.');
+    $uid=(int)$viewer['id'];$aid=(int)$a['id'];
+    $q=$pdo->prepare("SELECT 1 FROM annotation_reactions WHERE annotation_id=? AND user_id=? AND reaction='like'");$q->execute([$aid,$uid]);
+    if($q->fetchColumn()){$pdo->prepare("DELETE FROM annotation_reactions WHERE annotation_id=? AND user_id=? AND reaction='like'")->execute([$aid,$uid]);$liked=false;}
+    else{$pdo->prepare("INSERT INTO annotation_reactions(annotation_id,user_id,reaction) VALUES(?,?,'like')")->execute([$aid,$uid]);$liked=true;}
+    $q=$pdo->prepare("SELECT COUNT(*) FROM annotation_reactions WHERE annotation_id=? AND reaction='like'");$q->execute([$aid]);
+    return ['liked'=>$liked,'like_count'=>(int)$q->fetchColumn()];
+}
 function feed_comments(PDO $pdo,string $annotationPublicId,?array $viewer): ?array {
     $a=annotation_access($pdo,$annotationPublicId,$viewer);if(!$a||$a['status']!=='published')return null;$uid=(int)($viewer['id']??0);$admin=(($viewer['role']??'')==='admin');
     $block=$uid?" AND NOT EXISTS(SELECT 1 FROM blocks cb WHERE (cb.blocker_user_id=$uid AND cb.blocked_user_id=c.user_id) OR (cb.blocker_user_id=c.user_id AND cb.blocked_user_id=$uid))":'';
     $moderation=$admin?'':($uid?" AND (COALESCE(c.moderation_status,'visible')='visible' OR c.user_id=$uid)":" AND COALESCE(c.moderation_status,'visible')='visible'");
-    $q=$pdo->prepare("SELECT c.id,c.public_id,c.user_id,c.parent_comment_id,c.body,c.moderation_status,c.created_at,u.public_id author_public_id,u.username,u.display_name FROM comments c JOIN users u ON u.id=c.user_id WHERE c.annotation_id=?$block$moderation ORDER BY c.id ASC LIMIT 150");$q->execute([$a['id']]);
+    $q=$pdo->prepare("SELECT c.id,c.public_id,c.user_id,c.parent_comment_id,c.body,c.moderation_status,c.created_at,u.public_id author_public_id,u.username,u.display_name,u.profile_image_url FROM comments c JOIN users u ON u.id=c.user_id WHERE c.annotation_id=?$block$moderation ORDER BY c.id ASC LIMIT 150");$q->execute([$a['id']]);
     $rows=$q->fetchAll();foreach($rows as &$row){$row['id']=(string)$row['id'];$row['parent_comment_id']=$row['parent_comment_id']!==null?(string)$row['parent_comment_id']:null;$row['restricted']=($row['moderation_status']??'visible')!=='visible';if($row['restricted']&&!$admin&&(int)$uid!==(int)($row['user_id']??0))$row['body']='';unset($row['user_id']);}unset($row);
     return ['annotation'=>$a,'comments'=>$rows];
 }

@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: annotated-ci-${{ github.workflow }}-${{ github.ref }}
+  group: annotated-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,17 +44,25 @@ jobs:
       - name: PHP syntax
         run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
       - name: Extension JavaScript syntax
-        run: find extension -name '*.js' -print0 | xargs -0 -n1 node --check
+        run: find extension assets/js -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Manifest and migration contracts
         run: php tests/release-contracts.php
       - name: Security contracts
         run: php tests/security-contracts.php
+      - name: Universal app shell and social product contracts
+        run: php tests/app-shell-contracts.php
       - name: Concurrency and migration contracts
         run: php tests/concurrency-contracts.php
       - name: Abuse protection contracts
         run: php tests/rate-limit-contracts.php
-      - name: V1.1 RC1 end-to-end release contract
+      - name: V1 RC1 end-to-end release contract
         run: php tests/v1-rc-e2e-contract.php
+      - name: Fresh install MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/install-db.php
       - name: MariaDB integration and security suite
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
@@ -133,3 +141,199 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase11-release-db.php
+      - name: Phase 12A Unified Conversations + Team Chat MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase12a-conversations-db.php
+      - name: Phase 12B Agent Chat Canvas MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase12b-agent-chat-db.php
+      - name: Phase 13 Annotation Intelligence MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase13-annotation-intelligence-db.php
+      - name: Phase 14 Research Workspace Intelligence MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase14-research-workspace-db.php
+      - name: Phase 15 Agent-Driven Research MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase15-agent-driven-research-db.php
+      - name: Phase 16 Cognitive Feed MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase16-cognitive-feed-db.php
+      - name: Phase 17 Proactive Research Intelligence MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase17-proactive-intelligence-db.php
+      - name: Phase 18 Research Automation MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase18-research-automation-db.php
+      - name: Phase 19 Cross-Research Intelligence MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase19-cross-research-db.php
+      - name: Phase 20 Outcome Learning and Decision Memory MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase20-outcomes-db.php
+      - name: Phase 21 Collaborative Research Review and Governance MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase21-research-reviews-db.php
+      - name: Phase 22 Change Impact and Staleness Intelligence MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase22-change-impact-db.php
+      - name: Phase 23 Research Portfolio Intelligence MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase23-research-portfolio-db.php
+      - name: Phase 24 Living Research Publishing and Distribution MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase24-living-research-db.php
+      - name: Phase 25 Research Network and Citation Intelligence MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase25-research-network-db.php
+      - name: Phase 26 Research Provenance and Audit Ledger MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase26-research-provenance-db.php
+      - name: Phase 27 Research Trust Review and Verification MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase27-research-verification-db.php
+      - name: Phase 28 Research Reproducibility and Evidence Packs MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase28-research-evidence-packs-db.php
+      - name: Phase 29 Unified Research Workflow MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase29-research-workflow-db.php
+      - name: Phase 30 Research Completion and Release Hardening MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase30-research-completion-db.php
+      - name: Research V1 final independent audit MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/research-v1-final-audit-db.php
+      - name: Phase 31 Unified Object Handoff and Continuity MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase31-unified-object-handoff-db.php
+      - name: Phase 32 Unified Continuity Actions and Object Cards contract suite
+        run: php tests/phase32-unified-continuity-actions.php
+      - name: Phase 33 Unified Activity and Context Awareness MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase33-unified-activity-db.php
+      - name: Phase 34 Contextual Navigation and Workspace State MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase34-workspace-context-db.php
+      - name: Phase 34 Session Workspace State contract suite
+        run: php tests/phase34-workspace-state-contract.php
+      - name: Phase 35 Unified Action Center MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase35-action-center-db.php
+      - name: Phase 35 Action Center no-shadow-state contract suite
+        run: php tests/phase35-action-center-contract.php
+      - name: Phase 36 End-to-End Workspace Journey MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase36-end-to-end-workspace-journey-db.php
+      - name: Phase 36 Release Hardening contract suite
+        run: php tests/phase36-release-hardening-contract.php
+
+
+  mysql8-fresh-install:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: annotated_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - name: PHP syntax
+        run: php -l app/migrations.php && php -l app/installer.php && php -l install.php
+      - name: Fresh install MySQL 8 compatibility suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/install-db.php

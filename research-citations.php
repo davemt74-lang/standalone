@@ -1,0 +1,33 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/app/bootstrap.php';
+$u=require_user($pdo);$id=(string)($_GET['id']??$_POST['id']??'');$project=project_access($pdo,(int)$u['id'],$id);
+if(!$project){http_response_code(404);exit('Research project not found.');}
+$canWrite=project_can_write($project);$success='';$error='';
+if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
+  if(!$canWrite)throw new RuntimeException('You have view-only access to this project.');
+  $op=(string)($_POST['op']??'');
+  if($op==='save'){$saved=research_network_reference_upsert($pdo,$u,$project['public_id'],(string)($_POST['report']??''),(int)($_POST['version']??0)?:null,(string)($_POST['relation']??'context'),(string)($_POST['note']??''));$success='Pinned '.$saved['target']['version_title'].' v'.$saved['target']['version_number'].'.';}
+  elseif($op==='advance'){$saved=research_network_reference_upsert($pdo,$u,$project['public_id'],(string)$_POST['report'],(int)$_POST['version'],(string)$_POST['relation'],(string)($_POST['note']??''));$success='Citation updated to v'.$saved['target']['version_number'].'.';}
+  elseif($op==='delete'){research_network_reference_delete($pdo,$u,$project['public_id'],(string)($_POST['reference']??''));$success='Working citation removed. Published versions remain unchanged.';}
+}catch(Throwable $e){$error=$e->getMessage();}}
+$refs=research_network_ready($pdo)?research_network_project_references($pdo,$u,$project['public_id']):[];$relations=research_network_relation_types();
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Research Citations · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+<header class="topbar"><a class="brand" href="/home.php">Annotated</a><nav><a href="/research-project.php?id=<?=h($project['public_id'])?>">Project</a><a href="/research-network.php">Research Network</a><a href="/research-publish.php?id=<?=h($project['public_id'])?>">Publish</a></nav></header>
+<main class="citationWorkspaceLayout"><section>
+<div class="pageTitle"><span class="eyebrow">PHASE 25 · CITATION WORKSPACE</span><h1><?=h($project['title'])?></h1><p>Pin exact immutable versions of other Annotated Research reports. Newer versions are surfaced for review, but citations never retarget automatically.</p></div>
+<?php if($success):?><div class="success"><?=h($success)?></div><?php endif?><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>
+<?php if(!research_network_ready($pdo)):?><div class="card empty">Run migration 032 to enable Research Network.</div><?php else:?>
+<div class="sectionHeadWeb"><div><span class="eyebrow">PINNED REPORTS</span><h2><?=h((string)count($refs))?> reference<?=count($refs)===1?'':'s'?></h2></div></div>
+<?php if(!$refs):?><div class="card empty">No published Research reports are referenced yet.</div><?php endif?>
+<div class="citationReferenceList"><?php foreach($refs as $r):?><article class="card citationReference <?=$r['has_update']?'citationUpdateAvailable':''?>">
+<?php if(!$r['available']):?><span class="badge">Unavailable</span><h3>Referenced report is no longer accessible</h3><p class="meta">The working dependency remains visible without exposing report details.</p>
+<?php else:$t=$r['target'];?><div class="citationBadges"><span class="badge"><?=h((string)($relations[$r['relation_type']]??$r['relation_type']))?></span><span class="badge">Pinned v<?=h((string)$t['version_number'])?></span><?php if($r['has_update']):?><span class="badge">v<?=h((string)$t['current_version_number'])?> available</span><?php endif?></div>
+<h3><a href="/research-report.php?id=<?=h((string)$t['report_public_id'])?>&v=<?=h((string)$t['version_number'])?>"><?=h((string)$t['version_title'])?></a></h3>
+<p class="meta"><?=h((string)$t['publisher_name'])?> · SHA-256 <?=h((string)$t['snapshot_hash'])?></p><?php if(!empty($r['note'])):?><p><?=nl2br(h((string)$r['note']))?></p><?php endif?>
+<p class="meta">Publishable: public <?=$r['publishable']['public']?'yes':'no'?> · team <?=$r['publishable']['team']?'yes':'no'?> · private <?=$r['publishable']['private']?'yes':'no'?></p>
+<div class="inlineActions"><a href="/research-report-network.php?id=<?=h((string)$t['report_public_id'])?>&v=<?=h((string)$t['version_number'])?>">Open network</a><?php if($r['has_update']):?><a href="/research-report-diff.php?id=<?=h((string)$t['report_public_id'])?>&from=<?=h((string)$t['version_number'])?>&to=<?=h((string)$t['current_version_number'])?>">Compare versions</a><?php endif?></div>
+<?php if($canWrite&&$r['has_update']):?><form method="post" class="inlineForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="id" value="<?=h($project['public_id'])?>"><input type="hidden" name="op" value="advance"><input type="hidden" name="report" value="<?=h((string)$t['report_public_id'])?>"><input type="hidden" name="version" value="<?=h((string)$t['current_version_number'])?>"><input type="hidden" name="relation" value="<?=h((string)$r['relation_type'])?>"><input type="hidden" name="note" value="<?=h((string)($r['note']??''))?>"><button>Update pin to v<?=h((string)$t['current_version_number'])?></button></form><?php endif?><?php endif?>
+<?php if($canWrite):?><form method="post" class="inlineForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="id" value="<?=h($project['public_id'])?>"><input type="hidden" name="op" value="delete"><input type="hidden" name="reference" value="<?=h((string)$r['public_id'])?>"><button class="button secondary">Remove</button></form><?php endif?></article><?php endforeach?></div><?php endif?></section>
+<aside><?php if($canWrite&&research_network_ready($pdo)):?><div class="card stickyCitationRail"><h3>Add report reference</h3><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="id" value="<?=h($project['public_id'])?>"><input type="hidden" name="op" value="save"><label>Report ID or URL<input name="report" required></label><label>Version<input type="number" name="version" min="1" placeholder="Current"></label><label>Relationship<select name="relation"><?php foreach($relations as $key=>$label):?><option value="<?=h($key)?>"><?=h($label)?></option><?php endforeach?></select></label><label>Note<textarea name="note" rows="4" maxlength="4000"></textarea></label><button>Pin exact version</button></form><p class="meta">Public publications can include only public citations. Team/private publications can additionally include compatible same-Team citations.</p></div><?php endif?></aside>
+</main></body></html>
