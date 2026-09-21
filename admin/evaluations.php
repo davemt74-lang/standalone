@@ -39,6 +39,7 @@ $cases=$selected?data_evaluation_cases($pdo,(int)$selected['id']):[];
 $runs=$selected?data_evaluation_runs($pdo,(int)$selected['id'],50):[];
 $events=$selected?data_evaluation_events($pdo,(int)$selected['id'],80):[];
 $run=$runId!==''?data_evaluation_run_get($pdo,$runId):null;if($run&&$selected&&(int)$run['suite_id']!==(int)$selected['id'])$run=null;
+$runModelSnapshot=$run&&$run['model_snapshot_json']?json_decode((string)$run['model_snapshot_json'],true):null;
 $results=$run&&$run['status']==='completed'?data_evaluation_results($pdo,(int)$run['id']):[];
 $human=$run&&$run['status']==='completed'?data_evaluation_human_summary($pdo,(int)$run['id']):null;
 $runIntegrity=$run&&$run['status']==='completed'?data_evaluation_run_integrity($pdo,$run):null;
@@ -154,6 +155,7 @@ $types=data_evaluation_types();
       <span><small>Suite config</small><?=h(substr((string)$run['suite_config_hash'],0,14))?>…</span>
       <span><small>Cases</small><?=h(substr((string)$run['cases_hash'],0,14))?>…</span>
       <span><small>Runner</small><?=h($run['runner'])?></span>
+      <?php if(is_array($runModelSnapshot)):?><span><small>Queued model</small><?=h((string)($runModelSnapshot['display_name']??$runModelSnapshot['model_name']??'Model'))?> · <?=h((string)($runModelSnapshot['provider_label']??''))?></span><span><small>Endpoint fingerprint</small><?=h(substr((string)($runModelSnapshot['api_base_hash']??''),0,14))?>…</span><?php endif?>
       <?php if(!empty($run['run_hash'])):?><span><small>Run hash</small><?=h(substr((string)$run['run_hash'],0,14))?>…</span><?php endif?>
       <?php if(is_array($run['summary'])):?><span><small>Automated pass</small><?=h(number_format((float)$run['summary']['automated_pass_rate']*100,1))?>%</span><?php endif?>
       <?php if($human):?><span><small>Human reviews</small><?=h((string)$human['reviews'])?></span><?php endif?>
