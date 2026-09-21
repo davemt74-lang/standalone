@@ -28,7 +28,7 @@ $need('app/data-attribution.php',"if((\$viewer['role']??'')!=='admin'&&(int)\$r[
 $need('app/ai.php','data_response_try_record','Every completed AI run must record response lineage when Phase 37 is available.');
 $need('app/agent-chat.php','data_response_try_bind_message','Agent Chat must bind the visible assistant message to its AI response lineage.');
 $need('app/agent-chat.php','data_response_attribution_map','Agent Chat history must expose bounded attribution summaries.');
-$need('assets/js/agent-chat.js','agentResponseLineage','Agent Chat must visibly render response attribution.');
+$need('assets/js/agent-chat.js',"lineage.className='agentChatMessageContext'",'Agent Chat must visibly render response attribution with the existing shared UI system.');
 $need('assets/js/agent-chat.js','/data-attribution.php?run_id=','Agent Chat attribution must link to the permission-checked lineage view.');
 $need('home.php','agent-chat.js?v=37.0','Phase 37 Agent Chat client must use a fresh cache key.');
 $need('data-attribution.php','RESPONSE LINEAGE','Contributor dashboard must render permission-checked response lineage.');
