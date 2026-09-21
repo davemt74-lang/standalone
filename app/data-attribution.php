@@ -31,6 +31,10 @@ function data_attribution_encode(mixed $value): string {
 function data_attribution_hash(mixed $value): string {return hash('sha256',is_string($value)?$value:data_attribution_encode($value));}
 function data_attribution_bool(mixed $value): int {return in_array($value,[1,'1',true,'true','yes','on'],true)?1:0;}
 
+function data_attribution_best_effort(callable $operation): mixed {
+    try{return $operation();}catch(Throwable $e){error_log('[Annotated Data Attribution] '.mb_substr($e->getMessage(),0,800));return null;}
+}
+
 function data_contributor_preferences(PDO $pdo,int $userId): array {
     if(!data_attribution_ready($pdo))return ['allow_shared_retrieval'=>0,'allow_evaluation'=>0,'allow_training'=>0,'allow_commercial_training'=>0,'attribution_required'=>1];
     $pdo->prepare('INSERT IGNORE INTO data_contributor_preferences(user_id) VALUES(?)')->execute([$userId]);
@@ -212,6 +216,9 @@ function data_attribution_capture_object(PDO $pdo,int $actorUserId,string $objec
     if(in_array($type,['annotation','report_version'],true))data_corpus_refresh_object($pdo,$type,$publicId);
     return $row;
 }
+function data_attribution_try_capture_object(PDO $pdo,int $actorUserId,string $objectType,string $publicId): ?array {
+    return data_attribution_best_effort(fn()=>data_attribution_capture_object($pdo,$actorUserId,$objectType,$publicId));
+}
 function data_attribution_capture_verification(PDO $pdo,int $reviewerUserId,string $verificationPublicId): ?array {
     if(!data_attribution_ready($pdo))return null;$q=$pdo->prepare('SELECT public_id,subject_type,subject_public_id,subject_hash,decision,evidence_state_hash,note,created_at FROM research_verification_events WHERE public_id=? AND reviewer_user_id=? LIMIT 1');$q->execute([$verificationPublicId,$reviewerUserId]);$r=$q->fetch();if(!$r)return null;
     $row=data_contribution_record($pdo,'user',$reviewerUserId,'verification',$r['public_id'],'verification',(string)$r['decision']."\n".(string)$r['note'],['subject_hash'=>$r['subject_hash'],'evidence_state_hash'=>$r['evidence_state_hash']],['subject_type'=>$r['subject_type'],'subject_public_id'=>$r['subject_public_id']]);
@@ -221,6 +228,13 @@ function data_attribution_capture_review_response(PDO $pdo,int $reviewerUserId,s
     if(!data_attribution_ready($pdo))return null;$q=$pdo->prepare('SELECT rrr.public_id,rrr.decision,rrr.comment,rrr.subject_hash,rr.subject_type,rr.subject_public_id FROM research_review_responses rrr JOIN research_reviews rr ON rr.id=rrr.review_id WHERE rrr.public_id=? AND rrr.reviewer_user_id=? LIMIT 1');$q->execute([$responsePublicId,$reviewerUserId]);$r=$q->fetch();if(!$r)return null;
     $row=data_contribution_record($pdo,'user',$reviewerUserId,'review_response',$r['public_id'],'review',(string)$r['decision']."\n".(string)$r['comment'],['subject_hash'=>$r['subject_hash']],['subject_type'=>$r['subject_type'],'subject_public_id'=>$r['subject_public_id']]);
     data_provenance_edge_record($pdo,(string)$r['subject_type'],(string)$r['subject_public_id'],null,'reviewed_by','review_response',(string)$r['public_id'],null,$reviewerUserId);return $row;
+}
+
+function data_attribution_try_capture_verification(PDO $pdo,int $reviewerUserId,string $verificationPublicId): ?array {
+    return data_attribution_best_effort(fn()=>data_attribution_capture_verification($pdo,$reviewerUserId,$verificationPublicId));
+}
+function data_attribution_try_capture_review_response(PDO $pdo,int $reviewerUserId,string $responsePublicId): ?array {
+    return data_attribution_best_effort(fn()=>data_attribution_capture_review_response($pdo,$reviewerUserId,$responsePublicId));
 }
 
 function data_attribution_sync_user(PDO $pdo,array $viewer,int $limit=500): array {
@@ -275,8 +289,14 @@ function data_response_record(PDO $pdo,int $aiRunId,string $aiRunPublicId,?array
     foreach($normalized as $rank=>$r){$contributor=data_ref_contributor($pdo,$r['type'],$r['id']);$contributionId=data_latest_contribution_id($pdo,$r['type'],$r['id']);$reason='Supplied to the model as Annotated context.';$pdo->prepare('INSERT IGNORE INTO data_response_attributions(response_lineage_id,object_type,object_public_id,object_version_id,contributor_user_id,contribution_id,attribution_type,usage_rank,reason) VALUES(?,?,?,?,?,?,\'context\',?,?)')->execute([$lineage['id'],$r['type'],$r['id'],$r['version'],$contributor,$contributionId,$rank,$reason]);data_provenance_edge_record($pdo,$r['type'],$r['id'],$r['version'],'used_in_response','ai_response',$aiRunPublicId,null,$contributor,$aiRunId);}
     return ['public_id'=>$lineage['public_id'],'response_hash'=>$responseHash,'context_hash'=>$contextHash,'attribution_count'=>count($normalized)];
 }
+function data_response_try_record(PDO $pdo,int $aiRunId,string $aiRunPublicId,?array $viewer,string $responseText,array $refs): ?array {
+    return data_attribution_best_effort(fn()=>data_response_record($pdo,$aiRunId,$aiRunPublicId,$viewer,$responseText,$refs));
+}
 function data_response_bind_message(PDO $pdo,string $aiRunPublicId,int $conversationMessageId): void {
     if(!data_attribution_ready($pdo))return;$pdo->prepare('UPDATE data_response_lineage drl JOIN ai_runs ar ON ar.id=drl.ai_run_id SET drl.conversation_message_id=? WHERE ar.public_id=?')->execute([$conversationMessageId,$aiRunPublicId]);
+}
+function data_response_try_bind_message(PDO $pdo,string $aiRunPublicId,int $conversationMessageId): void {
+    data_attribution_best_effort(fn()=>data_response_bind_message($pdo,$aiRunPublicId,$conversationMessageId));
 }
 function data_response_lineage_access(PDO $pdo,array $viewer,string $aiRunPublicId): ?array {
     if(!data_attribution_ready($pdo))return null;$q=$pdo->prepare('SELECT drl.*,ar.public_id ai_run_public_id,ar.user_id,ar.task_type,ar.scope_type,ar.scope_public_id,ar.created_at ai_created_at FROM data_response_lineage drl JOIN ai_runs ar ON ar.id=drl.ai_run_id WHERE ar.public_id=? LIMIT 1');$q->execute([$aiRunPublicId]);$r=$q->fetch();if(!$r)return null;if(($viewer['role']??'')!=='admin'&&(int)$r['user_id']!==(int)$viewer['id'])return null;
