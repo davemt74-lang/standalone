@@ -35,7 +35,7 @@ if($action==='publish'){
         if($project){$pdo->prepare('INSERT IGNORE INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$project['id'],$annotationId,$u['id']]);$pdo->prepare('INSERT IGNORE INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([$project['id'],$sourceId,$u['id']]);}
         live_event_emit_for_annotation($pdo,$annotationId,'annotation');if($project)live_event_emit_research_add($pdo,(int)$project['id'],$annotationId,(int)$u['id']);
         $intelligenceQueued=annotation_intelligence_queue($pdo,$annotationId,(int)$u['id'],4);$workspaceQueued=$project&&research_workspace_ready($pdo)?research_workspace_queue($pdo,(int)$project['id'],4):false;
-        if(function_exists('data_attribution_capture_object'))data_attribution_capture_object($pdo,(int)$u['id'],'annotation',$publicId);
+        if(function_exists('data_attribution_capture_object'))data_attribution_try_capture_object($pdo,(int)$u['id'],'annotation',$publicId);
         $pdo->commit();json_response(['ok'=>true,'data'=>['annotation_id'=>$publicId,'url'=>'/annotation.php?id='.$publicId,'media_queued'=>$isMedia,'transcription_queued'=>$transcriptionQueued,'research_added'=>(bool)$project,'intelligence_queued'=>$intelligenceQueued,'workspace_intelligence_queued'=>$workspaceQueued]],201);
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();foreach([$contextPath,$targetPath,$audioPath] as $stored){$abs=$stored?storage_path_to_absolute($config,(string)$stored):null;if($abs&&is_file($abs))@unlink($abs);}json_response(['ok'=>false,'error'=>['code'=>'PUBLISH_FAILED','message'=>$e->getMessage()?:'Unable to publish annotation.']],500);}
 }
