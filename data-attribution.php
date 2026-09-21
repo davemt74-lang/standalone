@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
 $u=require_user($pdo);
-$error='';$success='';
+$error='';$success='';$runId=trim((string)($_GET['run_id']??''));$lineage=null;
 if(!data_attribution_ready($pdo)){http_response_code(503);exit('Data & Attribution requires the Phase 37 database upgrade.');}
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$op=(string)($_POST['op']??'');
@@ -22,6 +22,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 data_attribution_sync_user($pdo,$u,250);
 $summary=data_contributor_summary($pdo,$u);$prefs=$summary['preferences'];
+if($runId!=='')$lineage=data_response_lineage_access($pdo,$u,$runId);
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data & Attribution · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="panel article dataAttributionPage">
   <div class="pageTitle"><span class="eyebrow">DATA & ATTRIBUTION</span><h1>Your contribution ledger</h1><p>See how your Annotated work is attributed and control whether eligible public contributions may improve Annotated Intelligence. Public visibility does not automatically grant model-training permission.</p></div>
@@ -57,6 +58,20 @@ $summary=data_contributor_summary($pdo,$u);$prefs=$summary['preferences'];
     <span class="eyebrow">RECENT LINEAGE</span><h2>Recent contribution states</h2>
     <?php if(!$summary['recent']):?><p class="empty">No contribution states yet.</p><?php else:?><div class="unifiedActivityList"><?php foreach($summary['recent'] as $row):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($row['contribution_type'])?></span><strong><?=h($row['object_type'])?> · <?=h($row['object_public_id'])?></strong></div><time><?=h($row['created_at'])?></time></div><p class="meta"><?= $row['superseded_at']?'Superseded by a newer state · '.h($row['superseded_at']):'Current recorded state'?></p></div></article><?php endforeach?></div><?php endif?>
   </section>
+
+  <?php if($runId!==''):?>
+  <section class="card">
+    <span class="eyebrow">RESPONSE LINEAGE</span><h2>Why this Agent answer had this context</h2>
+    <?php if(!$lineage):?><p class="error">This response lineage is unavailable or does not belong to your account.</p><?php else:?>
+      <p class="meta">AI run <?=h($lineage['ai_run_public_id'])?> · <?=h((string)count($lineage['attributions']))?> Annotated reference<?=count($lineage['attributions'])===1?'':'s'?> · response hash <?=h(substr((string)$lineage['response_hash'],0,16))?>…</p>
+      <?php if(!$lineage['attributions']):?><p class="empty">This response did not use a concrete attributable Annotated object reference.</p><?php else:?><div class="unifiedActivityList">
+        <?php foreach($lineage['attributions'] as $a):$type=(string)$a['object_type'];$id=(string)$a['object_public_id'];$href=match($type){'annotation'=>'/annotation.php?id='.rawurlencode($id),'source'=>'/source.php?id='.rawurlencode($id),'claim'=>'/research-claim.php?id='.rawurlencode($id),'finding'=>'/research-finding.php?id='.rawurlencode($id),'research_project'=>'/research-project.php?id='.rawurlencode($id),default=>''};?>
+          <article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h(str_replace('_',' ',$type))?></span><strong><?= $href!==''?'<a href="'.h($href).'">'.h($id).'</a>':h($id)?></strong></div><span class="meta">#<?=h((string)((int)$a['usage_rank']+1))?></span></div><p><?=h((string)($a['reason']??'Supplied as Annotated context.'))?></p><p class="meta">Contributor: <?=h((string)($a['contributor_name']?:($a['contributor_username']?:'Source / system')))?><?=!empty($a['object_version_id'])?' · version '.h((string)$a['object_version_id']):''?></p></div></article>
+        <?php endforeach?>
+      </div><?php endif?>
+    <?php endif?>
+  </section>
+  <?php endif?>
 
   <section class="card">
     <span class="eyebrow">BOUNDARY</span><h2>What this does not mean</h2>
