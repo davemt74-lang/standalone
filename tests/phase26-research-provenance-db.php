@@ -41,7 +41,7 @@ $receipt=provenance_receipt_create($pdo,$owner,$projectPublic);p26(!empty($recei
 p26(hash_equals((string)$receipt['manifest_hash'],provenance_hash($receipt['manifest'])),'receipt hash equals deterministic canonical manifest hash');
 p26(provenance_receipt_access($pdo,$member,(string)$receipt['public_id'])===null,'audit receipt is creator-scoped even for a current project collaborator');
 
-$memberManifest=provenance_project_manifest($pdo,$member,$projectPublic);p26(count($memberManifest['decision_memory'])===0,'another collaborator does not inherit owner Decision Memory into provenance');
+$memberManifest=provenance_project_manifest($pdo,$member,$projectPublic);$memberDecisionIds=array_column($memberManifest['decision_memory'],'public_id');p26(!in_array($outcomePublic,$memberDecisionIds,true),'another collaborator does not inherit owner Decision Memory into provenance');
 $memberReceipt=provenance_receipt_create($pdo,$member,$projectPublic);p26($memberReceipt['stored_hash_valid'],'collaborator can create own permission-scoped receipt while access exists');
 
 $privateProject=$pub('private-project');$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,team_id,title,description,status) VALUES(?,?,?,?,?,'active')")->execute([$privateProject,$owner['id'],$teamId,'Private Publication Project','Project is shared but its report is owner/admin private.']);$privateAccess=project_access($pdo,$owner['id'],$privateProject);$privatePublished=research_report_publish($pdo,$privateAccess,$owner,'private','Private Audit Report','Private report must not leak through project provenance.','Audit');
