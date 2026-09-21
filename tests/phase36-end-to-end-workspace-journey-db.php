@@ -68,6 +68,23 @@ $claimResult=$proposal('research.create_claim',['statement'=>'The captured sourc
 $claimPublic=(string)$claimResult['result']['public_id'];p36($claimResult['status']==='executed'&&research_claim_access($pdo,$owner,$claimPublic)!==null,'explicitly confirmed Agent action creates the Research Claim');
 $evidenceResult=$proposal('research.attach_annotation_evidence',['claim_id'=>$claimPublic,'annotation_id'=>$annotationPublic,'relationship'=>'primary','note'=>'Captured browser evidence']);
 p36($evidenceResult['status']==='executed','explicitly confirmed Agent action attaches the original Annotation as Claim evidence');
+
+/* Independent corroboration before verification */
+$corroboratingUrl='https://corroboration-'.$run.'.independent.example/evidence';$corroboratingSourcePublic=$pub('source2');$corroboratingTitle='Independent Corroborating Source';
+$pdo->prepare("INSERT INTO sources(public_id,source_type,canonical_url,canonical_url_hash,domain,title,status,monitoring_enabled,moderation_status) VALUES(?,'article',?,?,?,?,'current',1,'visible')")
+  ->execute([$corroboratingSourcePublic,$corroboratingUrl,hash('sha256',$corroboratingUrl),'independent.example',$corroboratingTitle]);$corroboratingSourceId=(int)$pdo->lastInsertId();
+$corroboratingText='Independent corroboration for the Phase 36 proposition '.$run;
+$pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,target_content_hash,captured_at) VALUES(?,1,?,?,?,?,?,NOW())")
+  ->execute([$corroboratingSourceId,$corroboratingUrl,$corroboratingTitle,$corroboratingText,hash('sha256',$corroboratingText),hash('sha256',$corroboratingText)]);$corroboratingVersionId=(int)$pdo->lastInsertId();
+$pdo->prepare('UPDATE sources SET current_version_id=? WHERE id=?')->execute([$corroboratingVersionId,$corroboratingSourceId]);
+$corroboratingCapturePublic=$pub('cap2');$pdo->prepare("INSERT INTO captures(public_id,source_id,source_version_id,user_id,capture_type,selected_text) VALUES(?,?,?,?,'text',?)")
+  ->execute([$corroboratingCapturePublic,$corroboratingSourceId,$corroboratingVersionId,$owner['id'],$corroboratingText]);$corroboratingCaptureId=(int)$pdo->lastInsertId();
+$corroboratingAnnotationPublic=$pub('ann2');$pdo->prepare("INSERT INTO annotations(public_id,user_id,source_id,source_version_id,capture_id,text_commentary,visibility,team_id,status,published_at) VALUES(?,?,?,?,?,?, 'team',?,'published',NOW())")
+  ->execute([$corroboratingAnnotationPublic,$owner['id'],$corroboratingSourceId,$corroboratingVersionId,$corroboratingCaptureId,'Independent corroboration',$teamId]);
+$pdo->prepare('INSERT INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([$projectId,$corroboratingSourceId,$owner['id']]);
+$pdo->prepare("INSERT INTO project_annotations(project_id,annotation_id,added_by_user_id) SELECT ?,id,? FROM annotations WHERE public_id=?")->execute([$projectId,$owner['id'],$corroboratingAnnotationPublic]);
+$corroboratingEvidence=$proposal('research.attach_annotation_evidence',['claim_id'=>$claimPublic,'annotation_id'=>$corroboratingAnnotationPublic,'relationship'=>'supports','note'=>'Independent corroborating evidence']);
+p36($corroboratingEvidence['status']==='executed','Agent-confirmed evidence attachment adds independent corroboration from a second domain');
 $pdo->prepare("UPDATE research_claims SET status='supported' WHERE public_id=?")->execute([$claimPublic]);
 $verification=research_verification_record($pdo,$owner,'claim',$claimPublic,'reviewed_current','Verified against the preserved browser capture before synthesis.');
 $verifiedWorkflow=research_workflow_state($pdo,$owner,$projectPublic);
