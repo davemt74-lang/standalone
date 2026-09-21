@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: annotated-package-${{ github.workflow }}-${{ github.ref }}
+  group: annotated-package-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
