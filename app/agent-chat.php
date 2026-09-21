@@ -70,6 +70,7 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         if(function_exists('research_reviews_ready')&&research_reviews_ready($pdo)){$reviews=research_review_context($pdo,$viewer,$publicId,10);if(!empty($reviews['text']))$text.="\n\n".$reviews['text'];$refs=array_merge($refs,(array)($reviews['refs']??[]));}
         if(function_exists('change_impact_ready')&&change_impact_ready($pdo)){$impact=change_impact_context($pdo,$viewer,$publicId,8);if(!empty($impact['text']))$text.="\n\n".$impact['text'];$refs=array_merge($refs,(array)($impact['refs']??[]));}
         if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo)){$outcomeCtx=research_outcome_context($pdo,$viewer,$publicId,15);if(!empty($outcomeCtx['text']))$text.="\n\n".$outcomeCtx['text'];$refs=array_merge($refs,(array)($outcomeCtx['refs']??[]));}
+        if(function_exists('research_network_ready')&&research_network_ready($pdo)){$networkCtx=research_network_project_context($pdo,$viewer,$publicId,12);if(!empty($networkCtx['text']))$text.="\n\n".$networkCtx['text'];$refs=array_merge($refs,(array)($networkCtx['refs']??[]));}
         $seen=[];$refs=array_values(array_filter($refs,function($r)use(&$seen){$k=($r['type']??'').':'.($r['id']??'');if($k===':'||isset($seen[$k]))return false;$seen[$k]=true;return true;}));
         return ['type'=>'research','public_id'=>$publicId,'label'=>$p['title'],'text'=>mb_substr($text,0,30000),'refs'=>$refs];
     }
