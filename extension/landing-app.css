@@ -354,3 +354,10 @@
 .evidencePackReplay{display:grid;gap:12px}.evidencePackDrift{border-left:4px solid currentColor}.evidencePackJson{max-height:70vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.78rem}.stickyEvidencePackRail{position:sticky;top:92px}
 @media(max-width:1050px){.evidencePackLayout,.evidencePackHub{grid-template-columns:1fr}.stickyEvidencePackRail{position:static}.evidencePackSummary{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.evidencePackLayout,.evidencePackHub{padding:14px}.evidencePackSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.evidencePackCard,.evidencePackProject{display:grid}}
+
+
+/* Phase 29 — Unified Research Workflow */
+.researchWorkflow{display:grid;gap:12px;margin:18px 0 22px}.researchWorkflowStages{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px}.researchWorkflowStage{display:flex;flex-direction:column;gap:3px;padding:10px 9px;border:1px solid var(--border,#e5e7eb);border-radius:10px;text-decoration:none}.researchWorkflowStage span{font-weight:700}.researchWorkflowStage small{font-size:.72rem;color:var(--muted,#6b7280)}.researchWorkflowStage.status-complete{opacity:.78}.researchWorkflowStage.status-current,.researchWorkflowStage.status-active{border-width:2px}.researchWorkflowStage.status-attention{border-left-width:4px}.researchWorkflowStage.status-upcoming{opacity:.5}
+.researchWorkflowNext{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px;border:1px solid var(--border,#e5e7eb);border-radius:14px;background:var(--surface,#fff)}.researchWorkflowNext h2{margin:.25rem 0}.researchLifecycleNav small{display:block;margin-top:10px;text-transform:uppercase;letter-spacing:.08em;font-size:.68rem;color:var(--muted,#6b7280)}.researchAdvancedTools{margin-top:10px}.researchAdvancedTools summary{cursor:pointer;font-weight:600}.researchPrimaryActions{margin-bottom:6px}
+@media(max-width:1050px){.researchWorkflowStages{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:700px){.researchWorkflowStages{grid-template-columns:repeat(2,minmax(0,1fr))}.researchWorkflowNext{display:grid}}
