@@ -83,6 +83,12 @@ $pdo->prepare("UPDATE annotations SET visibility='public' WHERE public_id=?")->e
 $restored=conversation_message_rows($pdo,$member,$conversation1['public_id']);$restoredRow=array_values(array_filter($restored['messages'],fn($r)=>$r['public_id']===$publicMessage['public_id']))[0]??[];
 p31(($restoredRow['attachments'][0]['available']??false)===true,'restoring Annotation access restores the reference without rewriting the Team message');
 
+$pdo->prepare('INSERT INTO blocks(blocker_user_id,blocked_user_id) VALUES(?,?)')->execute([$owner['id'],$member['id']]);
+p31(object_handoff_resolve($pdo,$member,'annotation',$publicAnn)===null,'user block prevents Annotation handoff resolution even when the Annotation is public');
+$blockedRows=conversation_message_rows($pdo,$member,$conversation1['public_id']);$blockedShared=array_values(array_filter($blockedRows['messages'],fn($r)=>$r['public_id']===$publicMessage['public_id']))[0]??[];
+p31(($blockedShared['attachments'][0]['available']??true)===false,'existing Team attachment becomes unavailable when author and recipient are blocked');
+$pdo->prepare('DELETE FROM blocks WHERE (blocker_user_id=? AND blocked_user_id=?) OR (blocker_user_id=? AND blocked_user_id=?)')->execute([$owner['id'],$member['id'],$member['id'],$owner['id']]);
+
 $normalized=object_handoff_normalize_attachments($pdo,$owner,conversation_access($pdo,$owner,$conversation1['public_id']),[['type'=>'annotation','public_id'=>$publicAnn],['type'=>'annotation','public_id'=>$publicAnn],['type'=>'bogus','public_id'=>'x']]);
 p31(count($normalized)===1,'handoff normalization deduplicates references and ignores unsupported object types');
 
