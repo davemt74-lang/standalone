@@ -1,0 +1,35 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$dsn=getenv('DB_DSN')?:'';$dbUser=getenv('DB_USER')?:'root';$dbPass=getenv('DB_PASS')?:'';if($dsn==='')throw new RuntimeException('DB_DSN is required.');
+$pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
+foreach(['installer','storage','jobs','concurrency','functions','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','cross-research','research-outcomes','research-reviews','change-impact','research-portfolio','living-research','research-network','research-provenance','research-verification','research-evidence-packs','research-workflow'] as $lib)require_once $root.'/app/'.$lib.'.php';
+function p29(bool $ok,string $m): void {if(!$ok)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
+$run='p29'.substr(bin2hex(random_bytes(6)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
+$makeUser=function(string $name)use($pdo,$run,$pub): array{$username=substr(strtolower($name).'_'.$run,0,48);$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,email_verified_at,status,role,plan_tier,live_presence_mode) VALUES(?,?,?,?,NOW(),'active','user','pro','cloaked')")->execute([$pub('u'),$username,$name,$username.'@example.test']);$id=(int)$pdo->lastInsertId();$pdo->prepare('INSERT IGNORE INTO user_preferences(user_id) VALUES(?)')->execute([$id]);$q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$id]);return $q->fetch();};
+$owner=$makeUser('WorkflowOwner');$reviewer=$makeUser('WorkflowReviewer');$outsider=$makeUser('WorkflowOutsider');
+$team=$pub('team');$pdo->prepare('INSERT INTO teams(public_id,owner_user_id,name) VALUES(?,?,?)')->execute([$team,$owner['id'],'Workflow Team']);$teamId=(int)$pdo->lastInsertId();$pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'owner'),(?,?,'researcher')")->execute([$teamId,$owner['id'],$teamId,$reviewer['id']]);
+$projectPublic=$pub('project');$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,team_id,title,description,status) VALUES(?,?,?,?,?,'active')")->execute([$projectPublic,$owner['id'],$teamId,'Workflow Research','Lifecycle fixture']);$projectId=(int)$pdo->lastInsertId();$project=project_access($pdo,$owner['id'],$projectPublic);
+
+$w=research_workflow_state($pdo,$owner,$projectPublic);p29($w['next']['stage']==='capture'&&$w['stages'][0]['status']==='current','empty Research starts at Capture');
+p29(empty(research_workflow_state($pdo,$outsider,$projectPublic)['available']),'workflow state respects project access');
+
+$url='https://workflow.example/'.$run;$sourcePublic=$pub('source');$pdo->prepare("INSERT INTO sources(public_id,source_type,canonical_url,canonical_url_hash,domain,title,status,monitoring_enabled,moderation_status) VALUES(?,'article',?,?,?,'Workflow Source','current',1,'visible')")->execute([$sourcePublic,$url,hash('sha256',$url),'workflow.example']);$sourceId=(int)$pdo->lastInsertId();$text='Workflow evidence';$pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,target_content_hash,captured_at) VALUES(?,1,?,'Workflow Source',?,?,?,NOW())")->execute([$sourceId,$url,$text,hash('sha256',$text),hash('sha256','target-'.$run)]);$sv=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=? WHERE id=?')->execute([$sv,$sourceId]);$pdo->prepare('INSERT INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([$projectId,$sourceId,$owner['id']]);
+$w=research_workflow_state($pdo,$owner,$projectPublic);p29($w['next']['stage']==='investigate','captured evidence advances workflow to Investigate');
+
+$claimPublic=$pub('claim');$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,'Workflow Claim','factual','supported')")->execute([$claimPublic,$projectId,$owner['id']]);$claimId=(int)$pdo->lastInsertId();$pdo->prepare("INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,source_version_id,relationship,note) VALUES(?,?,?,'source_version',?,'primary','Workflow evidence')")->execute([$pub('e'),$claimId,$owner['id'],$sv]);
+$w=research_workflow_state($pdo,$owner,$projectPublic);p29($w['next']['stage']==='verify','new Claim advances workflow to Verify while verification still needs attention');
+
+research_verification_record($pdo,$owner,'claim',$claimPublic,'reviewed_current','Current evidence reviewed.');
+$w=research_workflow_state($pdo,$owner,$projectPublic);p29($w['next']['stage']==='synthesize','current verified Claim advances workflow to Synthesize');
+
+$findingPublic=$pub('finding');$pdo->prepare("INSERT INTO research_findings(public_id,project_id,created_by_user_id,title,summary,status) VALUES(?,?,?,'Workflow Finding','Synthesis from the Claim.','final')")->execute([$findingPublic,$projectId,$owner['id']]);$findingId=(int)$pdo->lastInsertId();$pdo->prepare("INSERT INTO finding_claims(finding_id,claim_id,added_by_user_id,relationship,position) VALUES(?,?,?,'primary',0)")->execute([$findingId,$claimId,$owner['id']]);
+$w=research_workflow_state($pdo,$owner,$projectPublic);p29($w['next']['stage']==='review','Finding advances workflow to human Review');
+
+$review=research_review_create($pdo,$owner,'finding',$findingPublic,[$reviewer['id']],null,'Review before publication.');research_review_respond($pdo,$reviewer,(string)$review['public_id'],'approve','Reviewed.');research_review_complete($pdo,$owner,(string)$review['public_id']);
+$w=research_workflow_state($pdo,$owner,$projectPublic);p29($w['next']['stage']==='publish','completed review advances workflow to Publish');
+
+research_report_publish($pdo,$project,$owner,'team','Workflow Report','Published workflow report.','Workflow');$w=research_workflow_state($pdo,$owner,$projectPublic);p29($w['next']['stage']==='monitor'&&$w['stages'][6]['status']==='active','published Report closes the linear loop into ongoing Monitor');
+
+$ctx=research_workflow_context($pdo,$owner,$projectPublic);p29(str_contains($ctx['text'],'Capture → Investigate → Verify → Synthesize → Review → Publish → Monitor')&&str_contains($ctx['text'],'Next recommended step'),'Agent receives unified lifecycle and next-step context');
+$runtime=file_get_contents($root.'/app/research-workflow.php');p29(!str_contains($runtime,'ai_run(')&&!str_contains($runtime,'INSERT INTO')&&!str_contains($runtime,'UPDATE ')&&!str_contains($runtime,'DELETE FROM'),'workflow orchestration is deterministic and read-only');
+echo "Phase 29 Unified Research Workflow MariaDB suite passed.\n";
