@@ -68,9 +68,9 @@ function initializeSidebarBindings(){
   sidebarBind('notificationList','click',markNotification);
   sidebarBindClick('markAllNotifications',markAllNotificationsRead);
   sidebarBindClick('openNotificationSettings',()=>chrome.tabs.create({url:API_BASE+'/settings.php#notifications'}));
-  sidebarBindClick('openFullActivity',()=>chrome.tabs.create({url:API_BASE+'/activity.php'}));
+  sidebarBindClick('openFullActivity',()=>phase34WorkspaceOpen('/activity.php',{surface:'activity'}));
   sidebarBind('activityFeed','click',e=>{const button=e.target.closest('[data-activity-open]');if(button)chrome.tabs.create({url:API_BASE+String(button.dataset.activityOpen||'')});});
-  sidebarBindClick('openResearchWorkspace',()=>chrome.tabs.create({url:API_BASE+'/research.php'}));
+  sidebarBindClick('openResearchWorkspace',async()=>{const state=await phase34WorkspaceRead();phase34WorkspaceOpen(state.research_public_id?'/research-project.php?id='+encodeURIComponent(state.research_public_id):'/research.php',{surface:'research'});});
   sidebarBindClick('openPortfolio',()=>chrome.tabs.create({url:API_BASE+'/research-portfolio.php'}));
   sidebarBindClick('openPublications',()=>chrome.tabs.create({url:API_BASE+'/research-publications.php'}));
   sidebarBindClick('openNetwork',()=>chrome.tabs.create({url:API_BASE+'/research-network.php'}));
@@ -85,7 +85,9 @@ function initializeSidebarBindings(){
   sidebarBind('liveMessages','click',liveMessageAction);
   sidebarBind('liveEvents','click',liveEventAction);
   sidebarBindClick('cancelLiveReply',cancelLiveReply);
-  sidebarBindClick('confirmResearch',e=>{
+  sidebarBindClick('clearWorkspaceContext',()=>phase34WorkspaceClear());
+  sidebarBind('workspaceContextMiniChips','click',async e=>{const b=e.target.closest('[data-workspace-url]');if(b?.dataset.workspaceUrl)chrome.tabs.create({url:await phase34WorkspaceWebsiteUrl(String(b.dataset.workspaceUrl))});});
+    sidebarBindClick('confirmResearch',e=>{
     e.preventDefault();
     confirmResearch();
     document.getElementById('researchDialog')?.close();
