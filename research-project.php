@@ -78,4 +78,4 @@ $workflow=research_workflow_state($pdo,$u,$project['public_id']);
 <script src="/assets/js/research-agent.js?v=15.0"></script>
 <?php endif?>
 <script src="/assets/js/research-workspace.js?v=15.0"></script>
-<?=annotation_ui_scripts($u)?></body></html>
+<?=annotation_ui_scripts($u)?><script src="/assets/js/workspace-state.js?v=34.0"></script></body></html>
