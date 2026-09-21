@@ -123,7 +123,7 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     $run=ai_run($pdo,$config,$viewer,$isAdmin?'admin':'pro','agent_chat',$model,$system,$aiPrompt,array_merge($refs,[['type'=>'conversation','id'=>$conversation['public_id']]]),'agent_conversation',$conversation['public_id']);
     $parsed=agent_action_extract((string)$run['text']);
     $assistant=agent_chat_insert_agent_message($pdo,$conversation,(string)$parsed['body'],$userMessageId);
-    if(function_exists('data_response_bind_message'))data_response_try_bind_message($pdo,(string)$run['public_id'],(int)$assistant['id']);
+    if(function_exists('data_response_try_bind_message'))data_response_try_bind_message($pdo,(string)$run['public_id'],(int)$assistant['id']);
     if(function_exists('data_response_attribution_map')){$map=data_response_attribution_map($pdo,[(int)$assistant['id']]);$assistant['attribution']=$map[(int)$assistant['id']]??null;}
     $proposals=agent_actions_ready($pdo)?agent_action_create_proposals($pdo,$viewer,$conversation,(int)$assistant['id'],$context,(array)$parsed['actions'],$refs):[];
     $assistant['action_proposals']=$proposals;
