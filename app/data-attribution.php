@@ -134,6 +134,10 @@ function data_provenance_edge_record(PDO $pdo,string $fromType,string $fromPubli
     $q=$pdo->prepare('SELECT * FROM data_provenance_edges WHERE dedupe_key=? LIMIT 1');$q->execute([$dedupe]);return $q->fetch()?:null;
 }
 
+function data_provenance_try_edge_record(PDO $pdo,string $fromType,string $fromPublicId,?string $fromVersion,string $relationship,string $toType,string $toPublicId,?string $toVersion=null,?int $createdByUserId=null,?int $aiRunId=null,?float $confidence=null,?string $humanConfirmedAt=null,array $metadata=[]): ?array {
+    return data_attribution_best_effort(fn()=>data_provenance_edge_record($pdo,$fromType,$fromPublicId,$fromVersion,$relationship,$toType,$toPublicId,$toVersion,$createdByUserId,$aiRunId,$confidence,$humanConfirmedAt,$metadata));
+}
+
 function data_object_descriptor(PDO $pdo,string $objectType,string $publicId): ?array {
     $objectType=strtolower(trim($objectType));$publicId=trim($publicId);if($publicId==='')return null;
     if($objectType==='annotation'){
