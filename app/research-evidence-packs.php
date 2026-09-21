@@ -115,8 +115,14 @@ function research_evidence_pack_create(PDO $pdo,array $viewer,string $projectPub
     $project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)throw new RuntimeException('Research project is unavailable.');
     if(!in_array((string)($project['access_role']??''),['owner','admin','researcher'],true))throw new RuntimeException('You have view-only access to this Research project.');
     if($scopeType==='project')$scopePublic=$projectPublic;
-    $manifest=research_evidence_pack_manifest($pdo,$viewer,$projectPublic,$scopeType,$scopePublic);$json=research_evidence_pack_encode($manifest);$hash=hash('sha256',$json);$scopeHash=research_evidence_pack_scope_hash($manifest);$public=ulid_like();
-    $pdo->prepare('INSERT INTO research_evidence_packs(public_id,project_id,created_by_user_id,scope_type,scope_public_id,scope_hash,manifest_hash,manifest_json) VALUES(?,?,?,?,?,?,?,?)')->execute([$public,$project['id'],$viewer['id'],$scopeType,$scopePublic,$scopeHash,$hash,$json]);
+    $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+    try{
+        $manifest=research_evidence_pack_manifest($pdo,$viewer,$projectPublic,$scopeType,$scopePublic);
+        $json=research_evidence_pack_encode($manifest);$hash=hash('sha256',$json);$scopeHash=research_evidence_pack_scope_hash($manifest);$public=ulid_like();
+        $pdo->prepare('INSERT INTO research_evidence_packs(public_id,project_id,created_by_user_id,scope_type,scope_public_id,scope_hash,manifest_hash,manifest_json) VALUES(?,?,?,?,?,?,?,?)')
+          ->execute([$public,$project['id'],$viewer['id'],$scopeType,$scopePublic,$scopeHash,$hash,$json]);
+        if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return research_evidence_pack_access($pdo,$viewer,$public)??[];
 }
 
