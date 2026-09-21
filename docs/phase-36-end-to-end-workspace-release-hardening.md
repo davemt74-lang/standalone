@@ -36,11 +36,12 @@ This prevents a deployment from pairing the hardened PHP tree with older cached 
 3. The same Annotation is shared to Team Chat as a reference, not a copied object.
 4. It enters a shared Research project.
 5. Explicitly confirmed Agent actions create a Claim and attach the original evidence.
-6. A collaborator records current human Claim verification.
-7. Agent-assisted synthesis creates a Finding.
-8. A collaborator performs human review.
-9. The Research lifecycle reaches Publish.
-10. A public immutable Report Version is published and hash-verified.
+6. A second independent Source/domain is attached as corroborating evidence.
+7. A collaborator records current human Claim verification.
+8. Agent-assisted synthesis creates a Finding.
+9. A collaborator performs human review.
+10. The Research lifecycle reaches Publish.
+11. A public immutable Report Version is published and hash-verified.
 11. Workspace context re-resolves Team / Research / object / Agent references.
 12. The Source changes after publication.
 13. Source Integrity propagates downstream impact to Claim / Finding / Report.
