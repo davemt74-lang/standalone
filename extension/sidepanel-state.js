@@ -205,7 +205,7 @@ async function loadMe(showAccountView=false){
     }catch(e){
         const authFailure=e?.status===401&&['SESSION_EXPIRED','AUTH_REQUIRED','INVALID_OR_EXPIRED_CODE'].includes(String(e?.code||''));
         if(authFailure){
-            token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');
+            token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');if(typeof phase34WorkspaceClear==='function')await phase34WorkspaceClear();
             $('#status').textContent='Not signed in';$('#connect').textContent='Log in';
         }else{
             console.warn('[Annotated] Account check failed; preserving extension session.',e);
