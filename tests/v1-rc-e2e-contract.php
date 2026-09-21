@@ -27,7 +27,7 @@ $need('extension/sidepanel.html','id="create" class="createPanel"','Create New m
 $sidebarPageStart=strpos($sidebarHtml,'<section id="page"');$sidebarCreateStart=strpos($sidebarHtml,'<section id="create"');
 if($sidebarPageStart===false||$sidebarCreateStart===false||$sidebarCreateStart<=$sidebarPageStart)$fail[]='Standalone Create New panel must follow the This Page panel.';
 else{$pageOnly=substr($sidebarHtml,$sidebarPageStart,$sidebarCreateStart-$sidebarPageStart);if(str_contains($pageOnly,'class="capture"'))$fail[]='This Page must contain annotations only, not the annotation composer.';}
-$need('extension/sidepanel.css','repeat(5,minmax(0,1fr))','All five sidebar tabs must fit on one row.');
+$need('extension/sidepanel.css','repeat(6,minmax(0,1fr))','All six sidebar tabs must fit on one row.');
 $need('extension/sidepanel.css','white-space:nowrap','Sidebar tab labels must not wrap onto a second row.');
 $need('extension/sidepanel-feed.js','async function phase6OpenCreate','Header Create New must open the standalone composer.');
 $need('extension/sidepanel-capture.js',"phase6SwitchTab(pageTab)",'Publishing must return to This Page so the new annotation is visible.');
