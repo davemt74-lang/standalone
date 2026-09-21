@@ -269,7 +269,7 @@ async function phase35LoadActions(){
   if(!token){feed.innerHTML='<div class="hint">Connect your account to see actions.</div>';if(count)count.hidden=true;return;}
   feed.innerHTML='<div class="hint">Loading actions…</div>';
   try{
-    const j=await api('/api/action-center.php?limit=8'),data=j.data||{},rows=data.items||[];
+    const j=await api('/api/action-center.php?limit=60'),data=j.data||{},rows=(data.items||[]).slice(0,8);
     if(count){count.textContent=String(data.total||0);count.hidden=!(data.total>0);}
     feed.innerHTML=rows.length?rows.map(phase35ActionCard).join(''):'<div class="hint">You’re caught up.</div>';
   }catch(e){feed.innerHTML='<div class="hint">Unable to load actions.</div>';if(count)count.hidden=true;}
