@@ -20,7 +20,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
     }catch(Throwable $e){$error=$e->getMessage();}
 }
-data_attribution_sync_user($pdo,$u,250);
 $summary=data_contributor_summary($pdo,$u);$prefs=$summary['preferences'];
 if($runId!=='')$lineage=data_response_lineage_access($pdo,$u,$runId);
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data & Attribution · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
