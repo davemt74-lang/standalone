@@ -325,3 +325,13 @@
 .citationEdge{margin-bottom:12px}.citationHubCard{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.stickyCitationRail{position:sticky;top:92px}
 @media(max-width:1000px){.citationWorkspaceLayout,.citationNetworkLayout,.researchNetworkHub{grid-template-columns:1fr}.stickyCitationRail{position:static}.citationNetworkSummary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.citationWorkspaceLayout,.citationNetworkLayout,.researchNetworkHub{padding:14px}.citationHubCard{display:grid}.citationNetworkSummary{grid-template-columns:1fr 1fr}}
+
+/* Phase 26 — Research Provenance & Audit Ledger */
+.provenanceLayout,.auditReceiptLayout,.reportProvenanceLayout,.auditHubLayout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start;max-width:1560px;margin:0 auto;padding:24px}
+.provenanceSummary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:18px 0}.provenanceSummary .card{display:flex;flex-direction:column;gap:4px}.provenanceSummary strong{font-size:1.35rem}.provenanceSummary span{font-size:.8rem;color:var(--muted,#6b7280)}
+.provenanceIntegrity{margin:16px 0}.provenanceIntegrity h2{font-size:1rem;overflow-wrap:anywhere}.provenanceValid{border-left:4px solid currentColor}.provenanceInvalid{border-width:2px}
+.provenanceSection{margin-top:28px}.provenanceGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.provenanceBadges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px}
+.provenanceEdgeList{display:grid;gap:8px}.provenanceEdge{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}.provenanceEdge code{overflow-wrap:anywhere}.provenanceEdge strong{text-align:center;font-size:.8rem}
+.auditProjectList{display:grid;gap:14px}.auditProjectCard{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.stickyProvenanceRail{position:sticky;top:92px}
+@media(max-width:1050px){.provenanceLayout,.auditReceiptLayout,.reportProvenanceLayout,.auditHubLayout{grid-template-columns:1fr}.stickyProvenanceRail{position:static}.provenanceSummary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.provenanceLayout,.auditReceiptLayout,.reportProvenanceLayout,.auditHubLayout{padding:14px}.provenanceSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.provenanceGrid{grid-template-columns:1fr}.auditProjectCard,.provenanceEdge{display:grid;grid-template-columns:1fr}.provenanceEdge strong{text-align:left}}
