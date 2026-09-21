@@ -29,6 +29,31 @@ function research_workflow_counts(PDO $pdo,int $projectId): array {
     return array_map('intval',$r);
 }
 
+function research_workflow_accessible_review_counts(PDO $pdo,array $viewer,array $project): array {
+    if(!function_exists('research_reviews_ready')||!research_reviews_ready($pdo))return ['open_reviews'=>0,'completed_reviews'=>0];
+    $privateAllowed=in_array((string)($project['access_role']??''),['owner','admin'],true);
+    $q=$pdo->prepare("SELECT rr.status,COUNT(*) total
+      FROM research_reviews rr
+      LEFT JOIN research_report_versions rv ON rr.subject_type='report_version' AND rv.public_id=rr.subject_public_id
+      WHERE rr.project_id=? AND rr.subject_type IN ('claim','finding','report_version') AND rr.status IN ('open','completed')
+        AND (rr.subject_type<>'report_version' OR rv.visibility IN ('public','team') OR (rv.visibility='private' AND ?=1))
+      GROUP BY rr.status");
+    $q->execute([(int)$project['id'],$privateAllowed?1:0]);$out=['open_reviews'=>0,'completed_reviews'=>0];
+    foreach($q->fetchAll() as $row){if($row['status']==='open')$out['open_reviews']=(int)$row['total'];elseif($row['status']==='completed')$out['completed_reviews']=(int)$row['total'];}
+    return $out;
+}
+
+function research_workflow_accessible_report_counts(PDO $pdo,array $viewer,array $project): array {
+    $privateAllowed=in_array((string)($project['access_role']??''),['owner','admin'],true);
+    $q=$pdo->prepare("SELECT COUNT(DISTINCT rr.id) reports,COUNT(rv.id) report_versions
+      FROM research_reports rr
+      JOIN research_report_versions rv ON rv.report_id=rr.id
+      WHERE rr.project_id=? AND rr.status='published'
+        AND (rv.visibility IN ('public','team') OR (rv.visibility='private' AND ?=1))");
+    $q->execute([(int)$project['id'],$privateAllowed?1:0]);$row=$q->fetch()?:[];
+    return ['reports'=>(int)($row['reports']??0),'report_versions'=>(int)($row['report_versions']??0)];
+}
+
 function research_workflow_current_completed_reviews(PDO $pdo,array $viewer,int $projectId): int {
     if(!function_exists('research_reviews_ready')||!research_reviews_ready($pdo))return 0;
     $q=$pdo->prepare("SELECT public_id FROM research_reviews WHERE project_id=? AND status='completed' AND subject_type IN ('claim','finding','report_version') ORDER BY id DESC LIMIT 200");
@@ -37,7 +62,9 @@ function research_workflow_current_completed_reviews(PDO $pdo,array $viewer,int 
 
 function research_workflow_state(PDO $pdo,array $viewer,string $projectPublic): array {
     $project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)return ['available'=>false,'stages'=>[]];
-    $counts=research_workflow_counts($pdo,(int)$project['id']);$counts['current_completed_reviews']=research_workflow_current_completed_reviews($pdo,$viewer,(int)$project['id']);
+    $counts=research_workflow_counts($pdo,(int)$project['id']);
+    $counts=array_merge($counts,research_workflow_accessible_review_counts($pdo,$viewer,$project),research_workflow_accessible_report_counts($pdo,$viewer,$project));
+    $counts['current_completed_reviews']=research_workflow_current_completed_reviews($pdo,$viewer,(int)$project['id']);
     $verify=function_exists('research_verification_ready')&&research_verification_ready($pdo)?research_verification_project_summary($pdo,$viewer,$projectPublic,300):['available'=>false,'needs_attention'=>0,'contested'=>0,'stale'=>0,'no_evidence'=>0];
     $impact=function_exists('change_impact_ready')&&change_impact_ready($pdo)?change_impact_project_summary($pdo,$viewer,$projectPublic,20):['events'=>0,'unresolved'=>0,'high'=>0];
     $packs=function_exists('research_evidence_packs_ready')&&research_evidence_packs_ready($pdo)?research_evidence_pack_list($pdo,$viewer,$projectPublic,6):[];

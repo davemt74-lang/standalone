@@ -164,6 +164,21 @@ if(str_contains($phase30Workflow,"subject_type IN ('claim','finding','report_ver
 $phase30Project=(string)file_get_contents($root.'/research-project.php');if(!str_contains($phase30Project,'aria-current="step"'))$fail[]='Phase 30 lifecycle navigation must expose current-step accessibility semantics.';
 $phase30Packs=(string)file_get_contents($root.'/app/research-evidence-packs.php');if(!str_contains($phase30Packs,'research_evidence_pack_list($pdo,$viewer,(string)$projectPublic,3)'))$fail[]='Phase 30 Cognitive Evidence Pack drift work must remain bounded.';
 $phase30Doc=(string)file_get_contents($root.'/docs/RESEARCH-V1-COMPLETE.md');foreach(['Capture → Investigate → Verify → Synthesize → Review → Publish → Monitor','Feature freeze','Browser → Annotation → Feed → Team → Research → Agent → Publish'] as $needle)if(!str_contains($phase30Doc,$needle))$fail[]="Research V1 completion boundary missing: $needle";
+if(!is_file($root.'/tests/research-v1-final-audit-db.php'))$fail[]='Research V1 final independent audit suite is missing.';
+$finalAudit=(string)file_get_contents($root.'/tests/research-v1-final-audit-db.php');
+foreach(['adding Claim evidence invalidates','viewer-private Decision Memory','private Report Version visibility bypass','workflow ignores inaccessible private Report','metadata only'] as $needle)if(!str_contains($finalAudit,$needle))$fail[]="Research V1 final audit contract missing: $needle";
+$reviewRuntimeAudit=(string)file_get_contents($root.'/app/research-reviews.php');
+foreach(['research_review_claim_state_hash','research_review_finding_state_hash','research_report_version_access'] as $needle)if(!str_contains($reviewRuntimeAudit,$needle))$fail[]="Final audit review hardening missing: $needle";
+$packRuntimeAudit=(string)file_get_contents($root.'/app/research-evidence-packs.php');
+if(!str_contains($packRuntimeAudit,"unset(\$prov['evidence_packs'],\$prov['decision_memory'])"))$fail[]='Evidence Packs must exclude viewer-private Decision Memory.';
+if(!str_contains($packRuntimeAudit,'rep.created_by_user_id=?'))$fail[]='Evidence Pack access/listing must remain creator-scoped.';
+$workflowRuntimeAudit=(string)file_get_contents($root.'/app/research-workflow.php');
+foreach(['research_workflow_accessible_review_counts','research_workflow_accessible_report_counts'] as $needle)if(!str_contains($workflowRuntimeAudit,$needle))$fail[]="Permission-aware workflow counter missing: $needle";
+$impactRuntimeAudit=(string)file_get_contents($root.'/app/change-impact.php');
+if(!str_contains($impactRuntimeAudit,'research_report_version_access'))$fail[]='Change Impact must enforce Report Version visibility before exposing impacted reports.';
+$verificationRuntimeAudit=(string)file_get_contents($root.'/app/research-verification.php');
+if(str_contains($verificationRuntimeAudit,'independent_domains')||str_contains($verificationRuntimeAudit,'independent_domain_support'))$fail[]='Verification must not overclaim distinct domains as independent sources.';
+
 
 
 

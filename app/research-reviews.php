@@ -15,21 +15,68 @@ function research_review_event(PDO $pdo,int $reviewId,string $type,?int $actorId
       ->execute([$reviewId,mb_substr($type,0,48),$actorId,$payload?json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null]);
 }
 
+
+function research_review_claim_state_hash(PDO $pdo,array $claim): string {
+    $q=$pdo->prepare("SELECT ce.public_id,ce.evidence_type,ce.relationship,ce.note,
+        s.public_id source_public_id,sv.version_number,sv.content_hash,sv.target_content_hash,
+        a.public_id annotation_public_id,a.text_commentary,a.updated_at annotation_updated_at,c.selected_text
+      FROM claim_evidence ce
+      JOIN source_versions sv ON sv.id=ce.source_version_id
+      JOIN sources s ON s.id=sv.source_id
+      LEFT JOIN annotations a ON a.id=ce.annotation_id
+      LEFT JOIN captures c ON c.id=a.capture_id
+      WHERE ce.claim_id=? ORDER BY ce.public_id");
+    $q->execute([(int)$claim['id']]);$evidence=[];
+    foreach($q->fetchAll() as $e)$evidence[]=[
+        'id'=>$e['public_id'],'type'=>$e['evidence_type'],'relationship'=>$e['relationship'],
+        'source_id'=>$e['source_public_id'],'source_version'=>(int)$e['version_number'],
+        'source_content_hash'=>$e['content_hash'],'source_target_hash'=>$e['target_content_hash'],
+        'annotation_id'=>$e['annotation_public_id'],
+        'annotation_commentary_hash'=>$e['text_commentary']!==null?hash('sha256',(string)$e['text_commentary']):null,
+        'annotation_selected_text_hash'=>$e['selected_text']!==null?hash('sha256',(string)$e['selected_text']):null,
+        'annotation_updated_at'=>$e['annotation_updated_at'],
+        'note_hash'=>$e['note']!==null?hash('sha256',(string)$e['note']):null,
+    ];
+    $json=json_encode([
+        'statement'=>$claim['statement'],'claim_type'=>$claim['claim_type'],'status'=>$claim['status'],
+        'resolution_note'=>$claim['resolution_note'],'evidence'=>$evidence,
+    ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    if($json===false)throw new RuntimeException('Unable to hash Claim review state.');
+    return hash('sha256',$json);
+}
+
+function research_review_finding_state_hash(PDO $pdo,array $finding): string {
+    $q=$pdo->prepare("SELECT rc.*,fc.relationship finding_relationship,fc.position finding_position
+      FROM finding_claims fc JOIN research_claims rc ON rc.id=fc.claim_id
+      WHERE fc.finding_id=? ORDER BY fc.position,rc.public_id");
+    $q->execute([(int)$finding['id']]);$claims=[];
+    foreach($q->fetchAll() as $claim)$claims[]=[
+        'public_id'=>$claim['public_id'],'relationship'=>$claim['finding_relationship'],
+        'position'=>(int)$claim['finding_position'],'claim_state_hash'=>research_review_claim_state_hash($pdo,$claim),
+    ];
+    $json=json_encode([
+        'title'=>$finding['title'],'summary'=>$finding['summary'],'status'=>$finding['status'],'claims'=>$claims,
+    ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    if($json===false)throw new RuntimeException('Unable to hash Finding review state.');
+    return hash('sha256',$json);
+}
+
 function research_review_subject(PDO $pdo,array $viewer,string $type,string $publicId): ?array {
     $type=strtolower(trim($type));$publicId=trim($publicId);if($publicId==='')return null;
     if($type==='claim'){
         $q=$pdo->prepare("SELECT rc.*,rp.public_id project_public_id,rp.title project_title FROM research_claims rc JOIN research_projects rp ON rp.id=rc.project_id WHERE rc.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
-        $hash=hash('sha256',json_encode([$r['statement'],$r['claim_type'],$r['status'],$r['resolution_note']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+        $hash=research_review_claim_state_hash($pdo,$r);
         return ['type'=>'claim','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Claim: '.mb_substr((string)$r['statement'],0,190),'hash'=>$hash,'version_label'=>'Claim updated '.(string)$r['updated_at'],'url'=>'/research-claim.php?id='.rawurlencode($publicId),'summary'=>(string)$r['statement']];
     }
     if($type==='finding'){
         $q=$pdo->prepare("SELECT rf.*,rp.public_id project_public_id,rp.title project_title FROM research_findings rf JOIN research_projects rp ON rp.id=rf.project_id WHERE rf.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
-        $cq=$pdo->prepare('SELECT rc.public_id,fc.relationship,fc.position FROM finding_claims fc JOIN research_claims rc ON rc.id=fc.claim_id WHERE fc.finding_id=? ORDER BY fc.position,rc.public_id');$cq->execute([$r['id']]);$claims=$cq->fetchAll();
-        $hash=hash('sha256',json_encode([$r['title'],$r['summary'],$r['status'],$claims],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+        $hash=research_review_finding_state_hash($pdo,$r);
         return ['type'=>'finding','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Finding: '.(string)$r['title'],'hash'=>$hash,'version_label'=>'Finding updated '.(string)$r['updated_at'],'url'=>'/research-finding.php?id='.rawurlencode($publicId),'summary'=>(string)$r['summary']];
     }
     if($type==='report_version'){
-        $q=$pdo->prepare("SELECT rv.*,rr.public_id report_public_id,rr.current_version_id,rp.id project_id,rp.public_id project_public_id,rp.title project_title FROM research_report_versions rv JOIN research_reports rr ON rr.id=rv.report_id JOIN research_projects rp ON rp.id=rr.project_id WHERE rv.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
+        $q=$pdo->prepare("SELECT rv.*,rr.id report_id,rr.public_id report_public_id,rr.current_version_id,rp.id project_id,rp.public_id project_public_id,rp.title project_title,rp.owner_user_id,rp.team_id FROM research_report_versions rv JOIN research_reports rr ON rr.id=rv.report_id JOIN research_projects rp ON rp.id=rr.project_id WHERE rv.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
+        $reportMeta=['id'=>(int)$r['report_id'],'owner_user_id'=>(int)$r['owner_user_id'],'team_id'=>$r['team_id']];
+        if(!research_report_version_access($pdo,$reportMeta,(int)$r['version_number'],$viewer))return null;
         return ['type'=>'report_version','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Report v'.(int)$r['version_number'].': '.(string)$r['title'],'hash'=>(string)$r['snapshot_hash'],'version_label'=>'Report version '.(int)$r['version_number'],'url'=>'/research-report.php?id='.rawurlencode((string)$r['report_public_id']).'&v='.(int)$r['version_number'],'summary'=>(string)($r['summary']??''),'report_public_id'=>$r['report_public_id'],'version_number'=>(int)$r['version_number'],'version_id'=>(int)$r['id'],'current_version_id'=>(int)($r['current_version_id']??0)];
     }
     if($type==='agent_action'){
@@ -57,7 +104,7 @@ function research_review_eligible_reviewers(PDO $pdo,array $viewer,string $proje
     $project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)return [];
     $ids=[(int)$project['owner_user_id']=>true];
     if(!empty($project['team_id'])){$q=$pdo->prepare("SELECT user_id FROM team_members WHERE team_id=?");$q->execute([$project['team_id']]);foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id)$ids[(int)$id]=true;}
-    if(!$ids)return [];$in=implode(',',array_map('intval',array_keys($ids)));$q=$pdo->query("SELECT id,public_id,username,display_name,status FROM users WHERE id IN ($in) AND status='active' ORDER BY display_name,username");return $q->fetchAll();
+    if(!$ids)return [];$in=implode(',',array_map('intval',array_keys($ids)));$q=$pdo->query("SELECT id,public_id,username,display_name,status,role FROM users WHERE id IN ($in) AND status='active' ORDER BY display_name,username");return $q->fetchAll();
 }
 
 function research_review_access(PDO $pdo,array $viewer,string $publicId): ?array {
@@ -65,7 +112,7 @@ function research_review_access(PDO $pdo,array $viewer,string $publicId): ?array
     $q=$pdo->prepare("SELECT rr.*,rp.public_id project_public_id,rp.title project_title,rp.owner_user_id,rp.team_id,u.display_name requester_name,u.username requester_username
       FROM research_reviews rr JOIN research_projects rp ON rp.id=rr.project_id JOIN users u ON u.id=rr.requested_by_user_id WHERE rr.public_id=? LIMIT 1");$q->execute([trim($publicId)]);$r=$q->fetch();if(!$r)return null;
     if(!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
-    $state=research_review_subject_state($pdo,$viewer,$r);$r['subject_state']=$state;$r['is_stale']=$state['stale'];$r['stale_reason']=$state['reason'];$r['subject']=$state['subject'];
+    $state=research_review_subject_state($pdo,$viewer,$r);if($r['subject_type']==='report_version'&&empty($state['subject']))return null;$r['subject_state']=$state;$r['is_stale']=$state['stale'];$r['stale_reason']=$state['reason'];$r['subject']=$state['subject'];
     return $r;
 }
 
@@ -111,7 +158,8 @@ function research_review_create(PDO $pdo,array $viewer,string $subjectType,strin
     $project=project_access($pdo,(int)$viewer['id'],(string)$subject['project_public_id']);if(!$project||!project_can_write($project))throw new RuntimeException('Write access to the Research project is required to request review.');
     $eligible=[];foreach(research_review_eligible_reviewers($pdo,$viewer,(string)$project['public_id']) as $candidate)$eligible[(int)$candidate['id']]=$candidate;
     $reviewerIds=array_values(array_unique(array_map('intval',$reviewerIds)));$reviewerIds=array_values(array_filter($reviewerIds,fn($id)=>$id>0&&$id!==(int)$viewer['id']&&isset($eligible[$id])));
-    if(!$reviewerIds)throw new InvalidArgumentException('Choose at least one other current project collaborator to review this Research.');
+    if($subject['type']==='report_version')$reviewerIds=array_values(array_filter($reviewerIds,function($id)use($pdo,$eligible,$subjectPublic){return research_review_subject($pdo,$eligible[$id],'report_version',$subjectPublic)!==null;}));
+    if(!$reviewerIds)throw new InvalidArgumentException('Choose at least one other current project collaborator who can access this Research subject.');
     $due=null;if($dueAt!==null&&trim($dueAt)!==''){$ts=strtotime($dueAt);if($ts===false||$ts<=time())throw new InvalidArgumentException('Review deadline must be in the future.');$due=date('Y-m-d H:i:s',$ts);}
     $public=ulid_like();$title=mb_substr((string)$subject['title'],0,255);$instructions=mb_substr(trim($instructions),0,8000);
     $pdo->beginTransaction();try{
