@@ -21,27 +21,33 @@ function research_workflow_counts(PDO $pdo,int $projectId): array {
       (SELECT COUNT(*) FROM research_claims rc WHERE rc.project_id=?) claims,
       (SELECT COUNT(DISTINCT rc.id) FROM research_claims rc JOIN claim_evidence ce ON ce.claim_id=rc.id WHERE rc.project_id=?) claims_with_evidence,
       (SELECT COUNT(*) FROM research_findings rf WHERE rf.project_id=? AND rf.status<>'archived') findings,
-      (SELECT COUNT(*) FROM research_reviews rr WHERE rr.project_id=? AND rr.status='open') open_reviews,
-      (SELECT COUNT(*) FROM research_reviews rr WHERE rr.project_id=? AND rr.status='completed') completed_reviews,
+      (SELECT COUNT(*) FROM research_reviews rr WHERE rr.project_id=? AND rr.status='open' AND rr.subject_type IN ('claim','finding','report_version')) open_reviews,
+      (SELECT COUNT(*) FROM research_reviews rr WHERE rr.project_id=? AND rr.status='completed' AND rr.subject_type IN ('claim','finding','report_version')) completed_reviews,
       (SELECT COUNT(*) FROM research_reports rr WHERE rr.project_id=?) reports,
       (SELECT COUNT(*) FROM research_report_versions rv JOIN research_reports rr ON rr.id=rv.report_id WHERE rr.project_id=?) report_versions");
     $q->execute(array_fill(0,9,$projectId));$r=$q->fetch()?:[];
     return array_map('intval',$r);
 }
 
+function research_workflow_current_completed_reviews(PDO $pdo,array $viewer,int $projectId): int {
+    if(!function_exists('research_reviews_ready')||!research_reviews_ready($pdo))return 0;
+    $q=$pdo->prepare("SELECT public_id FROM research_reviews WHERE project_id=? AND status='completed' AND subject_type IN ('claim','finding','report_version') ORDER BY id DESC LIMIT 200");
+    $q->execute([$projectId]);$count=0;foreach($q->fetchAll(PDO::FETCH_COLUMN) as $publicId){$review=research_review_access($pdo,$viewer,(string)$publicId);if($review&&!$review['is_stale'])$count++;}return $count;
+}
+
 function research_workflow_state(PDO $pdo,array $viewer,string $projectPublic): array {
     $project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)return ['available'=>false,'stages'=>[]];
-    $counts=research_workflow_counts($pdo,(int)$project['id']);
+    $counts=research_workflow_counts($pdo,(int)$project['id']);$counts['current_completed_reviews']=research_workflow_current_completed_reviews($pdo,$viewer,(int)$project['id']);
     $verify=function_exists('research_verification_ready')&&research_verification_ready($pdo)?research_verification_project_summary($pdo,$viewer,$projectPublic,300):['available'=>false,'needs_attention'=>0,'contested'=>0,'stale'=>0,'no_evidence'=>0];
     $impact=function_exists('change_impact_ready')&&change_impact_ready($pdo)?change_impact_project_summary($pdo,$viewer,$projectPublic,20):['events'=>0,'unresolved'=>0,'high'=>0];
-    $packs=function_exists('research_evidence_packs_ready')&&research_evidence_packs_ready($pdo)?research_evidence_pack_list($pdo,$viewer,$projectPublic,30):[];
+    $packs=function_exists('research_evidence_packs_ready')&&research_evidence_packs_ready($pdo)?research_evidence_pack_list($pdo,$viewer,$projectPublic,6):[];
     $driftedPacks=count(array_filter($packs,fn($p)=>empty($p['current_matches_pack'])));
     $defs=research_workflow_stage_definitions($projectPublic);
     $hasCapture=($counts['sources']+$counts['annotations'])>0;
     $hasInvestigated=$counts['claims']>0;
     $verified=$hasInvestigated&&!empty($verify['available'])&&(int)$verify['needs_attention']===0&&(int)($verify['reviewed_current']??0)>=$counts['claims'];
     $hasSynthesis=$counts['findings']>0;
-    $reviewed=$counts['completed_reviews']>0&&$counts['open_reviews']===0;
+    $reviewed=$counts['current_completed_reviews']>0&&$counts['open_reviews']===0;
     $published=$counts['report_versions']>0;
     $monitorAttention=((int)($impact['unresolved']??0)>0)||$driftedPacks>0;
 
@@ -51,7 +57,7 @@ function research_workflow_state(PDO $pdo,array $viewer,string $projectPublic): 
       'verify'=>$verified?'complete':($hasInvestigated?'attention':'upcoming'),
       'synthesize'=>$hasSynthesis?'complete':($verified?'current':'upcoming'),
       'review'=>$reviewed?'complete':($hasSynthesis?($counts['open_reviews']>0?'attention':'current'):'upcoming'),
-      'publish'=>$published?'complete':($hasSynthesis&&($reviewed||$counts['completed_reviews']===0)?'current':'upcoming'),
+      'publish'=>$published?'complete':($hasSynthesis&&$reviewed?'current':'upcoming'),
       'monitor'=>$published?($monitorAttention?'attention':'active'):'upcoming',
     ];
 
@@ -60,7 +66,7 @@ function research_workflow_state(PDO $pdo,array $viewer,string $projectPublic): 
     elseif(!$verified)$next=['stage'=>'verify','title'=>'Verify the current Claims','detail'=>(int)($verify['needs_attention']??0)>0?(int)$verify['needs_attention'].' Claim(s) have evidence or review signals that need attention.':'Claims need current human verification before synthesis.','url'=>$defs['verify']['url'],'agent_prompt'=>'Explain which Claims need evidence verification or current human review and why. Preserve uncertainty and do not change Claim status automatically.'];
     elseif(!$hasSynthesis)$next=['stage'=>'synthesize','title'=>'Synthesize a Finding','detail'=>'The project has Claims without a Finding that summarizes what the evidence supports.','url'=>$defs['synthesize']['url'],'agent_prompt'=>'Review the verified Claims and propose a Finding only where the evidence supports one. Do not create it without confirmation.'];
     elseif($counts['open_reviews']>0)$next=['stage'=>'review','title'=>'Complete open human review','detail'=>$counts['open_reviews'].' collaborative review(s) are still open.','url'=>$defs['review']['url'],'agent_prompt'=>'Summarize the open Research reviews, disagreements, and evidence questions. Do not resolve reviews on my behalf.'];
-    elseif(!$reviewed&&$counts['completed_reviews']===0)$next=['stage'=>'review','title'=>'Request human review','detail'=>'The Research has Findings but no completed collaborative review yet.','url'=>$defs['review']['url'],'agent_prompt'=>'Identify the most important Claim or Finding to send for human review and explain why.'];
+    elseif(!$reviewed)$next=['stage'=>'review','title'=>'Request human review','detail'=>'The Research has Findings but no completed collaborative review yet.','url'=>$defs['review']['url'],'agent_prompt'=>'Identify the most important Claim or Finding to send for human review and explain why.'];
     elseif(!$published)$next=['stage'=>'publish','title'=>'Publish an immutable Report version','detail'=>'The Research has synthesized and reviewed material ready for a deliberate publication decision.','url'=>$defs['publish']['url'],'agent_prompt'=>'Outline a Report from the reviewed Findings and Claims. Preserve citations and uncertainty; do not publish without confirmation.'];
     elseif($monitorAttention)$next=['stage'=>'monitor','title'=>'Review changes since publication','detail'=>((int)($impact['unresolved']??0)).' unresolved change impact(s) and '.$driftedPacks.' drifted Evidence Pack(s) need review.','url'=>$defs['monitor']['url'],'agent_prompt'=>'Explain what changed after publication and which Research needs human review. Do not automatically republish or rewrite immutable records.'];
     else $next=['stage'=>'monitor','title'=>'Research loop is healthy','detail'=>'Published Research is being monitored. Capture new evidence or review changes when they appear.','url'=>$defs['monitor']['url'],'agent_prompt'=>'Summarize the current monitored Research state and identify only meaningful new work, if any.'];
