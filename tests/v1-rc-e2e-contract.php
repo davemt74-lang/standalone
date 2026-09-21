@@ -94,7 +94,7 @@ $need('api/conversations.php','require_api_mutation_auth','Team Chat mutations m
 $need('app/conversations.php','conversation_access','Conversation authorization must remain server-side.');
 $need('app/conversations.php','client_message_id','Conversation sends must remain retry-idempotent.');
 $need('team.php','#team-chat','Team workspace must deep-link into its Home Team Chat.');
-$need('extension/manifest.json','"version": "0.24.0"','The current Chrome extension release must be v0.24.0 for Phase 24.');
+$need('extension/manifest.json','"version": "0.25.0"','The current Chrome extension release must be v0.25.0 for Phase 25.');
 $need('home.php','teamChatSettingsButton','Team Chat rail must expose a footer settings icon.');
 $need('home.php','data-team-chat-popout','Team Chat rail must expose an active-chat popout control.');
 $need('home.php','data-team-chat-popups','Home must expose the desktop active-chat popup layer.');
@@ -136,7 +136,7 @@ $need('extension/sidepanel-feed.js','function phase13Intelligence','Chrome This 
 $need('extension/sidepanel-feed.js','data-action="open-related"','Chrome intelligence relationships must open the referenced annotation.');
 $need('app/agent-chat.php','annotation_intelligence_context_text','Agent Chat must receive permission-filtered Annotation Intelligence context.');
 $need('bin/queue-annotation-intelligence.php','annotation_intelligence_queue','Existing published annotations must have a backfill path.');
-$need('extension/manifest.json','"version": "0.24.0"','The current Chrome extension release must be v0.24.0 for Phase 24.');
+$need('extension/manifest.json','"version": "0.25.0"','The current Chrome extension release must be v0.25.0 for Phase 25.');
 $need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
 $need('app/research-workspace.php','research_workspace_queue','Research Workspace must queue hash-specific background synthesis.');
 $need('app/research-workspace.php','research_workspace_apply_ai_output','Research Workspace must validate and persist derived AI synthesis.');
@@ -171,7 +171,7 @@ $need('research-project.php','Propose tasks','Research Now must expose contextua
 $need('research-project.php','Draft finding','Research Now must expose a Finding proposal shortcut.');
 $need('assets/css/app.css','.agentActionProposal','Agent action proposals must have dedicated review styling.');
 
-$need('extension/manifest.json','"version": "0.24.0"','The current Chrome extension release must be v0.24.0 for Phase 24.');
+$need('extension/manifest.json','"version": "0.25.0"','The current Chrome extension release must be v0.25.0 for Phase 25.');
 $need('app/cognitive-feed.php','cognitive_feed_compose','Cognitive Feed must compose authoritative observations at request time.');
 $need('app/cognitive-feed.php','cognitive_feed_score','Cognitive Feed ranking must use an explicit deterministic scoring function.');
 $need('app/cognitive-feed.php',"'pending_agent_action'?100:98",'Pending user confirmations must retain the highest Cognitive Feed priority.');
@@ -188,7 +188,7 @@ $need('assets/css/app.css','.cognitiveCard','Cognitive Feed cards must have dedi
 
 
 
-$need('extension/manifest.json','"version": "0.24.0"','The current Chrome extension release must be v0.24.0 for Phase 24.');
+$need('extension/manifest.json','"version": "0.25.0"','The current Chrome extension release must be v0.25.0 for Phase 25.');
 $need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
 $need('app/research-workspace.php','research_workspace_queue','Research Workspace must queue hash-specific background synthesis.');
 $need('app/research-workspace.php','research_workspace_apply_ai_output','Research Workspace must validate and persist derived AI synthesis.');
