@@ -174,6 +174,8 @@ if(!str_contains($packRuntimeAudit,"unset(\$prov['evidence_packs'],\$prov['decis
 if(!str_contains($packRuntimeAudit,'rep.created_by_user_id=?'))$fail[]='Evidence Pack access/listing must remain creator-scoped.';
 $workflowRuntimeAudit=(string)file_get_contents($root.'/app/research-workflow.php');
 foreach(['research_workflow_accessible_review_counts','research_workflow_accessible_report_counts'] as $needle)if(!str_contains($workflowRuntimeAudit,$needle))$fail[]="Permission-aware workflow counter missing: $needle";
+$impactRuntimeAudit=(string)file_get_contents($root.'/app/change-impact.php');
+if(!str_contains($impactRuntimeAudit,'research_report_version_access'))$fail[]='Change Impact must enforce Report Version visibility before exposing impacted reports.';
 $verificationRuntimeAudit=(string)file_get_contents($root.'/app/research-verification.php');
 if(str_contains($verificationRuntimeAudit,'independent_domains')||str_contains($verificationRuntimeAudit,'independent_domain_support'))$fail[]='Verification must not overclaim distinct domains as independent sources.';
 
