@@ -44,6 +44,11 @@ p26(provenance_receipt_access($pdo,$member,(string)$receipt['public_id'])===null
 $memberManifest=provenance_project_manifest($pdo,$member,$projectPublic);p26(count($memberManifest['decision_memory'])===0,'another collaborator does not inherit owner Decision Memory into provenance');
 $memberReceipt=provenance_receipt_create($pdo,$member,$projectPublic);p26($memberReceipt['stored_hash_valid'],'collaborator can create own permission-scoped receipt while access exists');
 
+$privateProject=$pub('private-project');$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,team_id,title,description,status) VALUES(?,?,?,?,?,'active')")->execute([$privateProject,$owner['id'],$teamId,'Private Publication Project','Project is shared but its report is owner/admin private.']);$privateAccess=project_access($pdo,$owner['id'],$privateProject);$privatePublished=research_report_publish($pdo,$privateAccess,$owner,'private','Private Audit Report','Private report must not leak through project provenance.','Audit');
+$ownerPrivateManifest=provenance_project_manifest($pdo,$owner,$privateProject);p26(count($ownerPrivateManifest['report_versions'])===1,'project owner provenance includes owner-accessible private report version');
+$memberPrivateManifest=provenance_project_manifest($pdo,$member,$privateProject);p26(count($memberPrivateManifest['report_versions'])===0,'project researcher provenance does not reveal private report version');
+$memberPrivateIntegrity=provenance_project_report_integrity($pdo,$member,$privateProject);p26($memberPrivateIntegrity['total']===0&&$memberPrivateIntegrity['invalid']===0,'lightweight integrity feed does not leak private report existence or integrity state');
+
 $pdo->prepare("UPDATE research_claims SET statement='The provenance evidence supports this revised Claim.' WHERE public_id=?")->execute([$claimPublic]);$receiptAfter=provenance_receipt_access($pdo,$owner,(string)$receipt['public_id']);p26($receiptAfter['stored_hash_valid']&&!$receiptAfter['current_matches_receipt'],'later Research change causes current-state drift without rewriting receipt');
 p26(hash_equals((string)$receiptAfter['manifest_hash'],(string)$receipt['manifest_hash']),'receipt manifest hash remains immutable after project drift');
 
