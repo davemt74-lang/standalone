@@ -147,8 +147,8 @@ function data_dataset_items(PDO $pdo,string $publicId,int $limit=100,int $offset
     $d=data_dataset_get($pdo,$publicId);if(!$d)return [];$limit=max(1,min(500,$limit));$offset=max(0,$offset);$q=$pdo->prepare("SELECT ddi.*,u.display_name contributor_name FROM data_dataset_items ddi LEFT JOIN users u ON u.id=ddi.contributor_user_id WHERE ddi.dataset_id=? ORDER BY ddi.position LIMIT $limit OFFSET $offset");$q->execute([$d['id']]);return $q->fetchAll();
 }
 function data_dataset_export(PDO $pdo,array $viewer,string $publicId,bool $includeText=false): array {
-    data_dataset_require_admin($viewer);$d=data_dataset_get($pdo,$publicId);if(!$d)throw new RuntimeException('Dataset not found.');if($d['status']!=='frozen')throw new RuntimeException('Only frozen datasets can be exported.');
-    $status=data_dataset_current_use_status($pdo,$publicId);if($includeText&&!$status['usable'])throw new RuntimeException('Dataset data export is blocked because current rights, consent, content, provenance, or manifest integrity no longer validates.');
+    data_dataset_require_admin($viewer);$d=data_dataset_get($pdo,$publicId);if(!$d)throw new RuntimeException('Dataset not found.');if(!in_array($d['status'],['frozen','retired'],true))throw new RuntimeException('Only frozen or retired dataset manifests can be exported.');
+    $status=data_dataset_current_use_status($pdo,$publicId);if($includeText&&($d['status']!=='frozen'||!$status['usable']))throw new RuntimeException('Dataset data export is blocked because the dataset is retired or current rights, consent, content, provenance, or manifest integrity no longer validates.');
     $payload=data_dataset_manifest_payload($pdo,$d,$includeText);$payload['manifest_hash']=$d['manifest_hash'];$payload['current_use_status']=$status;
     data_dataset_event($pdo,(int)$d['id'],(int)$viewer['id'],$includeText?'exported_data':'exported_manifest',['usable'=>$status['usable']]);
     return $payload;
