@@ -70,6 +70,7 @@ function initializeSidebarBindings(){
   sidebarBindClick('openNotificationSettings',()=>chrome.tabs.create({url:API_BASE+'/settings.php#notifications'}));
   sidebarBindClick('openPortfolio',()=>chrome.tabs.create({url:API_BASE+'/research-portfolio.php'}));
   sidebarBindClick('openPublications',()=>chrome.tabs.create({url:API_BASE+'/research-publications.php'}));
+  sidebarBindClick('openNetwork',()=>chrome.tabs.create({url:API_BASE+'/research-network.php'}));
   sidebarBindClick('openImpact',()=>chrome.tabs.create({url:API_BASE+'/research-impact.php'}));
   sidebarBindClick('openReviews',()=>chrome.tabs.create({url:API_BASE+'/research-reviews.php'}));
   sidebarBindClick('openDecisionMemory',()=>chrome.tabs.create({url:API_BASE+'/research-outcomes.php'}));
