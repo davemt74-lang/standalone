@@ -425,9 +425,8 @@ function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): 
 }
 
 
-function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int $perSection=4,int $maxTotal=28): array {
-    $perSection=max(1,min(8,$perSection));$maxTotal=max(4,min(60,$maxTotal));
-    if(!cognitive_feed_ready($pdo))return ['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+function cognitive_feed_items(PDO $pdo,array $viewer,?array $teamList=null,bool $includeDismissed=false): array {
+    if(!cognitive_feed_ready($pdo))return ['ready'=>false,'items'=>[],'hidden_count'=>0];
     $items=[];
     cognitive_feed_collect_pending_actions($pdo,$viewer,$items);
     cognitive_feed_collect_research($pdo,$viewer,$items);
@@ -437,13 +436,21 @@ function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int
     cognitive_feed_collect_unified_activity($pdo,$viewer,$items);
 
     $dismissed=cognitive_feed_dismissed_keys($pdo,(int)$viewer['id']);$activeHidden=0;
-    foreach(array_keys($items) as $key)if(isset($dismissed[$key])){$activeHidden++;unset($items[$key]);}
+    foreach(array_keys($items) as $key)if(isset($dismissed[$key])){$activeHidden++;if(!$includeDismissed)unset($items[$key]);}
 
     $rows=array_values($items);
     usort($rows,function($a,$b){
         $score=((int)($b['score']??0))<=>((int)($a['score']??0));if($score!==0)return $score;
         return (strtotime((string)($b['created_at']??''))?:0)<=>(strtotime((string)($a['created_at']??''))?:0);
     });
+    return ['ready'=>true,'items'=>$rows,'hidden_count'=>$activeHidden];
+}
+
+function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int $perSection=4,int $maxTotal=28): array {
+    $perSection=max(1,min(8,$perSection));$maxTotal=max(4,min(60,$maxTotal));
+    $all=cognitive_feed_items($pdo,$viewer,$teamList,false);
+    if(empty($all['ready']))return ['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+    $rows=$all['items'];$activeHidden=(int)$all['hidden_count'];
 
     $defs=cognitive_feed_section_definitions();$buckets=[];$total=0;
     foreach($rows as $row){
