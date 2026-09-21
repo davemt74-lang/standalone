@@ -36,8 +36,8 @@ $pdo->prepare("INSERT INTO conversation_members(conversation_id,user_id,member_r
 $assistantPublic=$pub('assistant');$pdo->prepare("INSERT INTO conversation_messages(public_id,conversation_id,user_id,sender_type,body) VALUES(?,?,NULL,'agent','Proposed action')")
   ->execute([$assistantPublic,$agentId]);$assistantId=(int)$pdo->lastInsertId();
 $proposalPublic=$pub('proposal');
-$pdo->prepare("INSERT INTO agent_action_proposals(public_id,conversation_id,assistant_message_id,proposed_by_user_id,project_id,capability_key,status,arguments_json,provenance_json,project_state_hash,dedupe_key,expires_at) VALUES(?,?,?,?,?,'research.create_note','pending','{"body":"Review this"}','{}',?,?,DATE_ADD(NOW(),INTERVAL 1 DAY))")
-  ->execute([$proposalPublic,$agentId,$assistantId,$viewer['id'],$projectId,hash('sha256','state-'.$run),hash('sha256','dedupe-'.$run)]);
+$pdo->prepare("INSERT INTO agent_action_proposals(public_id,conversation_id,assistant_message_id,proposed_by_user_id,project_id,capability_key,status,arguments_json,provenance_json,project_state_hash,dedupe_key,expires_at) VALUES(?,?,?,?,?,'research.create_note','pending',?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY))")
+  ->execute([$proposalPublic,$agentId,$assistantId,$viewer['id'],$projectId,json_encode(['body'=>'Review this'],JSON_UNESCAPED_SLASHES),json_encode([],JSON_UNESCAPED_SLASHES),hash('sha256','state-'.$run),hash('sha256','dedupe-'.$run)]);
 
 $center=action_center_compose($pdo,$viewer,null,100);
 p35($center['ready']&&$center['total']>=3,'Action Center composes current actionable state');
