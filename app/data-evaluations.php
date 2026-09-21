@@ -134,7 +134,7 @@ function data_evaluation_model_prompt(array $suite,array $case,array $ranked,arr
     return ['system'=>(string)($suite['prompt_template']?:data_evaluation_default_prompt()),'prompt'=>$prompt,'refs'=>$refs,'context_text'=>implode("\n",$chunks)];
 }
 function data_evaluation_model_snapshot(PDO $pdo,?int $modelId): ?array {
-    if(!$modelId)return null;$m=ai_model_record($pdo,$modelId);return ['public_id'=>$m['public_id'],'display_name'=>$m['display_name'],'model_name'=>$m['model_name'],'provider_label'=>$m['provider_label'],'provider_type'=>$m['provider_type'],'max_output_tokens'=>(int)$m['max_output_tokens']];
+    if(!$modelId)return null;$m=ai_model_record($pdo,$modelId);return ['public_id'=>$m['public_id'],'display_name'=>$m['display_name'],'model_name'=>$m['model_name'],'provider_label'=>$m['provider_label'],'provider_type'=>$m['provider_type'],'api_base_hash'=>hash('sha256',(string)($m['api_base_url']??'')),'max_output_tokens'=>(int)$m['max_output_tokens']];
 }
 function data_evaluation_run_queue(PDO $pdo,array $viewer,string $suitePublicId): array {
     data_evaluation_require_admin($viewer);$s=data_evaluation_suite_get($pdo,$suitePublicId);if(!$s)throw new RuntimeException('Evaluation suite not found.');if($s['status']!=='active')throw new RuntimeException('Only active suites can be evaluated.');
@@ -178,6 +178,7 @@ function data_evaluation_execute_run(PDO $pdo,array $config,int $runId): array {
         $dataset=data_evaluation_dataset_assert($pdo,(int)$run['dataset_id']);if(!hash_equals((string)$run['dataset_manifest_hash'],(string)$dataset['manifest_hash']))throw new RuntimeException('Dataset manifest changed after the evaluation run was queued.');
         if(!hash_equals((string)$run['suite_config_hash'],(string)$suite['config_hash']))throw new RuntimeException('Suite configuration changed after the evaluation run was queued.');
         $casesHash=data_evaluation_cases_hash($pdo,(int)$suite['id']);if(!hash_equals((string)$run['cases_hash'],$casesHash))throw new RuntimeException('Benchmark cases changed after the evaluation run was queued.');
+        if($run['benchmark_type']==='model'){$queuedModel=json_decode((string)($run['model_snapshot_json']??''),true);$currentModel=data_evaluation_model_snapshot($pdo,(int)$run['model_id']);if(!is_array($queuedModel)||!hash_equals(data_attribution_hash($queuedModel),data_attribution_hash($currentModel)))throw new RuntimeException('Model configuration changed after the evaluation run was queued. Queue a new run against the current model configuration.');}
         $cases=data_evaluation_cases($pdo,(int)$suite['id']);$rows=data_evaluation_dataset_rows($pdo,(int)$run['dataset_id']);$rowsById=[];foreach($rows as $row)$rowsById[(int)$row['id']]=$row;$topK=(int)$suite['top_k'];
         $pdo->prepare('DELETE FROM data_evaluation_results WHERE run_id=?')->execute([$runId]);
         foreach($cases as $case){
