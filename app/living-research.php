@@ -57,8 +57,8 @@ function living_research_subscriber_count(PDO $pdo,int $reportId): int {
 }
 
 function living_research_notify_subscribers(PDO $pdo,array $report,int $versionNumber,int $actorUserId): int {
-    if(!living_research_ready($pdo))return 0;$q=$pdo->prepare('SELECT user_id FROM research_report_subscriptions WHERE report_id=? AND notify_updates=1');$q->execute([$report['id']]);$count=0;
-    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $uid){$uid=(int)$uid;$body='Research report updated to version '.$versionNumber.': '.$report['title'];$created=notification_create($pdo,$uid,$actorUserId,'research_report_updated','research_report',(string)$report['public_id'],$body,['category'=>'research','dedupe_key'=>'research-report:'.$report['public_id'].':v'.$versionNumber,'group_key'=>'research-report:'.$report['public_id'],'context'=>['report_public_id'=>$report['public_id'],'version_number'=>$versionNumber]]);if($created)$count++;}
+    if(!living_research_ready($pdo))return 0;$q=$pdo->prepare("SELECT u.* FROM research_report_subscriptions rrs JOIN users u ON u.id=rrs.user_id WHERE rrs.report_id=? AND rrs.notify_updates=1 AND u.status='active'");$q->execute([$report['id']]);$count=0;
+    foreach($q->fetchAll() as $subscriber){$uid=(int)$subscriber['id'];if(!research_report_access($pdo,(string)$report['public_id'],$subscriber))continue;$body='Research report updated to version '.$versionNumber.': '.$report['title'];$created=notification_create($pdo,$uid,$actorUserId,'research_report_updated','research_report',(string)$report['public_id'],$body,['category'=>'research','dedupe_key'=>'research-report:'.$report['public_id'].':v'.$versionNumber,'group_key'=>'research-report:'.$report['public_id'],'context'=>['report_public_id'=>$report['public_id'],'version_number'=>$versionNumber]]);if($created)$count++;}
     return $count;
 }
 
