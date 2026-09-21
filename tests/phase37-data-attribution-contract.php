@@ -14,16 +14,16 @@ if(str_contains($migration,'normalized_text')&&!str_contains($migration,'CREATE 
 $runtime=(string)file_get_contents($root.'/app/data-attribution.php');
 foreach(['data_contributor_preferences_update','data_usage_grant_set','data_source_rights_set','data_contribution_record','data_provenance_edge_record','data_provenance_try_edge_record','data_training_eligibility','data_corpus_refresh_object','data_attribution_sync_user','data_attribution_try_capture_object','data_attribution_try_capture_verification','data_attribution_try_capture_review_response','data_response_record','data_response_try_record','data_response_try_bind_message','data_response_lineage_access','data_response_attribution_map'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 37 runtime helper missing: '.$fn;
 foreach(["'reason'=>'object_not_public'","'reason'=>'no_contributor_consent'","'reason'=>'source_rights_not_approved'","'actor_type'=>'agent'"] as $needle){if(!str_contains($runtime,$needle)&&$needle!=="'actor_type'=>'agent'")$fail[]='Eligibility boundary missing: '.$needle;}
-if(str_contains($runtime,"selected_text")||str_contains($runtime,"extracted_text")&& !str_contains($runtime,"if($objectType==='source')"))$fail[]='Captured source text must not be treated as user-authored Annotation corpus.';
-$need('app/data-attribution.php',"trim((string)$r['text_commentary'])",'Annotation corpus must be built from contributor commentary.');
+if(str_contains($runtime,"selected_text")||str_contains($runtime,"extracted_text")&& !str_contains($runtime,"if(\$objectType==='source')"))$fail[]='Captured source text must not be treated as user-authored Annotation corpus.';
+$need('app/data-attribution.php',"trim((string)\$r['text_commentary'])",'Annotation corpus must be built from contributor commentary.');
 $need('app/data-attribution.php','data_attribution_best_effort','Inline attribution must remain rebuildable derived state and must not take down authoritative product writes.');
-$need('app/data-attribution.php',"if(($d['visibility']??'')!=='public'||empty($d['published']))",'Non-public user content must be blocked before shared corpus eligibility.');
-$need('app/data-attribution.php',"in_array((string)($rights['rights_class']??'unknown'),['unknown','restricted'],true)",'Unknown/restricted Source rights must be closed.');
+$need('app/data-attribution.php',"if((\$d['visibility']??'')!=='public'||empty(\$d['published']))",'Non-public user content must be blocked before shared corpus eligibility.');
+$need('app/data-attribution.php',"in_array((string)(\$rights['rights_class']??'unknown'),['unknown','restricted'],true)",'Unknown/restricted Source rights must be closed.');
 $need('app/data-attribution.php',"UPDATE data_corpus_items SET invalidated_at=COALESCE(invalidated_at,NOW())",'Revocation must invalidate derived corpus rather than erase the attribution ledger.');
 $need('app/data-attribution.php',"WHERE contributor_user_id=? AND invalidated_at IS NULL",'Contributor policy changes must invalidate all active derived corpus items without a pagination limit.');
 $need('app/data-attribution.php',"eligibility_reason='superseded_object_version'",'A newer authoritative object version must invalidate older active corpus versions.');
 $avoid('data-attribution.php','data_attribution_sync_user($pdo,$u,250)','Contributor dashboard loads must not run a bulk attribution backfill.');
-$need('app/data-attribution.php',"if(($viewer['role']??'')!=='admin'&&(int)$r['user_id']!==(int)$viewer['id'])return null",'AI response lineage must remain scoped to its initiating user or admin.');
+$need('app/data-attribution.php',"if((\$viewer['role']??'')!=='admin'&&(int)\$r['user_id']!==(int)\$viewer['id'])return null",'AI response lineage must remain scoped to its initiating user or admin.');
 
 $need('app/ai.php','data_response_try_record','Every completed AI run must record response lineage when Phase 37 is available.');
 $need('app/agent-chat.php','data_response_try_bind_message','Agent Chat must bind the visible assistant message to its AI response lineage.');
@@ -34,11 +34,11 @@ $need('home.php','agent-chat.js?v=37.0','Phase 37 Agent Chat client must use a f
 $need('data-attribution.php','RESPONSE LINEAGE','Contributor dashboard must render permission-checked response lineage.');
 $need('api/publish-annotation.php','data_attribution_try_capture_object','Website Annotation publishing must enter the contribution ledger.');
 $need('api/extension-publish.php','data_attribution_try_capture_object','Chrome Annotation publishing must enter the contribution ledger.');
-$need('research-knowledge.php',"'claim',$public",'Manual Claims must enter contribution lineage.');
-$need('research-knowledge.php',"'finding',$public",'Manual Findings must enter contribution lineage.');
-$need('research-claim.php',"'claim',(string)$claim['public_id']",'Claim edits and evidence changes must record a revised contribution state.');
-$need('research-finding.php',"'finding',(string)$finding['public_id']",'Finding edits and Claim-link changes must record a revised contribution state.');
-$need('app/research-reports.php',"'report_version',$vPublic",'Published Report versions must enter contribution lineage.');
+$need('research-knowledge.php',"'claim',\$public",'Manual Claims must enter contribution lineage.');
+$need('research-knowledge.php',"'finding',\$public",'Manual Findings must enter contribution lineage.');
+$need('research-claim.php',"'claim',(string)\$claim['public_id']",'Claim edits and evidence changes must record a revised contribution state.');
+$need('research-finding.php',"'finding',(string)\$finding['public_id']",'Finding edits and Claim-link changes must record a revised contribution state.');
+$need('app/research-reports.php',"'report_version',\$vPublic",'Published Report versions must enter contribution lineage.');
 $need('app/research-verification.php','data_attribution_try_capture_verification','Human verification must enter contribution lineage.');
 $need('app/research-reviews.php','data_attribution_try_capture_review_response','Human review responses must enter contribution lineage.');
 $need('app/agent-actions.php','data_attribution_try_capture_object','Confirmed Agent Research writes must enter the same contribution ledger.');
