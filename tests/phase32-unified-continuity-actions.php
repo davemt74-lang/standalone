@@ -21,7 +21,8 @@ p32(str_contains($agent,'function attachmentUrl')&&str_contains($agent,"annotati
 p32(str_contains($agent,"chip=document.createElement(href?'a':'span')"),'Agent only emits an object link when a deterministic destination exists');
 p32(str_contains($agentServer,'is_blocked($pdo,(int)$viewer[\'id\'],(int)$a[\'user_id\'])'),'Agent Annotation context preserves the app user-block boundary server-side');
 p32(str_contains($home,'data-agent-enabled=')&&str_contains($home,'user_is_pro($pdo,$u)'), 'Home renders current Agent capability into Team Chat without trusting client plan state');
-p32(str_contains($ui,'annotation-cards.js?v=32.0')&&str_contains($settings,'annotation-cards.js?v=32.0'),'website Annotation surfaces load the Phase 32 continuity runtime');
+preg_match('/annotation-cards\\.js\\?v=([0-9.]+)/',$ui,$uiVersion);preg_match('/annotation-cards\\.js\\?v=([0-9.]+)/',$settings,$settingsVersion);
+p32(!empty($uiVersion[1])&&($uiVersion[1]??'')===($settingsVersion[1]??'')&&version_compare((string)$uiVersion[1],'32.0','>='),'website Annotation surfaces share the Phase 32 continuity runtime at version 32.0 or newer');
 p32(version_compare((string)($manifest['version']??'0.0.0'),'0.32.0','>='),'Chrome extension version remains v0.32.0 or newer');
 p32(!str_contains($team,'INSERT INTO ')&&!str_contains($cards,'INSERT INTO '),'continuity action JavaScript does not introduce a persistence path');
 
