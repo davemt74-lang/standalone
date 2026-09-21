@@ -29,12 +29,12 @@ function rv_label(string $v): string {return ucwords(str_replace('_',' ',$v));}
 <div class="verificationSummary">
 <div class="card"><strong><?=h((string)$summary['total_claims'])?></strong><span>Claims</span></div>
 <div class="card"><strong><?=h((string)$summary['needs_attention'])?></strong><span>Need attention</span></div>
-<div class="card"><strong><?=h((string)$summary['independent_domain_support'])?></strong><span>Independent-domain support</span></div>
+<div class="card"><strong><?=h((string)$summary['distinct_domain_support'])?></strong><span>Distinct-domain support</span></div>
 <div class="card"><strong><?=h((string)$summary['contested'])?></strong><span>Contested</span></div>
 <div class="card"><strong><?=h((string)$summary['stale'])?></strong><span>Stale / mixed evidence</span></div>
 <div class="card"><strong><?=h((string)$summary['reviewed_current'])?></strong><span>Human-reviewed current</span></div>
 </div>
-<div class="verificationBoundary card"><strong>Interpretation boundary</strong><p>These are evidence-state signals, not truth certification. “Independent domains” is a source-diversity heuristic, not proof that sources are editorially independent. “Reviewed current” records a human review at a specific evidence state.</p></div>
+<div class="verificationBoundary card"><strong>Interpretation boundary</strong><p>These are evidence-state signals, not truth certification. “Distinct domains” is a source-diversity signal, not proof that sources are editorially independent. “Reviewed current” records a human review at a specific evidence state.</p></div>
 <section class="verificationClaims"><?php if(!$summary['claims']):?><div class="card empty">No Claims yet.</div><?php endif?>
 <?php foreach($summary['claims'] as $c):?><?php $cl=$c['claim'];?>
 <article class="card verificationClaim <?=$c['attention']?'verificationAttention':''?>">
