@@ -83,3 +83,5 @@ body.auth-open>nav,body.auth-open>main,body.auth-open>.landingPanel{display:none
 /* Phase 17 proactive notifications */
 .notificationWhy{margin:8px 0;padding:8px 10px;border:1px solid #e5e7eb;border-radius:9px;background:#fafafa;display:grid;gap:3px}
 .notificationWhy strong{font-size:11px}.notificationWhy span{font-size:12px;line-height:1.35}
+
+.researchPrimaryRow{margin-bottom:8px}.researchAdvancedMini{margin-top:8px}.researchAdvancedMini summary{cursor:pointer;font-size:12px;font-weight:700}.researchAdvancedMini .row{margin-top:8px}
