@@ -11,9 +11,7 @@ require_once __DIR__.'/agent-actions.php';
  * access or persists a second activity copy.
  */
 function unified_activity_ready(PDO $pdo): bool {
-    return installer_table_exists($pdo,'annotations')
-        && installer_table_exists($pdo,'conversation_messages')
-        && installer_table_exists($pdo,'research_projects');
+    return installer_table_exists($pdo,'annotations');
 }
 
 function unified_activity_item(array $data): array {
@@ -92,6 +90,7 @@ function unified_activity_team(PDO $pdo,array $viewer,array &$items,int $limit):
 }
 
 function unified_activity_project_annotations(PDO $pdo,array $viewer,array &$items,int $limit): void {
+    if(!installer_table_exists($pdo,'project_annotations')||!installer_table_exists($pdo,'research_projects'))return;
     $q=$pdo->prepare("SELECT pa.created_at,a.public_id annotation_public_id,a.text_commentary,
       rp.public_id project_public_id,rp.title project_title,
       u.public_id actor_public_id,u.username,u.display_name,pa.added_by_user_id
@@ -121,6 +120,7 @@ function unified_activity_project_annotations(PDO $pdo,array $viewer,array &$ite
 }
 
 function unified_activity_research_objects(PDO $pdo,array $viewer,array &$items,int $limit): void {
+    if(!installer_table_exists($pdo,'research_claims')||!installer_table_exists($pdo,'research_findings'))return;
     $claim=$pdo->prepare("SELECT rc.public_id,rc.statement,rc.status,rc.updated_at,rp.public_id project_public_id,rp.title project_title,u.public_id actor_public_id,u.username,u.display_name
       FROM research_claims rc JOIN research_projects rp ON rp.id=rc.project_id JOIN users u ON u.id=rc.created_by_user_id
       LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
@@ -133,7 +133,7 @@ function unified_activity_research_objects(PDO $pdo,array $viewer,array &$items,
           'type'=>'claim_updated','surface'=>'research','created_at'=>$row['updated_at'],
           'title'=>'Claim updated in '.$row['project_title'],'body'=>mb_substr((string)$row['statement'],0,280),
           'href'=>'/research-claim.php?id='.rawurlencode((string)$row['public_id']),
-          'actor'=>['public_id'=>$row['actor_public_id'],'name'=>$row['display_name']?:$row['username'],'username'=>$row['username']],
+          'actor'=>null,
           'object'=>['type'=>'claim','public_id'=>$row['public_id']],
           'context'=>[['type'=>'research','public_id'=>$row['project_public_id']],['type'=>'claim','public_id'=>$row['public_id']]],
           'meta'=>['project'=>$row['project_title'],'status'=>$row['status']]
@@ -151,7 +151,7 @@ function unified_activity_research_objects(PDO $pdo,array $viewer,array &$items,
           'type'=>'finding_updated','surface'=>'research','created_at'=>$row['updated_at'],
           'title'=>'Finding updated: '.$row['title'],'body'=>mb_substr((string)$row['summary'],0,280),
           'href'=>'/research-finding.php?id='.rawurlencode((string)$row['public_id']),
-          'actor'=>['public_id'=>$row['actor_public_id'],'name'=>$row['display_name']?:$row['username'],'username'=>$row['username']],
+          'actor'=>null,
           'object'=>['type'=>'finding','public_id'=>$row['public_id']],
           'context'=>[['type'=>'research','public_id'=>$row['project_public_id']],['type'=>'finding','public_id'=>$row['public_id']]],
           'meta'=>['project'=>$row['project_title'],'status'=>$row['status']]
@@ -168,7 +168,7 @@ function unified_activity_reports(PDO $pdo,array $viewer,array &$items,int $limi
       JOIN research_projects rp ON rp.id=rr.project_id
       JOIN users u ON u.id=rv.published_by_user_id
       LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
-      WHERE rp.owner_user_id=? OR tm.user_id=? OR rv.visibility='public'
+      WHERE rp.owner_user_id=? OR tm.user_id=?
       ORDER BY rv.id DESC LIMIT ".$limit);
     $q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
     foreach($q->fetchAll() as $row){
