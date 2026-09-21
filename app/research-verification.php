@@ -39,11 +39,9 @@ function research_verification_encode(array $value): string {
 function research_verification_claim_subject_hash(PDO $pdo,string $claimPublic): string {
     $q=$pdo->prepare('SELECT id,statement,claim_type,status,resolution_note,updated_at FROM research_claims WHERE public_id=? LIMIT 1');
     $q->execute([trim($claimPublic)]);$claim=$q->fetch();if(!$claim)return '';
-    $eq=$pdo->prepare('SELECT public_id,evidence_type,annotation_id,source_version_id,relationship,note,created_at FROM claim_evidence WHERE claim_id=? ORDER BY public_id');
-    $eq->execute([$claim['id']]);$evidence=$eq->fetchAll();
+    if(function_exists('research_review_claim_state_hash'))return research_review_claim_state_hash($pdo,$claim);
     return hash('sha256',research_verification_encode([
-        'statement'=>$claim['statement'],'claim_type'=>$claim['claim_type'],'status'=>$claim['status'],
-        'resolution_note'=>$claim['resolution_note'],'evidence'=>$evidence,
+        'statement'=>$claim['statement'],'claim_type'=>$claim['claim_type'],'status'=>$claim['status'],'resolution_note'=>$claim['resolution_note'],
     ]));
 }
 
@@ -64,11 +62,6 @@ function research_verification_subject(PDO $pdo,array $viewer,string $type,strin
     if(!$subject)return null;
     $project=project_access($pdo,(int)$viewer['id'],(string)$subject['project_public_id']);if(!$project)return null;
     $hash=(string)$subject['hash'];
-    if($type==='finding'){
-        $q=$pdo->prepare('SELECT rc.public_id FROM research_findings rf JOIN finding_claims fc ON fc.finding_id=rf.id JOIN research_claims rc ON rc.id=fc.claim_id WHERE rf.public_id=? ORDER BY fc.position,rc.public_id');
-        $q->execute([$public]);$claimHashes=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $claimPublic)$claimHashes[(string)$claimPublic]=research_verification_claim_subject_hash($pdo,(string)$claimPublic);
-        $hash=hash('sha256',research_verification_encode(['finding'=>$hash,'claims'=>$claimHashes]));
-    }
     return [
         'type'=>$type,'public_id'=>$public,'project_id'=>(int)$subject['project_id'],
         'project_public_id'=>(string)$subject['project_public_id'],'project_title'=>(string)$subject['project_title'],
@@ -149,20 +142,21 @@ function research_verification_human_state(PDO $pdo,array $viewer,array $subject
       FROM research_verification_events rve JOIN users u ON u.id=rve.reviewer_user_id
       WHERE rve.project_id=? AND rve.subject_type=? AND rve.subject_public_id=?
       ORDER BY rve.id DESC LIMIT ".$limit);
-    $q->execute([$subject['project_id'],$subject['type'],$subject['public_id']]);$current=[];$stale=[];$counts=['reviewed_current'=>0,'needs_review'=>0,'disputed'=>0,'abstained'=>0];
+    $q->execute([$subject['project_id'],$subject['type'],$subject['public_id']]);$current=[];$stale=[];$counts=['reviewed_current'=>0,'needs_review'=>0,'disputed'=>0,'abstained'=>0];$effectiveReviewers=[];
     foreach($q->fetchAll() as $r){
         $isCurrent=hash_equals((string)$r['subject_hash'],(string)$subject['hash']);
         if($isCurrent&&function_exists('change_impact_subject_latest_event')){
             $upstream=change_impact_subject_latest_event($pdo,$viewer,(string)$subject['type'],(string)$subject['public_id'],(string)$r['created_at']);
             if($upstream)$isCurrent=false;
         }
+        $reviewerKey=(string)$r['reviewer_user_id'];$effective=$isCurrent&&!isset($effectiveReviewers[$reviewerKey]);
+        if($effective){$effectiveReviewers[$reviewerKey]=true;$counts[(string)$r['decision']]++;}
         $row=[
             'public_id'=>$r['public_id'],'decision'=>$r['decision'],'note'=>$r['note'],'created_at'=>$r['created_at'],
             'reviewer'=>['public_id'=>$r['reviewer_public_id'],'name'=>$r['display_name']?:$r['username']],
-            'evidence_state_hash'=>$r['evidence_state_hash'],'is_current'=>$isCurrent,
+            'evidence_state_hash'=>$r['evidence_state_hash'],'is_current'=>$isCurrent,'is_effective'=>$effective,
         ];
-        if($isCurrent){$current[]=$row;$counts[(string)$r['decision']]++;}
-        else $stale[]=$row;
+        if($isCurrent)$current[]=$row;else $stale[]=$row;
     }
     $nonAbstainKinds=0;foreach(['reviewed_current','needs_review','disputed'] as $d)if($counts[$d]>0)$nonAbstainKinds++;
     if($nonAbstainKinds>1)$state='mixed';
@@ -172,9 +166,8 @@ function research_verification_human_state(PDO $pdo,array $viewer,array $subject
     elseif($counts['abstained']>0)$state='abstained';
     elseif($stale)$state='stale';
     else $state='not_reviewed';
-    return ['state'=>$state,'current'=>$current,'stale'=>$stale,'counts'=>$counts];
+    return ['state'=>$state,'current'=>$current,'stale'=>$stale,'counts'=>$counts,'effective_reviewers'=>count($effectiveReviewers)];
 }
-
 function research_verification_claim_state(PDO $pdo,array $viewer,array $claim): array {
     $signal=research_verification_claim_signal($pdo,$viewer,$claim);
     $subject=research_verification_subject($pdo,$viewer,'claim',(string)$claim['public_id']);
