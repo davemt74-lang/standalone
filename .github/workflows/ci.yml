@@ -261,6 +261,12 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase30-research-completion-db.php
+      - name: Research V1 final independent audit MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/research-v1-final-audit-db.php
 
 
   mysql8-fresh-install:
