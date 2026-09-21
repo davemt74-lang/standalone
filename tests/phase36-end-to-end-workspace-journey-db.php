@@ -57,11 +57,11 @@ $project=project_access($pdo,(int)$owner['id'],$projectPublic);p36((bool)$projec
 /* Agent conversation + explicit confirmed actions */
 $agentPublic=$pub('agent');$pdo->prepare("INSERT INTO conversations(public_id,conversation_type,created_by_user_id,title) VALUES(?,'agent',?,'Journey Agent')")->execute([$agentPublic,$owner['id']]);$agentConversationId=(int)$pdo->lastInsertId();
 $pdo->prepare("INSERT INTO conversation_members(conversation_id,user_id,member_role) VALUES(?,?,'owner')")->execute([$agentConversationId,$owner['id']]);
-$proposal=function(string $capability,array $args)use($pdo,$owner,$projectId,$agentConversationId,$pub,$run): array {
+$proposal=function(string $capability,array $args)use($pdo,$owner,$projectId,$projectPublic,$agentConversationId,$pub,$run): array {
     $assistantPublic=$pub('assistant');$pdo->prepare("INSERT INTO conversation_messages(public_id,conversation_id,user_id,sender_type,body) VALUES(?,?,NULL,'agent','Proposed bounded Research action.')")->execute([$assistantPublic,$agentConversationId]);$assistantId=(int)$pdo->lastInsertId();
     $proposalPublic=$pub('proposal');$hash=research_workspace_input_hash($pdo,$projectId);
     $pdo->prepare("INSERT INTO agent_action_proposals(public_id,conversation_id,assistant_message_id,proposed_by_user_id,project_id,capability_key,status,arguments_json,provenance_json,project_state_hash,dedupe_key,expires_at) VALUES(?,?,?,?,?,?,'pending',?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY))")
-      ->execute([$proposalPublic,$agentConversationId,$assistantId,$owner['id'],$projectId,$capability,json_encode($args,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode([['type'=>'research','public_id'=>(string)$projectId]],JSON_UNESCAPED_SLASHES),$hash,hash('sha256',$run.$proposalPublic)]);
+      ->execute([$proposalPublic,$agentConversationId,$assistantId,$owner['id'],$projectId,$capability,json_encode($args,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode([['type'=>'research','public_id'=>$projectPublic]],JSON_UNESCAPED_SLASHES),$hash,hash('sha256',$run.$proposalPublic)]);
     return agent_action_confirm_execute($pdo,$owner,$proposalPublic);
 };
 $claimResult=$proposal('research.create_claim',['statement'=>'The captured source supports the Phase 36 proposition.','claim_type'=>'factual']);
