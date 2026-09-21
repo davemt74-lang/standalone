@@ -36,6 +36,7 @@ function agent_chat_message_rows(PDO $pdo,array $viewer,string $conversationPubl
     $q=$pdo->prepare('SELECT message_id,attachment_type,object_public_id,metadata_json FROM conversation_message_attachments WHERE message_id IN (SELECT id FROM conversation_messages WHERE conversation_id=?) ORDER BY id');
     $q->execute([$c['id']]);$by=[];foreach($q->fetchAll() as $a){$meta=json_decode((string)($a['metadata_json']??''),true);$by[(int)$a['message_id']][]=['type'=>$a['attachment_type'],'public_id'=>$a['object_public_id'],'metadata'=>is_array($meta)?$meta:[]];}
     foreach($data['messages'] as &$m){$m['attachments']=$by[(int)$m['id']]??[];$m['role']=($m['sender_type']??'user')==='agent'?'assistant':'user';$m['action_proposals']=($m['role']==='assistant'&&agent_actions_ready($pdo))?agent_action_message_proposals($pdo,$viewer,(int)$m['id']):[];}unset($m);
+    if(function_exists('data_response_attribution_map')){$messageIds=array_map(fn($m)=>(int)$m['id'],$data['messages']);$lineage=data_response_attribution_map($pdo,$messageIds);foreach($data['messages'] as &$m)if(isset($lineage[(int)$m['id']]))$m['attribution']=$lineage[(int)$m['id']];unset($m);}
     return $data;
 }
 function agent_chat_context_options(PDO $pdo,array $viewer): array {
@@ -106,7 +107,7 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     $userMessage=conversation_message_create($pdo,$viewer,$conversation['public_id'],$prompt,null,$clientMessageId);
     $userMessageId=(int)$userMessage['id'];
     if(!$userMessage['created']){
-        $q=$pdo->prepare("SELECT id,public_id,body FROM conversation_messages WHERE conversation_id=? AND parent_message_id=? AND sender_type='agent' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");$q->execute([$conversation['id'],$userMessageId]);if($existing=$q->fetch())return ['conversation'=>['public_id'=>$conversation['public_id'],'title'=>$conversation['title']],'user_message'=>$userMessage,'assistant_message'=>['id'=>(int)$existing['id'],'public_id'=>$existing['public_id'],'body'=>$existing['body'],'sender_type'=>'agent','role'=>'assistant','action_proposals'=>agent_actions_ready($pdo)?agent_action_message_proposals($pdo,$viewer,(int)$existing['id']):[]],'deduplicated'=>true];
+        $q=$pdo->prepare("SELECT id,public_id,body FROM conversation_messages WHERE conversation_id=? AND parent_message_id=? AND sender_type='agent' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");$q->execute([$conversation['id'],$userMessageId]);if($existing=$q->fetch()){$assistant=['id'=>(int)$existing['id'],'public_id'=>$existing['public_id'],'body'=>$existing['body'],'sender_type'=>'agent','role'=>'assistant','action_proposals'=>agent_actions_ready($pdo)?agent_action_message_proposals($pdo,$viewer,(int)$existing['id']):[]];if(function_exists('data_response_attribution_map')){$map=data_response_attribution_map($pdo,[(int)$existing['id']]);$assistant['attribution']=$map[(int)$existing['id']]??null;}return ['conversation'=>['public_id'=>$conversation['public_id'],'title'=>$conversation['title']],'user_message'=>$userMessage,'assistant_message'=>$assistant,'deduplicated'=>true];}
     }
     if($userMessage['created'])foreach($context as $item)$pdo->prepare('INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,?,?,?)')->execute([$userMessageId,$item['type'],$item['public_id'],json_encode(['label'=>$item['label']],JSON_UNESCAPED_SLASHES)]);
     $isAdmin=($viewer['role']??'')==='admin';$quota=rate_limit_consume($pdo,$isAdmin?'agent-chat-admin':'agent-chat-pro','user:'.$viewer['id'],$isAdmin?300:60,3600);if(!$quota['allowed'])throw new RuntimeException('Agent Chat request limit reached. Try again in about '.max(1,(int)ceil($quota['retry_after']/60)).' minute(s).');
@@ -122,6 +123,8 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     $run=ai_run($pdo,$config,$viewer,$isAdmin?'admin':'pro','agent_chat',$model,$system,$aiPrompt,array_merge($refs,[['type'=>'conversation','id'=>$conversation['public_id']]]),'agent_conversation',$conversation['public_id']);
     $parsed=agent_action_extract((string)$run['text']);
     $assistant=agent_chat_insert_agent_message($pdo,$conversation,(string)$parsed['body'],$userMessageId);
+    if(function_exists('data_response_bind_message'))data_response_bind_message($pdo,(string)$run['public_id'],(int)$assistant['id']);
+    if(function_exists('data_response_attribution_map')){$map=data_response_attribution_map($pdo,[(int)$assistant['id']]);$assistant['attribution']=$map[(int)$assistant['id']]??null;}
     $proposals=agent_actions_ready($pdo)?agent_action_create_proposals($pdo,$viewer,$conversation,(int)$assistant['id'],$context,(array)$parsed['actions'],$refs):[];
     $assistant['action_proposals']=$proposals;
     return ['conversation'=>['public_id'=>$conversation['public_id'],'title'=>$conversation['title']],'user_message'=>$userMessage,'assistant_message'=>$assistant,'deduplicated'=>false];
