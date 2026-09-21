@@ -81,14 +81,18 @@ function change_impact_snapshot_refs(array $snapshot): array {
     return $out;
 }
 
-function change_impact_report_rows(PDO $pdo,array $event,array $project,array $claims,array $findings): array {
+function change_impact_report_rows(PDO $pdo,array $viewer,array $event,array $project,array $claims,array $findings): array {
     $claimSet=array_fill_keys(array_column($claims,'public_id'),true);$findingSet=array_fill_keys(array_column($findings,'public_id'),true);$source=(string)$event['source_public_id'];
     $q=$pdo->prepare("SELECT rv.public_id,rv.version_number,rv.title,rv.summary,rv.snapshot_json,rv.snapshot_hash,rv.created_at,
-      rr.public_id report_public_id,rr.current_version_id,rv.id version_id
+      rr.id report_id_internal,rr.public_id report_public_id,rr.current_version_id,rv.id version_id
       FROM research_report_versions rv JOIN research_reports rr ON rr.id=rv.report_id
       WHERE rr.project_id=? AND rv.created_at<=? ORDER BY rv.version_number DESC");
     $q->execute([$project['id'],$event['created_at']]);$out=[];
-    foreach($q->fetchAll() as $r){$snapshot=json_decode((string)$r['snapshot_json'],true);if(!is_array($snapshot))continue;$refs=change_impact_snapshot_refs($snapshot);$reasons=[];if(isset($refs['sources'][$source]))$reasons[]='Published snapshot contains the changed Source.';foreach($claimSet as $id=>$_)if(isset($refs['claims'][$id])){$reasons[]='Published snapshot contains affected Claim '.$id.'.';break;}foreach($findingSet as $id=>$_)if(isset($refs['findings'][$id])){$reasons[]='Published snapshot contains affected Finding '.$id.'.';break;}if(!$reasons)continue;$out[]=['public_id'=>$r['public_id'],'report_public_id'=>$r['report_public_id'],'version_number'=>(int)$r['version_number'],'title'=>$r['title'],'summary'=>$r['summary'],'snapshot_hash'=>$r['snapshot_hash'],'created_at'=>$r['created_at'],'is_current'=>(int)$r['current_version_id']===(int)$r['version_id'],'reasons'=>$reasons,'severity'=>(int)$r['current_version_id']===(int)$r['version_id']?'high':'medium'];}
+    foreach($q->fetchAll() as $r){
+        $reportMeta=['id'=>(int)$r['report_id_internal'],'owner_user_id'=>(int)$project['owner_user_id'],'team_id'=>$project['team_id']??null];
+        if(!research_report_version_access($pdo,$reportMeta,(int)$r['version_number'],$viewer))continue;
+        $snapshot=json_decode((string)$r['snapshot_json'],true);if(!is_array($snapshot))continue;$refs=change_impact_snapshot_refs($snapshot);$reasons=[];if(isset($refs['sources'][$source]))$reasons[]='Published snapshot contains the changed Source.';foreach($claimSet as $id=>$_)if(isset($refs['claims'][$id])){$reasons[]='Published snapshot contains affected Claim '.$id.'.';break;}foreach($findingSet as $id=>$_)if(isset($refs['findings'][$id])){$reasons[]='Published snapshot contains affected Finding '.$id.'.';break;}if(!$reasons)continue;$out[]=['public_id'=>$r['public_id'],'report_public_id'=>$r['report_public_id'],'version_number'=>(int)$r['version_number'],'title'=>$r['title'],'summary'=>$r['summary'],'snapshot_hash'=>$r['snapshot_hash'],'created_at'=>$r['created_at'],'is_current'=>(int)$r['current_version_id']===(int)$r['version_id'],'reasons'=>$reasons,'severity'=>(int)$r['current_version_id']===(int)$r['version_id']?'high':'medium'];
+    }
     return $out;
 }
 
@@ -114,7 +118,7 @@ function change_impact_is_snoozed(?array $state): bool {return $state&&!empty($s
 function change_impact_is_resolved(?array $state): bool {return $state&&in_array((string)$state['decision'],change_impact_final_decisions(),true);}
 
 function change_impact_project(PDO $pdo,array $viewer,array $event,array $project,?array $reviewMap=null): array {
-    $reviewMap=$reviewMap??change_impact_review_map($pdo,$viewer,(int)$event['id']);$annotations=change_impact_annotation_rows($pdo,$event,$project);$claims=change_impact_claim_rows($pdo,$event,$project);$findings=change_impact_finding_rows($pdo,$project,$claims);$reports=change_impact_report_rows($pdo,$event,$project,$claims,$findings);$reviews=change_impact_review_rows($pdo,$viewer,$event,$project,$claims,$findings,$reports);$cross=change_impact_cross_rows($pdo,$viewer,$event,$project,$claims,$findings);
+    $reviewMap=$reviewMap??change_impact_review_map($pdo,$viewer,(int)$event['id']);$annotations=change_impact_annotation_rows($pdo,$event,$project);$claims=change_impact_claim_rows($pdo,$event,$project);$findings=change_impact_finding_rows($pdo,$project,$claims);$reports=change_impact_report_rows($pdo,$viewer,$event,$project,$claims,$findings);$reviews=change_impact_review_rows($pdo,$viewer,$event,$project,$claims,$findings,$reports);$cross=change_impact_cross_rows($pdo,$viewer,$event,$project,$claims,$findings);
     $attach=function(array $rows,string $type)use($reviewMap){foreach($rows as &$r){$r['review_state']=change_impact_decision_state($reviewMap,$type,(string)$r['public_id']);$r['is_snoozed']=change_impact_is_snoozed($r['review_state']);$r['needs_review']=!change_impact_is_resolved($r['review_state'])&&!$r['is_snoozed'];}unset($r);return $rows;};
     $annotations=$attach($annotations,'annotation');$claims=$attach($claims,'claim');$findings=$attach($findings,'finding');$reports=$attach($reports,'report_version');$reviews=$attach($reviews,'research_review');$cross=$attach($cross,'cross_research_link');
     $projectState=change_impact_decision_state($reviewMap,'project',(string)$project['public_id']);$counts=['annotations'=>count($annotations),'claims'=>count($claims),'findings'=>count($findings),'reports'=>count($reports),'reviews'=>count($reviews),'cross_research_links'=>count($cross)];
