@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Annotated",
-  "version": "0.34.0",
-  "description": "Annotated v0.34 Chrome sidebar with Contextual Navigation & Workspace State, Unified Activity & Context Awareness, Unified Activity & Context Awareness, Unified Continuity Actions & Object Cards, Unified Object Handoff & Continuity, paired with Research V1 Completion & Hardening, Unified Research Workflow, Research Reproducibility & Evidence Packs, Research Trust, Review & Verification, Research Provenance & Audit Ledger, Research Network & Citation Intelligence, Living Research Publishing & Distribution, Research Portfolio Intelligence, Change Impact & Staleness Intelligence, Collaborative Research Review & Governance, Outcome Learning & Decision Memory, Cross-Research Intelligence, Research Automation, Proactive Research Intelligence, Cognitive Feed, Agent-Driven Research, Research Workspace Intelligence, annotation intelligence, Team Chat, Agent Chat, capture, source integrity, search, notifications, and moderation.",
+  "version": "0.35.0",
+  "description": "Annotated v0.35 Chrome sidebar with Unified Action Center & Attention Routing, Contextual Navigation & Workspace State, Unified Activity & Context Awareness, Unified Continuity Actions & Object Cards, Unified Object Handoff & Continuity, paired with Research V1 Completion & Hardening, Unified Research Workflow, Research Reproducibility & Evidence Packs, Research Trust, Review & Verification, Research Provenance & Audit Ledger, Research Network & Citation Intelligence, Living Research Publishing & Distribution, Research Portfolio Intelligence, Change Impact & Staleness Intelligence, Collaborative Research Review & Governance, Outcome Learning & Decision Memory, Cross-Research Intelligence, Research Automation, Proactive Research Intelligence, Cognitive Feed, Agent-Driven Research, Research Workspace Intelligence, annotation intelligence, Team Chat, Agent Chat, capture, source integrity, search, notifications, and moderation.",
   "permissions": [
     "sidePanel",
     "activeTab",
