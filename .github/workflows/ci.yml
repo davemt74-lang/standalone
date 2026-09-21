@@ -297,6 +297,14 @@ jobs:
         run: php tests/phase35-action-center-db.php
       - name: Phase 35 Action Center no-shadow-state contract suite
         run: php tests/phase35-action-center-contract.php
+      - name: Phase 36 End-to-End Workspace Journey MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase36-end-to-end-workspace-journey-db.php
+      - name: Phase 36 Release Hardening contract suite
+        run: php tests/phase36-release-hardening-contract.php
 
 
   mysql8-fresh-install:
