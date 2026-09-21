@@ -1,5 +1,8 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/conversations.php';
+require_once __DIR__.'/research-reports.php';
+require_once __DIR__.'/agent-actions.php';
 
 /**
  * Phase 33 — Unified Activity & Context Awareness.
@@ -118,12 +121,12 @@ function unified_activity_project_annotations(PDO $pdo,array $viewer,array &$ite
 }
 
 function unified_activity_research_objects(PDO $pdo,array $viewer,array &$items,int $limit): void {
-    $projects=cognitive_feed_projects($pdo,$viewer,20);if(!$projects)return;
-    $projectIds=array_map(fn($p)=>(int)$p['id'],$projects);$marks=implode(',',array_fill(0,count($projectIds),'?'));
     $claim=$pdo->prepare("SELECT rc.public_id,rc.statement,rc.status,rc.updated_at,rp.public_id project_public_id,rp.title project_title,u.public_id actor_public_id,u.username,u.display_name
       FROM research_claims rc JOIN research_projects rp ON rp.id=rc.project_id JOIN users u ON u.id=rc.created_by_user_id
-      WHERE rc.project_id IN ($marks) ORDER BY rc.updated_at DESC LIMIT ".$limit);
-    $claim->execute($projectIds);
+      LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
+      WHERE rp.owner_user_id=? OR tm.user_id=?
+      ORDER BY rc.updated_at DESC LIMIT ".$limit);
+    $claim->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
     foreach($claim->fetchAll() as $row){
         if(!project_access($pdo,(int)$viewer['id'],(string)$row['project_public_id']))continue;
         unified_activity_add($items,[
@@ -138,8 +141,10 @@ function unified_activity_research_objects(PDO $pdo,array $viewer,array &$items,
     }
     $finding=$pdo->prepare("SELECT rf.public_id,rf.title,rf.summary,rf.status,rf.updated_at,rp.public_id project_public_id,rp.title project_title,u.public_id actor_public_id,u.username,u.display_name
       FROM research_findings rf JOIN research_projects rp ON rp.id=rf.project_id JOIN users u ON u.id=rf.created_by_user_id
-      WHERE rf.project_id IN ($marks) AND rf.status<>'archived' ORDER BY rf.updated_at DESC LIMIT ".$limit);
-    $finding->execute($projectIds);
+      LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
+      WHERE (rp.owner_user_id=? OR tm.user_id=?) AND rf.status<>'archived'
+      ORDER BY rf.updated_at DESC LIMIT ".$limit);
+    $finding->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
     foreach($finding->fetchAll() as $row){
         if(!project_access($pdo,(int)$viewer['id'],(string)$row['project_public_id']))continue;
         unified_activity_add($items,[
@@ -153,7 +158,6 @@ function unified_activity_research_objects(PDO $pdo,array $viewer,array &$items,
         ]);
     }
 }
-
 function unified_activity_reports(PDO $pdo,array $viewer,array &$items,int $limit): void {
     if(!installer_table_exists($pdo,'research_report_versions'))return;
     $q=$pdo->prepare("SELECT rv.public_id version_public_id,rv.version_number,rv.title,rv.summary,rv.created_at,
