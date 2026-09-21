@@ -203,6 +203,7 @@ foreach(['chrome.storage.local.set({[PHASE34_WORKSPACE_KEY]','chrome.storage.syn
 foreach(['phase34WorkspaceResolve','phase34WorkspaceWebsiteUrl','phase34WorkspaceOpen'] as $needle)if(!str_contains($phase34Chrome,$needle))$fail[]="Phase 34 Chrome navigation contract missing: $needle";
 if(!str_contains((string)file_get_contents($root.'/extension/sidepanel.html'),'workspaceContextMini')||!str_contains((string)file_get_contents($root.'/extension/sidepanel.html'),'sidepanel-workspace.js'))$fail[]='Phase 34 Chrome context strip/runtime is missing.';
 if(!str_contains((string)file_get_contents($root.'/home.php'),'workspace-state.js?v=34.0')||!str_contains((string)file_get_contents($root.'/research-project.php'),'data-workspace-research'))$fail[]='Phase 34 website workspace-state integration is incomplete.';
+if(!str_contains((string)file_get_contents($root.'/logout.php'),"sessionStorage.removeItem('annotated.workspaceContext.v1')"))$fail[]='Phase 34 explicit website logout must clear ephemeral workspace state.';
 
 
 
