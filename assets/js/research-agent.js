@@ -47,5 +47,5 @@
   close.addEventListener('click',hide);newChat.addEventListener('click',()=>{conversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{research_public_id:project,clear_agent:true,surface:'research'}}));try{sessionStorage.removeItem(key);}catch{}messages.replaceChildren();show();input.focus();});
   form.querySelector('[data-research-agent-context]')?.addEventListener('click',()=>{show();if(!messages.children.length)add('assistant','This conversation is automatically scoped to the current Research project, including its claims, findings, source risks, gaps, and live workspace intelligence.');});
   document.querySelectorAll('[data-research-agent-prompt]').forEach(b=>b.addEventListener('click',()=>{input.value=b.dataset.researchAgentPrompt||'';resize();show();input.focus();}));
-  if(conversation)load();
+  if(conversation){document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{research_public_id:project,agent_conversation_public_id:conversation,surface:'research'}}));load();}
 })();
