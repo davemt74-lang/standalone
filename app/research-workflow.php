@@ -39,7 +39,7 @@ function research_workflow_state(PDO $pdo,array $viewer,string $projectPublic): 
     $defs=research_workflow_stage_definitions($projectPublic);
     $hasCapture=($counts['sources']+$counts['annotations'])>0;
     $hasInvestigated=$counts['claims']>0;
-    $verified=$hasInvestigated&&!empty($verify['available'])&&(int)$verify['needs_attention']===0;
+    $verified=$hasInvestigated&&!empty($verify['available'])&&(int)$verify['needs_attention']===0&&(int)($verify['reviewed_current']??0)>=$counts['claims'];
     $hasSynthesis=$counts['findings']>0;
     $reviewed=$counts['completed_reviews']>0&&$counts['open_reviews']===0;
     $published=$counts['report_versions']>0;
@@ -48,7 +48,7 @@ function research_workflow_state(PDO $pdo,array $viewer,string $projectPublic): 
     $status=[
       'capture'=>$hasCapture?'complete':'current',
       'investigate'=>$hasInvestigated?'complete':($hasCapture?'current':'upcoming'),
-      'verify'=>$verified?'complete':($hasInvestigated?((int)($verify['needs_attention']??0)>0?'attention':'current'):'upcoming'),
+      'verify'=>$verified?'complete':($hasInvestigated?'attention':'upcoming'),
       'synthesize'=>$hasSynthesis?'complete':($verified?'current':'upcoming'),
       'review'=>$reviewed?'complete':($hasSynthesis?($counts['open_reviews']>0?'attention':'current'):'upcoming'),
       'publish'=>$published?'complete':($hasSynthesis&&($reviewed||$counts['completed_reviews']===0)?'current':'upcoming'),
@@ -57,7 +57,7 @@ function research_workflow_state(PDO $pdo,array $viewer,string $projectPublic): 
 
     if(!$hasCapture)$next=['stage'=>'capture','title'=>'Add your first evidence','detail'=>'Add a Source or Annotation so the project has evidence to investigate.','url'=>$defs['capture']['url'],'agent_prompt'=>'Help me identify the most useful evidence to capture for this Research project. Do not invent Sources.'];
     elseif(!$hasInvestigated)$next=['stage'=>'investigate','title'=>'Form the first Claim','detail'=>'Turn captured evidence into a testable Claim and attach the exact Source Version or Annotation.','url'=>$defs['investigate']['url'],'agent_prompt'=>'Review the captured evidence and propose a testable Claim. Distinguish evidence from inference and do not create anything without confirmation.'];
-    elseif((int)($verify['needs_attention']??0)>0)$next=['stage'=>'verify','title'=>'Review evidence that needs attention','detail'=>(int)$verify['needs_attention'].' Claim(s) have weak, contested, stale, or human-review signals that need attention.','url'=>$defs['verify']['url'],'agent_prompt'=>'Explain which Claims need evidence verification and why. Preserve uncertainty and do not change Claim status automatically.'];
+    elseif(!$verified)$next=['stage'=>'verify','title'=>'Verify the current Claims','detail'=>(int)($verify['needs_attention']??0)>0?(int)$verify['needs_attention'].' Claim(s) have evidence or review signals that need attention.':'Claims need current human verification before synthesis.','url'=>$defs['verify']['url'],'agent_prompt'=>'Explain which Claims need evidence verification or current human review and why. Preserve uncertainty and do not change Claim status automatically.'];
     elseif(!$hasSynthesis)$next=['stage'=>'synthesize','title'=>'Synthesize a Finding','detail'=>'The project has Claims without a Finding that summarizes what the evidence supports.','url'=>$defs['synthesize']['url'],'agent_prompt'=>'Review the verified Claims and propose a Finding only where the evidence supports one. Do not create it without confirmation.'];
     elseif($counts['open_reviews']>0)$next=['stage'=>'review','title'=>'Complete open human review','detail'=>$counts['open_reviews'].' collaborative review(s) are still open.','url'=>$defs['review']['url'],'agent_prompt'=>'Summarize the open Research reviews, disagreements, and evidence questions. Do not resolve reviews on my behalf.'];
     elseif(!$reviewed&&$counts['completed_reviews']===0)$next=['stage'=>'review','title'=>'Request human review','detail'=>'The Research has Findings but no completed collaborative review yet.','url'=>$defs['review']['url'],'agent_prompt'=>'Identify the most important Claim or Finding to send for human review and explain why.'];
