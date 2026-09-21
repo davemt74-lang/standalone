@@ -15,17 +15,62 @@ function research_review_event(PDO $pdo,int $reviewId,string $type,?int $actorId
       ->execute([$reviewId,mb_substr($type,0,48),$actorId,$payload?json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null]);
 }
 
+
+function research_review_claim_state_hash(PDO $pdo,array $claim): string {
+    $q=$pdo->prepare("SELECT ce.public_id,ce.evidence_type,ce.relationship,ce.note,
+        s.public_id source_public_id,sv.version_number,sv.content_hash,sv.target_content_hash,
+        a.public_id annotation_public_id,a.text_commentary,a.updated_at annotation_updated_at,c.selected_text
+      FROM claim_evidence ce
+      JOIN source_versions sv ON sv.id=ce.source_version_id
+      JOIN sources s ON s.id=sv.source_id
+      LEFT JOIN annotations a ON a.id=ce.annotation_id
+      LEFT JOIN captures c ON c.id=a.capture_id
+      WHERE ce.claim_id=? ORDER BY ce.public_id");
+    $q->execute([(int)$claim['id']]);$evidence=[];
+    foreach($q->fetchAll() as $e)$evidence[]=[
+        'id'=>$e['public_id'],'type'=>$e['evidence_type'],'relationship'=>$e['relationship'],
+        'source_id'=>$e['source_public_id'],'source_version'=>(int)$e['version_number'],
+        'source_content_hash'=>$e['content_hash'],'source_target_hash'=>$e['target_content_hash'],
+        'annotation_id'=>$e['annotation_public_id'],
+        'annotation_commentary_hash'=>$e['text_commentary']!==null?hash('sha256',(string)$e['text_commentary']):null,
+        'annotation_selected_text_hash'=>$e['selected_text']!==null?hash('sha256',(string)$e['selected_text']):null,
+        'annotation_updated_at'=>$e['annotation_updated_at'],
+        'note_hash'=>$e['note']!==null?hash('sha256',(string)$e['note']):null,
+    ];
+    $json=json_encode([
+        'statement'=>$claim['statement'],'claim_type'=>$claim['claim_type'],'status'=>$claim['status'],
+        'resolution_note'=>$claim['resolution_note'],'evidence'=>$evidence,
+    ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    if($json===false)throw new RuntimeException('Unable to hash Claim review state.');
+    return hash('sha256',$json);
+}
+
+function research_review_finding_state_hash(PDO $pdo,array $finding): string {
+    $q=$pdo->prepare("SELECT rc.*,fc.relationship finding_relationship,fc.position finding_position
+      FROM finding_claims fc JOIN research_claims rc ON rc.id=fc.claim_id
+      WHERE fc.finding_id=? ORDER BY fc.position,rc.public_id");
+    $q->execute([(int)$finding['id']]);$claims=[];
+    foreach($q->fetchAll() as $claim)$claims[]=[
+        'public_id'=>$claim['public_id'],'relationship'=>$claim['finding_relationship'],
+        'position'=>(int)$claim['finding_position'],'claim_state_hash'=>research_review_claim_state_hash($pdo,$claim),
+    ];
+    $json=json_encode([
+        'title'=>$finding['title'],'summary'=>$finding['summary'],'status'=>$finding['status'],'claims'=>$claims,
+    ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    if($json===false)throw new RuntimeException('Unable to hash Finding review state.');
+    return hash('sha256',$json);
+}
+
 function research_review_subject(PDO $pdo,array $viewer,string $type,string $publicId): ?array {
     $type=strtolower(trim($type));$publicId=trim($publicId);if($publicId==='')return null;
     if($type==='claim'){
         $q=$pdo->prepare("SELECT rc.*,rp.public_id project_public_id,rp.title project_title FROM research_claims rc JOIN research_projects rp ON rp.id=rc.project_id WHERE rc.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
-        $hash=hash('sha256',json_encode([$r['statement'],$r['claim_type'],$r['status'],$r['resolution_note']],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+        $hash=research_review_claim_state_hash($pdo,$r);
         return ['type'=>'claim','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Claim: '.mb_substr((string)$r['statement'],0,190),'hash'=>$hash,'version_label'=>'Claim updated '.(string)$r['updated_at'],'url'=>'/research-claim.php?id='.rawurlencode($publicId),'summary'=>(string)$r['statement']];
     }
     if($type==='finding'){
         $q=$pdo->prepare("SELECT rf.*,rp.public_id project_public_id,rp.title project_title FROM research_findings rf JOIN research_projects rp ON rp.id=rf.project_id WHERE rf.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
-        $cq=$pdo->prepare('SELECT rc.public_id,fc.relationship,fc.position FROM finding_claims fc JOIN research_claims rc ON rc.id=fc.claim_id WHERE fc.finding_id=? ORDER BY fc.position,rc.public_id');$cq->execute([$r['id']]);$claims=$cq->fetchAll();
-        $hash=hash('sha256',json_encode([$r['title'],$r['summary'],$r['status'],$claims],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+        $hash=research_review_finding_state_hash($pdo,$r);
         return ['type'=>'finding','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Finding: '.(string)$r['title'],'hash'=>$hash,'version_label'=>'Finding updated '.(string)$r['updated_at'],'url'=>'/research-finding.php?id='.rawurlencode($publicId),'summary'=>(string)$r['summary']];
     }
     if($type==='report_version'){
