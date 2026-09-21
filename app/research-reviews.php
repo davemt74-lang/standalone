@@ -180,7 +180,7 @@ function research_review_respond(PDO $pdo,array $viewer,string $publicId,string 
         $pdo->prepare('UPDATE research_review_assignments SET latest_response_id=?,responded_at=NOW() WHERE review_id=? AND reviewer_user_id=?')->execute([$responseId,$review['id'],$viewer['id']]);
         research_review_event($pdo,(int)$review['id'],'responded',(int)$viewer['id'],['response_public_id'=>$public,'decision'=>$decision]);$pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    if(function_exists('data_attribution_capture_review_response'))data_attribution_capture_review_response($pdo,(int)$viewer['id'],$public);
+    if(function_exists('data_attribution_try_capture_review_response'))data_attribution_try_capture_review_response($pdo,(int)$viewer['id'],$public);
     if((int)$review['requested_by_user_id']!==(int)$viewer['id'])research_review_notify($pdo,(int)$review['requested_by_user_id'],(int)$viewer['id'],'research_review_response',$review,(string)($viewer['display_name']?:$viewer['username']).' responded to '.$review['title'].': '.(research_review_decisions()[$decision]??$decision),['event_public_id'=>$public]);
     research_review_record_outcome($pdo,$viewer,$review,$decision,'Research review response: '.(research_review_decisions()[$decision]??$decision),$comment,['response_public_id'=>$public]);
     return research_review_access($pdo,$viewer,$publicId)??[];
