@@ -36,3 +36,7 @@ The project manifest traces:
 - Chrome extension: `0.26.0`
 - Dedicated suite: `tests/phase26-research-provenance-db.php`
 - Merge only after exact-head historical CI + Phase 26 suite + two-package build are green.
+
+## Validation gate
+
+Phase 26 release validation runs on the exact pull-request head after the provenance Cognitive Feed syntax correction. No product semantics are changed by this release-note checkpoint.
