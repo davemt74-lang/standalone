@@ -146,9 +146,11 @@ When a run is queued, Annotated snapshots:
 - benchmark type
 - selected model identity when applicable
 
-Model snapshots include only non-secret identity/configuration fields.
+Model snapshots include only non-secret identity/configuration fields, including a hash of the configured provider endpoint rather than the endpoint itself.
 
 Provider API keys are never copied into evaluation runs.
+
+Before model inference starts, the worker re-derives the current model snapshot and compares it with the queued snapshot. If model identity, provider identity/type, endpoint fingerprint, or output-token configuration changed after queueing, the run fails before sending any frozen evaluation context to the provider.
 
 ## Result integrity
 
