@@ -259,7 +259,7 @@ async function phase6OpenCreate(){
   const create=$('#create');if(create)create.hidden=false;
   stopLivePoll();await phase6LoadPage();
 }
-async function phase33ActivityCard(item){
+function phase33ActivityCard(item){
   const surface=String(item?.surface||'workspace'),title=String(item?.title||'Annotated activity'),body=String(item?.body||''),when=String(item?.created_at||''),href=String(item?.href||'');
   return '<article class="activityMiniCard"><div class="activityMiniHead"><span>'+esc(surface)+'</span><time>'+esc(when)+'</time></div><strong>'+esc(title)+'</strong>'+(body?'<p>'+esc(body)+'</p>':'')+(href?'<button type="button" data-activity-open="'+esc(href)+'">Open</button>':'')+'</article>';
 }
@@ -272,7 +272,7 @@ async function phase33LoadActivity(){
   }catch(e){feed.innerHTML='<div class="hint">Unable to load workspace activity.</div>';}
 }
 
-function phase6SwitchTab(btn){
+async function phase6SwitchTab(btn){
   if(!btn)return;const create=$('#create');if(create)create.hidden=true;
   document.querySelectorAll('nav [role="tab"]').forEach(x=>{const active=x===btn;x.classList.toggle('active',active);x.setAttribute('aria-selected',active?'true':'false');x.tabIndex=active?0:-1;});document.querySelectorAll('main>section[role="tabpanel"]').forEach(s=>s.hidden=s.id!==btn.dataset.tab);
   if(btn.dataset.tab==='page'&&context?.source?.public_id)await phase6LoadThisPage(true);
