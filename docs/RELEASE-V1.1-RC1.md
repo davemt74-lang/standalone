@@ -1,13 +1,13 @@
-# Annotated V1.1 RC1 Release Runbook
+# Annotated V1 RC1 Release Runbook
 
-This runbook applies to **Annotated V1.1 RC1** and must be executed against the exact merged `main` commit that passed CI.
+This runbook applies to **Annotated V1 RC1 (`1.0.0-rc1`)** and must be executed against the exact merged `main` commit that passed CI.
 
 ## Fresh installation
 
-1. Copy `config.example.php` to `config.php` and configure the MariaDB connection.
-2. Create an empty MariaDB database.
-3. Open `/install.php` and click **Install Annotated**.
-4. The installer imports the base schema and applies all bundled migrations automatically.
+1. Create an empty MariaDB or MySQL 8 database and grant a database user access to it.
+2. Upload the website package and open `/install.php`.
+3. Enter the site URL and database credentials; the installer creates `config.php` automatically.
+4. Continue installation; the installer imports the base schema and applies all bundled migrations automatically.
 5. Create the first administrator when redirected to `/first-admin.php`.
 6. No manual SQL import and no bootstrap/setup key are required.
 7. Complete the production settings and run `php bin/release-preflight.php`.
@@ -60,7 +60,7 @@ The RC extension package is built from the exact same merged source tree.
 Before Chrome Web Store upload:
 
 - confirm Manifest V3
-- verify version `0.9.0`
+- verify version `0.36.0`
 - verify production server is present in the allowed extension-ID configuration
 - inspect requested permissions: `sidePanel`, `activeTab`, `scripting`, `storage`, `identity`, `tabCapture`
 - confirm first install opens Extension Setup
@@ -68,7 +68,7 @@ Before Chrome Web Store upload:
 - connect an account and verify Connected Accounts shows the extension version and expiry
 - revoke the session and confirm the sidebar requires reconnect
 
-## 5. V1 end-to-end release gate
+## 5. V1 RC1 end-to-end release gate
 
 Use a non-admin test account:
 
@@ -121,3 +121,18 @@ Archive with the release:
 - private-storage-backup reference
 - preflight output
 - post-deploy health screenshot/export
+
+
+## 8. Phase 36 release-candidate baseline
+
+The V1 RC1 baseline is the merged Phase 36 release-candidate tree. Before promotion, verify the exact branch/commit being packaged contains:
+
+- Chrome `0.36.0`
+- Phase 36 end-to-end workspace journey gate
+- Phase 36 release-hardening contract
+- PHP 8.1 and PHP 8.3 CI
+- MariaDB integration and authorization suites
+- MySQL 8 fresh-install compatibility
+- two-package ZIP integrity and SHA-256 checksums
+
+Do not promote an older `main` tree merely because it is the repository default branch; release from the exact tested release-candidate commit.
