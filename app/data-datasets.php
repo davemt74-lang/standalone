@@ -148,8 +148,8 @@ function data_dataset_items(PDO $pdo,string $publicId,int $limit=100,int $offset
 }
 function data_dataset_export(PDO $pdo,array $viewer,string $publicId,bool $includeText=false): array {
     data_dataset_require_admin($viewer);$d=data_dataset_get($pdo,$publicId);if(!$d)throw new RuntimeException('Dataset not found.');if($d['status']!=='frozen')throw new RuntimeException('Only frozen datasets can be exported.');
-    $status=data_dataset_current_use_status($pdo,$publicId);$payload=data_dataset_manifest_payload($pdo,$d,$includeText);
-    $payload['manifest_hash']=$d['manifest_hash'];$payload['current_use_status']=$status;
+    $status=data_dataset_current_use_status($pdo,$publicId);if($includeText&&!$status['usable'])throw new RuntimeException('Dataset data export is blocked because current rights, consent, content, provenance, or manifest integrity no longer validates.');
+    $payload=data_dataset_manifest_payload($pdo,$d,$includeText);$payload['manifest_hash']=$d['manifest_hash'];$payload['current_use_status']=$status;
     data_dataset_event($pdo,(int)$d['id'],(int)$viewer['id'],$includeText?'exported_data':'exported_manifest',['usable'=>$status['usable']]);
     return $payload;
 }
