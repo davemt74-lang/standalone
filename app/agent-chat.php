@@ -73,6 +73,7 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         if(function_exists('research_network_ready')&&research_network_ready($pdo)){$networkCtx=research_network_project_context($pdo,$viewer,$publicId,12);if(!empty($networkCtx['text']))$text.="\n\n".$networkCtx['text'];$refs=array_merge($refs,(array)($networkCtx['refs']??[]));}
         if(function_exists('provenance_ready')&&provenance_ready($pdo)){$provCtx=provenance_project_context($pdo,$viewer,$publicId);if(!empty($provCtx['text']))$text.="\n\n".$provCtx['text'];$refs=array_merge($refs,(array)($provCtx['refs']??[]));}
         if(function_exists('research_verification_ready')&&research_verification_ready($pdo)){$verifyCtx=research_verification_context($pdo,$viewer,$publicId,12);if(!empty($verifyCtx['text']))$text.="\n\n".$verifyCtx['text'];$refs=array_merge($refs,(array)($verifyCtx['refs']??[]));}
+        if(function_exists('research_evidence_packs_ready')&&research_evidence_packs_ready($pdo)){$packCtx=research_evidence_pack_project_context($pdo,$viewer,$publicId,5);if(!empty($packCtx['text']))$text.="\n\n".$packCtx['text'];$refs=array_merge($refs,(array)($packCtx['refs']??[]));}
         $seen=[];$refs=array_values(array_filter($refs,function($r)use(&$seen){$k=($r['type']??'').':'.($r['id']??'');if($k===':'||isset($seen[$k]))return false;$seen[$k]=true;return true;}));
         return ['type'=>'research','public_id'=>$publicId,'label'=>$p['title'],'text'=>mb_substr($text,0,30000),'refs'=>$refs];
     }
