@@ -113,6 +113,44 @@ function provenance_project_report_integrity(PDO $pdo,array $viewer,string $proj
 }
 
 function provenance_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limitProjects=12): void {
-    if(!provenance_ready($pdo))return;$q=$pdo->prepare("SELECT DISTINCT rp.public_id FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.status='active' AND (rp.owner_user_id=? OR tm.user_id=?) ORDER BY rp.updated_at DESC LIMIT ".$limitProjects);$q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
-    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $projectPublic){$integrity=provenance_project_report_integrity($pdo,$viewer,(string)$projectPublic);$invalid=(int)$integrity['invalid'];if($invalid<=0)continue;cognitive_feed_add($items,['key'=>cognitive_feed_key('provenance_integrity','research_project',(string)$projectPublic,(string)$integrity['revision']),'type'=>'provenance_integrity','section'=>'needs_attention','priority'=>'high','created_at'=>date('Y-m-d H:i:s'),'score_extra'=>25,'title'=>'Research provenance integrity mismatch','body'=>$invalid.' stored report snapshot hash'.($invalid===1?' does':'es do').' not match recomputed immutable snapshot content.','meta'=>['project'=>$projectPublic,'invalid_report_snapshots'=>$invalid],'actions'=>[cognitive_feed_action_link('Open provenance','/research-provenance.php?id='.rawurlencode((string)$projectPublic)),cognitive_feed_action_agent('Ask Agent','Explain the provenance integrity mismatch in this Research project. Do not alter any report or evidence.',[['type'=>'research','public_id'=>(string)$projectPublic]])]]);}
+    if(!provenance_ready($pdo))return;
+    $q=$pdo->prepare("SELECT DISTINCT rp.public_id
+        FROM research_projects rp
+        LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
+        WHERE rp.status='active' AND (rp.owner_user_id=? OR tm.user_id=?)
+        ORDER BY rp.updated_at DESC
+        LIMIT ".$limitProjects);
+    $q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
+
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $projectPublic){
+        $projectPublic=(string)$projectPublic;
+        $integrity=provenance_project_report_integrity($pdo,$viewer,$projectPublic);
+        $invalid=(int)$integrity['invalid'];
+        if($invalid<=0)continue;
+
+        $actions=[
+            cognitive_feed_action_link('Open provenance','/research-provenance.php?id='.rawurlencode($projectPublic)),
+            cognitive_feed_action_agent(
+                'Ask Agent',
+                'Explain the provenance integrity mismatch in this Research project. Do not alter any report or evidence.',
+                [['type'=>'research','public_id'=>$projectPublic]]
+            ),
+        ];
+
+        cognitive_feed_add($items,[
+            'key'=>cognitive_feed_key('provenance_integrity','research_project',$projectPublic,(string)$integrity['revision']),
+            'type'=>'provenance_integrity',
+            'section'=>'needs_attention',
+            'priority'=>'high',
+            'created_at'=>date('Y-m-d H:i:s'),
+            'score_extra'=>25,
+            'title'=>'Research provenance integrity mismatch',
+            'body'=>$invalid.' stored report snapshot hash'.($invalid===1?' does':'es do').' not match recomputed immutable snapshot content.',
+            'meta'=>[
+                'project'=>$projectPublic,
+                'invalid_report_snapshots'=>$invalid,
+            ],
+            'actions'=>$actions,
+        ]);
+    }
 }
