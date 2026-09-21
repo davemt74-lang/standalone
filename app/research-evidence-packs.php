@@ -71,7 +71,7 @@ function research_evidence_pack_manifest(PDO $pdo,array $viewer,string $projectP
     if(!isset(research_evidence_pack_scope_types()[$scopeType]))throw new InvalidArgumentException('Invalid Evidence Pack scope.');
     $project=project_access($pdo,(int)$viewer['id'],trim($projectPublic));if(!$project)throw new RuntimeException('Research project is unavailable.');
     if(!function_exists('provenance_ready')||!provenance_ready($pdo))throw new RuntimeException('Evidence Packs require Research Provenance.');
-    $prov=provenance_project_manifest($pdo,$viewer,$projectPublic);
+    $prov=provenance_project_manifest($pdo,$viewer,$projectPublic);unset($prov['evidence_packs']);
     $manifest=['schema'=>'annotated-evidence-pack-v1','scope'=>['type'=>$scopeType,'public_id'=>$scopePublic?:$projectPublic],'project'=>['public_id'=>$project['public_id'],'title'=>$project['title'],'status'=>$project['status']??'active']];
 
     if($scopeType==='project'){
