@@ -58,6 +58,7 @@ function app_shell_user_nav(PDO $pdo,array $user,string $path): string {
     $links[]=app_shell_link('/research.php','Research','▤',$path,'/research');
     $links[]=app_shell_link('/live.php','Live','◉',$path);
     $links[]=app_shell_link('/saved.php','Saved','◇',$path,'/saved');
+    if(function_exists('data_attribution_ready')&&data_attribution_ready($pdo))$links[]=app_shell_link('/data-attribution.php','Data & Attribution','⌘',$path);
     $links[]=app_shell_link('/notifications.php','Notifications','♢',$path,null,app_shell_badge($unread));
     if($pro)$links[]=app_shell_link('/ai.php','Ask Annotated','✦',$path);
     return implode('',$links);
@@ -70,6 +71,7 @@ function app_shell_admin_nav(string $path): string {
     $links[]=app_shell_link('/admin/source-monitor.php','Source Monitor','◌',$path);
     $links[]=app_shell_link('/admin/moderation.php','Moderation','⚑',$path);
     $links[]=app_shell_link('/admin/discovery-entities.php','Discovery','◎',$path);
+    $links[]=app_shell_link('/admin/data-attribution.php','Data Governance','⌘',$path);
     $links[]=app_shell_link('/admin/system-health.php','System Health','◫',$path);
     $links[]=app_shell_link('/upgrade.php','Database Upgrade','⇧',$path);
     $links[]=app_shell_link('/admin/assistant.php','Admin Assistant','⌁',$path);
@@ -85,7 +87,7 @@ function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode)
 function app_shell_user_menu(array $user,bool $isAdmin): string {
     $username=(string)($user['username']??'');
     $profile=profile_path($username);
-    return '<details class="appUserMenu"><summary>'.app_shell_avatar($user,'appAvatar').'<span class="appUserSummary"><strong>'.app_shell_h((string)($user['display_name']??$username)).'</strong><small>@'.app_shell_h($username).'</small></span><span aria-hidden="true">⌄</span></summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/connected-accounts.php">Connected accounts</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
+    return '<details class="appUserMenu"><summary>'.app_shell_avatar($user,'appAvatar').'<span class="appUserSummary"><strong>'.app_shell_h((string)($user['display_name']??$username)).'</strong><small>@'.app_shell_h($username).'</small></span><span aria-hidden="true">⌄</span></summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/connected-accounts.php">Connected accounts</a><a href="/data-attribution.php">Data & attribution</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
 }
 function app_shell_markup(PDO $pdo,array $user): array {
     $path=app_shell_request_path();
