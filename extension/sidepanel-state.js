@@ -186,7 +186,7 @@ async function submitExtensionRegister(e){
 }
 async function extensionLogout(){
     try{await api('/api/extension-account.php',{method:'POST',body:JSON.stringify({action:'logout'})});}catch{}
-    token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');
+    token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');if(typeof phase34WorkspaceClear==='function')await phase34WorkspaceClear();
     $('#status').textContent='Not signed in';$('#connect').textContent='Log in';
     await loadLandingPage(true);
 }
@@ -199,12 +199,13 @@ async function loadMe(showAccountView=false){
         $('#presence').value=j.data.user.live_presence_mode||'cloaked';
         const dv=j.data.user.default_annotation_visibility;if(['public','team','private'].includes(dv))$('#visibility').value=dv;
         await loadCaptureOptions();
+        if(typeof phase34WorkspaceInit==='function')await phase34WorkspaceInit();
         if(showAccountView)showAccount(accountUser);
         return true;
     }catch(e){
         const authFailure=e?.status===401&&['SESSION_EXPIRED','AUTH_REQUIRED','INVALID_OR_EXPIRED_CODE'].includes(String(e?.code||''));
         if(authFailure){
-            token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');
+            token='';accountUser=null;await chrome.storage.local.remove('annotatedToken');if(typeof phase34WorkspaceClear==='function')await phase34WorkspaceClear();
             $('#status').textContent='Not signed in';$('#connect').textContent='Log in';
         }else{
             console.warn('[Annotated] Account check failed; preserving extension session.',e);

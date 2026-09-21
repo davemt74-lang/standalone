@@ -38,7 +38,7 @@ $q->execute([$team['id']]);$members=$q->fetchAll();
 $q=$pdo->prepare('SELECT public_id,title,description,status,updated_at FROM research_projects WHERE team_id=? ORDER BY updated_at DESC LIMIT 20');$q->execute([$team['id']]);$projects=$q->fetchAll();
 $q=$pdo->prepare("SELECT a.public_id FROM annotations a WHERE a.team_id=? AND a.visibility='team' AND a.status='published' ORDER BY a.published_at DESC LIMIT 25");
 $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $annotationPublic){$row=public_discovery_annotation($pdo,(string)$annotationPublic,$u);if($row)$annotations[]=$row;}
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($team['name'])?> · Teams · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($team['name'])?> · Teams · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="team" data-workspace-team="<?=h((string)$team['public_id'])?>">
 <main class="layout"><section>
 <div class="pageTitle"><span class="eyebrow">TEAM · <?=h(strtoupper((string)$team['access_role']))?></span><h1><?=h($team['name'])?></h1><p>Shared people, annotations, Research projects, and private Team collaboration.</p></div>
 <?php if($error):?><div class="error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="success"><?=h($success)?></div><?php endif?>
@@ -56,4 +56,4 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 <aside>
 <?php if($canManage):?><div class="card"><h3>Add a member</h3><p class="meta">Add an existing Annotated user by username.</p><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="username"></label><button>Add member</button></form></div><?php endif?>
 <div class="card"><h3>Team collaboration</h3><p class="meta">Team membership controls private team annotations, Team Live access, team chat, and team-scoped Research projects.</p><a class="button secondary" href="/home.php?team=<?=h($team['public_id'])?>#team-chat">Open Team Chat</a></div>
-</aside></main><?=annotation_ui_scripts($u)?></body></html>
+</aside></main><?=annotation_ui_scripts($u)?><script src="/assets/js/workspace-state.js?v=34.0"></script></body></html>

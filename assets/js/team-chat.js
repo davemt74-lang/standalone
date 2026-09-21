@@ -319,7 +319,7 @@
   input?.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,110)+'px';});
   input?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();composer.requestSubmit();}});
   reply?.querySelector('button')?.addEventListener('click',()=>setRailReply('',''));
-  select?.addEventListener('change',()=>{setRailReply('','');railNextBefore=null;railHistoryExpanded=false;syncTeamMeta();loadRailMessages();});
+  select?.addEventListener('change',()=>{setRailReply('','');railNextBefore=null;railHistoryExpanded=false;syncTeamMeta();const option=currentOption();document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{team_public_id:option?.dataset.team||'',surface:'team'}}));loadRailMessages();});
   loadEarlier?.addEventListener('click',loadEarlierMessages);
   popoutCurrent?.addEventListener('click',()=>openPopup(select.value));
   mobileOpen?.addEventListener('click',()=>document.body.classList.add('teamChatMobileOpen'));

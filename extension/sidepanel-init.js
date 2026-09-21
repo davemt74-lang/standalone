@@ -68,9 +68,9 @@ function initializeSidebarBindings(){
   sidebarBind('notificationList','click',markNotification);
   sidebarBindClick('markAllNotifications',markAllNotificationsRead);
   sidebarBindClick('openNotificationSettings',()=>chrome.tabs.create({url:API_BASE+'/settings.php#notifications'}));
-  sidebarBindClick('openFullActivity',()=>chrome.tabs.create({url:API_BASE+'/activity.php'}));
-  sidebarBind('activityFeed','click',e=>{const button=e.target.closest('[data-activity-open]');if(button)chrome.tabs.create({url:API_BASE+String(button.dataset.activityOpen||'')});});
-  sidebarBindClick('openResearchWorkspace',()=>chrome.tabs.create({url:API_BASE+'/research.php'}));
+  sidebarBindClick('openFullActivity',()=>phase34WorkspaceOpen('/activity.php',{surface:'activity'}));
+  sidebarBind('activityFeed','click',async e=>{const button=e.target.closest('[data-activity-open]');if(!button)return;const patch={surface:'activity'};if(button.dataset.workspaceResearch)patch.research_public_id=button.dataset.workspaceResearch;if(button.dataset.workspaceTeam)patch.team_public_id=button.dataset.workspaceTeam;if(button.dataset.workspaceObject){patch.object_type=button.dataset.workspaceObjectType||'';patch.object_public_id=button.dataset.workspaceObject;}await phase34WorkspaceOpen(String(button.dataset.activityOpen||''),patch);});
+  sidebarBindClick('openResearchWorkspace',async()=>{const state=await phase34WorkspaceRead();phase34WorkspaceOpen(state.research_public_id?'/research-project.php?id='+encodeURIComponent(state.research_public_id):'/research.php',{surface:'research'});});
   sidebarBindClick('openPortfolio',()=>chrome.tabs.create({url:API_BASE+'/research-portfolio.php'}));
   sidebarBindClick('openPublications',()=>chrome.tabs.create({url:API_BASE+'/research-publications.php'}));
   sidebarBindClick('openNetwork',()=>chrome.tabs.create({url:API_BASE+'/research-network.php'}));
@@ -85,6 +85,9 @@ function initializeSidebarBindings(){
   sidebarBind('liveMessages','click',liveMessageAction);
   sidebarBind('liveEvents','click',liveEventAction);
   sidebarBindClick('cancelLiveReply',cancelLiveReply);
+  sidebarBindClick('clearWorkspaceContext',()=>phase34WorkspaceClear());
+  sidebarBind('workspaceContextMiniChips','click',async e=>{const b=e.target.closest('[data-workspace-url]');if(b?.dataset.workspaceUrl)chrome.tabs.create({url:await phase34WorkspaceWebsiteUrl(String(b.dataset.workspaceUrl))});});
+    sidebarBind('researchProjects','click',async e=>{const b=e.target.closest('[data-workspace-project]');if(!b)return;const id=String(b.dataset.workspaceProject||'');if(id)await phase34WorkspaceOpen('/research-project.php?id='+encodeURIComponent(id),{research_public_id:id,surface:'research'});});
   sidebarBindClick('confirmResearch',e=>{
     e.preventDefault();
     confirmResearch();
