@@ -186,3 +186,33 @@ The architecture remains:
 Phase 38 does not train or fine-tune a model.
 
 See `docs/phase-38-dataset-registry-frozen-manifests.md`.
+
+
+## Phase 39 — Dataset Evaluation & Benchmark Harness
+
+The post-V1 intelligence-data architecture now includes a reproducible benchmark layer over frozen Phase 38 evaluation datasets.
+
+Phase 39 adds:
+
+- immutable benchmark suites and case sets
+- deterministic retrieval evaluation
+- optional configured-model inference benchmarks
+- dataset-manifest, suite-config, and case-set snapshots per run
+- per-case result hashes and completed-run integrity hashes
+- transparent retrieval, grounding, citation, token, and latency metrics
+- human pass / fail / needs-work reviews with 1–5 relevance, groundedness, and accuracy scales
+- integrity-valid regression baselines and metric deltas
+- concurrency-safe queued evaluation workers
+- bounded failed/stale run recovery
+- reproducible benchmark JSON exports
+- a first-class **Admin Evaluation Harness UI**
+
+Formal benchmarks require a frozen dataset whose purpose is specifically **Evaluation** and whose current rights/consent/integrity state still permits evaluation.
+
+Model benchmarks use existing configured inference providers only. They do not fine-tune, create training jobs, or modify model weights.
+
+The architecture remains:
+
+**Production object → Contribution Ledger → Rights / Consent → Derived Corpus → Frozen Dataset → Evaluation Harness → future controlled model systems**
+
+See `docs/phase-39-dataset-evaluation-benchmark-harness.md`.
