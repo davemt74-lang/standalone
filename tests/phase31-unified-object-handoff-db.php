@@ -74,6 +74,8 @@ p31(!$retry['created']&&(int)$q->fetchColumn()===1,'idempotent Team send does no
 $pdo->prepare("UPDATE annotations SET visibility='private',team_id=NULL WHERE public_id=?")->execute([$publicAnn]);
 $rowsAfter=conversation_message_rows($pdo,$member,$conversation1['public_id']);$sharedAfter=array_values(array_filter($rowsAfter['messages'],fn($r)=>$r['public_id']===$publicMessage['public_id']))[0]??[];$afterAttachment=$sharedAfter['attachments'][0]??[];
 p31(($afterAttachment['available']??true)===false&&!isset($afterAttachment['preview']),'later visibility restriction turns old Team attachment into an unavailable tombstone without stale content leakage');
+$restrictedRetry=conversation_message_create($pdo,$owner,$conversation1['public_id'],'Shared public Annotation.',null,'public-'.$run,[['type'=>'annotation','public_id'=>$publicAnn]]);
+p31(!$restrictedRetry['created']&&$restrictedRetry['deduplicated'],'retry of an already-sent attachment remains idempotent after later visibility restriction');
 $ownerRows=conversation_message_rows($pdo,$owner,$conversation1['public_id']);$ownerShared=array_values(array_filter($ownerRows['messages'],fn($r)=>$r['public_id']===$publicMessage['public_id']))[0]??[];
 p31(($ownerShared['attachments'][0]['available']??false)===true,'Annotation owner still resolves their private object without Team Chat granting anyone else access');
 
