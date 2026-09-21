@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/ai.php';
 
 /**
  * Phase 39 — Dataset Evaluation & Benchmark Harness
@@ -162,7 +163,7 @@ function data_evaluation_summary(PDO $pdo,int $runId,string $type): array {
 }
 function data_evaluation_execute_run(PDO $pdo,array $config,int $runId): array {
     if(!data_evaluation_ready($pdo))throw new RuntimeException('Evaluation Harness is unavailable.');
-    $pdo->beginTransaction();try{$q=$pdo->prepare("SELECT * FROM data_evaluation_runs WHERE id=? FOR UPDATE");$q->execute([$runId]);$run=$q->fetch();if(!$run)throw new RuntimeException('Evaluation run not found.');if($run['status']!=='queued')throw new RuntimeException('Evaluation run is not queued.');$pdo->prepare("UPDATE data_evaluation_runs SET status='processing',started_at=NOW(),error_text=NULL WHERE id=?")->execute([$runId]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    $pdo->beginTransaction();try{$q=$pdo->prepare("SELECT * FROM data_evaluation_runs WHERE id=? FOR UPDATE");$q->execute([$runId]);$run=$q->fetch();if(!$run)throw new RuntimeException('Evaluation run not found.');if(!in_array($run['status'],['queued','processing'],true))throw new RuntimeException('Evaluation run is not runnable.');if($run['status']==='queued')$pdo->prepare("UPDATE data_evaluation_runs SET status='processing',started_at=NOW(),error_text=NULL WHERE id=?")->execute([$runId]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     try{
         $q=$pdo->prepare('SELECT * FROM data_evaluation_suites WHERE id=?');$q->execute([$run['suite_id']]);$suite=$q->fetch();if(!$suite)throw new RuntimeException('Evaluation suite disappeared.');
         $dataset=data_evaluation_dataset_assert($pdo,(int)$run['dataset_id']);if(!hash_equals((string)$run['dataset_manifest_hash'],(string)$dataset['manifest_hash']))throw new RuntimeException('Dataset manifest changed after the evaluation run was queued.');
@@ -183,7 +184,7 @@ function data_evaluation_execute_run(PDO $pdo,array $config,int $runId): array {
     }catch(Throwable $e){$pdo->prepare("UPDATE data_evaluation_runs SET status='failed',error_text=?,completed_at=NOW() WHERE id=?")->execute([mb_substr($e->getMessage(),0,1000),$runId]);data_evaluation_event($pdo,(int)$run['suite_id'],$runId,null,'run_failed',['error'=>mb_substr($e->getMessage(),0,500)]);throw $e;}
 }
 function data_evaluation_process_next(PDO $pdo,array $config): ?array {
-    $pdo->beginTransaction();try{$q=$pdo->query("SELECT id FROM data_evaluation_runs WHERE status='queued' ORDER BY created_at,id LIMIT 1 FOR UPDATE");$id=(int)($q->fetchColumn()?:0);$pdo->commit();if(!$id)return null;}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}return data_evaluation_execute_run($pdo,$config,$id);
+    $pdo->beginTransaction();try{$q=$pdo->query("SELECT id FROM data_evaluation_runs WHERE status='queued' ORDER BY created_at,id LIMIT 1 FOR UPDATE");$id=(int)($q->fetchColumn()?:0);if(!$id){$pdo->commit();return null;}$pdo->prepare("UPDATE data_evaluation_runs SET status='processing',started_at=NOW(),error_text=NULL WHERE id=? AND status='queued'")->execute([$id]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}return data_evaluation_execute_run($pdo,$config,$id);
 }
 function data_evaluation_results(PDO $pdo,int $runId): array {
     $q=$pdo->prepare('SELECT r.*,c.public_id case_public_id,c.label,c.query_text,c.reference_answer,c.expected_dataset_item_id,ddi.corpus_public_id expected_corpus_public_id FROM data_evaluation_results r JOIN data_evaluation_cases c ON c.id=r.case_id JOIN data_dataset_items ddi ON ddi.id=c.expected_dataset_item_id WHERE r.run_id=? ORDER BY c.position,c.id');$q->execute([$runId]);$rows=$q->fetchAll();foreach($rows as &$r){$r['metrics']=json_decode((string)$r['metrics_json'],true)?:[];$r['retrieved']=json_decode((string)($r['retrieved_json']??''),true)?:[];$r['citations']=json_decode((string)($r['citations_json']??''),true)?:[];}unset($r);return $rows;
