@@ -102,7 +102,7 @@ async function phase31ConfirmTeamShare(){
 }
 function phase31OpenAgent(id){
   if(!API_BASE)return;
-  chrome.tabs.create({url:API_BASE+'/home.php?agent_context_type=annotation&agent_context_id='+encodeURIComponent(String(id||''))});
+  phase34WorkspaceOpen('/home.php?agent_context_type=annotation&agent_context_id='+encodeURIComponent(String(id||'')),{object_type:'annotation',object_public_id:String(id||''),surface:'agent'});
 }
 
 function phase6AnnotationCard(a){
@@ -261,7 +261,9 @@ async function phase6OpenCreate(){
 }
 function phase33ActivityCard(item){
   const surface=String(item?.surface||'workspace'),title=String(item?.title||'Annotated activity'),body=String(item?.body||''),when=String(item?.created_at||''),href=String(item?.href||'');
-  return '<article class="activityMiniCard"><div class="activityMiniHead"><span>'+esc(surface)+'</span><time>'+esc(when)+'</time></div><strong>'+esc(title)+'</strong>'+(body?'<p>'+esc(body)+'</p>':'')+(href?'<button type="button" data-activity-open="'+esc(href)+'">Open</button>':'')+'</article>';
+  const research=(item?.context||[]).find(x=>x?.type==='research')?.public_id||'',team=(item?.context||[]).find(x=>x?.type==='team')?.public_id||'';
+  const objectType=String(item?.object?.type||''),objectId=String(item?.object?.public_id||'');
+  return '<article class="activityMiniCard"><div class="activityMiniHead"><span>'+esc(surface)+'</span><time>'+esc(when)+'</time></div><strong>'+esc(title)+'</strong>'+(body?'<p>'+esc(body)+'</p>':'')+(href?'<button type="button" data-activity-open="'+esc(href)+'" data-workspace-research="'+esc(research)+'" data-workspace-team="'+esc(team)+'" data-workspace-object-type="'+esc(objectType)+'" data-workspace-object="'+esc(objectId)+'">Open</button>':'')+'</article>';
 }
 async function phase33LoadActivity(){
   const feed=$('#activityFeed');if(!feed)return;if(!token){feed.innerHTML='<div class="hint">Connect your account to see workspace activity.</div>';return;}
