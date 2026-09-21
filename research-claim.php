@@ -20,7 +20,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$op=(string)($_POST['op']
         $pdo->prepare('INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,annotation_id,source_version_id,relationship,note) VALUES(?,?,?,?,?,?,?,?)')->execute([ulid_like(),$claim['id'],$u['id'],$evidenceType,$annotationId,$versionId,$relationship,trim((string)($_POST['note']??''))?:null]);$success='Evidence attached to the exact captured Source Version.';
     }
     if($op==='remove_evidence'){$evidence=(string)($_POST['evidence']??'');$pdo->prepare('DELETE FROM claim_evidence WHERE public_id=? AND claim_id=?')->execute([$evidence,$claim['id']]);$success='Evidence removed.';}
-    if($success!==''&&function_exists('data_attribution_capture_object'))data_attribution_try_capture_object($pdo,(int)$u['id'],'claim',(string)$claim['public_id']);
+    if($success!==''&&function_exists('data_attribution_try_capture_object'))data_attribution_try_capture_object($pdo,(int)$u['id'],'claim',(string)$claim['public_id']);
     if($success!==''&&research_workspace_ready($pdo))research_workspace_queue($pdo,(int)$claim['project_id'],3);
 }catch(Throwable $e){$error=$e->getMessage();}
 $claim=research_claim_access($pdo,$u,$id)??$claim;}
