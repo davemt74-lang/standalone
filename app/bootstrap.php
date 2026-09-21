@@ -61,3 +61,4 @@ require_once __DIR__ . '/research-outcomes.php';
 require_once __DIR__ . '/research-reviews.php';
 require_once __DIR__ . '/change-impact.php';
 require_once __DIR__ . '/research-portfolio.php';
+require_once __DIR__ . '/living-research.php';

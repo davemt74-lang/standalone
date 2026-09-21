@@ -117,7 +117,7 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
     }
     if($type==='rights_claim')return '/claim-status.php?id='.rawurlencode($public);
     if($type==='moderation_report')return '/report-status.php?id='.rawurlencode($public);
-    if($type==='research_report')return '/research-report.php?id='.rawurlencode($public);
+    if($type==='research_report'){$url='/research-report.php?id='.rawurlencode($public);if(!empty($context['version_number']))$url.='&v='.rawurlencode((string)$context['version_number']);return $url;}
     if($type==='conversation'){
         if(!function_exists('conversation_access'))return null;$conversation=conversation_access($pdo,$viewer,$public);if(!$conversation)return null;
         if(($conversation['conversation_type']??'')==='team'&&!empty($conversation['team_public_id']))return '/home.php?team='.rawurlencode((string)$conversation['team_public_id']).'#team-chat';
