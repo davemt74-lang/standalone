@@ -9,7 +9,7 @@ Annotated does **not** compute a single truth/trust score.
 Instead it derives separate, inspectable signals:
 
 - evidence state: support-only, contested, contradiction-only, context-only, or no evidence
-- corroboration: single source, multiple sources on one domain, or independent-domain support
+- corroboration: single source, multiple sources on one domain, or distinct-domain support
 - freshness: current, mixed, stale, or unknown
 - source integrity coverage: whether recorded Source Version hashes are present
 - source state: current version, superseded version, changed after capture, unavailable, or restricted
