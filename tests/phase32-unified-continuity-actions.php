@@ -19,7 +19,7 @@ p32(str_contains($cards,"annotated:object-add-research")&&str_contains($cards,'a
 p32(str_contains($cards,"annotated:object-ask-agent")&&str_contains($cards,'annotatedAskAgent(id)'), 'shared Annotation runtime consumes Team-to-Agent handoff');
 p32(str_contains($agent,'function attachmentUrl')&&str_contains($agent,"annotation:'/annotation.php?id='")&&str_contains($agent,"research:'/research-project.php?id='"),'Agent context chips map supported references back to authoritative objects');
 p32(str_contains($agent,"const chip=document.createElement(href?'a':'span')"),'Agent only emits an object link when a deterministic destination exists');
-p32(str_contains($agentServer,"is_blocked($pdo,(int)$viewer['id'],(int)$a['user_id'])"),'Agent Annotation context preserves the app user-block boundary server-side');
+p32(str_contains($agentServer,'is_blocked($pdo,(int)$viewer[\'id\'],(int)$a[\'user_id\'])'),'Agent Annotation context preserves the app user-block boundary server-side');
 p32(str_contains($home,'data-agent-enabled=')&&str_contains($home,'user_is_pro($pdo,$u)'), 'Home renders current Agent capability into Team Chat without trusting client plan state');
 p32(str_contains($ui,'annotation-cards.js?v=32.0')&&str_contains($settings,'annotation-cards.js?v=32.0'),'website Annotation surfaces load the Phase 32 continuity runtime');
 p32(($manifest['version']??'')==='0.32.0','Chrome extension version is v0.32.0');
