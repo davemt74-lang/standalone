@@ -72,6 +72,7 @@ function initializeSidebarBindings(){
   sidebarBindClick('openPublications',()=>chrome.tabs.create({url:API_BASE+'/research-publications.php'}));
   sidebarBindClick('openNetwork',()=>chrome.tabs.create({url:API_BASE+'/research-network.php'}));
   sidebarBindClick('openAudit',()=>chrome.tabs.create({url:API_BASE+'/research-audit.php'}));
+  sidebarBindClick('openVerification',()=>chrome.tabs.create({url:API_BASE+'/research-verification.php'}));
   sidebarBindClick('openImpact',()=>chrome.tabs.create({url:API_BASE+'/research-impact.php'}));
   sidebarBindClick('openReviews',()=>chrome.tabs.create({url:API_BASE+'/research-reviews.php'}));
   sidebarBindClick('openDecisionMemory',()=>chrome.tabs.create({url:API_BASE+'/research-outcomes.php'}));
