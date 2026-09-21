@@ -73,14 +73,23 @@
     });
   }
 
+  const agentEnabled=rail.dataset.agentEnabled==='1';
   function renderAttachment(item){
-    const wrap=document.createElement(item.available===false?'div':'a');wrap.className='teamChatAttachment'+(item.available===false?' is-unavailable':'');
+    const wrap=document.createElement('section');wrap.className='teamChatAttachment'+(item.available===false?' is-unavailable':'');
     if(item.available===false){wrap.textContent=item.label||'Shared item unavailable';return wrap;}
-    wrap.href=item.url||'#';const eyebrow=document.createElement('small');eyebrow.textContent=item.label||item.type||'Shared item';
+    const primary=document.createElement('a');primary.className='teamChatAttachmentPrimary';primary.href=item.url||'#';
+    const eyebrow=document.createElement('small');eyebrow.textContent=item.label||item.type||'Shared item';
     const title=document.createElement('strong');title.textContent=item.title||item.preview||item.public_id||'Annotated item';
-    wrap.append(eyebrow,title);
-    if(item.source?.title){const source=document.createElement('span');source.textContent=item.source.title;wrap.appendChild(source);}
-    return wrap;
+    primary.append(eyebrow,title);
+    if(item.source?.title){const source=document.createElement('span');source.textContent=item.source.title;primary.appendChild(source);}
+    wrap.appendChild(primary);
+    const actions=document.createElement('div');actions.className='teamChatAttachmentActions';
+    const open=document.createElement('a');open.href=item.url||'#';open.textContent='Open';actions.appendChild(open);
+    if(item.type==='annotation'){
+      const research=document.createElement('button');research.type='button';research.textContent='Research';research.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:object-add-research',{detail:{type:'annotation',public_id:item.public_id,source:'team_chat'},bubbles:true})));actions.appendChild(research);
+      if(agentEnabled){const agent=document.createElement('button');agent.type='button';agent.textContent='Agent';agent.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:object-ask-agent',{detail:{type:'annotation',public_id:item.public_id,source:'team_chat'},bubbles:true})));actions.appendChild(agent);}
+    }
+    wrap.appendChild(actions);return wrap;
   }
 
   function renderMessage(row,onReply){
