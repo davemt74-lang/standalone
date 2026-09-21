@@ -35,16 +35,18 @@ This prevents a deployment from pairing the hardened PHP tree with older cached 
 2. The Annotation appears in Feed.
 3. The same Annotation is shared to Team Chat as a reference, not a copied object.
 4. It enters a shared Research project.
-5. Explicitly confirmed Agent actions create a Claim, attach the original evidence, and create a Finding.
-6. A collaborator performs human review.
-7. The Research lifecycle reaches Publish.
-8. A public immutable Report Version is published and hash-verified.
-9. Workspace context re-resolves Team / Research / object / Agent references.
-10. The Source changes after publication.
-11. Source Integrity propagates downstream impact to Claim / Finding / Report.
-12. Action Center routes the impact to human review.
-13. Resolving the authoritative impact removes the Action Center item.
-14. Team removal revokes private Team/Research/chat access while the intentionally public Report remains public.
+5. Explicitly confirmed Agent actions create a Claim and attach the original evidence.
+6. A collaborator records current human Claim verification.
+7. Agent-assisted synthesis creates a Finding.
+8. A collaborator performs human review.
+9. The Research lifecycle reaches Publish.
+10. A public immutable Report Version is published and hash-verified.
+11. Workspace context re-resolves Team / Research / object / Agent references.
+12. The Source changes after publication.
+13. Source Integrity propagates downstream impact to Claim / Finding / Report.
+14. Action Center routes the impact to human review.
+15. Resolving the authoritative impact removes the Action Center item.
+16. Team removal revokes private Team/Research/chat access while the intentionally public Report remains public.
 
 No external LLM call or background-worker timing is required for the release gate.
 
