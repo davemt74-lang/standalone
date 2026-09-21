@@ -85,3 +85,7 @@ body.auth-open>nav,body.auth-open>main,body.auth-open>.landingPanel{display:none
 .notificationWhy strong{font-size:11px}.notificationWhy span{font-size:12px;line-height:1.35}
 
 .researchPrimaryRow{margin-bottom:8px}.researchAdvancedMini{margin-top:8px}.researchAdvancedMini summary{cursor:pointer;font-size:12px;font-weight:700}.researchAdvancedMini .row{margin-top:8px}
+
+
+/* Phase 33 — Unified Activity & Context Awareness */
+.activityFeed{display:grid;gap:9px}.activityMiniCard{display:grid;gap:6px;padding:10px;border:1px solid #deded8;border-radius:10px;background:#fff}.activityMiniHead{display:flex;justify-content:space-between;gap:8px;align-items:center}.activityMiniHead span{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#666}.activityMiniHead time{font-size:9px;color:#888}.activityMiniCard strong{font-size:12px;line-height:1.35}.activityMiniCard p{margin:0;font-size:11px;line-height:1.4;color:#555}.activityMiniCard button{justify-self:start;border:1px solid #d7d7d0;border-radius:999px;background:#fff;padding:5px 8px;font-size:10px;font-weight:700}
