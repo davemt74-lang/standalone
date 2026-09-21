@@ -12,11 +12,14 @@ $avoid('database/migrations/20260921_037_dataset_registry_frozen_manifests.sql',
 $avoid('database/migrations/20260921_037_dataset_registry_frozen_manifests.sql','TRUNCATE','Phase 38 migration must be expand-only.');
 
 $runtime=(string)file_get_contents($root.'/app/data-datasets.php');
-foreach(['data_dataset_ready','data_dataset_purposes','data_dataset_policy_normalize','data_dataset_create','data_dataset_update_draft','data_dataset_preview','data_dataset_freeze','data_dataset_recompute_item_hashes','data_dataset_manifest_payload','data_dataset_manifest_hash','data_dataset_current_use_status','data_dataset_retire','data_dataset_export','data_dataset_summary'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 38 runtime helper missing: '.$fn;
+foreach(['data_dataset_ready','data_dataset_purposes','data_dataset_policy_normalize','data_dataset_create','data_dataset_update_draft','data_dataset_preview','data_dataset_freeze','data_dataset_recompute_item_hashes','data_dataset_snapshot_integrity','data_dataset_manifest_payload','data_dataset_manifest_hash','data_dataset_current_use_status','data_dataset_retire','data_dataset_export','data_dataset_summary'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 38 runtime helper missing: '.$fn;
 foreach(["'retrieval'=>['label'=>'Retrieval'","'evaluation'=>['label'=>'Evaluation'","'training'=>['label'=>'Training'","'commercial_training'=>['label'=>'Commercial training'"] as $needle)if(!str_contains($runtime,$needle))$fail[]='Dataset purpose separation missing: '.$needle;
 $need('app/data-datasets.php',"if(\$d['status']!=='draft')throw new RuntimeException('Frozen or retired datasets are immutable.')",'Frozen dataset definitions must be immutable.');
 $need('app/data-datasets.php','normalized_text_snapshot','Dataset freeze must preserve exact governed text snapshots.');
 $need('app/data-datasets.php','data_dataset_recompute_item_hashes','Manifest verification must recompute hashes from frozen snapshot content.');
+$need('app/data-datasets.php','data_dataset_snapshot_integrity','Stored frozen snapshot hashes must be cross-checked against recomputed content.');
+$need('app/data-datasets.php',"$sql.=' FOR UPDATE'",'Dataset freeze must lock selected corpus rows against concurrent consent/rights mutation.');
+$need('app/data-datasets.php',"Only frozen datasets can be retired.",'Draft datasets must not enter the retired frozen lifecycle.');
 $need('app/data-datasets.php','manifest_integrity_failure','Current-use gate must block manifest integrity failures.');
 $need('app/data-datasets.php','eligibility_or_content_changed','Current-use gate must block later eligibility/content/provenance changes.');
 $need('app/data-datasets.php',"if(\$includeText&&(\$d['status']!=='frozen'||!\$status['usable']))",'Full-text export must be blocked when a frozen dataset is retired or no longer currently usable.');
@@ -31,6 +34,7 @@ $need('admin/datasets.php','Export manifest JSON','Admin Dataset Registry must e
 $need('admin/datasets.php','Export approved data JSON','Admin Dataset Registry must expose governed data export only when usable.');
 $need('admin/datasets.php','AUDIT EVENTS','Admin Dataset Registry must expose dataset lifecycle events.');
 $need('admin/datasets.php','RETIRED','Admin Dataset Registry must show retired dataset state.');
+$need('admin/datasets.php',"in_array($selected['status'],['frozen','retired'],true)",'Admin must keep retired frozen snapshots inspectable.');
 $need('admin/dataset-export.php',"\$_SERVER['REQUEST_METHOD']!=='POST'",'Dataset exports must be POST-only.');
 $need('admin/dataset-export.php','require_csrf()','Dataset exports must require CSRF protection.');
 $need('app/shell.php','Dataset Registry','Dataset Registry must be a first-class Admin navigation item.');
