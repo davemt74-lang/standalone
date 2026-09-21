@@ -127,10 +127,18 @@ function provenance_receipt_access(PDO $pdo,array $viewer,string $publicId): ?ar
 
 function provenance_receipts(PDO $pdo,array $viewer,string $projectPublic,int $limit=50): array {
     if(!provenance_ready($pdo))return [];$project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)return [];$limit=max(1,min(200,$limit));$currentHash=provenance_hash(provenance_project_manifest($pdo,$viewer,$projectPublic));
-    $q=$pdo->prepare("SELECT rar.*,rp.public_id project_public_id,rp.title project_title FROM research_audit_receipts rar JOIN research_projects rp ON rp.id=rar.project_id WHERE rar.project_id=? AND rar.created_by_user_id=? ORDER BY rar.id DESC LIMIT ".$limit);$q->execute([$project['id'],$viewer['id']]);$out=[];
-    foreach($q->fetchAll() as $r){$manifest=json_decode((string)$r['manifest_json'],true);if(!is_array($manifest))continue;$r['manifest']=$manifest;$r['stored_hash_valid']=hash_equals((string)$r['manifest_hash'],hash('sha256',provenance_encode($manifest)));$r['current_manifest_hash']=$currentHash;$r['current_matches_receipt']=hash_equals((string)$r['manifest_hash'],$currentHash);$out[]=$r;}return $out;
+    $q=$pdo->prepare("SELECT rar.id,rar.public_id,rar.created_by_user_id,rar.project_id,rar.scope_type,rar.report_version_id,rar.manifest_hash,rar.created_at,
+        SHA2(rar.manifest_json,256) computed_manifest_hash,rp.public_id project_public_id,rp.title project_title
+      FROM research_audit_receipts rar JOIN research_projects rp ON rp.id=rar.project_id
+      WHERE rar.project_id=? AND rar.created_by_user_id=? ORDER BY rar.id DESC LIMIT ".$limit);
+    $q->execute([$project['id'],$viewer['id']]);$out=[];
+    foreach($q->fetchAll() as $r){
+        $r['stored_hash_valid']=hash_equals(strtolower((string)$r['manifest_hash']),strtolower((string)$r['computed_manifest_hash']));
+        unset($r['computed_manifest_hash']);
+        $r['current_manifest_hash']=$currentHash;$r['current_matches_receipt']=hash_equals((string)$r['manifest_hash'],$currentHash);$out[]=$r;
+    }
+    return $out;
 }
-
 function provenance_project_context(PDO $pdo,array $viewer,string $projectPublic): array {
     $manifest=provenance_project_manifest($pdo,$viewer,$projectPublic);$integrity=provenance_project_integrity($manifest);$lines=['[RESEARCH PROVENANCE]','Source versions: '.count($manifest['source_versions']).'; annotations: '.count($manifest['annotations']).'; Claims: '.count($manifest['claims']).'; Findings: '.count($manifest['findings']).'; report versions: '.count($manifest['report_versions']).'; reviews: '.count($manifest['reviews']).'; verification events: '.count($manifest['verification_events']??[]).'; Evidence Packs: '.count($manifest['evidence_packs']??[]).'.','Report snapshot verification: '.$integrity['report_snapshots']['valid'].' valid; '.$integrity['report_snapshots']['invalid'].' mismatch.','Current provenance manifest SHA-256: '.$integrity['manifest_hash'].'.'];return ['text'=>implode("\n",$lines),'refs'=>[['type'=>'research_project','id'=>$projectPublic]],'manifest'=>$manifest,'integrity'=>$integrity];
 }
