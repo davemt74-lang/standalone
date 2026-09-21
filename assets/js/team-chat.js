@@ -73,6 +73,16 @@
     });
   }
 
+  function renderAttachment(item){
+    const wrap=document.createElement(item.available===false?'div':'a');wrap.className='teamChatAttachment'+(item.available===false?' is-unavailable':'');
+    if(item.available===false){wrap.textContent=item.label||'Shared item unavailable';return wrap;}
+    wrap.href=item.url||'#';const eyebrow=document.createElement('small');eyebrow.textContent=item.label||item.type||'Shared item';
+    const title=document.createElement('strong');title.textContent=item.title||item.preview||item.public_id||'Annotated item';
+    wrap.append(eyebrow,title);
+    if(item.source?.title){const source=document.createElement('span');source.textContent=item.source.title;wrap.appendChild(source);}
+    return wrap;
+  }
+
   function renderMessage(row,onReply){
     const article=document.createElement('article');article.className='teamChatMessage'+(row.is_self?' is-self':'');article.dataset.message=row.public_id;
     const head=document.createElement('div');head.className='teamChatMessageHead';
@@ -92,6 +102,7 @@
       quote.append(who,body);article.appendChild(quote);
     }
     const body=document.createElement('div');body.className='teamChatBody';body.textContent=row.body||'';article.appendChild(body);
+    if(Array.isArray(row.attachments)&&row.attachments.length){const attachments=document.createElement('div');attachments.className='teamChatAttachments';for(const item of row.attachments)attachments.appendChild(renderAttachment(item));article.appendChild(attachments);}
     return article;
   }
 
@@ -306,6 +317,7 @@
   mobileClose?.addEventListener('click',()=>document.body.classList.remove('teamChatMobileOpen'));
   document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('teamChatMobileOpen');});
   document.addEventListener('annotated:chat-presence',e=>updateSelfStatus(e.detail||{}));
+  document.addEventListener('annotated:team-chat-share-complete',e=>{const conversation=String(e.detail?.conversation||'');if(!conversation)return;openPopup(conversation);refreshConversationList();if(select?.value===conversation)loadRailMessages({quiet:true});});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
 
   syncTeamMeta();loadRailMessages();restorePopups();
