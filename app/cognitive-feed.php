@@ -5,6 +5,7 @@ require_once __DIR__.'/feed.php';
 require_once __DIR__.'/research-workspace.php';
 require_once __DIR__.'/conversations.php';
 require_once __DIR__.'/agent-actions.php';
+require_once __DIR__.'/unified-activity.php';
 
 function cognitive_feed_ready(PDO $pdo): bool {
     try{return installer_table_exists($pdo,'cognitive_feed_dismissals');}
@@ -64,6 +65,7 @@ function cognitive_feed_base_score(string $type): int {
       'research_task'=>62,
       'team_activity'=>58,
       'related_research'=>56,
+      'workspace_activity'=>54,
       'recent_change'=>48,
       default=>45
     };
@@ -135,6 +137,7 @@ function cognitive_feed_section_definitions(): array {
       'opportunities'=>['label'=>'Opportunities','description'=>'Useful next moves identified from current Research state.'],
       'continue_researching'=>['label'=>'Continue researching','description'=>'Open work worth picking back up.'],
       'team_activity'=>['label'=>'Team activity','description'=>'Unread collaboration that may need your attention.'],
+      'workspace_activity'=>['label'=>'Workspace activity','description'=>'Recent context across your Annotations, Research and publications.'],
       'recent_changes'=>['label'=>'Recent changes','description'=>'Meaningful updates across your Annotated workspace.'],
     ];
 }
@@ -211,6 +214,20 @@ function cognitive_feed_collect_watched_source_changes(PDO $pdo,array $viewer,ar
             cognitive_feed_action_link('Open source','/source.php?id='.rawurlencode((string)$row['source_public_id'])),
             cognitive_feed_action_agent('Ask Agent','Explain what changed in this source and what I should review next.',[['type'=>'source','public_id'=>(string)$row['source_public_id']]])
           ]
+        ]);
+    }
+}
+
+function cognitive_feed_collect_unified_activity(PDO $pdo,array $viewer,array &$items): void {
+    if(!function_exists('unified_activity_collect'))return;
+    $rows=unified_activity_context_items(unified_activity_collect($pdo,$viewer,18),6);
+    foreach($rows as $row){
+        $actions=[];if(!empty($row['href']))$actions[]=cognitive_feed_action_link('Open',(string)$row['href']);
+        if(!empty($row['context']))$actions[]=cognitive_feed_action_agent('Ask Agent','Review this workspace activity and explain what changed, why it matters, and the most useful next step. Do not change anything without confirmation.',(array)$row['context']);
+        cognitive_feed_add($items,[
+          'key'=>cognitive_feed_key('workspace_activity',(string)($row['object']['type']??$row['surface']??'workspace'),(string)($row['object']['public_id']??$row['key']),(string)$row['created_at']),
+          'type'=>'workspace_activity','section'=>'workspace_activity','priority'=>'low','created_at'=>$row['created_at'],
+          'title'=>$row['title'],'body'=>$row['body'],'meta'=>array_merge(['surface'=>ucfirst((string)$row['surface'])],(array)($row['meta']??[])),'actions'=>$actions
         ]);
     }
 }
@@ -417,6 +434,7 @@ function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int
     cognitive_feed_collect_watched_source_changes($pdo,$viewer,$items);
     cognitive_feed_collect_team_activity($pdo,$viewer,$items,$teamList);
     cognitive_feed_collect_recent_agent_results($pdo,$viewer,$items);
+    cognitive_feed_collect_unified_activity($pdo,$viewer,$items);
 
     $dismissed=cognitive_feed_dismissed_keys($pdo,(int)$viewer['id']);$activeHidden=0;
     foreach(array_keys($items) as $key)if(isset($dismissed[$key])){$activeHidden++;unset($items[$key]);}
