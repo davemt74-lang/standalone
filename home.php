@@ -53,7 +53,7 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
   <div class="agentChatContextPicker" data-agent-context-picker hidden><div class="agentChatContextPickerHead"><strong>Add Annotated context</strong><button type="button" data-agent-context-close aria-label="Close context picker">×</button></div><div class="agentChatContextPickerBody" data-agent-context-options><div class="meta">Loading context…</div></div></div>
 </section><aside class="homeRightRail <?=$chatTeams?'teamChatRightRail':''?>">
 <?php if($chatTeams):?>
-<section class="teamChatRail" id="team-chat" data-team-chat-rail data-csrf="<?=h(csrf_token())?>" data-preferred-team="<?=h($preferredTeam)?>">
+<section class="teamChatRail" id="team-chat" data-team-chat-rail data-csrf="<?=h(csrf_token())?>" data-preferred-team="<?=h($preferredTeam)?>" data-agent-enabled="<?=(user_is_pro($pdo,$u)||($u['role']??'')==='admin')?'1':'0'?>">
   <header class="teamChatHeader"><div><span class="eyebrow">TEAM CHAT</span><h3>Messages</h3></div><div class="teamChatHeaderActions"><button type="button" class="teamChatPopoutCurrent" data-team-chat-popout aria-label="Pop out current team chat" title="Pop out chat">↗</button><button type="button" class="teamChatClose" data-team-chat-close aria-label="Close team chat">×</button></div></header>
   <div class="teamChatTeamPicker"><select id="teamChatConversation" aria-label="Choose team"><?php foreach($chatTeams as $chat):?><option value="<?=h($chat['public_id'])?>" data-team="<?=h($chat['team_public_id'])?>" data-members="<?=h((string)$chat['member_count'])?>" data-unread="<?=h((string)$chat['unread_count'])?>" <?=$preferredTeam!==''&&$preferredTeam===$chat['team_public_id']?'selected':''?>><?=h($chat['team_name'])?><?=$chat['unread_count']?' · '.$chat['unread_count'].' new':''?></option><?php endforeach?></select><a id="teamChatOpenTeam" href="/team.php?id=<?=h($chatTeams[0]['team_public_id'])?>">Team</a></div>
   <div class="teamChatStatus"><span id="teamChatMemberCount"></span><span id="teamChatUnread" hidden></span></div>
@@ -76,9 +76,9 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
   <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
-<script src="/assets/js/agent-chat.js?v=31.0"></script>
+<script src="/assets/js/agent-chat.js?v=32.0"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
-<?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=31.0"></script><?php endif?>
+<?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=32.0"></script><?php endif?>
 <?php if($proactiveAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$proactiveAgentHandoff['prompt'],'context'=>$proactiveAgentHandoff['context'],'source'=>'proactive_notification'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?php if($crossResearchAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$crossResearchAgentHandoff['prompt'],'context'=>$crossResearchAgentHandoff['context'],'source'=>'cross_research'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?php if($reviewAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$reviewAgentHandoff['prompt'],'context'=>$reviewAgentHandoff['context'],'source'=>'research_review'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>

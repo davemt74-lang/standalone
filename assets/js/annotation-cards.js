@@ -176,4 +176,13 @@ document.addEventListener('click',async e=>{
   finally{b.disabled=false;}
 });
 
+
+document.addEventListener('annotated:object-add-research',async e=>{
+  const type=String(e.detail?.type||'').trim(),id=String(e.detail?.public_id||'').trim();
+  if(type==='annotation'&&id)await annotatedOpenResearch(id,null);
+});
+document.addEventListener('annotated:object-ask-agent',e=>{
+  const type=String(e.detail?.type||'').trim(),id=String(e.detail?.public_id||'').trim();
+  if(type==='annotation'&&id)annotatedAskAgent(id);
+});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.annotationHeaderMenu[open]').forEach(menu=>menu.removeAttribute('open'));});

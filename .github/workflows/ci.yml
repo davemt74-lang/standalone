@@ -273,6 +273,8 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase31-unified-object-handoff-db.php
+      - name: Phase 32 Unified Continuity Actions and Object Cards contract suite
+        run: php tests/phase32-unified-continuity-actions.php
 
 
   mysql8-fresh-install:
