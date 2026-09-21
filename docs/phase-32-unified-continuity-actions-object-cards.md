@@ -29,6 +29,7 @@ The link is navigation only. It does not alter the Agent conversation, create me
 - Research addition continues through the existing project/Annotation relation.
 - Agent context continues through the existing permission-checked Agent context API.
 - Server-side access remains authoritative even when a UI card exposes an action.
+- Agent Annotation context rechecks user blocks, so a stale Team card cannot bypass a later block.
 - Agent actions remain subject to the existing paid-plan/server capability gates and confirmation model.
 
 Chrome release: **v0.32.0**.
