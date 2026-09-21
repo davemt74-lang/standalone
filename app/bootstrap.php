@@ -65,3 +65,4 @@ require_once __DIR__ . '/living-research.php';
 require_once __DIR__ . '/research-network.php';
 require_once __DIR__ . '/research-provenance.php';
 require_once __DIR__ . '/research-verification.php';
+require_once __DIR__ . '/research-evidence-packs.php';

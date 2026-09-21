@@ -345,3 +345,12 @@
 .verificationSources{border-top:1px solid var(--border,#e5e7eb);padding-top:10px}.verificationSource{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--border,#e5e7eb)}.verificationSource>div:first-child{display:flex;flex-direction:column}.verificationReviewForm{display:grid;grid-template-columns:minmax(160px,220px) minmax(0,1fr) auto;gap:10px;align-items:end}.stickyVerificationRail{position:sticky;top:92px}
 @media(max-width:1050px){.verificationLayout,.verificationHub{grid-template-columns:1fr}.stickyVerificationRail{position:static}.verificationSummary{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.verificationLayout,.verificationHub{padding:14px}.verificationSummary,.verificationSignals{grid-template-columns:repeat(2,minmax(0,1fr))}.verificationProjectCard,.verificationClaimHead,.verificationSource,.verificationReviewForm{display:grid;grid-template-columns:1fr}}
+
+
+/* Phase 28 — Research Reproducibility & Evidence Packs */
+.evidencePackLayout,.evidencePackHub{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:24px;align-items:start;max-width:1560px;margin:0 auto;padding:24px}
+.evidencePackList{display:grid;gap:14px}.evidencePackCard,.evidencePackProject{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.evidencePackCard code,.evidencePackDrift code{overflow-wrap:anywhere}
+.evidencePackSummary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 0}.evidencePackSummary .card{display:flex;flex-direction:column;gap:4px}.evidencePackSummary strong{font-size:1.3rem}.evidencePackSummary span{font-size:.78rem;color:var(--muted,#6b7280)}
+.evidencePackReplay{display:grid;gap:12px}.evidencePackDrift{border-left:4px solid currentColor}.evidencePackJson{max-height:70vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.78rem}.stickyEvidencePackRail{position:sticky;top:92px}
+@media(max-width:1050px){.evidencePackLayout,.evidencePackHub{grid-template-columns:1fr}.stickyEvidencePackRail{position:static}.evidencePackSummary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.evidencePackLayout,.evidencePackHub{padding:14px}.evidencePackSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.evidencePackCard,.evidencePackProject{display:grid}}

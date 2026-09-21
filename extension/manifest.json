@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Annotated",
-  "version": "0.27.0",
-  "description": "Annotated v0.27 Chrome sidebar paired with Research Trust, Review & Verification, Research Provenance & Audit Ledger, Research Network & Citation Intelligence, Living Research Publishing & Distribution, Research Portfolio Intelligence, Change Impact & Staleness Intelligence, Collaborative Research Review & Governance, Outcome Learning & Decision Memory, Cross-Research Intelligence, Research Automation, Proactive Research Intelligence, Cognitive Feed, Agent-Driven Research, Research Workspace Intelligence, annotation intelligence, Team Chat, Agent Chat, capture, source integrity, search, notifications, and moderation.",
+  "version": "0.28.0",
+  "description": "Annotated v0.28 Chrome sidebar paired with Research Reproducibility & Evidence Packs, Research Trust, Review & Verification, Research Provenance & Audit Ledger, Research Network & Citation Intelligence, Living Research Publishing & Distribution, Research Portfolio Intelligence, Change Impact & Staleness Intelligence, Collaborative Research Review & Governance, Outcome Learning & Decision Memory, Cross-Research Intelligence, Research Automation, Proactive Research Intelligence, Cognitive Feed, Agent-Driven Research, Research Workspace Intelligence, annotation intelligence, Team Chat, Agent Chat, capture, source integrity, search, notifications, and moderation.",
   "permissions": [
     "sidePanel",
     "activeTab",
