@@ -44,8 +44,14 @@
     canvas.hidden=true;feed.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);const url=new URL(location.href);if(url.searchParams.has('agent')){url.searchParams.delete('agent');history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);}requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
   }
   function clearWelcome(){messages.querySelector('.agentChatWelcome')?.remove();}
+  function attachmentUrl(a){
+    const id=encodeURIComponent(String(a?.public_id||''));if(!id)return '';
+    return ({annotation:'/annotation.php?id=',research:'/research-project.php?id=',research_project:'/research-project.php?id=',source:'/source.php?id=',team:'/team.php?id=',claim:'/research-claim.php?id=',finding:'/research-finding.php?id='})[String(a?.type||'')]?.concat(id)||'';
+  }
   function renderAttachment(a){
-    const chip=document.createElement('span');chip.className='agentContextChip';chip.textContent=(a.metadata?.label||a.label||a.public_id||a.type);return chip;
+    const href=attachmentUrl(a),chip=document.createElement(href?'a':'span');chip.className='agentContextChip';chip.textContent=(a.metadata?.label||a.label||a.public_id||a.type);
+    if(href){chip.href=href;chip.title='Open '+String(a.type||'Annotated context').replace(/_/g,' ');}
+    return chip;
   }
   function capabilityLabel(key){
     return ({'research.create_task':'Create research task','research.create_note':'Create research note','research.create_claim':'Create claim','research.attach_annotation_evidence':'Attach annotation evidence','research.create_finding':'Create finding','research.link_claims':'Link claims'})[key]||String(key||'Research action');
