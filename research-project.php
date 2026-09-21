@@ -75,7 +75,8 @@ $workflow=research_workflow_state($pdo,$u,$project['public_id']);
 <?php if(user_is_pro($pdo,$u)||($u['role']??'')==='admin'):?>
 <section class="researchAgentPanel" data-research-agent-panel data-project="<?=h($project['public_id'])?>" data-csrf="<?=h(csrf_token())?>" hidden><header><div><span class="eyebrow">PROJECT AGENT</span><strong><?=h($project['title'])?></strong></div><div><button type="button" data-research-agent-new title="New chat">＋</button><button type="button" data-research-agent-close aria-label="Close Agent panel">×</button></div></header><div class="researchAgentMessages" data-research-agent-messages role="log" aria-live="polite"></div></section>
 <form class="researchAgentDock" data-research-agent-composer><button type="button" data-research-agent-context aria-label="Project context">◎</button><textarea rows="1" maxlength="12000" placeholder="Ask Annotated about this research project…" aria-label="Ask Annotated"></textarea><button type="submit" aria-label="Send to Agent">↑</button></form>
+<script src="/assets/js/workspace-state.js?v=34.0"></script>
 <script src="/assets/js/research-agent.js?v=34.0"></script>
 <?php endif?>
 <script src="/assets/js/research-workspace.js?v=15.0"></script>
-<?=annotation_ui_scripts($u)?><script src="/assets/js/workspace-state.js?v=34.0"></script></body></html>
+<?=annotation_ui_scripts($u)?></body></html>
