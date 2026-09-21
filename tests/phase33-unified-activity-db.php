@@ -82,6 +82,10 @@ p33(!p33has($memberItems,'annotation_published',$privateAnnotation),'Team member
 p33(p33has($memberItems,'team_message'),'Team member sees current Team message activity');
 p33(p33has($memberItems,'research_evidence_added',$teamAnnotation),'Team member sees current Research evidence activity');
 p33(p33has($memberItems,'claim_updated',$claimPublic)&&p33has($memberItems,'finding_updated',$findingPublic),'Team member sees accessible Claim and Finding activity');
+$claimActivity=array_values(array_filter($memberItems,fn($item)=>(string)($item['type']??'')==='claim_updated'))[0]??[];
+$findingActivity=array_values(array_filter($memberItems,fn($item)=>(string)($item['type']??'')==='finding_updated'))[0]??[];
+p33(count((array)($claimActivity['context']??[]))===1&&($claimActivity['context'][0]['type']??'')==='research','Claim activity hands Agent the supported Research context only');
+p33(count((array)($findingActivity['context']??[]))===1&&($findingActivity['context'][0]['type']??'')==='research','Finding activity hands Agent the supported Research context only');
 p33(p33count($memberItems,'report_published')===1,'Team member sees only the accessible Team Report Version, not the private version');
 p33(!p33has($memberItems,'agent_action_executed',$proposalPublic),'Team member cannot see another user Agent action lifecycle');
 
