@@ -91,7 +91,7 @@ function unified_activity_team(PDO $pdo,array $viewer,array &$items,int $limit):
 
 function unified_activity_project_annotations(PDO $pdo,array $viewer,array &$items,int $limit): void {
     if(!installer_table_exists($pdo,'project_annotations')||!installer_table_exists($pdo,'research_projects'))return;
-    $q=$pdo->prepare("SELECT pa.created_at,a.public_id annotation_public_id,a.text_commentary,
+    $q=$pdo->prepare("SELECT pa.created_at,a.public_id annotation_public_id,a.text_commentary,a.user_id annotation_owner_user_id,
       rp.public_id project_public_id,rp.title project_title,
       u.public_id actor_public_id,u.username,u.display_name,pa.added_by_user_id
       FROM project_annotations pa
@@ -105,6 +105,7 @@ function unified_activity_project_annotations(PDO $pdo,array $viewer,array &$ite
     foreach($q->fetchAll() as $row){
         $project=project_access($pdo,(int)$viewer['id'],(string)$row['project_public_id']);if(!$project)continue;
         if(!annotation_access($pdo,(string)$row['annotation_public_id'],$viewer))continue;
+        if((int)$row['annotation_owner_user_id']!==(int)$viewer['id']&&function_exists('is_blocked')&&is_blocked($pdo,(int)$viewer['id'],(int)$row['annotation_owner_user_id']))continue;
         $self=(int)$row['added_by_user_id']===(int)$viewer['id'];$actor=(string)($row['display_name']?:$row['username']);
         unified_activity_add($items,[
           'type'=>'research_evidence_added','surface'=>'research','created_at'=>$row['created_at'],
