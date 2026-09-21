@@ -34,7 +34,7 @@ p36c(str_contains($home,'teamChatMobileToggle')&&str_contains($home,'aria-contro
 p36c(str_contains($home,'role="log" aria-live="polite"')&&str_contains((string)file_get_contents($root.'/research-project.php'),'role="log" aria-live="polite"'),'Team/Agent message streams retain live-region accessibility');
 
 foreach(['app/annotation-ui.php','settings.php'] as $path)p36c(str_contains((string)file_get_contents($root.'/'.$path),'annotation-cards.js?v=36.0'),"$path uses the Phase 36 Annotation client cache tag");
-foreach(['workspace-state.js?v=36.0','agent-chat.js?v=36.0','team-chat.js?v=36.0'] as $needle)p36c(str_contains($home,$needle),"Home uses current release cache tag: $needle");
+foreach(['workspace-state.js?v=36.0','team-chat.js?v=36.0'] as $needle)p36c(str_contains($home,$needle),"Home preserves Phase 36 cache tag: $needle");p36c((bool)preg_match('/agent-chat\\.js\\?v=\\d+\\.\\d+/',$home),'Home Agent Chat remains explicitly cache-busted after Phase 36.');
 p36c(str_contains((string)file_get_contents($root.'/activity.php'),'activity.js?v=36.0')&&str_contains((string)file_get_contents($root.'/activity.php'),'workspace-state.js?v=36.0'),'Activity uses current release cache tags');
 p36c(str_contains((string)file_get_contents($root.'/action-center.php'),'action-center.js?v=36.0')&&str_contains((string)file_get_contents($root.'/action-center.php'),'workspace-state.js?v=36.0'),'Action Center uses current release cache tags');
 p36c(str_contains((string)file_get_contents($root.'/research-project.php'),'research-agent.js?v=36.0')&&str_contains((string)file_get_contents($root.'/research-project.php'),'workspace-state.js?v=36.0'),'Research workspace uses current release cache tags');

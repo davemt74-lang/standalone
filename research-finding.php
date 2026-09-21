@@ -15,6 +15,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$op=(string)($_POST['op']
         $pdo->prepare('INSERT INTO finding_claims(finding_id,claim_id,added_by_user_id,relationship,position) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE relationship=VALUES(relationship),position=VALUES(position),added_by_user_id=VALUES(added_by_user_id)')->execute([$finding['id'],$claimId,$u['id'],$relationship,$position]);$success='Claim added to Finding.';
     }
     if($op==='remove_claim'){$claimPublic=(string)($_POST['claim']??'');$pdo->prepare('DELETE fc FROM finding_claims fc JOIN research_claims rc ON rc.id=fc.claim_id WHERE fc.finding_id=? AND rc.public_id=?')->execute([$finding['id'],$claimPublic]);$success='Claim removed from Finding.';}
+    if($success!==''&&function_exists('data_attribution_try_capture_object'))data_attribution_try_capture_object($pdo,(int)$u['id'],'finding',(string)$finding['public_id']);
     if($success!==''&&research_workspace_ready($pdo))research_workspace_queue($pdo,(int)$finding['project_id'],3);
 }catch(Throwable $e){$error=$e->getMessage();}
 $finding=research_finding_access($pdo,$u,$id)??$finding;}

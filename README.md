@@ -136,3 +136,27 @@ php bin/research-automations.php --limit=25
 ```
 
 Before every RC/production deploy, back up both MariaDB and `storage.private_root`, run the preflight command, apply pending migrations through `upgrade.php`, and verify Admin → System Health & Release. See the full runbook for rollback rules.
+
+
+## Phase 37 — Data & Attribution Architecture v1
+
+The post-V1 development line adds a governed data substrate for future Annotated Intelligence without training directly from production activity.
+
+Phase 37 adds:
+
+- an append-only **Contribution Ledger** for supported human and Agent knowledge states
+- generalized **Provenance Edges** that point back to authoritative Annotated objects
+- separate **contributor consent** and **Source rights** controls
+- a disposable, regenerable **derived corpus**
+- deterministic shared-retrieval / evaluation / training eligibility
+- **AI response lineage** showing which Annotated objects and contributors were supplied to a model
+- contributor and administrator governance surfaces
+- idempotent backfill for existing Annotated data
+
+The governing rule is:
+
+**Production object → Contribution Ledger → Rights / Consent → Derived Corpus → future Versioned Dataset → Controlled Model Release**
+
+Public visibility does not imply model-training permission. Private and Team Research remains outside the shared corpus. External Source text requires explicit Source-rights approval. Phase 37 does not train or fine-tune a model.
+
+See `docs/phase-37-data-attribution-architecture-v1.md`.
