@@ -79,15 +79,22 @@ function provenance_project_verification(PDO $pdo,array $viewer,int $projectId):
     return $out;
 }
 
-function provenance_project_evidence_packs(PDO $pdo,int $projectId): array {
+function provenance_project_evidence_packs(PDO $pdo,array $viewer,int $projectId): array {
     if(!installer_table_exists($pdo,'research_evidence_packs'))return [];
-    $q=$pdo->prepare("SELECT rep.public_id,rep.scope_type,rep.scope_public_id,rep.scope_hash,rep.manifest_hash,rep.manifest_json,rep.created_at,u.public_id creator_public_id FROM research_evidence_packs rep JOIN users u ON u.id=rep.created_by_user_id WHERE rep.project_id=? ORDER BY rep.id");
-    $q->execute([$projectId]);$out=[];foreach($q->fetchAll() as $r){$json=(string)$r['manifest_json'];$out[]=['id'=>$r['public_id'],'scope_type'=>$r['scope_type'],'scope_id'=>$r['scope_public_id'],'scope_hash'=>$r['scope_hash'],'manifest_hash'=>$r['manifest_hash'],'manifest_hash_valid'=>hash_equals((string)$r['manifest_hash'],hash('sha256',$json)),'creator_id'=>$r['creator_public_id'],'created_at'=>$r['created_at']];}return $out;
+    $q=$pdo->prepare("SELECT rep.public_id,rep.scope_type,rep.scope_public_id,rep.scope_hash,rep.manifest_hash,rep.created_at,u.public_id creator_public_id
+      FROM research_evidence_packs rep JOIN users u ON u.id=rep.created_by_user_id
+      WHERE rep.project_id=? AND rep.created_by_user_id=? ORDER BY rep.id");
+    $q->execute([$projectId,$viewer['id']]);$out=[];
+    foreach($q->fetchAll() as $r)$out[]=[
+        'id'=>$r['public_id'],'scope_type'=>$r['scope_type'],'scope_id'=>$r['scope_public_id'],
+        'scope_hash'=>$r['scope_hash'],'manifest_hash'=>$r['manifest_hash'],
+        'creator_id'=>$r['creator_public_id'],'created_at'=>$r['created_at'],
+    ];
+    return $out;
 }
-
 function provenance_project_manifest(PDO $pdo,array $viewer,string $projectPublic): array {
     $project=project_access($pdo,(int)$viewer['id'],trim($projectPublic));if(!$project)throw new RuntimeException('Research project is unavailable.');
-    $manifest=['schema'=>'annotated-provenance-v1','scope'=>['type'=>'project','project_id'=>$project['public_id']],'project'=>['public_id'=>$project['public_id'],'title'=>$project['title'],'description'=>$project['description'],'status'=>$project['status']??'active'],'source_versions'=>provenance_project_source_versions($pdo,$viewer,(int)$project['id']),'annotations'=>provenance_project_annotations($pdo,$viewer,(int)$project['id']),'claims'=>provenance_project_claims($pdo,$viewer,(int)$project['id']),'findings'=>provenance_project_findings($pdo,(int)$project['id']),'report_versions'=>provenance_project_reports($pdo,$viewer,$project),'reviews'=>provenance_project_reviews($pdo,(int)$project['id']),'verification_events'=>provenance_project_verification($pdo,$viewer,(int)$project['id']),'evidence_packs'=>provenance_project_evidence_packs($pdo,(int)$project['id']),'decision_memory'=>provenance_project_outcomes($pdo,$viewer,(int)$project['id'])];
+    $manifest=['schema'=>'annotated-provenance-v1','scope'=>['type'=>'project','project_id'=>$project['public_id']],'project'=>['public_id'=>$project['public_id'],'title'=>$project['title'],'description'=>$project['description'],'status'=>$project['status']??'active'],'source_versions'=>provenance_project_source_versions($pdo,$viewer,(int)$project['id']),'annotations'=>provenance_project_annotations($pdo,$viewer,(int)$project['id']),'claims'=>provenance_project_claims($pdo,$viewer,(int)$project['id']),'findings'=>provenance_project_findings($pdo,(int)$project['id']),'report_versions'=>provenance_project_reports($pdo,$viewer,$project),'reviews'=>provenance_project_reviews($pdo,(int)$project['id']),'verification_events'=>provenance_project_verification($pdo,$viewer,(int)$project['id']),'evidence_packs'=>provenance_project_evidence_packs($pdo,$viewer,(int)$project['id']),'decision_memory'=>provenance_project_outcomes($pdo,$viewer,(int)$project['id'])];
     return provenance_canonicalize($manifest);
 }
 
