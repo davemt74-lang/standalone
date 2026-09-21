@@ -209,7 +209,7 @@ $phase35Runtime=(string)file_get_contents($root.'/app/action-center.php');foreac
 foreach(['INSERT INTO ','UPDATE ','DELETE FROM ','CREATE TABLE'] as $forbidden)if(str_contains($phase35Runtime,$forbidden))$fail[]="Phase 35 must not create shadow Action Center persistence: $forbidden";
 foreach(['openai','anthropic','gemini','ai_generate'] as $forbidden)if(str_contains(strtolower($phase35Runtime),$forbidden))$fail[]="Phase 35 must not create another AI ranker: $forbidden";
 $phase35Page=(string)file_get_contents($root.'/action-center.php');foreach(['What needs your attention','data-action-center-link','data-action-center-agent'] as $needle)if(!str_contains($phase35Page,$needle))$fail[]="Phase 35 Action Center page contract missing: $needle";
-$phase35Chrome=(string)file_get_contents($root.'/extension/sidepanel-feed.js');foreach(['phase35LoadActions','/api/action-center.php?limit=8','phase35ActionCard'] as $needle)if(!str_contains($phase35Chrome,$needle))$fail[]="Phase 35 Chrome action queue missing: $needle";
+$phase35Chrome=(string)file_get_contents($root.'/extension/sidepanel-feed.js');foreach(['phase35LoadActions','/api/action-center.php?limit=60','phase35ActionCard'] as $needle)if(!str_contains($phase35Chrome,$needle))$fail[]="Phase 35 Chrome action queue missing: $needle";
 if(!str_contains((string)file_get_contents($root.'/extension/sidepanel.html'),'actionCenterMiniFeed'))$fail[]='Phase 35 Chrome must place Action Center inside the existing Activity surface.';
 
 
