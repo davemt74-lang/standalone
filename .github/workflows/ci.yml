@@ -55,7 +55,7 @@ jobs:
         run: php tests/concurrency-contracts.php
       - name: Abuse protection contracts
         run: php tests/rate-limit-contracts.php
-      - name: V1.1 RC1 end-to-end release contract
+      - name: V1 RC1 end-to-end release contract
         run: php tests/v1-rc-e2e-contract.php
       - name: Fresh install MariaDB suite
         env:

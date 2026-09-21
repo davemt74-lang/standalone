@@ -68,6 +68,13 @@ $need('app/moderation.php','moderation_report_create','Community reports must re
 $need('admin/system-health.php','release_environment_checks','Admin must expose production readiness.');
 $need('bin/release-preflight.php','release_environment_checks','CLI must expose the same production readiness service.');
 $need('docs/RELEASE-V1.1-RC1.md','Restore the **database backup and private evidence backup as a matched pair**','Release runbook must document matched-data rollback.');
+$need('app/release.php',"const ANNOTATED_RELEASE = 'V1 RC1'",'Release identity must be normalized to V1 RC1.');
+$need('app/release.php',"const ANNOTATED_RELEASE_VERSION = '1.0.0-rc1'",'Application release version must be V1.0.0 RC1.');
+$need('app/release.php',"const ANNOTATED_EXTENSION_VERSION = '0.36.0'",'Chrome RC version must share one release constant.');
+$need('chrome-extension.php','ANNOTATED_EXTENSION_VERSION','Chrome download page must derive its version from the release identity.');
+$need('.github/workflows/release-rc.yml',"'v1.0.0-rc*'",'Release workflow must trigger on V1 RC tags.');
+$need('.github/workflows/release-rc.yml','!=="0.36.0"','Release workflow must validate the Phase 36 Chrome package.');
+$need('install.php','installer_request_is_https()','Installer session cookies must be Secure when installation runs over HTTPS.');
 $need('connected-accounts.php','revoke_everywhere','Users must be able to revoke browser and extension sessions.');
 $need('oauth/callback.php','$fresh=$issued>0&&$issued>=time()-600','OAuth callback state must expire.');
 $need('oauth/callback.php',"unset(\$_SESSION['oauth_state']",'OAuth callback state must be consumed before provider exchange.');
@@ -346,4 +353,4 @@ $need('action-center.php','action-center.js?v=36.0','Action Center must use the 
 $need('research-project.php','research-agent.js?v=36.0','Research Agent must use the Phase 36 release cache tag.');
 $need('extension/manifest.json','"version": "0.36.0"','Phase 36 Chrome release candidate must be v0.36.0.');
 
-if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "V1.1 RC1 end-to-end release contract passed.\n";
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "V1 RC1 end-to-end release contract passed.\n";

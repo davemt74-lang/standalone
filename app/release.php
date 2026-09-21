@@ -3,8 +3,9 @@ declare(strict_types=1);
 
 require_once __DIR__.'/migrations.php';
 
-const ANNOTATED_RELEASE = 'V1.1 RC1';
-const ANNOTATED_RELEASE_VERSION = '1.1.0-rc1';
+const ANNOTATED_RELEASE = 'V1 RC1';
+const ANNOTATED_RELEASE_VERSION = '1.0.0-rc1';
+const ANNOTATED_EXTENSION_VERSION = '0.36.0';
 
 function onboarding_ensure(PDO $pdo,int $userId): void {
     try{$pdo->prepare('INSERT IGNORE INTO user_onboarding(user_id) VALUES(?)')->execute([$userId]);}catch(PDOException $e){}
@@ -77,15 +78,16 @@ function release_environment_checks(PDO $pdo,array $config): array {
     $checks=[];$add=function(string $key,string $label,string $status,string $detail,bool $critical=true)use(&$checks){$checks[$key]=['key'=>$key,'label'=>$label,'status'=>$status,'detail'=>$detail,'critical'=>$critical];};
     $add('php','PHP '.PHP_VERSION,version_compare(PHP_VERSION,'8.1.0','>=')?'pass':'fail',version_compare(PHP_VERSION,'8.1.0','>=')?'PHP 8.1+ available':'PHP 8.1+ required');
     $base=(string)($config['app']['base_url']??'');$parts=parse_url($base);$https=$parts&&strtolower((string)($parts['scheme']??''))==='https'&&!empty($parts['host'])&&!release_is_placeholder($base);$add('base_url','HTTPS base URL',$https?'pass':'fail',$https?$base:'Production app.base_url must be a non-placeholder HTTPS URL.');
-    try{$pdo->query('SELECT 1')->fetchColumn();$add('database','Database connection','pass','MariaDB connection is healthy.');}catch(Throwable $e){$add('database','Database connection','fail','Database query failed.');}
+    try{$pdo->query('SELECT 1')->fetchColumn();$add('database','Database connection','pass','Database connection is healthy.');}catch(Throwable $e){$add('database','Database connection','fail','Database query failed.');}
     try{[$pending]=migration_inventory($pdo,dirname(__DIR__).'/database/migrations');$add('migrations','Database migrations',count($pending)===0?'pass':'fail',count($pending)===0?'All migrations applied.':count($pending).' migration(s) pending.');}catch(Throwable $e){$add('migrations','Database migrations','fail','Migration inventory failed: '.mb_substr($e->getMessage(),0,180));}
     $root=(string)($config['storage']['private_root']??'');$doc=realpath((string)($_SERVER['DOCUMENT_ROOT']??''));$real=$root!==''?realpath($root):false;$inside=$doc&&$real&&str_starts_with(rtrim($real,'/').'/',rtrim($doc,'/').'/');$storageOk=$root!==''&&is_dir($root)&&is_writable($root)&&!$inside;$add('storage','Private evidence storage',$storageOk?'pass':'fail',$storageOk?'Writable outside public web root.':'Configure a writable storage.private_root outside the public web root.');
     $enc=(string)($config['app']['encryption_key']??'');$add('encryption','Encryption key',strlen($enc)>=32&&!release_is_placeholder($enc)?'pass':'fail','Use a unique 32+ character app.encryption_key.');
+    $add('extension_version','Chrome extension version','pass','Bundled RC client '.ANNOTATED_EXTENSION_VERSION.'.');
     $allowed=$config['extension']['allowed_ids']??[];$allowed=is_array($allowed)?array_values(array_filter(array_map(fn($v)=>strtolower(trim((string)$v)),$allowed),fn($v)=>preg_match('/^[a-p]{32}$/',$v)===1)):[];$add('extension_ids','Chrome extension pairing','pass',count($allowed)>0?count($allowed).' pinned Chrome extension ID(s) configured.':'Interactive user-approved pairing enabled for valid Chrome extension IDs.');
     foreach(['google','x'] as $provider){$p=$config['oauth'][$provider]??[];$redirect=(string)($p['redirect_uri']??'');$rp=parse_url($redirect);$ok=!empty($p['client_id'])&&!empty($p['client_secret'])&&$rp&&strtolower((string)($rp['scheme']??''))==='https'&&!empty($rp['host']);$add('oauth_'.$provider,ucfirst($provider).' OAuth',$ok?'pass':'warn',$ok?'Configured with HTTPS callback.':'Not configured with a complete HTTPS callback; users cannot use this provider.',false);}
     $ffmpeg=release_command_available('ffmpeg');$ffprobe=release_command_available('ffprobe');$add('media_tools','Media tools',$ffmpeg&&$ffprobe?'pass':'fail',$ffmpeg&&$ffprobe?'ffmpeg and ffprobe available.':'ffmpeg and ffprobe are required for media derivatives.');
     $trans=trim((string)($config['transcription']['command']??''));$add('transcription','Transcription command',$trans!==''?'pass':'warn',$trans!==''?'Configured.':'Not configured; audio transcripts will remain blocked.',false);
-    $workers=release_worker_health($pdo);foreach($workers as $name=>$w){$status=$w['status']==='never'?'warn':($w['status']==='stale'||$w['status']==='failure'?'warn':'pass');$add('worker_'.$name,ucwords(str_replace('_',' ',$name)).' worker',$status,$w['status']==='never'?'No heartbeat recorded yet.':('Last seen '.($w['last_seen_at']?:'unknown').' · '.$w['status']),false);}
+    $workers=release_worker_health($pdo);foreach($workers as $name=>$w){$broken=in_array($w['status'],['stale','failure'],true);$status=$w['status']==='never'?'warn':($broken?'fail':'pass');$detail=$w['status']==='never'?'No heartbeat recorded yet.':('Last seen '.($w['last_seen_at']?:'unknown').' · '.$w['status']);$add('worker_'.$name,ucwords(str_replace('_',' ',$name)).' worker',$status,$detail,$broken);}
     $criticalFail=false;$warnings=0;foreach($checks as $c){if($c['status']==='fail'&&$c['critical'])$criticalFail=true;if($c['status']==='warn')$warnings++;}
-    return ['release'=>ANNOTATED_RELEASE,'version'=>ANNOTATED_RELEASE_VERSION,'ready'=>!$criticalFail,'warnings'=>$warnings,'checks'=>$checks,'workers'=>$workers,'queues'=>release_queue_health($pdo)];
+    return ['release'=>ANNOTATED_RELEASE,'version'=>ANNOTATED_RELEASE_VERSION,'extension_version'=>ANNOTATED_EXTENSION_VERSION,'ready'=>!$criticalFail,'warnings'=>$warnings,'checks'=>$checks,'workers'=>$workers,'queues'=>release_queue_health($pdo)];
 }

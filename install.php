@@ -11,7 +11,7 @@ if(session_status()!==PHP_SESSION_ACTIVE){
     ini_set('session.use_only_cookies','1');
     ini_set('session.cookie_httponly','1');
     session_name('annotated_install');
-    session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>false,'httponly'=>true,'samesite'=>'Lax']);
+    session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>installer_request_is_https(),'httponly'=>true,'samesite'=>'Lax']);
     session_start();
 }
 if(empty($_SESSION['install_csrf']))$_SESSION['install_csrf']=bin2hex(random_bytes(32));
@@ -40,7 +40,7 @@ try{
             $config=installer_build_config($_POST,$root);
             $pdo=installer_connect($config);
             $tableCount=installer_database_table_count($pdo);
-            if($tableCount!==0)throw new RuntimeException('The selected database is not empty. Use an empty MariaDB database for a new Annotated installation.');
+            if($tableCount!==0)throw new RuntimeException('The selected database is not empty. Use an empty MariaDB or MySQL database for a new Annotated installation.');
             installer_write_config($configFile,$config);
             $step='database';
         }elseif($action==='install'){
