@@ -48,8 +48,17 @@ function action_center_workspace_from_href(string $href): array {
 function action_center_workspace_from_actions(array $actions): array {
     $workspace=[];
     foreach($actions as $action){
-        if(($action['type']??'')!=='link')continue;
-        foreach(action_center_workspace_from_href((string)($action['href']??'')) as $key=>$value)if($value!==''&&!isset($workspace[$key]))$workspace[$key]=$value;
+        if(($action['type']??'')==='link'){
+            foreach(action_center_workspace_from_href((string)($action['href']??'')) as $key=>$value)if($value!==''&&!isset($workspace[$key]))$workspace[$key]=$value;
+            continue;
+        }
+        if(($action['type']??'')!=='agent')continue;
+        foreach((array)($action['context']??[]) as $context){
+            $type=(string)($context['type']??'');$id=(string)($context['public_id']??'');if($id==='')continue;
+            if($type==='research'&&!isset($workspace['research_public_id']))$workspace['research_public_id']=$id;
+            elseif($type==='team'&&!isset($workspace['team_public_id']))$workspace['team_public_id']=$id;
+            elseif(in_array($type,['annotation','source'],true)&&!isset($workspace['object_public_id'])){$workspace['object_type']=$type;$workspace['object_public_id']=$id;}
+        }
     }
     return $workspace;
 }
