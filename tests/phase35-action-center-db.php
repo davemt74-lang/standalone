@@ -40,7 +40,7 @@ $pdo->prepare("INSERT INTO agent_action_proposals(public_id,conversation_id,assi
   ->execute([$proposalPublic,$agentId,$assistantId,$viewer['id'],$projectId,json_encode(['body'=>'Review this'],JSON_UNESCAPED_SLASHES),json_encode([],JSON_UNESCAPED_SLASHES),hash('sha256','state-'.$run),hash('sha256','dedupe-'.$run)]);
 
 $center=action_center_compose($pdo,$viewer,null,100);
-p35($center['ready']&&$center['total']>=3,'Action Center composes current actionable state');
+p35($center['ready']&&$center['total']>=2,'Action Center composes current urgent actionable state without duplicating a lower-priority project continuation');
 $confirm=p35type($center,'pending_agent_action');$respond=p35type($center,'team_activity');$workflow=p35type($center,'research_workflow')??p35type($center,'research_task');
 p35((bool)$confirm&&($confirm['kind']??'')==='confirm'&&($confirm['urgency']??'')==='high','pending Agent write routes to Confirm as high priority');
 p35((bool)$respond&&($respond['kind']??'')==='respond','unread Team activity routes to Respond');
