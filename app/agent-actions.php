@@ -190,7 +190,7 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
     if($capability==='research.create_claim'){
         $public=ulid_like();$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,?,?,'unverified')")
           ->execute([$public,$projectId,$userId,$args['statement'],$args['claim_type']]);
-        if(function_exists('data_attribution_capture_object'))data_attribution_capture_object($pdo,$userId,'claim',$public);
+        if(function_exists('data_attribution_try_capture_object'))data_attribution_try_capture_object($pdo,$userId,'claim',$public);
         return ['type'=>'claim','public_id'=>$public,'label'=>mb_substr($args['statement'],0,100),'url'=>'/research-claim.php?id='.rawurlencode($public)];
     }
     if($capability==='research.attach_annotation_evidence'){
@@ -200,14 +200,14 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         $q=$pdo->prepare('SELECT public_id FROM claim_evidence WHERE claim_id=? AND annotation_id=? AND relationship=? LIMIT 1');$q->execute([$claim['id'],$annotation['id'],$args['relationship']]);$existing=(string)($q->fetchColumn()?:'');
         $public=$existing?:ulid_like();if(!$existing)$pdo->prepare("INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,annotation_id,source_version_id,relationship,note) VALUES(?,?,?,'annotation',?,?,?,?)")
           ->execute([$public,$claim['id'],$userId,$annotation['id'],$versionId,$args['relationship'],$args['note']!==''?$args['note']:null]);
-        if(function_exists('data_attribution_capture_object'))data_attribution_capture_object($pdo,$userId,'claim',$args['claim_id']);
+        if(function_exists('data_attribution_try_capture_object'))data_attribution_try_capture_object($pdo,$userId,'claim',$args['claim_id']);
         return ['type'=>'claim_evidence','public_id'=>$public,'label'=>'Annotation evidence attached','url'=>'/research-claim.php?id='.rawurlencode($args['claim_id'])];
     }
     if($capability==='research.create_finding'){
         $claimRows=[];foreach($args['claim_ids'] as $id){$claim=agent_action_claim_row($pdo,$projectId,$id);if(!$claim)throw new RuntimeException('One or more proposed Claims are no longer in this project.');$claimRows[]=$claim;}
         $public=ulid_like();$pdo->prepare("INSERT INTO research_findings(public_id,project_id,created_by_user_id,title,summary,status) VALUES(?,?,?,?,?,'draft')")->execute([$public,$projectId,$userId,$args['title'],$args['summary']]);$findingId=(int)$pdo->lastInsertId();
         $position=0;foreach($claimRows as $claim)$pdo->prepare("INSERT INTO finding_claims(finding_id,claim_id,added_by_user_id,relationship,position) VALUES(?,?,?,'supports',?)")->execute([$findingId,$claim['id'],$userId,$position++]);
-        if(function_exists('data_attribution_capture_object'))data_attribution_capture_object($pdo,$userId,'finding',$public);
+        if(function_exists('data_attribution_try_capture_object'))data_attribution_try_capture_object($pdo,$userId,'finding',$public);
         return ['type'=>'finding','public_id'=>$public,'label'=>$args['title'],'url'=>'/research-finding.php?id='.rawurlencode($public)];
     }
     if($capability==='research.link_claims'){
@@ -215,7 +215,7 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         $q=$pdo->prepare('SELECT public_id FROM claim_relations WHERE source_claim_id=? AND target_claim_id=? AND relation_type=? LIMIT 1');$q->execute([$source['id'],$target['id'],$args['relation_type']]);$existing=(string)($q->fetchColumn()?:'');
         $public=$existing?:ulid_like();if(!$existing)$pdo->prepare('INSERT INTO claim_relations(public_id,project_id,source_claim_id,target_claim_id,added_by_user_id,relation_type,note) VALUES(?,?,?,?,?,?,?)')
           ->execute([$public,$projectId,$source['id'],$target['id'],$userId,$args['relation_type'],$args['note']!==''?$args['note']:null]);
-        if(function_exists('data_provenance_edge_record'))data_provenance_edge_record($pdo,'claim',(string)$source['public_id'],null,(string)$args['relation_type'],'claim',(string)$target['public_id'],null,$userId);
+        if(function_exists('data_provenance_try_edge_record'))data_provenance_try_edge_record($pdo,'claim',(string)$source['public_id'],null,(string)$args['relation_type'],'claim',(string)$target['public_id'],null,$userId);
         return ['type'=>'claim_relation','public_id'=>$public,'label'=>ucfirst(str_replace('_',' ',$args['relation_type'])).' Claims','url'=>'/research-graph.php?id='.rawurlencode((string)$project['public_id'])];
     }
     throw new RuntimeException('Unsupported Agent capability.');
