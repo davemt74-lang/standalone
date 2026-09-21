@@ -32,6 +32,8 @@ $need('api/publish-annotation.php','data_attribution_capture_object','Website An
 $need('api/extension-publish.php','data_attribution_capture_object','Chrome Annotation publishing must enter the contribution ledger.');
 $need('research-knowledge.php',"'claim',$public",'Manual Claims must enter contribution lineage.');
 $need('research-knowledge.php',"'finding',$public",'Manual Findings must enter contribution lineage.');
+$need('research-claim.php',"'claim',(string)$claim['public_id']",'Claim edits and evidence changes must record a revised contribution state.');
+$need('research-finding.php',"'finding',(string)$finding['public_id']",'Finding edits and Claim-link changes must record a revised contribution state.');
 $need('app/research-reports.php',"'report_version',$vPublic",'Published Report versions must enter contribution lineage.');
 $need('app/research-verification.php','data_attribution_capture_verification','Human verification must enter contribution lineage.');
 $need('app/research-reviews.php','data_attribution_capture_review_response','Human review responses must enter contribution lineage.');
