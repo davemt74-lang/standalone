@@ -401,6 +401,7 @@ function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): 
     if(function_exists('research_reviews_ready')&&research_reviews_ready($pdo))research_review_cognitive_observations($pdo,$viewer,$items,24);
     if(function_exists('change_impact_ready')&&change_impact_ready($pdo))change_impact_cognitive_observations($pdo,$viewer,$items,12);
     if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo))research_outcome_cognitive_observations($pdo,$viewer,$items,12);
+    if(function_exists('research_network_ready')&&research_network_ready($pdo))research_network_cognitive_observations($pdo,$viewer,$items,12);
 }
 
 
