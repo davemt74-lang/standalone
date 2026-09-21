@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS data_dataset_items (
   corpus_type VARCHAR(64) NOT NULL,
   normalized_text_snapshot MEDIUMTEXT NOT NULL,
   metadata_snapshot_json JSON NULL,
+  metadata_snapshot_hash CHAR(64) NOT NULL,
   content_hash CHAR(64) NOT NULL,
   provenance_hash CHAR(64) NOT NULL,
   eligibility_snapshot_json JSON NOT NULL,
