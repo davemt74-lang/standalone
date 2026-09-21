@@ -69,6 +69,9 @@ $claimPublic=(string)$claimResult['result']['public_id'];p36($claimResult['statu
 $evidenceResult=$proposal('research.attach_annotation_evidence',['claim_id'=>$claimPublic,'annotation_id'=>$annotationPublic,'relationship'=>'primary','note'=>'Captured browser evidence']);
 p36($evidenceResult['status']==='executed','explicitly confirmed Agent action attaches the original Annotation as Claim evidence');
 $pdo->prepare("UPDATE research_claims SET status='supported' WHERE public_id=?")->execute([$claimPublic]);
+$verification=research_verification_record($pdo,$owner,'claim',$claimPublic,'reviewed_current','Verified against the preserved browser capture before synthesis.');
+$verifiedWorkflow=research_workflow_state($pdo,$owner,$projectPublic);
+p36(!empty($verification['public_id'])&&($verifiedWorkflow['next']['stage']??'')==='synthesize','current Claim verification completes Verify and advances the lifecycle to Synthesize');
 $verification=research_verification_record($pdo,$reviewer,'claim',$claimPublic,'reviewed_current','Evidence and preserved Source Version reviewed before synthesis.');
 p36(($verification['decision']??'')==='reviewed_current','collaborator records current human Claim verification before synthesis');
 $verifiedWorkflow=research_workflow_state($pdo,$owner,$projectPublic);p36(($verifiedWorkflow['next']['stage']??'')==='synthesize','current human Claim verification advances the lifecycle to Synthesize');
