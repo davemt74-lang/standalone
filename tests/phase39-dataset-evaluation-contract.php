@@ -52,7 +52,7 @@ $need('admin/evaluations.php','Set as regression baseline','Admin Evaluation Har
 $need('admin/evaluations.php','BASELINE COMPARISON','Admin Evaluation Harness must surface regression comparison.');
 $need('admin/evaluations.php','Save human review','Admin Evaluation Harness must expose human review controls.');
 $need('admin/evaluations.php','Automated comparison is diagnostic, not a release verdict.','Admin UI must not present automated regression metrics as an authoritative release decision.');
-$need('admin/evaluations.php','no model weights are modified','Admin UI must state that inference benchmarking does not modify model weights.');
+$need('admin/evaluations.php','do not create training jobs or modify model weights','Admin UI must state that inference benchmarking does not create training jobs or modify model weights.');
 $need('admin/evaluations.php','Requeue run','Admin UI must expose bounded failed/stale run recovery.');
 $need('admin/evaluations.php','AUTOMATED SCORECARD','Admin UI must expose retrieval/model scorecard telemetry.');
 $need('admin/evaluations.php','Export benchmark JSON','Admin UI must expose completed-run artifact export.');
