@@ -78,10 +78,10 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
   <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
-<script src="/assets/js/workspace-state.js?v=34.0"></script>
-<script src="/assets/js/agent-chat.js?v=34.0"></script>
+<script src="/assets/js/workspace-state.js?v=36.0"></script>
+<script src="/assets/js/agent-chat.js?v=36.0"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
-<?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=34.0"></script><?php endif?>
+<?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=36.0"></script><?php endif?>
 <?php if($proactiveAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$proactiveAgentHandoff['prompt'],'context'=>$proactiveAgentHandoff['context'],'source'=>'proactive_notification'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?php if($crossResearchAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$crossResearchAgentHandoff['prompt'],'context'=>$crossResearchAgentHandoff['context'],'source'=>'cross_research'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?php if($reviewAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$reviewAgentHandoff['prompt'],'context'=>$reviewAgentHandoff['context'],'source'=>'research_review'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
