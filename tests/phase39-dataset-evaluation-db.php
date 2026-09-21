@@ -58,6 +58,8 @@ $aiJobsBefore=(int)$pdo->query('SELECT COUNT(*) FROM ai_jobs')->fetchColumn();$a
 p39($modelRun['status']==='queued'&&($modelSnapshot['public_id']??'')===$modelPublic,'model benchmark run snapshots model identity without executing it in the web request');
 p39(!array_key_exists('api_key_ciphertext',$modelSnapshot)&&!array_key_exists('api_key',$modelSnapshot),'model benchmark snapshot never stores provider secrets');
 p39($aiJobsBefore===$aiJobsAfter&&$aiRunsBefore===$aiRunsAfter,'queuing a model benchmark creates no training job and no general AI run');
+$pdo->prepare('UPDATE ai_models SET max_output_tokens=2048 WHERE id=?')->execute([$modelId]);$modelChanged=false;try{data_evaluation_execute_run($pdo,[],(int)$modelRun['id']);}catch(RuntimeException $e){$modelChanged=str_contains($e->getMessage(),'Model configuration changed after');}p39($modelChanged,'queued model benchmark refuses changed model/provider configuration before inference');
+$modelRunFailed=data_evaluation_run_get($pdo,$modelRun['public_id']);p39($modelRunFailed['status']==='failed','model configuration drift leaves an auditable failed run instead of silently benchmarking new settings');
 
 $nonAdmin=false;try{data_evaluation_suite_create($pdo,$outsider,['dataset_id'=>$evalDataset['id'],'name'=>'Unauthorized','benchmark_type'=>'retrieval']);}catch(RuntimeException $e){$nonAdmin=str_contains($e->getMessage(),'Administrator');}p39($nonAdmin,'evaluation suite lifecycle is administrator-only');
 $badScore=false;try{data_evaluation_review_save($pdo,$admin,(int)$results[0]['id'],['decision'=>'pass','accuracy_score'=>6]);}catch(InvalidArgumentException $e){$badScore=str_contains($e->getMessage(),'between 1 and 5');}p39($badScore,'human review scores are bounded to transparent 1–5 scales');
