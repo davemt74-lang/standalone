@@ -141,7 +141,7 @@
   async function commit(patch={}){
     let state=merge(read(),patch);
     const resolved=await resolve(state);
-    if(resolved){state=normalizedFromResolved(state,resolved);render(resolved);}
+    if(resolved){state=normalizedFromResolved(state,resolved);render(resolved);}else render(null);
     return state;
   }
 
@@ -164,6 +164,6 @@
   (async()=>{
     let state=merge(read(),handoffPatch());state=merge(state,pagePatch());
     const resolved=await resolve(state);
-    if(resolved){state=normalizedFromResolved(state,resolved);render(resolved);}
+    if(resolved){state=normalizedFromResolved(state,resolved);render(resolved);}else render(null);
   })();
 })();
