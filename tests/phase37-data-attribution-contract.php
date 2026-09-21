@@ -20,6 +20,7 @@ $need('app/data-attribution.php',"if(($d['visibility']??'')!=='public'||empty($d
 $need('app/data-attribution.php',"in_array((string)($rights['rights_class']??'unknown'),['unknown','restricted'],true)",'Unknown/restricted Source rights must be closed.');
 $need('app/data-attribution.php',"UPDATE data_corpus_items SET invalidated_at=COALESCE(invalidated_at,NOW())",'Revocation must invalidate derived corpus rather than erase the attribution ledger.');
 $need('app/data-attribution.php',"WHERE contributor_user_id=? AND invalidated_at IS NULL",'Contributor policy changes must invalidate all active derived corpus items without a pagination limit.');
+$need('app/data-attribution.php',"eligibility_reason='superseded_object_version'",'A newer authoritative object version must invalidate older active corpus versions.');
 $avoid('data-attribution.php','data_attribution_sync_user($pdo,$u,250)','Contributor dashboard loads must not run a bulk attribution backfill.');
 $need('app/data-attribution.php',"if(($viewer['role']??'')!=='admin'&&(int)$r['user_id']!==(int)$viewer['id'])return null",'AI response lineage must remain scoped to its initiating user or admin.');
 
