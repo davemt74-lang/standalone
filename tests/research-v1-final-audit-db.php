@@ -137,6 +137,16 @@ $memberProv=provenance_project_manifest($pdo,$member,$projectPublic);
 auditv1(count(array_filter($memberProv['reviews'],fn($r)=>(string)$r['id']===$legacyReviewPublic))===0,'member provenance excludes inaccessible private Report Version review');
 auditv1(count(array_filter($memberProv['report_versions'],fn($r)=>(string)$r['version_id']===$privateReportVersion))===0,'member provenance excludes inaccessible private Report Version');
 
+$changedText='Audit evidence A changed '.$run;
+$pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,target_content_hash,captured_at) SELECT source_id,2,final_url,title,?, ?,target_content_hash,NOW() FROM source_versions WHERE id=?")
+    ->execute([$changedText,hash('sha256',$changedText),$a['version_id']]);
+$aV2=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=? WHERE id=?')->execute([$aV2,$a['id']]);
+$pdo->prepare("INSERT INTO source_change_events(source_id,previous_version_id,new_version_id,change_type,impact_type,target_changed,affected_annotation_count,diff_summary,created_at) VALUES(?,?,?,'edited','passage_changed',1,0,'Final audit private-report visibility change.',NOW())")
+    ->execute([$a['id'],$a['version_id'],$aV2]);
+$memberImpact=change_impact_project_summary($pdo,$member,$projectPublic,20);$ownerImpact=change_impact_project_summary($pdo,$owner,$projectPublic,20);
+auditv1(($memberImpact['affected_reports']??-1)===0,'change-impact summary does not reveal inaccessible private Report Versions');
+auditv1(($ownerImpact['affected_reports']??0)>=1,'change-impact summary still includes private Report Version for authorized owner');
+
 $memberWorkflow=research_workflow_state($pdo,$member,$projectPublic);
 auditv1(($memberWorkflow['counts']['open_reviews']??-1)===0,'member workflow ignores inaccessible private Report review');
 auditv1(($memberWorkflow['counts']['report_versions']??-1)===0,'member workflow ignores inaccessible private Report Version');
