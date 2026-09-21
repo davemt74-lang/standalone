@@ -20,7 +20,7 @@ p35c(str_contains($runtime,'cognitive_feed_dismissed_keys')===false&&str_contain
 p35c(str_contains($page,'What needs your attention')&&str_contains($page,'data-action-center-link')&&str_contains($page,'data-action-center-agent'),'website Action Center exposes direct and Agent routes');
 p35c(str_contains($web,'AnnotatedWorkspaceState')&&str_contains($web,'annotated.pendingAgentHandoff'),'website action routing preserves Phase 34 workspace continuity and Agent handoff');
 p35c(str_contains($html,'actionCenterMiniFeed')&&str_contains($html,'openActionCenter'),'Chrome reuses Activity for a compact Action Center instead of adding another tab');
-p35c(str_contains($chrome,'phase35LoadActions')&&str_contains($chrome,'/api/action-center.php?limit=8'),'Chrome action queue uses the shared Action Center API');
+p35c(str_contains($chrome,'phase35LoadActions')&&str_contains($chrome,'/api/action-center.php?limit=60')&&str_contains($chrome,'.slice(0,8)'),'Chrome action queue uses the shared Action Center API');
 p35c(str_contains((string)file_get_contents($root.'/home.php'),'/action-center.php'),'Home exposes the unified Action Center');
 p35c(!is_file($root.'/database/migrations/20260921_036_action_center.sql'),'Phase 35 adds no Action Center database migration');
 
