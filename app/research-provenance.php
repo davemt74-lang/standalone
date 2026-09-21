@@ -64,9 +64,24 @@ function provenance_project_outcomes(PDO $pdo,array $viewer,int $projectId): arr
     if(!function_exists('research_outcomes_ready')||!research_outcomes_ready($pdo))return [];$q=$pdo->prepare("SELECT public_id,event_type,decision_type,source_type,source_public_id,object_type,object_public_id,title,summary,result_type,result_public_id,is_manual,occurred_at FROM research_outcome_events WHERE project_id=? AND user_id=? ORDER BY public_id");$q->execute([$projectId,$viewer['id']]);return $q->fetchAll();
 }
 
+function provenance_project_verification(PDO $pdo,array $viewer,int $projectId): array {
+    if(!function_exists('research_verification_ready')||!research_verification_ready($pdo))return [];
+    $q=$pdo->prepare("SELECT rve.public_id,rve.subject_type,rve.subject_public_id,rve.subject_hash,rve.decision,rve.evidence_state_hash,rve.note,rve.created_at,u.public_id reviewer_public_id,u.display_name,u.username
+      FROM research_verification_events rve JOIN users u ON u.id=rve.reviewer_user_id
+      WHERE rve.project_id=? ORDER BY rve.id");
+    $q->execute([$projectId]);$out=[];
+    foreach($q->fetchAll() as $r){
+        $subject=research_verification_subject($pdo,$viewer,(string)$r['subject_type'],(string)$r['subject_public_id']);if(!$subject)continue;
+        $current=hash_equals((string)$r['subject_hash'],(string)$subject['hash']);
+        if($current&&function_exists('change_impact_subject_latest_event')&&change_impact_subject_latest_event($pdo,$viewer,(string)$r['subject_type'],(string)$r['subject_public_id'],(string)$r['created_at']))$current=false;
+        $out[]=['id'=>$r['public_id'],'subject_type'=>$r['subject_type'],'subject_id'=>$r['subject_public_id'],'subject_hash'=>$r['subject_hash'],'decision'=>$r['decision'],'evidence_state_hash'=>$r['evidence_state_hash'],'reviewer_id'=>$r['reviewer_public_id'],'reviewer_name'=>$r['display_name']?:$r['username'],'note_hash'=>$r['note']!==null?hash('sha256',(string)$r['note']):null,'is_current'=>$current,'created_at'=>$r['created_at']];
+    }
+    return $out;
+}
+
 function provenance_project_manifest(PDO $pdo,array $viewer,string $projectPublic): array {
     $project=project_access($pdo,(int)$viewer['id'],trim($projectPublic));if(!$project)throw new RuntimeException('Research project is unavailable.');
-    $manifest=['schema'=>'annotated-provenance-v1','scope'=>['type'=>'project','project_id'=>$project['public_id']],'project'=>['public_id'=>$project['public_id'],'title'=>$project['title'],'description'=>$project['description'],'status'=>$project['status']??'active'],'source_versions'=>provenance_project_source_versions($pdo,$viewer,(int)$project['id']),'annotations'=>provenance_project_annotations($pdo,$viewer,(int)$project['id']),'claims'=>provenance_project_claims($pdo,$viewer,(int)$project['id']),'findings'=>provenance_project_findings($pdo,(int)$project['id']),'report_versions'=>provenance_project_reports($pdo,$viewer,$project),'reviews'=>provenance_project_reviews($pdo,(int)$project['id']),'decision_memory'=>provenance_project_outcomes($pdo,$viewer,(int)$project['id'])];
+    $manifest=['schema'=>'annotated-provenance-v1','scope'=>['type'=>'project','project_id'=>$project['public_id']],'project'=>['public_id'=>$project['public_id'],'title'=>$project['title'],'description'=>$project['description'],'status'=>$project['status']??'active'],'source_versions'=>provenance_project_source_versions($pdo,$viewer,(int)$project['id']),'annotations'=>provenance_project_annotations($pdo,$viewer,(int)$project['id']),'claims'=>provenance_project_claims($pdo,$viewer,(int)$project['id']),'findings'=>provenance_project_findings($pdo,(int)$project['id']),'report_versions'=>provenance_project_reports($pdo,$viewer,$project),'reviews'=>provenance_project_reviews($pdo,(int)$project['id']),'verification_events'=>provenance_project_verification($pdo,$viewer,(int)$project['id']),'decision_memory'=>provenance_project_outcomes($pdo,$viewer,(int)$project['id'])];
     return provenance_canonicalize($manifest);
 }
 
@@ -77,6 +92,7 @@ function provenance_manifest_edges(array $manifest): array {
     foreach($manifest['findings']??[] as $f)foreach($f['claims']??[] as $l)$add('claim:'.$l['claim_id'],'finding:'.$f['id'],'synthesized_into',['relationship'=>$l['relationship']]);
     foreach($manifest['report_versions']??[] as $r){$rv='report:'.$r['report_id'].':v'.$r['version_number'];foreach($r['citations']??[] as $c)if(!empty($c['available']))$add($rv,'report:'.$c['report_id'].':v'.$c['version_number'],'cites',['relation'=>$c['relation']]);}
     foreach($manifest['reviews']??[] as $r)$add($r['subject_type'].':'.$r['subject_id'],'review:'.$r['id'],'reviewed_as',['subject_hash'=>$r['subject_hash'],'status'=>$r['status']]);
+    foreach($manifest['verification_events']??[] as $r)$add($r['subject_type'].':'.$r['subject_id'],'verification:'.$r['id'],'verification_review',['subject_hash'=>$r['subject_hash'],'decision'=>$r['decision'],'evidence_state_hash'=>$r['evidence_state_hash'],'current'=>$r['is_current']]);
     foreach($manifest['decision_memory']??[] as $o)if(!empty($o['object_type'])&&!empty($o['object_public_id']))$add($o['object_type'].':'.$o['object_public_id'],'decision:'.$o['public_id'],'decision_memory',['decision_type'=>$o['decision_type']]);
     usort($edges,fn($a,$b)=>strcmp($a['from'].'|'.$a['to'].'|'.$a['type'],$b['from'].'|'.$b['to'].'|'.$b['type']));return $edges;
 }
@@ -102,7 +118,7 @@ function provenance_receipts(PDO $pdo,array $viewer,string $projectPublic,int $l
 }
 
 function provenance_project_context(PDO $pdo,array $viewer,string $projectPublic): array {
-    $manifest=provenance_project_manifest($pdo,$viewer,$projectPublic);$integrity=provenance_project_integrity($manifest);$lines=['[RESEARCH PROVENANCE]','Source versions: '.count($manifest['source_versions']).'; annotations: '.count($manifest['annotations']).'; Claims: '.count($manifest['claims']).'; Findings: '.count($manifest['findings']).'; report versions: '.count($manifest['report_versions']).'; reviews: '.count($manifest['reviews']).'.','Report snapshot verification: '.$integrity['report_snapshots']['valid'].' valid; '.$integrity['report_snapshots']['invalid'].' mismatch.','Current provenance manifest SHA-256: '.$integrity['manifest_hash'].'.'];return ['text'=>implode("\n",$lines),'refs'=>[['type'=>'research_project','id'=>$projectPublic]],'manifest'=>$manifest,'integrity'=>$integrity];
+    $manifest=provenance_project_manifest($pdo,$viewer,$projectPublic);$integrity=provenance_project_integrity($manifest);$lines=['[RESEARCH PROVENANCE]','Source versions: '.count($manifest['source_versions']).'; annotations: '.count($manifest['annotations']).'; Claims: '.count($manifest['claims']).'; Findings: '.count($manifest['findings']).'; report versions: '.count($manifest['report_versions']).'; reviews: '.count($manifest['reviews']).'; verification events: '.count($manifest['verification_events']??[]).'.','Report snapshot verification: '.$integrity['report_snapshots']['valid'].' valid; '.$integrity['report_snapshots']['invalid'].' mismatch.','Current provenance manifest SHA-256: '.$integrity['manifest_hash'].'.'];return ['text'=>implode("\n",$lines),'refs'=>[['type'=>'research_project','id'=>$projectPublic]],'manifest'=>$manifest,'integrity'=>$integrity];
 }
 
 function provenance_project_report_integrity(PDO $pdo,array $viewer,string $projectPublic): array {
