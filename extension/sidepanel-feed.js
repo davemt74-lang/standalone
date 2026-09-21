@@ -259,6 +259,22 @@ async function phase6OpenCreate(){
   const create=$('#create');if(create)create.hidden=false;
   stopLivePoll();await phase6LoadPage();
 }
+function phase35ActionCard(item){
+  const title=String(item?.title||'Action needed'),body=String(item?.body||''),kind=String(item?.kind||'continue'),urgency=String(item?.urgency||'medium'),primary=item?.primary_action||{},href=String(primary?.href||'');
+  const ws=item?.workspace||{};
+  return '<article class="actionMiniCard urgency-'+esc(urgency)+'"><div class="actionMiniHead"><span>'+esc(kind)+'</span><b>'+esc(urgency)+'</b></div><strong>'+esc(title)+'</strong>'+(body?'<p>'+esc(body)+'</p>':'')+(href?'<button type="button" data-action-open="'+esc(href)+'" data-workspace-team="'+esc(ws.team_public_id||'')+'" data-workspace-research="'+esc(ws.research_public_id||'')+'" data-workspace-object-type="'+esc(ws.object_type||'')+'" data-workspace-object="'+esc(ws.object_public_id||'')+'" data-workspace-agent="'+esc(ws.agent_conversation_public_id||'')+'">'+esc(primary.label||'Open')+'</button>':'')+'</article>';
+}
+async function phase35LoadActions(){
+  const feed=$('#actionCenterMiniFeed'),count=$('#actionCenterMiniCount');if(!feed)return;
+  if(!token){feed.innerHTML='<div class="hint">Connect your account to see actions.</div>';if(count)count.hidden=true;return;}
+  feed.innerHTML='<div class="hint">Loading actions…</div>';
+  try{
+    const j=await api('/api/action-center.php?limit=60'),data=j.data||{},rows=(data.items||[]).slice(0,8);
+    if(count){count.textContent=String(data.total||0);count.hidden=!(data.total>0);}
+    feed.innerHTML=rows.length?rows.map(phase35ActionCard).join(''):'<div class="hint">You’re caught up.</div>';
+  }catch(e){feed.innerHTML='<div class="hint">Unable to load actions.</div>';if(count)count.hidden=true;}
+}
+
 function phase33ActivityCard(item){
   const surface=String(item?.surface||'workspace'),title=String(item?.title||'Annotated activity'),body=String(item?.body||''),when=String(item?.created_at||''),href=String(item?.href||'');
   const research=(item?.context||[]).find(x=>x?.type==='research')?.public_id||'',team=(item?.context||[]).find(x=>x?.type==='team')?.public_id||'';
@@ -279,7 +295,7 @@ async function phase6SwitchTab(btn){
   document.querySelectorAll('nav [role="tab"]').forEach(x=>{const active=x===btn;x.classList.toggle('active',active);x.setAttribute('aria-selected',active?'true':'false');x.tabIndex=active?0:-1;});document.querySelectorAll('main>section[role="tabpanel"]').forEach(s=>s.hidden=s.id!==btn.dataset.tab);
   if(btn.dataset.tab==='page'&&context?.source?.public_id)await phase6LoadThisPage(true);
   if(btn.dataset.tab==='following')phase6LoadFollowing(true);
-  if(btn.dataset.tab==='activity')await phase33LoadActivity();
+  if(btn.dataset.tab==='activity'){await phase35LoadActions();await phase33LoadActivity();}
   if(btn.dataset.tab==='search')await loadSearchWorkspace();
   if(btn.dataset.tab==='live')await startLive();else stopLivePoll();
   if(btn.dataset.tab==='research')loadProjects();

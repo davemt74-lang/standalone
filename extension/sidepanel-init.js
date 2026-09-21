@@ -68,8 +68,11 @@ function initializeSidebarBindings(){
   sidebarBind('notificationList','click',markNotification);
   sidebarBindClick('markAllNotifications',markAllNotificationsRead);
   sidebarBindClick('openNotificationSettings',()=>chrome.tabs.create({url:API_BASE+'/settings.php#notifications'}));
+  sidebarBindClick('openActionCenter',()=>phase34WorkspaceOpen('/action-center.php',{surface:'actions'}));
   sidebarBindClick('openFullActivity',()=>phase34WorkspaceOpen('/activity.php',{surface:'activity'}));
   sidebarBind('activityFeed','click',async e=>{const button=e.target.closest('[data-activity-open]');if(!button)return;const patch={surface:'activity'};if(button.dataset.workspaceResearch)patch.research_public_id=button.dataset.workspaceResearch;if(button.dataset.workspaceTeam)patch.team_public_id=button.dataset.workspaceTeam;if(button.dataset.workspaceObject){patch.object_type=button.dataset.workspaceObjectType||'';patch.object_public_id=button.dataset.workspaceObject;}await phase34WorkspaceOpen(String(button.dataset.activityOpen||''),patch);});
+  sidebarBind('actionCenterMiniFeed','click',async e=>{const button=e.target.closest('[data-action-open]');if(!button)return;const patch={surface:'actions'};if(button.dataset.workspaceTeam)patch.team_public_id=button.dataset.workspaceTeam;if(button.dataset.workspaceResearch)patch.research_public_id=button.dataset.workspaceResearch;if(button.dataset.workspaceObject){patch.object_type=button.dataset.workspaceObjectType||'';patch.object_public_id=button.dataset.workspaceObject;}if(button.dataset.workspaceAgent)patch.agent_conversation_public_id=button.dataset.workspaceAgent;await phase34WorkspaceOpen(String(button.dataset.actionOpen||''),patch);});
+
   sidebarBindClick('openResearchWorkspace',async()=>{const state=await phase34WorkspaceRead();phase34WorkspaceOpen(state.research_public_id?'/research-project.php?id='+encodeURIComponent(state.research_public_id):'/research.php',{surface:'research'});});
   sidebarBindClick('openPortfolio',()=>chrome.tabs.create({url:API_BASE+'/research-portfolio.php'}));
   sidebarBindClick('openPublications',()=>chrome.tabs.create({url:API_BASE+'/research-publications.php'}));
