@@ -5,7 +5,7 @@ require_once __DIR__.'/migrations.php';
 
 function installer_database_name(PDO $pdo): string {
     $name=(string)($pdo->query('SELECT DATABASE()')->fetchColumn()?:'');
-    if($name==='')throw new RuntimeException('The configured DSN must select a MariaDB database.');
+    if($name==='')throw new RuntimeException('The configured DSN must select a database.');
     return $name;
 }
 function installer_database_table_count(PDO $pdo): int {
@@ -48,7 +48,7 @@ function installer_import_base_schema(PDO $pdo,string $schemaFile): int {
     try{
         foreach($statements as $statement){migration_execute_statement($pdo,$statement);$count++;}
     }catch(Throwable $e){
-        throw new RuntimeException('Base schema import stopped after statement '.$count.'. MariaDB DDL may already be committed. Recreate the empty database and retry. Error: '.mb_substr($e->getMessage(),0,1200),0,$e);
+        throw new RuntimeException('Base schema import stopped after statement '.$count.'. Database DDL may already be committed. Recreate the empty database and retry. Error: '.mb_substr($e->getMessage(),0,1200),0,$e);
     }
     if(!installer_base_schema_ready($pdo,$schemaFile))throw new RuntimeException('Base schema import completed but required tables are missing.');
     return $count;
@@ -62,9 +62,15 @@ function installer_run(PDO $pdo,string $schemaFile,string $migrationDir): array 
 }
 
 
+function installer_request_is_https(): bool {
+    if(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off')return true;
+    if((string)($_SERVER['SERVER_PORT']??'')==='443')return true;
+    $forwarded=strtolower(trim((string)($_SERVER['HTTP_X_FORWARDED_PROTO']??'')));
+    if($forwarded==='')return false;
+    return trim(explode(',',$forwarded)[0])==='https';
+}
 function installer_default_base_url(): string {
-    $https=(!empty($_SERVER['HTTPS'])&&strtolower((string)$_SERVER['HTTPS'])!=='off')||((string)($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https');
-    $scheme=$https?'https':'http';
+    $scheme=installer_request_is_https()?'https':'http';
     $host=trim((string)($_SERVER['HTTP_HOST']??''));
     if($host==='')return 'http://localhost';
     return $scheme.'://'.$host;
