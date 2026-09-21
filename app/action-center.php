@@ -105,8 +105,8 @@ function action_center_project_workflow_items(PDO $pdo,array $viewer,array $exis
     return $out;
 }
 
-function action_center_compose(PDO $pdo,array $viewer,?array $teamList=null,int $limit=60): array {
-    $limit=max(4,min(100,$limit));$base=cognitive_feed_items($pdo,$viewer,$teamList,false);
+function action_center_compose(PDO $pdo,array $viewer,?array $teamList=null,int $limit=60,?array $cognitiveBase=null): array {
+    $limit=max(4,min(100,$limit));$base=$cognitiveBase??cognitive_feed_items($pdo,$viewer,$teamList,false);
     if(empty($base['ready']))return ['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
     $items=[];foreach((array)$base['items'] as $row){$item=action_center_from_cognitive($row);if($item)$items[$item['key']]=$item;}
     foreach(action_center_project_workflow_items($pdo,$viewer,array_values($items)) as $item)if(!isset($items[$item['key']]))$items[$item['key']]=$item;
