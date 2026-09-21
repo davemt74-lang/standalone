@@ -238,6 +238,7 @@ function research_verification_record(PDO $pdo,array $viewer,string $type,string
     $stateJson=research_verification_encode($state);$stateHash=hash('sha256',$stateJson);$eventPublic=ulid_like();$note=mb_substr(trim($note),0,8000);
     $pdo->prepare('INSERT INTO research_verification_events(public_id,project_id,reviewer_user_id,subject_type,subject_public_id,subject_hash,decision,evidence_state_hash,evidence_state_json,note) VALUES(?,?,?,?,?,?,?,?,?,?)')
       ->execute([$eventPublic,$subject['project_id'],$viewer['id'],$subject['type'],$subject['public_id'],$subject['hash'],$decision,$stateHash,$stateJson,$note?:null]);
+    if(function_exists('data_attribution_capture_verification'))data_attribution_capture_verification($pdo,(int)$viewer['id'],$eventPublic);
     $q=$pdo->prepare('SELECT * FROM research_verification_events WHERE public_id=? LIMIT 1');$q->execute([$eventPublic]);return $q->fetch()?:[];
 }
 
