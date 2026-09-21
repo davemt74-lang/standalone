@@ -136,7 +136,7 @@ function unified_activity_research_objects(PDO $pdo,array $viewer,array &$items,
           'href'=>'/research-claim.php?id='.rawurlencode((string)$row['public_id']),
           'actor'=>null,
           'object'=>['type'=>'claim','public_id'=>$row['public_id']],
-          'context'=>[['type'=>'research','public_id'=>$row['project_public_id']],['type'=>'claim','public_id'=>$row['public_id']]],
+          'context'=>[['type'=>'research','public_id'=>$row['project_public_id']]],
           'meta'=>['project'=>$row['project_title'],'status'=>$row['status']]
         ]);
     }
@@ -154,7 +154,7 @@ function unified_activity_research_objects(PDO $pdo,array $viewer,array &$items,
           'href'=>'/research-finding.php?id='.rawurlencode((string)$row['public_id']),
           'actor'=>null,
           'object'=>['type'=>'finding','public_id'=>$row['public_id']],
-          'context'=>[['type'=>'research','public_id'=>$row['project_public_id']],['type'=>'finding','public_id'=>$row['public_id']]],
+          'context'=>[['type'=>'research','public_id'=>$row['project_public_id']]],
           'meta'=>['project'=>$row['project_title'],'status'=>$row['status']]
         ]);
     }
