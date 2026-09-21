@@ -259,11 +259,25 @@ async function phase6OpenCreate(){
   const create=$('#create');if(create)create.hidden=false;
   stopLivePoll();await phase6LoadPage();
 }
+function phase33ActivityCard(item){
+  const surface=String(item?.surface||'workspace'),title=String(item?.title||'Annotated activity'),body=String(item?.body||''),when=String(item?.created_at||''),href=String(item?.href||'');
+  return '<article class="activityMiniCard"><div class="activityMiniHead"><span>'+esc(surface)+'</span><time>'+esc(when)+'</time></div><strong>'+esc(title)+'</strong>'+(body?'<p>'+esc(body)+'</p>':'')+(href?'<button type="button" data-activity-open="'+esc(href)+'">Open</button>':'')+'</article>';
+}
+async function phase33LoadActivity(){
+  const feed=$('#activityFeed');if(!feed)return;if(!token){feed.innerHTML='<div class="hint">Connect your account to see workspace activity.</div>';return;}
+  feed.innerHTML='<div class="hint">Loading activity…</div>';
+  try{
+    const j=await api('/api/activity.php?limit=35'),rows=j.data?.items||[];
+    feed.innerHTML=rows.length?rows.map(phase33ActivityCard).join(''):'<div class="hint">No workspace activity yet.</div>';
+  }catch(e){feed.innerHTML='<div class="hint">Unable to load workspace activity.</div>';}
+}
+
 async function phase6SwitchTab(btn){
   if(!btn)return;const create=$('#create');if(create)create.hidden=true;
   document.querySelectorAll('nav [role="tab"]').forEach(x=>{const active=x===btn;x.classList.toggle('active',active);x.setAttribute('aria-selected',active?'true':'false');x.tabIndex=active?0:-1;});document.querySelectorAll('main>section[role="tabpanel"]').forEach(s=>s.hidden=s.id!==btn.dataset.tab);
   if(btn.dataset.tab==='page'&&context?.source?.public_id)await phase6LoadThisPage(true);
   if(btn.dataset.tab==='following')phase6LoadFollowing(true);
+  if(btn.dataset.tab==='activity')await phase33LoadActivity();
   if(btn.dataset.tab==='search')await loadSearchWorkspace();
   if(btn.dataset.tab==='live')await startLive();else stopLivePoll();
   if(btn.dataset.tab==='research')loadProjects();

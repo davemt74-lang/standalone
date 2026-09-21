@@ -68,6 +68,8 @@ function initializeSidebarBindings(){
   sidebarBind('notificationList','click',markNotification);
   sidebarBindClick('markAllNotifications',markAllNotificationsRead);
   sidebarBindClick('openNotificationSettings',()=>chrome.tabs.create({url:API_BASE+'/settings.php#notifications'}));
+  sidebarBindClick('openFullActivity',()=>chrome.tabs.create({url:API_BASE+'/activity.php'}));
+  sidebarBind('activityFeed','click',e=>{const button=e.target.closest('[data-activity-open]');if(button)chrome.tabs.create({url:API_BASE+String(button.dataset.activityOpen||'')});});
   sidebarBindClick('openResearchWorkspace',()=>chrome.tabs.create({url:API_BASE+'/research.php'}));
   sidebarBindClick('openPortfolio',()=>chrome.tabs.create({url:API_BASE+'/research-portfolio.php'}));
   sidebarBindClick('openPublications',()=>chrome.tabs.create({url:API_BASE+'/research-publications.php'}));

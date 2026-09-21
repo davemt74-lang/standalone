@@ -27,7 +27,7 @@ $need('extension/sidepanel.html','id="create" class="createPanel"','Create New m
 $sidebarPageStart=strpos($sidebarHtml,'<section id="page"');$sidebarCreateStart=strpos($sidebarHtml,'<section id="create"');
 if($sidebarPageStart===false||$sidebarCreateStart===false||$sidebarCreateStart<=$sidebarPageStart)$fail[]='Standalone Create New panel must follow the This Page panel.';
 else{$pageOnly=substr($sidebarHtml,$sidebarPageStart,$sidebarCreateStart-$sidebarPageStart);if(str_contains($pageOnly,'class="capture"'))$fail[]='This Page must contain annotations only, not the annotation composer.';}
-$need('extension/sidepanel.css','repeat(5,minmax(0,1fr))','All five sidebar tabs must fit on one row.');
+$need('extension/sidepanel.css','repeat(6,minmax(0,1fr))','All six sidebar tabs must fit on one row.');
 $need('extension/sidepanel.css','white-space:nowrap','Sidebar tab labels must not wrap onto a second row.');
 $need('extension/sidepanel-feed.js','async function phase6OpenCreate','Header Create New must open the standalone composer.');
 $need('extension/sidepanel-capture.js',"phase6SwitchTab(pageTab)",'Publishing must return to This Page so the new annotation is visible.');
@@ -94,7 +94,7 @@ $need('api/conversations.php','require_api_mutation_auth','Team Chat mutations m
 $need('app/conversations.php','conversation_access','Conversation authorization must remain server-side.');
 $need('app/conversations.php','client_message_id','Conversation sends must remain retry-idempotent.');
 $need('team.php','#team-chat','Team workspace must deep-link into its Home Team Chat.');
-$need('extension/manifest.json','"version": "0.32.0"','The current Chrome extension release must be v0.32.0 for Phase 27.');
+$need('extension/manifest.json','"version": "0.33.0"','The current Chrome extension release must be v0.33.0 for Phase 27.');
 $need('home.php','teamChatSettingsButton','Team Chat rail must expose a footer settings icon.');
 $need('home.php','data-team-chat-popout','Team Chat rail must expose an active-chat popout control.');
 $need('home.php','data-team-chat-popups','Home must expose the desktop active-chat popup layer.');
@@ -136,7 +136,7 @@ $need('extension/sidepanel-feed.js','function phase13Intelligence','Chrome This 
 $need('extension/sidepanel-feed.js','data-action="open-related"','Chrome intelligence relationships must open the referenced annotation.');
 $need('app/agent-chat.php','annotation_intelligence_context_text','Agent Chat must receive permission-filtered Annotation Intelligence context.');
 $need('bin/queue-annotation-intelligence.php','annotation_intelligence_queue','Existing published annotations must have a backfill path.');
-$need('extension/manifest.json','"version": "0.32.0"','The current Chrome extension release must be v0.32.0 for Phase 27.');
+$need('extension/manifest.json','"version": "0.33.0"','The current Chrome extension release must be v0.33.0 for Phase 27.');
 $need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
 $need('app/research-workspace.php','research_workspace_queue','Research Workspace must queue hash-specific background synthesis.');
 $need('app/research-workspace.php','research_workspace_apply_ai_output','Research Workspace must validate and persist derived AI synthesis.');
@@ -171,7 +171,7 @@ $need('research-project.php','Propose tasks','Research Now must expose contextua
 $need('research-project.php','Draft finding','Research Now must expose a Finding proposal shortcut.');
 $need('assets/css/app.css','.agentActionProposal','Agent action proposals must have dedicated review styling.');
 
-$need('extension/manifest.json','"version": "0.32.0"','The current Chrome extension release must be v0.32.0 for Phase 27.');
+$need('extension/manifest.json','"version": "0.33.0"','The current Chrome extension release must be v0.33.0 for Phase 27.');
 $need('app/cognitive-feed.php','cognitive_feed_compose','Cognitive Feed must compose authoritative observations at request time.');
 $need('app/cognitive-feed.php','cognitive_feed_score','Cognitive Feed ranking must use an explicit deterministic scoring function.');
 $need('app/cognitive-feed.php',"'pending_agent_action'?100:98",'Pending user confirmations must retain the highest Cognitive Feed priority.');
@@ -188,7 +188,7 @@ $need('assets/css/app.css','.cognitiveCard','Cognitive Feed cards must have dedi
 
 
 
-$need('extension/manifest.json','"version": "0.32.0"','The current Chrome extension release must be v0.32.0 for Phase 27.');
+$need('extension/manifest.json','"version": "0.33.0"','The current Chrome extension release must be v0.33.0 for Phase 27.');
 $need('app/research-workspace.php','research_workspace_deterministic_snapshot','Research Workspace must provide deterministic intelligence without AI.');
 $need('app/research-workspace.php','research_workspace_queue','Research Workspace must queue hash-specific background synthesis.');
 $need('app/research-workspace.php','research_workspace_apply_ai_output','Research Workspace must validate and persist derived AI synthesis.');
@@ -241,7 +241,7 @@ $need('app/research-workflow.php','research_workflow_current_completed_reviews',
 $need('app/research-workflow.php',"subject_type IN ('claim','finding','report_version')",'Phase 30 workflow review counts must exclude Agent-action reviews.');
 $need('research-project.php','aria-current="step"','Phase 30 Research lifecycle must expose accessible current-step semantics.');
 $need('docs/RESEARCH-V1-COMPLETE.md','Feature freeze','Phase 30 must declare the Research V1 feature-complete boundary.');
-$need('extension/manifest.json','"version": "0.32.0"','The final Research-loop Chrome release must be v0.32.0.');
+$need('extension/manifest.json','"version": "0.33.0"','The final Research-loop Chrome release must be v0.33.0.');
 $need('app/object-handoff.php','object_handoff_resolve','Phase 31 must re-resolve shared Annotated objects through current access rules.');
 $need('app/object-handoff.php','object_handoff_can_share_to_conversation','Phase 31 must prevent Team handoff permission escalation.');
 $need('app/conversations.php','object_handoff_store_message_attachments','Team Chat must persist structured object references.');
@@ -254,27 +254,27 @@ $need('extension/sidepanel-feed.js','phase31OpenTeamShare','Chrome Annotation ca
 $need('extension/sidepanel-feed.js','phase31OpenAgent','Chrome Annotation cards must hand off to Agent Chat.');
 $need('team.php','annotation_ui_card($a,$u)','Team feed must use the unified Annotation component.');
 $need('tests/phase31-unified-object-handoff-db.php','Phase 31 Unified Object Handoff & Continuity','Phase 31 must retain an adversarial continuity/privacy suite.');
-$need('extension/manifest.json','"version": "0.32.0"','Phase 31 Chrome release must be v0.32.0.');
+$need('extension/manifest.json','"version": "0.33.0"','Phase 31 Chrome release must be v0.33.0.');
 
 $need('app/research-workflow.php','research_workflow_state','Phase 29 must derive a unified Research lifecycle.');
 $need('app/research-workflow.php','Capture → Investigate → Verify → Synthesize → Review → Publish → Monitor','Phase 29 Agent context must expose the unified lifecycle.');
 $need('research-project.php','researchWorkflow','Research project must expose the lifecycle strip.');
 $need('research-project.php','NEXT STEP','Research project must expose one clear next step.');
 $need('extension/sidepanel.html','openResearchWorkspace','Chrome Research must prioritize the unified workspace.');
-$need('extension/manifest.json','"version": "0.32.0"','The current Chrome extension release must be v0.32.0 for Phase 29.');
+$need('extension/manifest.json','"version": "0.33.0"','The current Chrome extension release must be v0.33.0 for Phase 29.');
 $need('app/research-evidence-packs.php','research_evidence_pack_create','Phase 28 must create immutable Evidence Packs.');
 $need('app/research-evidence-packs.php','research_evidence_pack_compare','Phase 28 must compare frozen packs with current Research.');
 $need('app/research-provenance.php','frozen_as','Phase 28 packs must join provenance.');
 $need('research-evidence-pack.php','Replay boundary','Phase 28 must expose frozen replay semantics.');
 $need('extension/sidepanel.html','openEvidencePacks','Chrome Research must expose Phase 28 Evidence Packs.');
-$need('extension/manifest.json','"version": "0.32.0"','The current Chrome extension release must be v0.32.0 for Phase 28.');
+$need('extension/manifest.json','"version": "0.33.0"','The current Chrome extension release must be v0.33.0 for Phase 28.');
 $need('app/research-verification.php','research_verification_claim_signal','Phase 27 must derive transparent Claim evidence signals.');
 $need('app/research-verification.php','not a truth score','Phase 27 Agent context must preserve the truth-certification boundary.');
 $need('app/research-provenance.php','verification_review','Phase 27 human verification events must join provenance.');
 $need('research-verification.php','Human review','Phase 27 must expose human review state.');
 $need('research-report.php','research_verification_snapshot_claim_signal','Phase 27 public Reports must use immutable snapshot verification signals.');
 $need('extension/sidepanel.html','openVerification','Chrome Research must expose Phase 27 Verification.');
-$need('extension/manifest.json','"version": "0.32.0"','The current Chrome extension release must be v0.32.0 for Phase 27.');
+$need('extension/manifest.json','"version": "0.33.0"','The current Chrome extension release must be v0.33.0 for Phase 27.');
 $need('assets/css/app.css','.settingsSidebar{position:sticky','Account Settings right sidebar must stay sticky on desktop.');
 $need('settings.php','annotation-cards.js?v=32.0','Account Settings highlight control must reuse the shared highlight preference runtime.');
 $need('app/storage.php','function profile_image_upload','Profile photo uploads must use the validated storage helper.');
@@ -294,6 +294,15 @@ $need('assets/js/annotation-cards.js','annotated:object-ask-agent','Shared web c
 $need('assets/js/agent-chat.js','function attachmentUrl','Agent context chips must provide authoritative object return paths.');
 $need('home.php','data-agent-enabled=','Team Agent continuity actions must use server-rendered Agent capability state.');
 $need('tests/phase32-unified-continuity-actions.php','Phase 32 Unified Continuity Actions & Object Cards','Phase 32 must retain a dedicated continuity action contract suite.');
-$need('extension/manifest.json','"version": "0.32.0"','Phase 32 Chrome release must be v0.32.0.');
+$need('extension/manifest.json','"version": "0.33.0"','Phase 32 Chrome release must be v0.33.0.');
+
+$need('app/unified-activity.php','unified_activity_collect','Phase 33 must derive a unified viewer-scoped activity stream.');
+$need('api/activity.php','unified_activity_collect','Phase 33 clients must use the same authoritative activity stream.');
+$need('activity.php','WORKSPACE ACTIVITY','Phase 33 must expose the full Activity workspace.');
+$need('app/cognitive-feed.php','workspace_activity','Home Now must surface bounded workspace activity context.');
+$need('extension/sidepanel.html','data-tab="activity"','Chrome must expose the unified Activity tab.');
+$need('extension/sidepanel-feed.js','phase33LoadActivity','Chrome Activity must load from the shared Activity API.');
+$need('tests/phase33-unified-activity-db.php','Phase 33 Unified Activity & Context Awareness','Phase 33 must retain its privacy/revocation DB suite.');
+$need('extension/manifest.json','"version": "0.33.0"','Phase 33 Chrome release must be v0.33.0.');
 
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "V1.1 RC1 end-to-end release contract passed.\n";

@@ -30,6 +30,7 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
   </nav>
   <div class="homeFeedModeActions">
     <?php if($feedMode==='cognitive'&&($cognitiveFeed['hidden_count']??0)>0):?><button type="button" data-cognitive-restore-all>Show hidden (<?=h((string)$cognitiveFeed['hidden_count'])?>)</button><?php endif?>
+    <a href="/activity.php">Activity</a>
     <button type="button" data-cognitive-refresh>Refresh</button>
   </div>
 </div>
