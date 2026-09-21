@@ -132,7 +132,7 @@ function conversation_message_rows(PDO $pdo,array $viewer,string $conversationPu
       LEFT JOIN users pu ON pu.id=p.user_id
       WHERE $where ORDER BY m.id DESC LIMIT ".($limit+1);
     $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll();$more=count($rows)>$limit;if($more)array_pop($rows);$rows=array_reverse($rows);
-    $attachmentMap=function_exists('object_handoff_message_attachments')?object_handoff_message_attachments($pdo,$viewer,array_column($rows,'id')):[];
+    $attachmentMap=(($conversation['conversation_type']??'')==='team'&&function_exists('object_handoff_message_attachments'))?object_handoff_message_attachments($pdo,$viewer,array_column($rows,'id')):[];
     foreach($rows as &$row){$row['id']=(int)$row['id'];$row['is_self']=(int)($row['user_id']??0)===(int)$viewer['id'];$row['body']=$row['deleted_at']!==null?'Message removed.':(string)$row['body'];$row['attachments']=$row['deleted_at']!==null?[]:($attachmentMap[$row['id']]??[]);unset($row['user_id']);}unset($row);
     $next=$more&&$rows?(int)$rows[0]['id']:null;$presence=conversation_presence_rows($pdo,$viewer,$conversation);$onlineCount=count(array_filter($presence,fn($p)=>($p['effective_status']??'offline')!=='offline'));
     return ['conversation'=>['public_id'=>$conversation['public_id'],'type'=>$conversation['conversation_type'],'team_public_id'=>$conversation['team_public_id']??null,'team_name'=>$conversation['team_name']??$conversation['title'],'member_count'=>(int)($conversation['member_count']??0),'online_count'=>$onlineCount],'messages'=>$rows,'presence'=>$presence,'next_before'=>$next];
