@@ -140,16 +140,19 @@ function conversation_message_rows(PDO $pdo,array $viewer,string $conversationPu
 function conversation_message_create(PDO $pdo,array $viewer,string $conversationPublicId,string $body,?string $parentPublicId=null,?string $clientMessageId=null,array $attachments=[]): array {
     $body=trim($body);if($body===''||mb_strlen($body)>5000)throw new InvalidArgumentException('Message must be between 1 and 5000 characters.');
     $conversation=conversation_access($pdo,$viewer,$conversationPublicId);if(!$conversation)throw new RuntimeException('Conversation not found.');
-    $attachments=function_exists('object_handoff_normalize_attachments')?object_handoff_normalize_attachments($pdo,$viewer,$conversation,$attachments):[];
     $parentId=null;if($parentPublicId!==null&&$parentPublicId!==''){
         $q=$pdo->prepare('SELECT id FROM conversation_messages WHERE public_id=? AND conversation_id=? AND deleted_at IS NULL');$q->execute([$parentPublicId,$conversation['id']]);$parentId=(int)($q->fetchColumn()?:0);if(!$parentId)throw new InvalidArgumentException('Reply target is not in this conversation.');
     }
     $client=trim((string)$clientMessageId);if($client==='')$client=null;if($client!==null&&strlen($client)>80)throw new InvalidArgumentException('Client message id is too long.');
-    if($client!==null){$q=$pdo->prepare('SELECT public_id,id FROM conversation_messages WHERE conversation_id=? AND user_id=? AND client_message_id=? LIMIT 1');$q->execute([$conversation['id'],$viewer['id'],$client]);if($existing=$q->fetch())return ['public_id'=>$existing['public_id'],'id'=>(int)$existing['id'],'created'=>false,'deduplicated'=>true];}
+    if($client!==null){
+        $q=$pdo->prepare('SELECT public_id,id FROM conversation_messages WHERE conversation_id=? AND user_id=? AND client_message_id=? LIMIT 1');$q->execute([$conversation['id'],$viewer['id'],$client]);
+        if($existing=$q->fetch()){$existingId=(int)$existing['id'];return ['public_id'=>$existing['public_id'],'id'=>$existingId,'created'=>false,'deduplicated'=>true,'attachments'=>function_exists('object_handoff_message_attachments')?(object_handoff_message_attachments($pdo,$viewer,[$existingId])[$existingId]??[]):[]];}
+    }
+    $attachments=function_exists('object_handoff_normalize_attachments')?object_handoff_normalize_attachments($pdo,$viewer,$conversation,$attachments):[];
     $public=ulid_like();
     try{$pdo->prepare("INSERT INTO conversation_messages(public_id,conversation_id,user_id,sender_type,parent_message_id,client_message_id,body) VALUES(?,?,?,'user',?,?,?)")->execute([$public,$conversation['id'],$viewer['id'],$parentId,$client,$body]);}
     catch(PDOException $e){
-        if((string)$e->getCode()==='23000'&&$client!==null){$q=$pdo->prepare('SELECT public_id,id FROM conversation_messages WHERE conversation_id=? AND user_id=? AND client_message_id=? LIMIT 1');$q->execute([$conversation['id'],$viewer['id'],$client]);if($existing=$q->fetch())return ['public_id'=>$existing['public_id'],'id'=>(int)$existing['id'],'created'=>false,'deduplicated'=>true];}
+        if((string)$e->getCode()==='23000'&&$client!==null){$q=$pdo->prepare('SELECT public_id,id FROM conversation_messages WHERE conversation_id=? AND user_id=? AND client_message_id=? LIMIT 1');$q->execute([$conversation['id'],$viewer['id'],$client]);if($existing=$q->fetch()){$existingId=(int)$existing['id'];return ['public_id'=>$existing['public_id'],'id'=>$existingId,'created'=>false,'deduplicated'=>true,'attachments'=>function_exists('object_handoff_message_attachments')?(object_handoff_message_attachments($pdo,$viewer,[$existingId])[$existingId]??[]):[]];}}
         throw $e;
     }
     $id=(int)$pdo->lastInsertId();if($attachments&&function_exists('object_handoff_store_message_attachments'))object_handoff_store_message_attachments($pdo,$id,$attachments);$pdo->prepare('UPDATE conversations SET last_message_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$conversation['id']]);
