@@ -122,8 +122,15 @@ function provenance_project_integrity(array $manifest): array {
 }
 
 function provenance_receipt_create(PDO $pdo,array $viewer,string $projectPublic): array {
-    if(!provenance_ready($pdo))throw new RuntimeException('Provenance Audit requires the Phase 26 database upgrade.');$project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)throw new RuntimeException('Research project is unavailable.');
-    $manifest=provenance_project_manifest($pdo,$viewer,$projectPublic);$json=provenance_encode($manifest);$hash=hash('sha256',$json);$public=ulid_like();$pdo->prepare("INSERT INTO research_audit_receipts(public_id,created_by_user_id,project_id,scope_type,manifest_hash,manifest_json) VALUES(?,?,?,'project',?,?)")->execute([$public,$viewer['id'],$project['id'],$hash,$json]);return provenance_receipt_access($pdo,$viewer,$public)??[];
+    if(!provenance_ready($pdo))throw new RuntimeException('Provenance Audit requires the Phase 26 database upgrade.');
+    $project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)throw new RuntimeException('Research project is unavailable.');
+    $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+    try{
+        $manifest=provenance_project_manifest($pdo,$viewer,$projectPublic);$json=provenance_encode($manifest);$hash=hash('sha256',$json);$public=ulid_like();
+        $pdo->prepare("INSERT INTO research_audit_receipts(public_id,created_by_user_id,project_id,scope_type,manifest_hash,manifest_json) VALUES(?,?,?,'project',?,?)")->execute([$public,$viewer['id'],$project['id'],$hash,$json]);
+        if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+    return provenance_receipt_access($pdo,$viewer,$public)??[];
 }
 
 function provenance_receipt_access(PDO $pdo,array $viewer,string $publicId): ?array {
