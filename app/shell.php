@@ -72,6 +72,7 @@ function app_shell_admin_nav(string $path): string {
     $links[]=app_shell_link('/admin/moderation.php','Moderation','⚑',$path);
     $links[]=app_shell_link('/admin/discovery-entities.php','Discovery','◎',$path);
     $links[]=app_shell_link('/admin/data-attribution.php','Data Governance','⌘',$path);
+    $links[]=app_shell_link('/admin/datasets.php','Dataset Registry','▤',$path);
     $links[]=app_shell_link('/admin/system-health.php','System Health','◫',$path);
     $links[]=app_shell_link('/upgrade.php','Database Upgrade','⇧',$path);
     $links[]=app_shell_link('/admin/assistant.php','Admin Assistant','⌁',$path);
