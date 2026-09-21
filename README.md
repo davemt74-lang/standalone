@@ -160,3 +160,29 @@ The governing rule is:
 Public visibility does not imply model-training permission. Private and Team Research remains outside the shared corpus. External Source text requires explicit Source-rights approval. Phase 37 does not train or fine-tune a model.
 
 See `docs/phase-37-data-attribution-architecture-v1.md`.
+
+
+## Phase 38 — Dataset Registry & Frozen Dataset Manifests
+
+The post-V1 data architecture now includes a governed Dataset Registry that turns Phase 37 corpus items into reproducible, immutable snapshots without training a model.
+
+Phase 38 adds:
+
+- purpose-specific datasets for retrieval, evaluation, training, and commercial training
+- normalized selection policies with stable policy hashes
+- deterministic governed-corpus selection
+- immutable frozen text, metadata, provenance, and eligibility snapshots
+- manifest hashing that recomputes from actual snapshot contents
+- live current-use validation against later consent, rights, content, and provenance changes
+- manifest-only audit export for frozen and retired datasets
+- full data export only while current eligibility and integrity remain valid
+- administrator-only create, preview, freeze, inspect, export, and retire workflows
+- a first-class **Admin Dataset Registry UI**
+
+The architecture remains:
+
+**Production object → Contribution Ledger → Rights / Consent → Derived Corpus → Frozen Dataset → future controlled model/evaluation systems**
+
+Phase 38 does not train or fine-tune a model.
+
+See `docs/phase-38-dataset-registry-frozen-manifests.md`.
