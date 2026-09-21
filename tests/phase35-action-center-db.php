@@ -41,12 +41,11 @@ $pdo->prepare("INSERT INTO agent_action_proposals(public_id,conversation_id,assi
 
 $center=action_center_compose($pdo,$viewer,null,100);
 p35($center['ready']&&$center['total']>=2,'Action Center composes current urgent actionable state without duplicating a lower-priority project continuation');
-$confirm=p35type($center,'pending_agent_action');$respond=p35type($center,'team_activity');$workflow=p35type($center,'research_workflow')??p35type($center,'research_task');
+$confirm=p35type($center,'pending_agent_action');$respond=p35type($center,'team_activity');
 p35((bool)$confirm&&($confirm['kind']??'')==='confirm'&&($confirm['urgency']??'')==='high','pending Agent write routes to Confirm as high priority');
 p35((bool)$respond&&($respond['kind']??'')==='respond','unread Team activity routes to Respond');
 $directWorkflow=array_values(array_filter(action_center_project_workflow_items($pdo,$viewer,[]),fn($x)=>(string)($x['workspace']['research_public_id']??'')===$projectPublic))[0]??null;
 p35((bool)$directWorkflow&&($directWorkflow['kind']??'')==='continue','Research lifecycle exposes a concrete Continue action');
-p35((bool)$workflow&&($workflow['kind']??'')==='continue'&&($workflow['workspace']['research_public_id']??'')===$projectPublic,'composed queue retains an equivalent Research Continue route with project context');
 p35(($confirm['workspace']['agent_conversation_public_id']??'')===$agentPublic&&($confirm['workspace']['research_public_id']??'')===$projectPublic,'Agent confirmation carries Agent and Research workspace refs');
 p35(($respond['workspace']['team_public_id']??'')===$teamPublic,'Team response carries Team workspace ref');
 
@@ -65,7 +64,8 @@ p35(p35type($readCenter,'team_activity')===null,'reading Team messages resolves 
 $pdo->prepare("UPDATE agent_action_proposals SET status='rejected',rejected_at=NOW() WHERE public_id=? AND proposed_by_user_id=?")->execute([$proposalPublic,$viewer['id']]);
 $rejectedCenter=action_center_compose($pdo,$viewer,null,100);
 p35(p35type($rejectedCenter,'pending_agent_action')===null,'rejecting Agent proposal resolves Confirm without Action Center persistence');
-p35(p35kind($rejectedCenter,'continue')>0,'independent Research lifecycle work remains after unrelated actions resolve');
+$resolvedContinue=array_values(array_filter((array)$rejectedCenter['items'],fn($x)=>(string)($x['kind']??'')==='continue'&&(string)($x['workspace']['research_public_id']??'')===$projectPublic))[0]??null;
+p35((bool)$resolvedContinue,'Research Continue route appears with project context after higher-priority actions resolve');
 
 $pdo->prepare('DELETE FROM team_members WHERE team_id=? AND user_id=?')->execute([$teamId,$viewer['id']]);
 $revoked=action_center_compose($pdo,$viewer,null,100);
