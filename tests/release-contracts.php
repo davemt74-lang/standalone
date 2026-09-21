@@ -170,7 +170,7 @@ foreach(['adding Claim evidence invalidates','viewer-private Decision Memory','p
 $reviewRuntimeAudit=(string)file_get_contents($root.'/app/research-reviews.php');
 foreach(['research_review_claim_state_hash','research_review_finding_state_hash','research_report_version_access'] as $needle)if(!str_contains($reviewRuntimeAudit,$needle))$fail[]="Final audit review hardening missing: $needle";
 $packRuntimeAudit=(string)file_get_contents($root.'/app/research-evidence-packs.php');
-if(!str_contains($packRuntimeAudit,"unset($prov['evidence_packs'],$prov['decision_memory'])"))$fail[]='Evidence Packs must exclude viewer-private Decision Memory.';
+if(!str_contains($packRuntimeAudit,"unset(\$prov['evidence_packs'],\$prov['decision_memory'])"))$fail[]='Evidence Packs must exclude viewer-private Decision Memory.';
 if(!str_contains($packRuntimeAudit,'rep.created_by_user_id=?'))$fail[]='Evidence Pack access/listing must remain creator-scoped.';
 $workflowRuntimeAudit=(string)file_get_contents($root.'/app/research-workflow.php');
 foreach(['research_workflow_accessible_review_counts','research_workflow_accessible_report_counts'] as $needle)if(!str_contains($workflowRuntimeAudit,$needle))$fail[]="Permission-aware workflow counter missing: $needle";
