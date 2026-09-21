@@ -19,4 +19,4 @@ function action_center_icon(string $kind): string {return match($kind){'confirm'
       </div></article><?php endforeach?></div>
   </section><?php endforeach?>
 </main>
-<script src="/assets/js/workspace-state.js?v=35.0"></script><script src="/assets/js/action-center.js?v=35.0"></script></body></html>
+<script src="/assets/js/workspace-state.js?v=36.0"></script><script src="/assets/js/action-center.js?v=36.0"></script></body></html>

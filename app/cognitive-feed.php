@@ -446,11 +446,10 @@ function cognitive_feed_items(PDO $pdo,array $viewer,?array $teamList=null,bool 
     return ['ready'=>true,'items'=>$rows,'hidden_count'=>$activeHidden];
 }
 
-function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int $perSection=4,int $maxTotal=28): array {
+function cognitive_feed_compose_from_items(array $all,int $perSection=4,int $maxTotal=28): array {
     $perSection=max(1,min(8,$perSection));$maxTotal=max(4,min(60,$maxTotal));
-    $all=cognitive_feed_items($pdo,$viewer,$teamList,false);
     if(empty($all['ready']))return ['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
-    $rows=$all['items'];$activeHidden=(int)$all['hidden_count'];
+    $rows=(array)($all['items']??[]);$activeHidden=(int)($all['hidden_count']??0);
 
     $defs=cognitive_feed_section_definitions();$buckets=[];$total=0;
     foreach($rows as $row){
@@ -465,4 +464,7 @@ function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int
       'hidden_count'=>$activeHidden,
       'ranking'=>'Ranked from authoritative Annotated state using unresolved urgency, evidence impact, freshness, unread collaboration, and active Research context. No separate AI ranking model is required.'
     ];
+}
+function cognitive_feed_compose(PDO $pdo,array $viewer,?array $teamList=null,int $perSection=4,int $maxTotal=28): array {
+    return cognitive_feed_compose_from_items(cognitive_feed_items($pdo,$viewer,$teamList,false),$perSection,$maxTotal);
 }

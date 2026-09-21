@@ -120,5 +120,5 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
 
 function annotation_ui_scripts(?array $viewer): string {
     $csrf=$viewer?csrf_token():'';
-    return '<script>window.ANNOTATED_CSRF='.json_encode($csrf).';</script><script src="/assets/js/annotation-cards.js?v=32.0"></script>';
+    return '<script>window.ANNOTATED_CSRF='.json_encode($csrf).';</script><script src="/assets/js/annotation-cards.js?v=36.0"></script>';
 }
