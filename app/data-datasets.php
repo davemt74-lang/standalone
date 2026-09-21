@@ -114,6 +114,11 @@ function data_dataset_recompute_item_hashes(array $row): array {
     ];
     return ['content_hash'=>$contentHash,'metadata_hash'=>$metadataHash,'eligibility_hash'=>$eligibilityHash,'item_hash'=>data_attribution_hash($core)];
 }
+function data_dataset_snapshot_integrity(PDO $pdo,array $dataset): array {
+    $q=$pdo->prepare('SELECT * FROM data_dataset_items WHERE dataset_id=? ORDER BY position,id');$q->execute([$dataset['id']]);$invalid=0;$checked=0;
+    foreach($q->fetchAll() as $row){$checked++;$actual=data_dataset_recompute_item_hashes($row);if(!hash_equals((string)$row['content_hash'],$actual['content_hash'])||!hash_equals((string)$row['metadata_snapshot_hash'],$actual['metadata_hash'])||!hash_equals((string)$row['eligibility_snapshot_hash'],$actual['eligibility_hash'])||!hash_equals((string)$row['item_hash'],$actual['item_hash']))$invalid++;}
+    return ['checked'=>$checked,'invalid'=>$invalid,'ok'=>$invalid===0];
+}
 function data_dataset_manifest_payload(PDO $pdo,array $dataset,bool $includeText=false): array {
     $q=$pdo->prepare('SELECT * FROM data_dataset_items WHERE dataset_id=? ORDER BY position,id');$q->execute([$dataset['id']]);$rows=$q->fetchAll();$items=[];
     foreach($rows as $r){$actual=data_dataset_recompute_item_hashes($r);$item=[
@@ -133,7 +138,7 @@ function data_dataset_freeze(PDO $pdo,array $viewer,string $publicId): array {
     data_dataset_require_admin($viewer);if(!data_dataset_ready($pdo))throw new RuntimeException('Dataset Registry requires the Phase 38 database upgrade.');
     $pdo->beginTransaction();try{
         $q=$pdo->prepare('SELECT * FROM data_datasets WHERE public_id=? FOR UPDATE');$q->execute([$publicId]);$d=$q->fetch();if(!$d)throw new RuntimeException('Dataset not found.');if($d['status']!=='draft')throw new RuntimeException('Only draft datasets can be frozen.');
-        $policy=json_decode((string)$d['selection_policy_json'],true)?:[];[$sql,$params]=data_dataset_candidate_sql($policy,false);$q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll();if(!$rows)throw new RuntimeException('No currently eligible corpus items match this dataset policy.');
+        $policy=json_decode((string)$d['selection_policy_json'],true)?:[];[$sql,$params]=data_dataset_candidate_sql($policy,false);$sql.=' FOR UPDATE';$q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll();if(!$rows)throw new RuntimeException('No currently eligible corpus items match this dataset policy.');
         $insert=$pdo->prepare('INSERT INTO data_dataset_items(dataset_id,corpus_item_id,position,corpus_public_id,source_object_type,source_object_public_id,source_object_version,contributor_user_id,corpus_type,normalized_text_snapshot,metadata_snapshot_json,metadata_snapshot_hash,content_hash,provenance_hash,eligibility_snapshot_json,eligibility_snapshot_hash,item_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $bytes=0;$position=0;foreach($rows as $row){$snap=data_dataset_item_snapshot($row,(string)$d['purpose'],$position);$text=(string)$row['normalized_text'];$bytes+=strlen($text);$insert->execute([$d['id'],$row['id'],$position,$row['public_id'],$row['source_object_type'],$row['source_object_public_id'],$row['source_object_version'],$row['contributor_user_id'],$row['corpus_type'],$text,$snap['metadata_json'],$snap['metadata_hash'],$row['content_hash'],$row['provenance_hash'],$snap['eligibility_json'],$snap['eligibility_hash'],$snap['item_hash']]);$position++;}
         $pdo->prepare("UPDATE data_datasets SET status='frozen',item_count=?,content_bytes=?,frozen_by_user_id=?,frozen_at=NOW(),updated_at=NOW() WHERE id=?")->execute([count($rows),$bytes,$viewer['id'],$d['id']]);
@@ -146,12 +151,12 @@ function data_dataset_current_use_status(PDO $pdo,string $publicId): array {
     $d=data_dataset_get($pdo,$publicId);if(!$d)return ['usable'=>false,'reason'=>'dataset_not_found','invalid_items'=>0];if($d['status']!=='frozen')return ['usable'=>false,'reason'=>'dataset_not_frozen','invalid_items'=>0];
     $purpose=(string)$d['purpose'];$purposes=data_dataset_purposes();$column=$purposes[$purpose]['column']??null;if(!$column)return ['usable'=>false,'reason'=>'invalid_purpose','invalid_items'=>0];
     $q=$pdo->prepare("SELECT COUNT(*) FROM data_dataset_items ddi LEFT JOIN data_corpus_items dci ON dci.id=ddi.corpus_item_id WHERE ddi.dataset_id=? AND (dci.id IS NULL OR dci.invalidated_at IS NOT NULL OR dci.$column<>1 OR dci.content_hash<>ddi.content_hash OR dci.provenance_hash<>ddi.provenance_hash)");
-    $q->execute([$d['id']]);$invalid=(int)$q->fetchColumn();
-    $calc=data_dataset_manifest_hash($pdo,$d);$manifestOk=hash_equals((string)$d['manifest_hash'],$calc);
-    return ['usable'=>$invalid===0&&$manifestOk,'reason'=>$manifestOk?($invalid===0?'current':'eligibility_or_content_changed'):'manifest_integrity_failure','invalid_items'=>$invalid,'manifest_ok'=>$manifestOk,'computed_manifest_hash'=>$calc,'stored_manifest_hash'=>$d['manifest_hash']];
+    $q->execute([$d['id']]);$currentInvalid=(int)$q->fetchColumn();$snapshot=data_dataset_snapshot_integrity($pdo,$d);
+    $calc=data_dataset_manifest_hash($pdo,$d);$manifestOk=hash_equals((string)$d['manifest_hash'],$calc);$integrityOk=$manifestOk&&$snapshot['ok'];$usable=$currentInvalid===0&&$integrityOk;
+    return ['usable'=>$usable,'reason'=>$integrityOk?($currentInvalid===0?'current':'eligibility_or_content_changed'):'manifest_integrity_failure','invalid_items'=>$currentInvalid+(int)$snapshot['invalid'],'current_invalid_items'=>$currentInvalid,'snapshot_invalid_items'=>(int)$snapshot['invalid'],'manifest_ok'=>$manifestOk,'snapshot_integrity_ok'=>$snapshot['ok'],'computed_manifest_hash'=>$calc,'stored_manifest_hash'=>$d['manifest_hash']];
 }
 function data_dataset_retire(PDO $pdo,array $viewer,string $publicId): array {
-    data_dataset_require_admin($viewer);$d=data_dataset_get($pdo,$publicId);if(!$d)throw new RuntimeException('Dataset not found.');if($d['status']==='retired')return $d;
+    data_dataset_require_admin($viewer);$d=data_dataset_get($pdo,$publicId);if(!$d)throw new RuntimeException('Dataset not found.');if($d['status']==='retired')return $d;if($d['status']!=='frozen')throw new RuntimeException('Only frozen datasets can be retired.');
     $pdo->prepare("UPDATE data_datasets SET status='retired',retired_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$d['id']]);data_dataset_event($pdo,(int)$d['id'],(int)$viewer['id'],'retired',[]);return data_dataset_get($pdo,$publicId)??[];
 }
 function data_dataset_events(PDO $pdo,string $publicId,int $limit=50): array {
