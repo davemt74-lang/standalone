@@ -92,21 +92,35 @@ function data_dataset_item_snapshot(array $row,string $purpose,int $position): a
         'eligibility_reason'=>(string)$row['eligibility_reason'],
     ];
     $eligJson=data_attribution_encode($eligibility);$eligHash=hash('sha256',$eligJson);
+    $metadata=is_array($row['metadata_json']??null)?$row['metadata_json']:json_decode((string)($row['metadata_json']??''),true);if(!is_array($metadata))$metadata=[];
+    $metadataJson=data_attribution_encode($metadata);$metadataHash=hash('sha256',$metadataJson);
     $itemCore=[
         'position'=>$position,'corpus_public_id'=>(string)$row['public_id'],'source_object_type'=>(string)$row['source_object_type'],
         'source_object_public_id'=>(string)$row['source_object_public_id'],'source_object_version'=>(string)($row['source_object_version']??''),
-        'corpus_type'=>(string)$row['corpus_type'],'content_hash'=>(string)$row['content_hash'],'provenance_hash'=>(string)$row['provenance_hash'],
+        'corpus_type'=>(string)$row['corpus_type'],'content_hash'=>(string)$row['content_hash'],'metadata_snapshot_hash'=>$metadataHash,'provenance_hash'=>(string)$row['provenance_hash'],
         'eligibility_snapshot_hash'=>$eligHash,
     ];
-    return ['eligibility'=>$eligibility,'eligibility_json'=>$eligJson,'eligibility_hash'=>$eligHash,'item_hash'=>data_attribution_hash($itemCore)];
+    return ['eligibility'=>$eligibility,'eligibility_json'=>$eligJson,'eligibility_hash'=>$eligHash,'metadata_json'=>$metadataJson,'metadata_hash'=>$metadataHash,'item_hash'=>data_attribution_hash($itemCore)];
+}
+function data_dataset_recompute_item_hashes(array $row): array {
+    $metadata=json_decode((string)($row['metadata_snapshot_json']??''),true);if(!is_array($metadata))$metadata=[];$metadataJson=data_attribution_encode($metadata);$metadataHash=hash('sha256',$metadataJson);
+    $eligibility=json_decode((string)($row['eligibility_snapshot_json']??''),true);if(!is_array($eligibility))$eligibility=[];$eligibilityJson=data_attribution_encode($eligibility);$eligibilityHash=hash('sha256',$eligibilityJson);
+    $contentHash=hash('sha256',(string)$row['normalized_text_snapshot']);
+    $core=[
+        'position'=>(int)$row['position'],'corpus_public_id'=>(string)$row['corpus_public_id'],'source_object_type'=>(string)$row['source_object_type'],
+        'source_object_public_id'=>(string)$row['source_object_public_id'],'source_object_version'=>(string)($row['source_object_version']??''),
+        'corpus_type'=>(string)$row['corpus_type'],'content_hash'=>$contentHash,'metadata_snapshot_hash'=>$metadataHash,'provenance_hash'=>(string)$row['provenance_hash'],
+        'eligibility_snapshot_hash'=>$eligibilityHash,
+    ];
+    return ['content_hash'=>$contentHash,'metadata_hash'=>$metadataHash,'eligibility_hash'=>$eligibilityHash,'item_hash'=>data_attribution_hash($core)];
 }
 function data_dataset_manifest_payload(PDO $pdo,array $dataset,bool $includeText=false): array {
     $q=$pdo->prepare('SELECT * FROM data_dataset_items WHERE dataset_id=? ORDER BY position,id');$q->execute([$dataset['id']]);$rows=$q->fetchAll();$items=[];
-    foreach($rows as $r){$item=[
+    foreach($rows as $r){$actual=data_dataset_recompute_item_hashes($r);$item=[
         'position'=>(int)$r['position'],'corpus_public_id'=>$r['corpus_public_id'],'source_object_type'=>$r['source_object_type'],'source_object_public_id'=>$r['source_object_public_id'],
         'source_object_version'=>(string)($r['source_object_version']??''),'contributor_user_id'=>$r['contributor_user_id']!==null?(int)$r['contributor_user_id']:null,
-        'corpus_type'=>$r['corpus_type'],'content_hash'=>$r['content_hash'],'provenance_hash'=>$r['provenance_hash'],
-        'eligibility_snapshot_hash'=>$r['eligibility_snapshot_hash'],'item_hash'=>$r['item_hash'],
+        'corpus_type'=>$r['corpus_type'],'content_hash'=>$actual['content_hash'],'metadata_snapshot_hash'=>$actual['metadata_hash'],'provenance_hash'=>$r['provenance_hash'],
+        'eligibility_snapshot_hash'=>$actual['eligibility_hash'],'item_hash'=>$actual['item_hash'],
     ];if($includeText){$item['normalized_text']=$r['normalized_text_snapshot'];$item['metadata']=json_decode((string)($r['metadata_snapshot_json']??''),true);$item['eligibility']=json_decode((string)$r['eligibility_snapshot_json'],true)?:[];}$items[]=$item;}
     return [
         'schema'=>'annotated.dataset-manifest.v1','dataset'=>['public_id'=>$dataset['public_id'],'name'=>$dataset['name'],'slug'=>$dataset['slug'],'version'=>(int)$dataset['version_number'],'purpose'=>$dataset['purpose']],
@@ -120,8 +134,8 @@ function data_dataset_freeze(PDO $pdo,array $viewer,string $publicId): array {
     $pdo->beginTransaction();try{
         $q=$pdo->prepare('SELECT * FROM data_datasets WHERE public_id=? FOR UPDATE');$q->execute([$publicId]);$d=$q->fetch();if(!$d)throw new RuntimeException('Dataset not found.');if($d['status']!=='draft')throw new RuntimeException('Only draft datasets can be frozen.');
         $policy=json_decode((string)$d['selection_policy_json'],true)?:[];[$sql,$params]=data_dataset_candidate_sql($policy,false);$q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll();if(!$rows)throw new RuntimeException('No currently eligible corpus items match this dataset policy.');
-        $insert=$pdo->prepare('INSERT INTO data_dataset_items(dataset_id,corpus_item_id,position,corpus_public_id,source_object_type,source_object_public_id,source_object_version,contributor_user_id,corpus_type,normalized_text_snapshot,metadata_snapshot_json,content_hash,provenance_hash,eligibility_snapshot_json,eligibility_snapshot_hash,item_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-        $bytes=0;$position=0;foreach($rows as $row){$snap=data_dataset_item_snapshot($row,(string)$d['purpose'],$position);$text=(string)$row['normalized_text'];$bytes+=strlen($text);$insert->execute([$d['id'],$row['id'],$position,$row['public_id'],$row['source_object_type'],$row['source_object_public_id'],$row['source_object_version'],$row['contributor_user_id'],$row['corpus_type'],$text,$row['metadata_json'],$row['content_hash'],$row['provenance_hash'],$snap['eligibility_json'],$snap['eligibility_hash'],$snap['item_hash']]);$position++;}
+        $insert=$pdo->prepare('INSERT INTO data_dataset_items(dataset_id,corpus_item_id,position,corpus_public_id,source_object_type,source_object_public_id,source_object_version,contributor_user_id,corpus_type,normalized_text_snapshot,metadata_snapshot_json,metadata_snapshot_hash,content_hash,provenance_hash,eligibility_snapshot_json,eligibility_snapshot_hash,item_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $bytes=0;$position=0;foreach($rows as $row){$snap=data_dataset_item_snapshot($row,(string)$d['purpose'],$position);$text=(string)$row['normalized_text'];$bytes+=strlen($text);$insert->execute([$d['id'],$row['id'],$position,$row['public_id'],$row['source_object_type'],$row['source_object_public_id'],$row['source_object_version'],$row['contributor_user_id'],$row['corpus_type'],$text,$snap['metadata_json'],$snap['metadata_hash'],$row['content_hash'],$row['provenance_hash'],$snap['eligibility_json'],$snap['eligibility_hash'],$snap['item_hash']]);$position++;}
         $pdo->prepare("UPDATE data_datasets SET status='frozen',item_count=?,content_bytes=?,frozen_by_user_id=?,frozen_at=NOW(),updated_at=NOW() WHERE id=?")->execute([count($rows),$bytes,$viewer['id'],$d['id']]);
         $dataset=data_dataset_get($pdo,$publicId);if(!$dataset)throw new RuntimeException('Frozen dataset could not be reloaded.');$manifestHash=data_dataset_manifest_hash($pdo,$dataset);
         $pdo->prepare('UPDATE data_datasets SET manifest_hash=? WHERE id=?')->execute([$manifestHash,$d['id']]);data_dataset_event($pdo,(int)$d['id'],(int)$viewer['id'],'frozen',['manifest_hash'=>$manifestHash,'item_count'=>count($rows),'content_bytes'=>$bytes]);
