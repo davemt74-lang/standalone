@@ -111,9 +111,9 @@ Source Version allocation is serialized by locking the canonical `sources` row b
 `upgrade.php` now uses MariaDB `GET_LOCK()` so only one schema upgrade can run at a time. Because MariaDB DDL can implicitly commit, upgrades no longer pretend DDL rollback is atomic. `schema_migration_runs` records every attempt, statement position, failure, and checksum. Failed migrations remain checksum-pinned and must be retried unchanged after the environmental problem is corrected. Destructive `DROP`/`TRUNCATE`/`RENAME TABLE` migrations are rejected by the automated contract gate in favor of reviewed expand/contract changes.
 
 
-## V1.1 RC1 release hardening
+## V1 RC1 production readiness
 
-Phase 11 adds the release-candidate operating layer around the V1 product loop:
+The Phase 36 release-candidate tree uses the production-readiness layer introduced earlier in the build, now normalized for **V1 RC1 (`1.0.0-rc1`)**:
 
 - `/onboarding.php` — one-time first-run checklist based on real account activity
 - `/admin/system-health.php` — production readiness, migration, queue, and worker health
@@ -122,7 +122,7 @@ Phase 11 adds the release-candidate operating layer around the V1 product loop:
 - browser-session revocation epoch plus existing per-extension session revocation
 - OAuth callback state expiry and one-time consumption
 - worker heartbeats for media, transcription, source monitoring, AI, and saved-search alerts
-- Chrome extension version `0.9.0` with first-install setup and accessibility/keyboard hardening
+- Chrome extension version `0.36.0` with the Phase 36 end-to-end workspace hardening
 
 Recommended recurring workers for RC validation:
 
