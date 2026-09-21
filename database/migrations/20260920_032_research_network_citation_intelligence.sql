@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS research_project_report_references (
   note TEXT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_project_report_reference(project_id,target_version_id),
+  UNIQUE KEY uq_project_report_reference(project_id,target_report_id),
   INDEX idx_project_report_reference_target(target_version_id,project_id),
   CONSTRAINT fk_project_report_reference_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
   CONSTRAINT fk_project_report_reference_report FOREIGN KEY(target_report_id) REFERENCES research_reports(id) ON DELETE CASCADE,
