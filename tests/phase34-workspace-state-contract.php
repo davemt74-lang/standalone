@@ -23,6 +23,7 @@ p34c(str_contains($agent,'agent_conversation_public_id')&&str_contains($agent,'c
 p34c(str_contains($team,'team_public_id:option?.dataset.team'),'Team Chat selection updates active Team workspace ref');
 p34c(str_contains($researchAgent,'research_public_id:project')&&str_contains($researchAgent,'agent_conversation_public_id:conversation'),'Research Agent keeps Research and Agent context aligned');
 p34c(substr_count($state,'phase34WorkspaceClear')>=2,'Chrome logout and auth-expiry paths clear ephemeral workspace state');
+p34c(str_contains((string)file_get_contents($root.'/logout.php'),"sessionStorage.removeItem('annotated.workspaceContext.v1')"),'website explicit logout clears ephemeral workspace state');
 p34c(str_contains($html,'workspaceContextMini')&&str_contains($html,'sidepanel-workspace.js'),'Chrome renders the workspace context strip and loads its session runtime');
 p34c(str_contains((string)file_get_contents($root.'/home.php'),'workspace-state.js?v=34.0')&&str_contains((string)file_get_contents($root.'/research-project.php'),'data-workspace-research'),'website Home and Research surfaces load contextual workspace state');
 p34c(str_contains((string)file_get_contents($root.'/annotation.php'),'data-workspace-object-type="annotation"')&&str_contains((string)file_get_contents($root.'/source.php'),'data-workspace-object-type="source"'),'Annotation and Source surfaces set active object context');
