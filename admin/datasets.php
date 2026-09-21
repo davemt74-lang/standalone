@@ -22,7 +22,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 $stats=data_dataset_summary($pdo);$datasets=data_dataset_list($pdo,100);$selected=$id!==''?data_dataset_get($pdo,$id):null;
 $preview=$selected&&$selected['status']==='draft'?data_dataset_preview($pdo,$id,20):null;
 $useStatus=$selected&&$selected['status']==='frozen'?data_dataset_current_use_status($pdo,$id):null;
-$items=$selected&&$selected['status']==='frozen'?data_dataset_items($pdo,$id,100,0):[];
+$items=$selected&&in_array($selected['status'],['frozen','retired'],true)?data_dataset_items($pdo,$id,100,0):[];
 $events=$selected?data_dataset_events($pdo,$id,50):[];
 $purposeOptions=data_dataset_purposes();
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dataset Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
@@ -102,7 +102,7 @@ $purposeOptions=data_dataset_purposes();
     <?php endif?>
   </section>
 
-  <?php if($selected['status']==='frozen'):?>
+  <?php if(in_array($selected['status'],['frozen','retired'],true)):?>
   <section class="card">
     <span class="eyebrow">FROZEN ITEMS</span><h2>Snapshot contents</h2>
     <?php if(!$items):?><p class="empty">No frozen item snapshots.</p><?php else:?><div class="unifiedActivityList"><?php foreach($items as $row):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge">#<?=h((string)((int)$row['position']+1))?></span><strong><?=h($row['source_object_type'])?> · <?=h($row['source_object_public_id'])?></strong></div></div><p class="meta"><?=h($row['corpus_type'])?><?=!empty($row['contributor_name'])?' · contributor '.h($row['contributor_name']):''?> · item <?=h(substr((string)$row['item_hash'],0,14))?>…</p></div></article><?php endforeach?></div><?php endif?>
