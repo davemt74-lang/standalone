@@ -190,6 +190,8 @@ foreach(['CREATE TABLE','INSERT INTO unified_activity','UPDATE unified_activity'
 $phase33Cognitive=(string)file_get_contents($root.'/app/cognitive-feed.php');foreach(['workspace_activity','cognitive_feed_collect_unified_activity','unified_activity_collect'] as $needle)if(!str_contains($phase33Cognitive,$needle))$fail[]="Phase 33 Cognitive Feed activity integration missing: $needle";
 $phase33Extension=(string)file_get_contents($root.'/extension/sidepanel-feed.js');foreach(['phase33LoadActivity','/api/activity.php?limit=35','phase33ActivityCard'] as $needle)if(!str_contains($phase33Extension,$needle))$fail[]="Phase 33 Chrome Activity integration missing: $needle";
 if(!str_contains((string)file_get_contents($root.'/extension/sidepanel.html'),'data-tab="activity"'))$fail[]='Phase 33 Chrome sidebar must expose the Activity tab.';
+$phase33SideCss=(string)file_get_contents($root.'/extension/sidepanel.css');if(!str_contains($phase33SideCss,'grid-template-columns:repeat(6,minmax(0,1fr))'))$fail[]='Phase 33 Chrome workspace nav must support all six tabs.';
+if(str_contains($phase33Activity,"['type'=>'claim'")||str_contains($phase33Activity,"['type'=>'finding'"))$fail[]='Phase 33 Activity Agent handoffs must use supported Agent context types rather than raw Claim/Finding attachments.';
 
 
 
