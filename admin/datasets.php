@@ -96,6 +96,9 @@ $purposeOptions=data_dataset_purposes();
         <form method="post" onsubmit="return confirm('Retire this frozen dataset? Historical manifest data remains auditable.');"><?=csrf_field()?><input type="hidden" name="op" value="retire"><input type="hidden" name="id" value="<?=h($selected['public_id'])?>"><button class="button secondary" type="submit">Retire dataset</button></form>
       </div>
       <p class="meta">A manifest export is always available for audit. Full data export is blocked when current rights, consent, corpus state, or manifest integrity no longer validates.</p>
+    <?php elseif($selected['status']==='retired'):?>
+      <div class="notice"><strong>RETIRED</strong><br>This dataset cannot be used or exported with text. Its immutable manifest remains available for audit.</div>
+      <form method="post" action="/admin/dataset-export.php"><?=csrf_field()?><input type="hidden" name="id" value="<?=h($selected['public_id'])?>"><input type="hidden" name="mode" value="manifest"><button class="button secondary" type="submit">Export retired manifest JSON</button></form>
     <?php endif?>
   </section>
 
