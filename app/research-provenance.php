@@ -95,7 +95,9 @@ function provenance_receipt_access(PDO $pdo,array $viewer,string $publicId): ?ar
 }
 
 function provenance_receipts(PDO $pdo,array $viewer,string $projectPublic,int $limit=50): array {
-    if(!provenance_ready($pdo))return [];$project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)return [];$limit=max(1,min(200,$limit));$q=$pdo->prepare("SELECT public_id FROM research_audit_receipts WHERE project_id=? AND created_by_user_id=? ORDER BY id DESC LIMIT ".$limit);$q->execute([$project['id'],$viewer['id']]);$out=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$r=provenance_receipt_access($pdo,$viewer,(string)$id);if($r)$out[]=$r;}return $out;
+    if(!provenance_ready($pdo))return [];$project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)return [];$limit=max(1,min(200,$limit));$currentHash=provenance_hash(provenance_project_manifest($pdo,$viewer,$projectPublic));
+    $q=$pdo->prepare("SELECT rar.*,rp.public_id project_public_id,rp.title project_title FROM research_audit_receipts rar JOIN research_projects rp ON rp.id=rar.project_id WHERE rar.project_id=? AND rar.created_by_user_id=? ORDER BY rar.id DESC LIMIT ".$limit);$q->execute([$project['id'],$viewer['id']]);$out=[];
+    foreach($q->fetchAll() as $r){$manifest=json_decode((string)$r['manifest_json'],true);if(!is_array($manifest))continue;$r['manifest']=$manifest;$r['stored_hash_valid']=hash_equals((string)$r['manifest_hash'],hash('sha256',provenance_encode($manifest)));$r['current_manifest_hash']=$currentHash;$r['current_matches_receipt']=hash_equals((string)$r['manifest_hash'],$currentHash);$out[]=$r;}return $out;
 }
 
 function provenance_project_context(PDO $pdo,array $viewer,string $projectPublic): array {
