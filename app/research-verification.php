@@ -231,8 +231,8 @@ function research_verification_record(PDO $pdo,array $viewer,string $type,string
     } else {
         $state['report_snapshot_hash']=$subject['hash'];
         if(function_exists('provenance_ready')&&provenance_ready($pdo)){
-            $q=$pdo->prepare('SELECT rr.public_id report_public_id,rv.version_number FROM research_report_versions rv JOIN research_reports rr ON rr.id=rv.report_id WHERE rv.public_id=? LIMIT 1');$q->execute([$subject['public_id']]);$rv=$q->fetch();
-            if($rv){$report=research_report_access($pdo,(string)$rv['report_public_id'],$viewer);$version=$report?research_report_version($pdo,$report,(int)$rv['version_number']):null;if($version)$state['snapshot_hash_valid']=hash_equals((string)$version['snapshot_hash'],hash('sha256',(string)$version['snapshot_json']));}
+            $q=$pdo->prepare('SELECT snapshot_hash,snapshot_json FROM research_report_versions WHERE public_id=? LIMIT 1');$q->execute([$subject['public_id']]);$rv=$q->fetch();
+            if($rv)$state['snapshot_hash_valid']=hash_equals((string)$rv['snapshot_hash'],hash('sha256',(string)$rv['snapshot_json']));
         }
     }
     $stateJson=research_verification_encode($state);$stateHash=hash('sha256',$stateJson);$eventPublic=ulid_like();$note=mb_substr(trim($note),0,8000);
