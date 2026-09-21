@@ -47,7 +47,8 @@ function data_contributor_preferences_update(PDO $pdo,array $viewer,array $input
     if($commercial&&!$training)throw new InvalidArgumentException('Commercial training permission requires training permission.');
     $pdo->prepare('INSERT INTO data_contributor_preferences(user_id,allow_shared_retrieval,allow_evaluation,allow_training,allow_commercial_training,attribution_required) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE allow_shared_retrieval=VALUES(allow_shared_retrieval),allow_evaluation=VALUES(allow_evaluation),allow_training=VALUES(allow_training),allow_commercial_training=VALUES(allow_commercial_training),attribution_required=VALUES(attribution_required)')
         ->execute([$viewer['id'],$shared,$evaluation,$training,$commercial,$attribution]);
-    data_refresh_user_corpus($pdo,$viewer,500);
+    $pdo->prepare("UPDATE data_corpus_items SET invalidated_at=COALESCE(invalidated_at,NOW()),shared_retrieval_eligible=0,evaluation_eligible=0,training_eligible=0,commercial_training_eligible=0,eligibility_reason='contributor_policy_changed',refreshed_at=NOW() WHERE contributor_user_id=? AND invalidated_at IS NULL")->execute([$viewer['id']]);
+    if($shared||$evaluation||$training)data_refresh_user_corpus($pdo,$viewer,500);
     return data_contributor_preferences($pdo,(int)$viewer['id']);
 }
 
