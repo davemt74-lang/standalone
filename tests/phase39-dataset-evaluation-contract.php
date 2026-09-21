@@ -19,6 +19,8 @@ $need('app/data-evaluations.php',"Cases can only be changed while the suite is d
 $need('app/data-evaluations.php',"dataset_manifest_hash",'Each run must snapshot the frozen dataset manifest hash.');
 $need('app/data-evaluations.php',"suite_config_hash",'Each run must snapshot suite configuration.');
 $need('app/data-evaluations.php',"cases_hash",'Each run must snapshot its benchmark case set.');
+$need('app/data-evaluations.php','Model configuration changed after the evaluation run was queued.','Queued model benchmarks must refuse model/provider configuration drift before inference.');
+$need('app/data-evaluations.php','api_base_hash','Model snapshots must fingerprint provider endpoint configuration without exporting the endpoint itself.');
 $need('app/data-evaluations.php',"data_evaluation_result_material",'Result integrity must hash retrieved evidence, response, citations, metrics, and pass state.');
 $need('app/data-evaluations.php',"data_evaluation_run_integrity",'Completed runs must have independent integrity verification.');
 $need('app/data-evaluations.php',"A run with failed integrity cannot become a regression baseline.",'Corrupted runs must not become regression baselines.');
