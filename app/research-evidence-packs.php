@@ -71,7 +71,7 @@ function research_evidence_pack_manifest(PDO $pdo,array $viewer,string $projectP
     if(!isset(research_evidence_pack_scope_types()[$scopeType]))throw new InvalidArgumentException('Invalid Evidence Pack scope.');
     $project=project_access($pdo,(int)$viewer['id'],trim($projectPublic));if(!$project)throw new RuntimeException('Research project is unavailable.');
     if(!function_exists('provenance_ready')||!provenance_ready($pdo))throw new RuntimeException('Evidence Packs require Research Provenance.');
-    $prov=provenance_project_manifest($pdo,$viewer,$projectPublic);unset($prov['evidence_packs']);
+    $prov=provenance_project_manifest($pdo,$viewer,$projectPublic);unset($prov['evidence_packs'],$prov['decision_memory']);
     $manifest=['schema'=>'annotated-evidence-pack-v1','scope'=>['type'=>$scopeType,'public_id'=>$scopePublic?:$projectPublic],'project'=>['public_id'=>$project['public_id'],'title'=>$project['title'],'status'=>$project['status']??'active']];
 
     if($scopeType==='project'){
@@ -122,7 +122,7 @@ function research_evidence_pack_create(PDO $pdo,array $viewer,string $projectPub
 
 function research_evidence_pack_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!research_evidence_packs_ready($pdo))return null;
-    $q=$pdo->prepare("SELECT rep.*,rp.public_id project_public_id,rp.title project_title,u.public_id creator_public_id,u.display_name creator_name,u.username creator_username FROM research_evidence_packs rep JOIN research_projects rp ON rp.id=rep.project_id JOIN users u ON u.id=rep.created_by_user_id WHERE rep.public_id=? LIMIT 1");$q->execute([trim($publicId)]);$r=$q->fetch();if(!$r)return null;
+    $q=$pdo->prepare("SELECT rep.*,rp.public_id project_public_id,rp.title project_title,u.public_id creator_public_id,u.display_name creator_name,u.username creator_username FROM research_evidence_packs rep JOIN research_projects rp ON rp.id=rep.project_id JOIN users u ON u.id=rep.created_by_user_id WHERE rep.public_id=? AND rep.created_by_user_id=? LIMIT 1");$q->execute([trim($publicId),$viewer['id']]);$r=$q->fetch();if(!$r)return null;
     if(!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
     $manifest=json_decode((string)$r['manifest_json'],true);if(!is_array($manifest))return null;$r['manifest']=$manifest;$r['stored_hash_valid']=hash_equals((string)$r['manifest_hash'],hash('sha256',research_evidence_pack_encode($manifest)));
     try{$current=research_evidence_pack_manifest($pdo,$viewer,(string)$r['project_public_id'],(string)$r['scope_type'],(string)$r['scope_public_id']);$r['current_manifest_hash']=research_evidence_pack_hash($current);$r['current_matches_pack']=hash_equals((string)$r['manifest_hash'],$r['current_manifest_hash']);$r['current_manifest']=$current;}
@@ -130,12 +130,21 @@ function research_evidence_pack_access(PDO $pdo,array $viewer,string $publicId):
     return $r;
 }
 
-function research_evidence_pack_list(PDO $pdo,array $viewer,string $projectPublic,int $limit=100): array {
+function research_evidence_pack_list(PDO $pdo,array $viewer,string $projectPublic,int $limit=100,bool $withCurrent=true): array {
     $project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project||!research_evidence_packs_ready($pdo))return [];$limit=max(1,min(300,$limit));
-    $q=$pdo->prepare("SELECT rep.*,u.public_id creator_public_id,u.display_name creator_name,u.username creator_username FROM research_evidence_packs rep JOIN users u ON u.id=rep.created_by_user_id WHERE rep.project_id=? ORDER BY rep.id DESC LIMIT ".$limit);$q->execute([$project['id']]);$out=[];
-    foreach($q->fetchAll() as $r){$manifest=json_decode((string)$r['manifest_json'],true);if(!is_array($manifest))continue;$r['stored_hash_valid']=hash_equals((string)$r['manifest_hash'],hash('sha256',research_evidence_pack_encode($manifest)));try{$current=research_evidence_pack_manifest($pdo,$viewer,$projectPublic,(string)$r['scope_type'],(string)$r['scope_public_id']);$r['current_matches_pack']=hash_equals((string)$r['manifest_hash'],research_evidence_pack_hash($current));}catch(Throwable $e){$r['current_matches_pack']=false;}$out[]=$r;}return $out;
+    $q=$pdo->prepare("SELECT rep.public_id,rep.project_id,rep.created_by_user_id,rep.scope_type,rep.scope_public_id,rep.scope_hash,rep.manifest_hash,rep.created_at,
+        CASE WHEN LOWER(rep.manifest_hash)=LOWER(SHA2(rep.manifest_json,256)) THEN 1 ELSE 0 END stored_hash_valid,
+        u.public_id creator_public_id,u.display_name creator_name,u.username creator_username
+      FROM research_evidence_packs rep JOIN users u ON u.id=rep.created_by_user_id
+      WHERE rep.project_id=? AND rep.created_by_user_id=? ORDER BY rep.id DESC LIMIT ".$limit);
+    $q->execute([$project['id'],$viewer['id']]);$out=[];
+    foreach($q->fetchAll() as $r){
+        $r['stored_hash_valid']=(bool)$r['stored_hash_valid'];$r['current_matches_pack']=null;
+        if($withCurrent){try{$current=research_evidence_pack_manifest($pdo,$viewer,$projectPublic,(string)$r['scope_type'],(string)$r['scope_public_id']);$r['current_matches_pack']=hash_equals((string)$r['manifest_hash'],research_evidence_pack_hash($current));}catch(Throwable $e){$r['current_matches_pack']=false;}}
+        $out[]=$r;
+    }
+    return $out;
 }
-
 function research_evidence_pack_sections(array $manifest): array {
     $skip=['schema','scope','project'];$out=[];foreach($manifest as $k=>$v)if(!in_array($k,$skip,true))$out[$k]=hash('sha256',research_evidence_pack_encode([$k=>$v]));ksort($out,SORT_STRING);return $out;
 }
