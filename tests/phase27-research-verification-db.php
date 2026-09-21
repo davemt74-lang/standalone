@@ -19,7 +19,7 @@ $addEvidence=function(array $s,string $rel)use($pdo,$owner,$claimId,$pub){$pdo->
 
 $addEvidence($a,'primary');$claim=research_claim_access($pdo,$owner,$claimPublic);$state=research_verification_claim_state($pdo,$owner,$claim);p27($state['evidence_state']==='support_only'&&$state['corroboration']==='single_source'&&$state['freshness']==='current','single current supporting Source is represented without overclaiming corroboration');
 
-$addEvidence($b,'supports');$state=research_verification_claim_state($pdo,$owner,$claim);p27($state['corroboration']==='independent_domains'&&$state['counts']['support_domains']===2,'support from two domains is surfaced as independent-domain corroboration');
+$addEvidence($b,'supports');$state=research_verification_claim_state($pdo,$owner,$claim);p27($state['corroboration']==='distinct_domains'&&$state['counts']['support_domains']===2,'support from two domains is surfaced as distinct-domain corroboration');
 
 $addEvidence($c,'contradicts');$state=research_verification_claim_state($pdo,$owner,$claim);p27($state['evidence_state']==='contested'&&$state['severity']==='high'&&$state['agent_use']==='contested_evidence','support plus contradiction becomes contested evidence and Agent caution');
 
@@ -40,7 +40,7 @@ $outsiderSubject=research_verification_subject($pdo,$outsider,'claim',$claimPubl
 $events=research_verification_project_events($pdo,$member,$projectPublic,50);p27(count($events)>=2,'current Team researcher can inspect project verification history');
 $pdo->prepare('DELETE FROM team_members WHERE team_id=? AND user_id=?')->execute([$teamId,$member['id']]);p27(research_verification_project_events($pdo,$member,$projectPublic,50)===[],'Team revocation immediately removes verification history access');
 
-$snapshotClaim=['id'=>$claimPublic,'evidence'=>[['relationship'=>'primary','source_id'=>$a['public_id']],['relationship'=>'supports','source_id'=>$b['public_id']],['relationship'=>'contradicts','source_id'=>$c['public_id']]]];$snapshotSources=[['id'=>$a['public_id'],'domain'=>'alpha.example'],['id'=>$b['public_id'],'domain'=>'beta.example'],['id'=>$c['public_id'],'domain'=>'gamma.example']];$publicSignal=research_verification_snapshot_claim_signal($snapshotClaim,$snapshotSources);p27($publicSignal['evidence_state']==='contested'&&$publicSignal['corroboration']==='independent_domains'&&$publicSignal['freshness']==='snapshot_pinned','public Report evidence signal is derived only from immutable snapshot data');
+$snapshotClaim=['id'=>$claimPublic,'evidence'=>[['relationship'=>'primary','source_id'=>$a['public_id']],['relationship'=>'supports','source_id'=>$b['public_id']],['relationship'=>'contradicts','source_id'=>$c['public_id']]]];$snapshotSources=[['id'=>$a['public_id'],'domain'=>'alpha.example'],['id'=>$b['public_id'],'domain'=>'beta.example'],['id'=>$c['public_id'],'domain'=>'gamma.example']];$publicSignal=research_verification_snapshot_claim_signal($snapshotClaim,$snapshotSources);p27($publicSignal['evidence_state']==='contested'&&$publicSignal['corroboration']==='distinct_domains'&&$publicSignal['freshness']==='snapshot_pinned','public Report evidence signal is derived only from immutable snapshot data');
 
 $runtime=file_get_contents($root.'/app/research-verification.php');p27(!str_contains($runtime,'trust_score')&&!str_contains($runtime,'ai_run(')&&!str_contains($runtime,'agent_action_confirm_execute('),'verification runtime has no opaque trust score, AI ranker, or direct Agent execution path');
 echo "Phase 27 Research Trust, Review & Verification MariaDB suite passed.\n";
