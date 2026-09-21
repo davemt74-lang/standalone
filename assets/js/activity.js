@@ -6,8 +6,8 @@ function activityWorkspacePatch(context=[],objectType='',objectId=''){
 document.addEventListener('click',async e=>{
   const open=e.target.closest('[data-activity-open-context]');
   if(open){
-    let context=[];try{context=JSON.parse(open.dataset.context||'[]');}catch{}
-    await window.AnnotatedWorkspaceState?.commit(activityWorkspacePatch(context,open.dataset.objectType,open.dataset.objectId));return;
+    e.preventDefault();let context=[];try{context=JSON.parse(open.dataset.context||'[]');}catch{}
+    await window.AnnotatedWorkspaceState?.commit(activityWorkspacePatch(context,open.dataset.objectType,open.dataset.objectId));location.href=open.href;return;
   }
   const button=e.target.closest('[data-activity-agent]');if(!button)return;
   let context=[];try{context=JSON.parse(button.dataset.context||'[]');}catch{}
