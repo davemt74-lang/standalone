@@ -181,7 +181,7 @@ foreach(['tests/phase32-unified-continuity-actions.php','docs/phase-32-unified-c
 $phase32Team=(string)file_get_contents($root.'/assets/js/team-chat.js');foreach(['annotated:object-add-research','annotated:object-ask-agent','teamChatAttachmentActions'] as $needle)if(!str_contains($phase32Team,$needle))$fail[]="Phase 32 Team object action missing: $needle";
 $phase32Cards=(string)file_get_contents($root.'/assets/js/annotation-cards.js');foreach(['annotated:object-add-research','annotated:object-ask-agent'] as $needle)if(!str_contains($phase32Cards,$needle))$fail[]="Phase 32 shared object action consumer missing: $needle";
 $phase32Agent=(string)file_get_contents($root.'/assets/js/agent-chat.js');foreach(['function attachmentUrl','/annotation.php?id=','/research-project.php?id='] as $needle)if(!str_contains($phase32Agent,$needle))$fail[]="Phase 32 Agent return path missing: $needle";
-$phase32AgentServer=(string)file_get_contents($root.'/app/agent-chat.php');if(!str_contains($phase32AgentServer,"is_blocked($pdo,(int)$viewer['id'],(int)$a['user_id'])"))$fail[]='Phase 32 Agent Annotation context must preserve user-block boundaries.';
+$phase32AgentServer=(string)file_get_contents($root.'/app/agent-chat.php');if(!str_contains($phase32AgentServer,'is_blocked($pdo,(int)$viewer[\'id\'],(int)$a[\'user_id\'])'))$fail[]='Phase 32 Agent Annotation context must preserve user-block boundaries.';
 $phase32Home=(string)file_get_contents($root.'/home.php');if(!str_contains($phase32Home,'data-agent-enabled='))$fail[]='Phase 32 Team object Agent action must use server-rendered capability state.';
 
 
