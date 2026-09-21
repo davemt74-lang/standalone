@@ -237,6 +237,12 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/phase26-research-provenance-db.php
+      - name: Phase 27 Research Trust Review and Verification MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase27-research-verification-db.php
 
 
   mysql8-fresh-install:
