@@ -47,6 +47,7 @@ $need('admin/evaluations.php','BENCHMARK CASES','Admin Evaluation Harness must e
 $need('admin/evaluations.php','Activate evaluation suite','Admin Evaluation Harness must make suite immutability explicit.');
 $need('admin/evaluations.php','Queue benchmark run','Admin Evaluation Harness must expose queued benchmark execution.');
 $need('admin/evaluations.php','RUN INTEGRITY','Admin Evaluation Harness must surface completed-run integrity.');
+$need('admin/evaluations.php','Endpoint fingerprint','Admin Evaluation Harness must show the queued model endpoint fingerprint for reproducibility.');
 $need('admin/evaluations.php','Set as regression baseline','Admin Evaluation Harness must expose explicit baseline selection.');
 $need('admin/evaluations.php','BASELINE COMPARISON','Admin Evaluation Harness must surface regression comparison.');
 $need('admin/evaluations.php','Save human review','Admin Evaluation Harness must expose human review controls.');
