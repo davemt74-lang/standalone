@@ -77,6 +77,7 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
   <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
+<script src="/assets/js/workspace-state.js?v=34.0"></script>
 <script src="/assets/js/agent-chat.js?v=34.0"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=34.0"></script><?php endif?>
@@ -86,4 +87,4 @@ $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'f
 <?php if($impactAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$impactAgentHandoff['prompt'],'context'=>$impactAgentHandoff['context'],'source'=>'change_impact'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?php if($portfolioAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$portfolioAgentHandoff['prompt'],'context'=>$portfolioAgentHandoff['context'],'source'=>'research_portfolio'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?php if($directAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode($directAgentHandoff,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
-<?=annotation_ui_scripts($u)?><script src="/assets/js/workspace-state.js?v=34.0"></script></body></html>
+<?=annotation_ui_scripts($u)?></body></html>
