@@ -361,3 +361,9 @@
 .researchWorkflowNext{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px;border:1px solid var(--border,#e5e7eb);border-radius:14px;background:var(--surface,#fff)}.researchWorkflowNext h2{margin:.25rem 0}.researchLifecycleNav small{display:block;margin-top:10px;text-transform:uppercase;letter-spacing:.08em;font-size:.68rem;color:var(--muted,#6b7280)}.researchAdvancedTools{margin-top:10px}.researchAdvancedTools summary{cursor:pointer;font-weight:600}.researchPrimaryActions{margin-bottom:6px}
 @media(max-width:1050px){.researchWorkflowStages{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:700px){.researchWorkflowStages{grid-template-columns:repeat(2,minmax(0,1fr))}.researchWorkflowNext{display:grid}}
+
+
+/* Phase 31 — Unified Object Handoff & Continuity */
+.teamChatAttachments{display:grid;gap:7px;margin:8px 0 2px 40px}.teamChatAttachment{display:grid;gap:3px;padding:9px 10px;border:1px solid #deded8;border-radius:10px;background:#fff;color:#222;text-decoration:none}.teamChatAttachment:hover{border-color:#bbb;background:#fafaf7}.teamChatAttachment small{font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;color:#888}.teamChatAttachment strong{font-size:.8rem;line-height:1.35}.teamChatAttachment span{font-size:.68rem;color:#777}.teamChatAttachment.is-unavailable{background:#f4f4f1;color:#777;border-style:dashed}
+.annotationResearchDialog textarea{width:100%;min-height:72px;resize:vertical}
+@media(max-width:620px){.teamChatAttachments{margin-left:0}.annotationSocialBar{gap:2px}.annotationSocialAction{font-size:.74rem}}

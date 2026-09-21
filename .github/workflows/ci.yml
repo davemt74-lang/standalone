@@ -267,6 +267,12 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/research-v1-final-audit-db.php
+      - name: Phase 31 Unified Object Handoff and Continuity MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase31-unified-object-handoff-db.php
 
 
   mysql8-fresh-install:

@@ -55,6 +55,47 @@ async function annotatedConfirmResearch(){
   finally{confirm.disabled=false;}
 }
 
+function annotatedTeamDialog(){
+  let dialog=document.querySelector('#annotationTeamDialog');
+  if(dialog)return dialog;
+  dialog=document.createElement('dialog');
+  dialog.id='annotationTeamDialog';dialog.className='annotationResearchDialog';
+  dialog.innerHTML='<form method="dialog" class="stack"><h3>Share with Team</h3><select data-team-conversation-select aria-label="Team conversation"></select><textarea data-team-share-note rows="3" maxlength="5000" placeholder="Add a note (optional)"></textarea><p class="meta" data-team-share-status></p><div class="inlineActions"><button value="cancel" class="button secondary">Cancel</button><button type="button" data-team-share-confirm>Share</button></div></form>';
+  document.body.appendChild(dialog);return dialog;
+}
+async function annotatedOpenTeam(id,trigger){
+  const dialog=annotatedTeamDialog(),select=dialog.querySelector('[data-team-conversation-select]'),status=dialog.querySelector('[data-team-share-status]'),confirm=dialog.querySelector('[data-team-share-confirm]'),card=trigger?.closest?.('.annotationPost');
+  dialog.dataset.annotationId=id;dialog._trigger=trigger||null;dialog.dataset.visibility=card?.dataset.visibility||'public';dialog.dataset.teamPublicId=card?.dataset.teamPublicId||'';select.replaceChildren();status.textContent='Loading Teams…';confirm.disabled=true;
+  try{
+    const r=await fetch('/api/conversations.php?action=list',{headers:{Accept:'application/json'}});
+    const j=await r.json();if(!r.ok||j.ok===false)throw new Error(j.error?.message||j.error?.code||'Unable to load Team conversations');
+    let rows=j.data?.conversations||[];
+    if(dialog.dataset.visibility==='team'&&dialog.dataset.teamPublicId)rows=rows.filter(x=>String(x.team_public_id||'')===dialog.dataset.teamPublicId);
+    if(dialog.dataset.visibility==='private')rows=[];
+    for(const item of rows){const option=document.createElement('option');option.value=String(item.public_id||'');option.textContent=String(item.team_name||'Team');select.appendChild(option);}
+    if(!rows.length){status.textContent=dialog.dataset.visibility==='private'?'Private Annotations cannot be shared into Team Chat without changing their visibility.':'No eligible Team conversations are available.';}
+    else{status.textContent='The Annotation stays authoritative in Annotated; Team Chat receives a reference only.';confirm.disabled=false;}
+    if(!dialog.open)dialog.showModal();
+  }catch(err){status.textContent=err.message||'Unable to load Team conversations.';if(!dialog.open)dialog.showModal();}
+}
+async function annotatedConfirmTeam(){
+  const dialog=annotatedTeamDialog(),id=dialog.dataset.annotationId,select=dialog.querySelector('[data-team-conversation-select]'),note=dialog.querySelector('[data-team-share-note]'),status=dialog.querySelector('[data-team-share-status]'),confirm=dialog.querySelector('[data-team-share-confirm]');
+  if(!id||!select.value)return;confirm.disabled=true;status.textContent='Sharing…';
+  try{
+    const body=String(note.value||'').trim()||'Shared an Annotation.';
+    const r=await fetch('/api/conversations.php?action=send',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':window.ANNOTATED_CSRF||''},body:JSON.stringify({conversation:select.value,body,client_message_id:globalThis.crypto?.randomUUID?.()||String(Date.now()),attachments:[{type:'annotation',public_id:id}]})});
+    const j=await r.json();if(!r.ok||j.ok===false)throw new Error(j.error?.message||j.error?.code||'Unable to share Annotation');
+    const conversation=select.value;note.value='';dialog.close();document.dispatchEvent(new CustomEvent('annotated:team-chat-share-complete',{detail:{conversation,annotation:id}}));
+  }catch(err){status.textContent=err.message||'Unable to share Annotation.';}
+  finally{confirm.disabled=false;}
+}
+function annotatedAskAgent(id){
+  const detail={prompt:'Review this Annotation as evidence. Summarize what it actually captures, distinguish author commentary from source evidence, note uncertainty or integrity concerns, and suggest the most useful next step. Do not create or change Research without confirmation.',context:[{type:'annotation',public_id:id,label:'Annotation'}],source:'annotation_handoff'};
+  if(document.querySelector('[data-agent-chat-canvas]')){document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail,bubbles:true,cancelable:true}));return;}
+  try{sessionStorage.setItem('annotated.pendingAgentHandoff',JSON.stringify(detail));}catch{}
+  location.href='/home.php';
+}
+
 annotatedInitHighlight();
 
 document.addEventListener('input',e=>{
@@ -115,10 +156,14 @@ document.addEventListener('click',async e=>{
 
   const confirm=e.target.closest?.('[data-research-confirm]');
   if(confirm){await annotatedConfirmResearch();return;}
+  const teamConfirm=e.target.closest?.('[data-team-share-confirm]');
+  if(teamConfirm){await annotatedConfirmTeam();return;}
 
   const b=e.target.closest?.('[data-web-annotation-action]');if(!b)return;
   const action=b.dataset.webAnnotationAction,id=b.dataset.id;if(!action||!id)return;
   if(action==='research'){await annotatedOpenResearch(id,b);return;}
+  if(action==='team'){await annotatedOpenTeam(id,b);return;}
+  if(action==='agent'){annotatedAskAgent(id);return;}
 
   const apiAction=action==='like'?'annotation_react':action==='save'?'save':null;if(!apiAction)return;
   b.disabled=true;

@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';require_once __DIR__.'/app/annotation-ui.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
 $id=trim((string)($_GET['id']??$_POST['team']??''));$error='';$success='';
 $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,t.owner_user_id,t.created_at,tm.role access_role FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=? WHERE t.public_id=? LIMIT 1");
@@ -36,8 +36,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 $q=$pdo->prepare('SELECT u.id,u.username,u.display_name,u.profile_image_url,tm.role,tm.created_at FROM team_members tm JOIN users u ON u.id=tm.user_id WHERE tm.team_id=? ORDER BY FIELD(tm.role,"owner","admin","researcher","viewer"),u.display_name');
 $q->execute([$team['id']]);$members=$q->fetchAll();
 $q=$pdo->prepare('SELECT public_id,title,description,status,updated_at FROM research_projects WHERE team_id=? ORDER BY updated_at DESC LIMIT 20');$q->execute([$team['id']]);$projects=$q->fetchAll();
-$q=$pdo->prepare("SELECT a.public_id,a.text_commentary,a.published_at,u.username,u.display_name,u.profile_image_url,s.public_id source_public_id,s.title source_title,s.domain FROM annotations a JOIN users u ON u.id=a.user_id JOIN sources s ON s.id=a.source_id WHERE a.team_id=? AND a.visibility='team' AND a.status='published' ORDER BY a.published_at DESC LIMIT 25");
-$q->execute([$team['id']]);$annotations=$q->fetchAll();
+$q=$pdo->prepare("SELECT a.public_id FROM annotations a WHERE a.team_id=? AND a.visibility='team' AND a.status='published' ORDER BY a.published_at DESC LIMIT 25");
+$q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $annotationPublic){$row=public_discovery_annotation($pdo,(string)$annotationPublic,$u);if($row)$annotations[]=$row;}
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($team['name'])?> · Teams · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="layout"><section>
 <div class="pageTitle"><span class="eyebrow">TEAM · <?=h(strtoupper((string)$team['access_role']))?></span><h1><?=h($team['name'])?></h1><p>Shared people, annotations, Research projects, and private Team collaboration.</p></div>
@@ -51,9 +51,9 @@ $q->execute([$team['id']]);$annotations=$q->fetchAll();
 <div class="sourceGrid"><?php foreach($projects as $p):?><a class="card sourceCard" href="/research-project.php?id=<?=h($p['public_id'])?>"><span class="meta"><?=h(ucfirst((string)$p['status']))?> · updated <?=h((string)$p['updated_at'])?></span><h3><?=h($p['title'])?></h3><?php if($p['description']):?><p><?=h(mb_substr((string)$p['description'],0,220))?></p><?php endif?></a><?php endforeach?><?php if(!$projects):?><div class="card empty">No team Research projects yet.</div><?php endif?></div>
 
 <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM FEED</span><h2>Recent annotations</h2></div></div>
-<?php foreach($annotations as $a):?><article class="card"><div class="annotationIdentity"><a class="profileMini" href="<?=h(profile_path((string)$a['username']))?>"><?=app_shell_avatar($a,'teamMiniAvatar')?><span><strong><?=h($a['display_name'])?></strong><small>@<?=h($a['username'])?> · <?=h($a['published_at'])?></small></span></a><a href="/source.php?id=<?=h($a['source_public_id'])?>"><?=h($a['source_title']?:$a['domain'])?></a></div><?php if($a['text_commentary']):?><p class="commentary"><?=nl2br(h($a['text_commentary']))?></p><?php endif?><a href="/annotation.php?id=<?=h($a['public_id'])?>">Open annotation</a></article><?php endforeach?><?php if(!$annotations):?><div class="card empty">No team-only annotations yet. Team captures from the Chrome sidebar will appear here.</div><?php endif?>
+<?php foreach($annotations as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?><?php if(!$annotations):?><div class="card empty">No team-only annotations yet. Team captures from the Chrome sidebar will appear here.</div><?php endif?>
 </section>
 <aside>
 <?php if($canManage):?><div class="card"><h3>Add a member</h3><p class="meta">Add an existing Annotated user by username.</p><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="username"></label><button>Add member</button></form></div><?php endif?>
 <div class="card"><h3>Team collaboration</h3><p class="meta">Team membership controls private team annotations, Team Live access, team chat, and team-scoped Research projects.</p><a class="button secondary" href="/home.php?team=<?=h($team['public_id'])?>#team-chat">Open Team Chat</a></div>
-</aside></main></body></html>
+</aside></main><?=annotation_ui_scripts($u)?></body></html>

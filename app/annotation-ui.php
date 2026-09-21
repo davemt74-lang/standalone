@@ -57,7 +57,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     $postType=(string)($a['post_type']??'');if($postType===''&&function_exists('feed_annotation_post_type'))$postType=feed_annotation_post_type($a);if($postType==='')$postType='annotation';
     $type=annotation_type_label($a);$sourceLabel=annotation_source_label($a);$snapshot=annotation_snapshot_url($a);$media=annotation_media_url($a);
     $comments=(int)($a['comment_count']??0);$likes=(int)($a['like_count']??0);$liked=!empty($a['viewer_liked']);$saved=!empty($a['is_saved']);
-    $published=(string)($a['published_at']??'');$visibility=(string)($a['visibility']??'public');$publicPost=$visibility==='public';
+    $published=(string)($a['published_at']??'');$visibility=(string)($a['visibility']??'public');$publicPost=$visibility==='public';$teamPublic=(string)($a['team_public_id']??'');$agentEnabled=$viewer&&((($viewer['role']??'')==='admin')||in_array((string)($viewer['plan_tier']??''),['pro','plus'],true));
     $commentary=trim((string)($a['text_commentary']??''));$selected=trim((string)($a['selected_text']??''));
     // Evidence-first feed rendering: when a preserved screenshot exists, it is the visual post.
     // Selected text remains attached as a machine-readable transcript and only renders as a fallback
@@ -75,7 +75,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
     $integrity=is_array($a['integrity']??null)?$a['integrity']:null;$integrityLabel=(string)($integrity['label']??($a['source_status']??''));
     $postUrl='/annotation.php?id='.rawurlencode($id);
     ob_start();?>
-<article class="card annotationPost" data-annotation-id="<?=h($id)?>">
+<article class="card annotationPost" data-annotation-id="<?=h($id)?>" data-visibility="<?=h($visibility)?>" data-team-public-id="<?=h($teamPublic)?>">
   <div class="annotationPostHead">
     <div class="annotationPostIdentity">
       <?php if($showAuthor&&$author!==''):?><?php if($username!==''):?><a href="<?=h(profile_path($username))?>" class="annotationAuthor"><?=app_shell_avatar(['display_name'=>$author,'profile_image_url'=>$a['profile_image_url']??null],'avatarSm')?><span><strong><?=h($author)?></strong><small>@<?=h($username)?></small></span></a><?php else:?><strong><?=h($author)?></strong><?php endif?><?php endif?>
@@ -112,7 +112,7 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
   <div class="annotationSocialBar">
     <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$liked?'active':''?>" data-web-annotation-action="like" data-id="<?=h($id)?>"><span aria-hidden="true">♥</span> <span>Like</span> <strong data-like-count><?=h((string)$likes)?></strong></button><?php else:?><a class="annotationSocialAction" href="/login.php"><span aria-hidden="true">♡</span> Like <strong><?=h((string)$likes)?></strong></a><?php endif?>
     <a class="annotationSocialAction" href="<?=h($commentsHref)?>"><span aria-hidden="true">💬</span> Comments <strong><?=h((string)$comments)?></strong></a>
-    <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$saved?'active':''?>" data-web-annotation-action="save" data-id="<?=h($id)?>"><span aria-hidden="true">🔖</span> <span data-save-label><?=$saved?'Saved':'Save'?></span></button><button type="button" class="annotationSocialAction" data-web-annotation-action="research" data-id="<?=h($id)?>"><span aria-hidden="true">▣</span> <span data-research-label>Research</span></button><?php endif?>
+    <?php if($viewer):?><button type="button" class="annotationSocialAction <?=$saved?'active':''?>" data-web-annotation-action="save" data-id="<?=h($id)?>"><span aria-hidden="true">🔖</span> <span data-save-label><?=$saved?'Saved':'Save'?></span></button><button type="button" class="annotationSocialAction" data-web-annotation-action="team" data-id="<?=h($id)?>"><span aria-hidden="true">↗</span> <span>Team</span></button><button type="button" class="annotationSocialAction" data-web-annotation-action="research" data-id="<?=h($id)?>"><span aria-hidden="true">▣</span> <span data-research-label>Research</span></button><?php if($agentEnabled):?><button type="button" class="annotationSocialAction" data-web-annotation-action="agent" data-id="<?=h($id)?>"><span aria-hidden="true">✦</span> <span>Agent</span></button><?php endif?><?php endif?>
   </div>
 </article>
 <?php return (string)ob_get_clean();
@@ -120,5 +120,5 @@ function annotation_ui_card(array $a,?array $viewer=null,array $options=[]): str
 
 function annotation_ui_scripts(?array $viewer): string {
     $csrf=$viewer?csrf_token():'';
-    return '<script>window.ANNOTATED_CSRF='.json_encode($csrf).';</script><script src="/assets/js/annotation-cards.js?v=0.13.0"></script>';
+    return '<script>window.ANNOTATED_CSRF='.json_encode($csrf).';</script><script src="/assets/js/annotation-cards.js?v=31.0"></script>';
 }

@@ -32,7 +32,7 @@ try{
     }
     if($action==='send'){
         $viewer=require_api_mutation_auth($pdo);rate_limit_api_or_429($pdo,'conversation-send','user:'.$viewer['id'],240,3600);
-        $data=conversation_message_create($pdo,$viewer,trim((string)($input['conversation']??'')),(string)($input['body']??''),isset($input['parent_message'])?trim((string)$input['parent_message']):null,isset($input['client_message_id'])?trim((string)$input['client_message_id']):null);
+        $data=conversation_message_create($pdo,$viewer,trim((string)($input['conversation']??'')),(string)($input['body']??''),isset($input['parent_message'])?trim((string)$input['parent_message']):null,isset($input['client_message_id'])?trim((string)$input['client_message_id']):null,is_array($input['attachments']??null)?$input['attachments']:[]);
         json_response(['ok'=>true,'data'=>$data],$data['created']?201:200);
     }
     if($action==='read'){

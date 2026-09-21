@@ -159,9 +159,10 @@
 
   try{
     feedScroll=Number(sessionStorage.getItem('annotated.feedScroll')||0)||0;
-    const restoreOpen=sessionStorage.getItem('annotated.agentCanvasOpen')==='1',restoreConversation=sessionStorage.getItem('annotated.agentConversation')||'',pending=sessionStorage.getItem('annotated.pendingAgentPrompt')||'',requestedConversation=new URLSearchParams(location.search).get('agent')||'';
+    const restoreOpen=sessionStorage.getItem('annotated.agentCanvasOpen')==='1',restoreConversation=sessionStorage.getItem('annotated.agentConversation')||'',pending=sessionStorage.getItem('annotated.pendingAgentPrompt')||'',pendingHandoff=sessionStorage.getItem('annotated.pendingAgentHandoff')||'',requestedConversation=new URLSearchParams(location.search).get('agent')||'';
     if(requestedConversation){setModeAgent();openConversation(requestedConversation);}
     else if(restoreOpen){setModeAgent();if(restoreConversation)openConversation(restoreConversation);}
-    if(pending){sessionStorage.removeItem('annotated.pendingAgentPrompt');setModeAgent();sendPrompt(pending);}
+    if(pendingHandoff){sessionStorage.removeItem('annotated.pendingAgentHandoff');try{const handoff=JSON.parse(pendingHandoff);const supplied=Array.isArray(handoff?.context)?handoff.context:[];selectedContext=supplied.slice(0,6).filter(x=>x&&x.type&&x.public_id).map(x=>({type:String(x.type),public_id:String(x.public_id),label:String(x.label||x.type)}));renderContextTray();setModeAgent();if(String(handoff?.prompt||'').trim())sendPrompt(String(handoff.prompt));}catch{}}
+    else if(pending){sessionStorage.removeItem('annotated.pendingAgentPrompt');setModeAgent();sendPrompt(pending);}
   }catch{}
 })();
