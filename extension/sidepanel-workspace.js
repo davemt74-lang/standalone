@@ -91,7 +91,7 @@ async function phase34WorkspaceCommit(patch={}){
       agent_conversation_public_id:resolved.agent?.public_id||''
     });
     phase34WorkspaceRender(resolved);
-  }
+  }else phase34WorkspaceRender({});
   return state;
 }
 
