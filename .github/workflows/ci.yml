@@ -313,6 +313,14 @@ jobs:
         run: php tests/phase37-data-attribution-db.php
       - name: Phase 37 Data & Attribution architecture contract suite
         run: php tests/phase37-data-attribution-contract.php
+      - name: Phase 38 Dataset Registry & Frozen Manifests MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase38-dataset-registry-db.php
+      - name: Phase 38 Dataset Registry architecture and Admin UI contract suite
+        run: php tests/phase38-dataset-registry-contract.php
 
 
   mysql8-fresh-install:

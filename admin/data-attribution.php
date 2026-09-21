@@ -19,6 +19,14 @@ $stats=data_global_summary($pdo);
     <article class="card"><strong><?=h((string)$stats['response_lineage'])?></strong><p class="meta">AI responses with lineage</p></article>
     <article class="card"><strong><?=h((string)$stats['attributions'])?></strong><p class="meta">Response attributions</p></article>
   </section>
+  <?php if(function_exists('data_dataset_ready')&&data_dataset_ready($pdo)):$datasetStats=data_dataset_summary($pdo);?>
+  <section class="card">
+    <div class="caseHeader"><div><span class="eyebrow">DATASET REGISTRY</span><h2>Frozen datasets</h2></div><a class="button secondary" href="/admin/datasets.php">Open Dataset Registry</a></div>
+    <div class="cognitiveCardMeta"><span><small>Datasets</small><?=h((string)$datasetStats['datasets'])?></span><span><small>Drafts</small><?=h((string)$datasetStats['drafts'])?></span><span><small>Frozen</small><?=h((string)$datasetStats['frozen'])?></span><span><small>Frozen items</small><?=h((string)$datasetStats['frozen_items'])?></span></div>
+    <p class="meta">Dataset Registry turns governed corpus items into reproducible snapshots. Rights and consent remain authoritative for whether a frozen dataset may still be used or exported with text.</p>
+  </section>
+  <?php endif?>
+
   <section class="card">
     <span class="eyebrow">SOURCE RIGHTS</span><h2>Review a Source</h2>
     <form method="get" class="inlineActions"><input name="source_id" value="<?=h($sourceId)?>" placeholder="Source public ID" required><button class="button secondary" type="submit">Load source</button></form>
