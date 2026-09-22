@@ -1,10 +1,10 @@
-name: Annotated V1 RC1 Package
+name: Annotated V1.1 RC1 Package
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v1.0.0-rc*'
+      - 'v1.1.0-rc*'
 
 permissions:
   contents: read
@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate RC manifest
+      - name: Validate V1.1 RC manifest
         shell: bash
         run: |
           set -euo pipefail
