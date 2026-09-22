@@ -37,6 +37,11 @@ function data_model_improvement_statuses(): array {
       'ready_for_training'=>'Ready for training','resolved'=>'Resolved','no_action'=>'No action',
     ];
 }
+function data_model_improvement_case_actionable(array $case): bool {
+    return !in_array((string)($case['classification']??'untriaged'),['untriaged','expected_behavior','no_action'],true)
+        && (string)($case['status']??'')!=='no_action';
+}
+
 function data_model_improvement_event(PDO $pdo,int $caseId,?int $actorId,string $type,array $details=[]): void {
     $json=$details?data_attribution_encode($details):null;$hash=data_attribution_hash(['case_id'=>$caseId,'event_type'=>$type,'details'=>$details]);
     $pdo->prepare('INSERT INTO data_model_improvement_events(case_id,actor_user_id,event_type,details_json,evidence_hash) VALUES(?,?,?,?,?)')->execute([$caseId,$actorId,$type,$json,$hash]);
@@ -148,7 +153,7 @@ function data_model_improvement_proposals(PDO $pdo,int $caseId): array {
 function data_model_improvement_proposal_create(PDO $pdo,array $viewer,string $casePublicId,array $input): array {
     data_model_improvement_require_admin($viewer);
     return data_model_improvement_case_locked($pdo,$casePublicId,function(array $case) use($pdo,$viewer,$input){
-        if(in_array($case['classification'],['untriaged','expected_behavior','no_action'],true))throw new RuntimeException('Human triage must identify an actionable defect before creating reusable improvement evidence.');
+        if(!data_model_improvement_case_actionable($case))throw new RuntimeException('Human triage must identify an actionable defect before creating reusable improvement evidence.');
         $type=(string)($input['proposal_type']??'');if(!in_array($type,['evaluation_case','training_example'],true))throw new InvalidArgumentException('Proposal type must be evaluation_case or training_example.');
         $title=mb_substr(trim((string)($input['title']??'')),0,255);$sanitizedInput=mb_substr(trim((string)($input['sanitized_input']??'')),0,20000);$expected=mb_substr(trim((string)($input['sanitized_expected_output']??'')),0,20000);$context=mb_substr(trim((string)($input['sanitized_context']??'')),0,10000)?:null;$why=mb_substr(trim((string)($input['purpose_justification']??'')),0,3000)?:null;
         if($title===''||$sanitizedInput===''||$expected==='')throw new InvalidArgumentException('Title, sanitized input, and sanitized expected behavior are required.');
@@ -179,6 +184,7 @@ function data_model_improvement_proposal_approve(PDO $pdo,array $viewer,string $
     data_model_improvement_require_admin($viewer);
     return data_model_improvement_proposal_locked($pdo,$publicId,function(array $p) use($pdo,$viewer,$publicId){
         if($p['status']!=='draft')throw new RuntimeException('Only draft improvement proposals can be approved.');
+        $case=data_model_improvement_case_get($pdo,(string)$p['case_public_id']);if(!$case||!data_model_improvement_case_actionable($case))throw new RuntimeException('Proposal approval is blocked because the source improvement case is no longer actionable.');
         if(!(int)$p['redaction_attested']||!(int)$p['rights_attested'])throw new RuntimeException('Redaction and rights attestations are required before approval.');if(!hash_equals((string)$p['content_hash'],data_model_improvement_proposal_hash($p)))throw new RuntimeException('Proposal content integrity failed.');
         $approvedAt=gmdate('Y-m-d H:i:s');$approvalHash=data_attribution_hash(['proposal_public_id'=>$p['public_id'],'content_hash'=>$p['content_hash'],'approved_by_user_id'=>(int)$viewer['id'],'approved_at'=>$approvedAt,'boundary'=>'sanitized_human_approved_reuse']);
         $pdo->beginTransaction();try{
@@ -192,6 +198,7 @@ function data_model_improvement_proposal_publish(PDO $pdo,array $viewer,string $
     data_model_improvement_require_admin($viewer);
     return data_model_improvement_proposal_locked($pdo,$publicId,function(array $p) use($pdo,$viewer,$publicId){
         if($p['status']!=='approved')throw new RuntimeException('Only an approved sanitized proposal can be published to the governed corpus.');
+        $case=data_model_improvement_case_get($pdo,(string)$p['case_public_id']);if(!$case||!data_model_improvement_case_actionable($case))throw new RuntimeException('Proposal publication is blocked because the source improvement case is no longer actionable.');
         if(!(int)$p['redaction_attested']||!(int)$p['rights_attested']||empty($p['approval_hash']))throw new RuntimeException('Proposal reuse approval is incomplete.');if(!hash_equals((string)$p['content_hash'],data_model_improvement_proposal_hash($p)))throw new RuntimeException('Proposal content changed after approval.');
         $pdo->beginTransaction();try{
             $q=$pdo->prepare("UPDATE data_model_improvement_proposals SET status='published',published_at=NOW(),updated_at=NOW() WHERE id=? AND status='approved'");$q->execute([$p['id']]);if($q->rowCount()!==1)throw new RuntimeException('Proposal changed during publication; reload and retry.');
