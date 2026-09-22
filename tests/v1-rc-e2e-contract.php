@@ -65,7 +65,7 @@ $need('app/source-integrity.php','source_integrity_notify_event','Source-change 
 $need('app/notifications.php','notification_rows','Unified notifications must remain access-aware.');
 $need('app/moderation.php','rights_claim_create','Rights claims must remain available.');
 $need('app/moderation.php','moderation_report_create','Community reports must remain available.');
-$need('admin/system-health.php','release_environment_checks','Admin must expose production readiness.');
+$need('admin/system-health.php','release_operational_audit','Admin must expose Phase 49 operational production readiness.');
 $need('bin/release-preflight.php','release_operational_audit','CLI must expose the Phase 49 operational readiness service.');
 $need('docs/RELEASE-V1.1-RC1.md','Restore the **database backup and private evidence backup as a matched pair**','Release runbook must document matched-data rollback.');
 $need('app/release.php',"const ANNOTATED_RELEASE = 'V1.1 RC1'",'Release identity must be normalized to V1.1 RC1.');
