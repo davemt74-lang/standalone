@@ -36,7 +36,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin annotated-v1-1-development
+          git fetch origin annotated-v1-1-development:refs/remotes/origin/annotated-v1-1-development
           git merge-base --is-ancestor "$GITHUB_SHA" origin/annotated-v1-1-development
       - uses: shivammathur/setup-php@v2
         with:
