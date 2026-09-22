@@ -279,3 +279,37 @@ The controlled path is:
 **Governed data → Frozen training dataset → Training job → Experimental model → Evaluation → Human review → Phase 40 approval**
 
 See `docs/phase-41-training-job-registry-controlled-fine-tuning.md`.
+
+
+## Phase 42 — Post-Training Evaluation & Promotion Readiness
+
+Annotated now has the governed bridge between a successful training job and a human model-release decision.
+
+Phase 42 adds:
+
+- successful Phase 41 output discovery
+- governed Phase 40 baseline evidence requirements
+- exact Phase 39 baseline-to-candidate suite cloning
+- benchmark fingerprint equivalence enforcement
+- queued candidate evaluation runs
+- human-review readiness requirements
+- transparent equivalent-run regression comparisons
+- automatic linking of integrity-valid candidate runs into Phase 40 evidence
+- existing Phase 40 release-gate reuse
+- tamper-evident post-training plan hashes
+- tamper-evident promotion-readiness packets
+- current-lineage revalidation after packet creation
+- packet preservation after later human lifecycle decisions
+- a bounded post-training reconciliation worker
+- System Health visibility
+- a first-class **Admin Post-Training Readiness UI**
+
+A readiness packet means only that the configured evidence gates were satisfied for **human consideration**.
+
+Phase 42 never promotes, approves, activates, trains, or changes production AI routing automatically.
+
+The controlled path is now:
+
+**Governed data → Frozen training dataset → Training job → Experimental model → Equivalent evaluation → Human review → Readiness packet → Human Phase 40 decision**
+
+See `docs/phase-42-post-training-evaluation-readiness.md`.
