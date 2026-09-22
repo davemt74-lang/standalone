@@ -386,3 +386,19 @@
 /* Phase 35 — Unified Action Center & Attention Routing */
 .actionCenterPage{max-width:1040px;margin:0 auto;padding:28px 18px}.actionCenterHero{display:grid;gap:10px}.actionCenterSummary{display:flex;gap:8px;flex-wrap:wrap}.actionCenterSummary span{display:inline-flex;gap:5px;align-items:baseline;padding:6px 9px;border:1px solid #deded8;border-radius:999px;background:#fff;font-size:.72rem;color:#666}.actionCenterSummary strong{font-size:.9rem;color:#111}.actionCenterGroup{margin-top:26px}.actionCenterGroup>.sectionHeadWeb{align-items:end}.actionCenterList{display:grid;gap:10px}.actionCenterItem{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;align-items:start}.actionCenterIcon{display:grid;place-items:center;width:36px;height:36px;border:1px solid #dcdcd5;border-radius:10px;background:#fafaf7;font-weight:900}.actionCenterBody{min-width:0}.actionCenterHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.actionCenterHead>div{display:grid;gap:5px}.actionCenterHead time{font-size:.7rem;color:#85857d;white-space:nowrap}.actionCenterBody>p{margin:.7rem 0;line-height:1.45}.actionCenterItem.urgency-high{border-left:3px solid currentColor}.actionCenterEmpty{margin-top:18px}.homeFeedModeActions a.hasAttention{font-weight:800;color:#111;background:#f2f2ec}
 @media(max-width:640px){.actionCenterItem{grid-template-columns:1fr}.actionCenterIcon{display:none}.actionCenterHead{display:grid}.actionCenterHead time{white-space:normal}}
+
+
+/* Home render integrity */
+.homeWorkspaceLayout{padding-top:28px;align-items:start}
+.homeWorkspaceLayout>#homeFeedCanvas,.homeWorkspaceLayout>.homeAgentCanvas{grid-column:1;grid-row:1;min-width:0}
+.homeWorkspaceLayout>.homeRightRail{grid-column:2;grid-row:1;min-width:0}
+.homeRuntimeNotice{width:min(1180px,calc(100% - 48px));margin:16px auto 0;padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid #e7d8a8;border-radius:12px;background:#fffaf0;color:#5f4b17;font-size:.8rem}
+.homeRuntimeNotice>strong{color:#3e3213}.homeRuntimeNotice>span{color:#715c22}.homeRuntimeNotice details{margin:0 0 0 auto}.homeRuntimeNotice summary{font-size:.72rem}.homeRuntimeNotice details div{margin-top:5px}
+.cognitiveRuntimeFallback{border-style:dashed;background:#fafaf7}
+.agentChatContextPickerBody>.error,.agentChatHistoryPanel .error{margin:12px;font-size:.8rem;line-height:1.45}
+@media(max-width:900px){
+  .homeWorkspaceLayout{grid-template-columns:1fr;gap:18px;padding-top:20px}
+  .homeWorkspaceLayout>#homeFeedCanvas,.homeWorkspaceLayout>.homeAgentCanvas,.homeWorkspaceLayout>.homeRightRail{grid-column:1}
+  .homeWorkspaceLayout>.homeRightRail:not(.teamChatRightRail){display:none}
+  .homeRuntimeNotice{width:calc(100% - 32px)}
+}
