@@ -67,8 +67,9 @@ function data_model_improvement_refresh_evidence(PDO $pdo,int $caseId): void {
     $pdo->prepare('UPDATE data_model_improvement_cases SET evidence_count=?,evidence_hash=?,updated_at=NOW() WHERE id=?')->execute([count($hashes),$hash,$caseId]);
 }
 function data_model_improvement_add_evidence(PDO $pdo,int $caseId,string $type,string $refPublicId,string $hash,?int $incidentId=null,?int $observationId=null,?int $signalId=null): bool {
-    $q=$pdo->prepare('INSERT IGNORE INTO data_model_improvement_evidence(case_id,incident_id,observation_id,outcome_signal_id,evidence_type,evidence_ref_public_id,evidence_hash) VALUES(?,?,?,?,?,?,?)');$q->execute([$caseId,$incidentId,$observationId,$signalId,$type,$refPublicId,$hash]);$inserted=$q->rowCount()>0;
-    data_model_improvement_refresh_evidence($pdo,$caseId);return $inserted;
+    $q=$pdo->prepare('SELECT evidence_hash FROM data_model_improvement_evidence WHERE case_id=? AND evidence_type=? AND evidence_ref_public_id=? LIMIT 1');$q->execute([$caseId,$type,$refPublicId]);$before=$q->fetchColumn();
+    $q=$pdo->prepare('INSERT INTO data_model_improvement_evidence(case_id,incident_id,observation_id,outcome_signal_id,evidence_type,evidence_ref_public_id,evidence_hash) VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE incident_id=VALUES(incident_id),observation_id=VALUES(observation_id),outcome_signal_id=VALUES(outcome_signal_id),evidence_hash=VALUES(evidence_hash)');$q->execute([$caseId,$incidentId,$observationId,$signalId,$type,$refPublicId,$hash]);
+    $changed=$before===false||!hash_equals((string)$before,$hash);data_model_improvement_refresh_evidence($pdo,$caseId);return $changed;
 }
 function data_model_improvement_notify_case(PDO $pdo,array $case): void {
     if(!function_exists('notification_create'))return;$admins=$pdo->query("SELECT id FROM users WHERE role='admin' AND status='active'")->fetchAll(PDO::FETCH_COLUMN);
@@ -77,15 +78,15 @@ function data_model_improvement_notify_case(PDO $pdo,array $case): void {
 function data_model_improvement_ingest_incident(PDO $pdo,array $incident): ?array {
     if(!data_model_improvement_ready($pdo))return null;$route=(string)$incident['route_key'];$modelVersionId=$incident['model_version_id']!==null?(int)$incident['model_version_id']:null;$deploymentId=(int)$incident['deployment_id'];
     $cluster=data_attribution_hash(['kind'=>'incident','model_version_id'=>$modelVersionId,'route'=>$route,'incident_type'=>$incident['incident_type'],'metric'=>$incident['metric_name']]);
-    $case=data_model_improvement_case_by_cluster($pdo,$cluster);
-    if(!$case){
+    $case=data_model_improvement_case_by_cluster($pdo,$cluster);$created=false;
+    if(!$case){$created=true;
         $public=ulid_like();$title='Production improvement: '.str_replace('_',' ',(string)$incident['metric_name']);$summary=mb_substr((string)($incident['summary']??'Production model-health evidence requires improvement review.'),0,3000);
         $pdo->prepare("INSERT INTO data_model_improvement_cases(public_id,model_version_id,deployment_id,primary_incident_id,route_key,cluster_key,classification,severity,status,title,summary,recurrence_count,evidence_count,evidence_hash) VALUES(?,?,?,?,?,?,'untriaged',?,'new',?,?,1,0,?)")
           ->execute([$public,$modelVersionId,$deploymentId,$incident['id'],$route,$cluster,$incident['severity'],$title,$summary,data_attribution_hash([])]);
         $case=data_model_improvement_case_get($pdo,$public);if(!$case)return null;data_model_improvement_event($pdo,(int)$case['id'],null,'case_created_from_incident',['incident_public_id'=>$incident['public_id'],'incident_evidence_hash'=>$incident['evidence_hash']]);data_model_improvement_notify_case($pdo,$case);
     }
     $inserted=data_model_improvement_add_evidence($pdo,(int)$case['id'],'model_health_incident',(string)$incident['public_id'],(string)$incident['evidence_hash'],(int)$incident['id'],null,null);
-    if($inserted&&$case['primary_incident_id']!==null){
+    if($inserted&&!$created){
         $severity=$case['severity']==='critical'||$incident['severity']!=='critical'?$case['severity']:'critical';
         $pdo->prepare('UPDATE data_model_improvement_cases SET recurrence_count=recurrence_count+1,severity=?,updated_at=NOW() WHERE id=?')->execute([$severity,$case['id']]);
     }
