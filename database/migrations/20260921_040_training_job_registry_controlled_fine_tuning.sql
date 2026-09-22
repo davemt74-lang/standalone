@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS data_training_jobs (
   dataset_id BIGINT UNSIGNED NOT NULL,
   base_model_version_id BIGINT UNSIGNED NOT NULL,
   output_registry_id BIGINT UNSIGNED NOT NULL,
+  use_class VARCHAR(32) NOT NULL DEFAULT 'internal_training',
   executor_type VARCHAR(32) NOT NULL DEFAULT 'provider_api',
   method VARCHAR(32) NOT NULL DEFAULT 'supervised',
   training_format VARCHAR(32) NOT NULL DEFAULT 'chat_messages',
