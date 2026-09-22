@@ -67,6 +67,7 @@ require_once __DIR__ . '/research-network.php';
 require_once __DIR__ . '/research-provenance.php';
 require_once __DIR__ . '/data-attribution.php';
 require_once __DIR__ . '/data-datasets.php';
+require_once __DIR__ . '/data-evaluations.php';
 require_once __DIR__ . '/research-verification.php';
 require_once __DIR__ . '/research-evidence-packs.php';
 require_once __DIR__ . '/research-workflow.php';
