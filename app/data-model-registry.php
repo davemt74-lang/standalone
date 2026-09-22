@@ -127,6 +127,7 @@ function data_model_gate_evaluate(PDO $pdo,array $version): array {
     $checks['integrity']=['pass'=>!(int)$policy['require_integrity']||$evidence['integrity_failures']===0,'actual'=>$evidence['integrity_failures'],'required'=>0];
     $max=(int)$policy['max_regressed_metrics'];$checks['regression']=['pass'=>!(int)$policy['require_no_regression']||($evidence['regression_comparisons']>0&&$evidence['regressed_metrics']<=$max),'actual'=>$evidence['regressed_metrics'],'comparisons'=>$evidence['regression_comparisons'],'required_max'=>$max];
     $missing=array_values(array_diff((array)$policy['required_suite_public_ids'],$evidence['valid_suite_public_ids']));$checks['required_suites']=['pass'=>count($missing)===0,'missing'=>$missing,'required'=>(array)$policy['required_suite_public_ids']];
+    if(function_exists('data_model_improvement_regression_gate')){$productionRegression=data_model_improvement_regression_gate($pdo,$version);$checks['production_regressions']=$productionRegression;}
     $pass=true;foreach($checks as $c)if(!$c['pass']){$pass=false;break;}
     return ['pass'=>$pass,'policy'=>$policy,'policy_hash'=>$version['gate_policy_hash'],'checks'=>$checks,'evidence'=>$evidence,'evaluated_at'=>gmdate('c')];
 }

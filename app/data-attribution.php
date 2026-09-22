@@ -156,6 +156,12 @@ function data_object_descriptor(PDO $pdo,string $objectType,string $publicId): ?
         $q=$pdo->prepare('SELECT rv.public_id,rv.version_number,rv.published_by_user_id contributor_user_id,rv.visibility,rv.title,rv.summary,rr.public_id report_public_id,rr.status report_status,rp.public_id project_public_id FROM research_report_versions rv JOIN research_reports rr ON rr.id=rv.report_id JOIN research_projects rp ON rp.id=rr.project_id WHERE rv.public_id=? LIMIT 1');$q->execute([$publicId]);$r=$q->fetch();if(!$r)return null;
         return ['object_type'=>'report_version','public_id'=>$publicId,'version'=>(string)$r['version_number'],'contributor_user_id'=>(int)$r['contributor_user_id'],'visibility'=>$r['visibility'],'published'=>$r['report_status']==='published','text'=>trim((string)$r['title']).($r['summary']!==null?"\n\n".trim((string)$r['summary']):''),'corpus_type'=>'report_summary','state'=>['visibility'=>$r['visibility'],'report_status'=>$r['report_status'],'report_public_id'=>$r['report_public_id'],'project_public_id'=>$r['project_public_id'],'version_number'=>(int)$r['version_number']],'meta'=>['report_public_id'=>$r['report_public_id'],'project_public_id'=>$r['project_public_id'],'version_number'=>(int)$r['version_number']]];
     }
+    if($objectType==='model_improvement_example'){
+        if(!function_exists('data_model_improvement_proposal_get'))return null;$p=data_model_improvement_proposal_get($pdo,$publicId);if(!$p||$p['status']!=='published')return null;
+        $text="Scenario:\n".trim((string)$p['sanitized_input'])."\n\nExpected behavior:\n".trim((string)$p['sanitized_expected_output']);
+        if(trim((string)($p['sanitized_context']??''))!=='')$text.="\n\nSanitized context:\n".trim((string)$p['sanitized_context']);
+        return ['object_type'=>'model_improvement_example','public_id'=>$publicId,'version'=>(string)$p['content_hash'],'contributor_user_id'=>(int)($p['approved_by_user_id']?:$p['created_by_user_id']),'visibility'=>'internal_governed','published'=>true,'text'=>$text,'corpus_type'=>$p['proposal_type']==='evaluation_case'?'model_regression_case':'model_training_example','state'=>['proposal_type'=>$p['proposal_type'],'redaction_attested'=>(int)$p['redaction_attested'],'rights_attested'=>(int)$p['rights_attested'],'status'=>$p['status'],'approval_hash'=>$p['approval_hash']],'meta'=>['case_public_id'=>$p['case_public_id'],'route_key'=>$p['route_key'],'model_version_label'=>$p['model_version_label'],'content_hash'=>$p['content_hash'],'source_material_policy'=>'human_sanitized_no_raw_production_text']];
+    }
     if($objectType==='source'){
         $q=$pdo->prepare('SELECT s.public_id,s.title,s.canonical_url,s.domain,s.status,sv.version_number,sv.extracted_text,sv.content_hash FROM sources s LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE s.public_id=? LIMIT 1');$q->execute([$publicId]);$r=$q->fetch();if(!$r)return null;
         return ['object_type'=>'source','public_id'=>$publicId,'version'=>(string)($r['version_number']??''),'contributor_user_id'=>null,'visibility'=>'source_rights','published'=>($r['status']??'current')!=='restricted','text'=>mb_substr(trim((string)($r['extracted_text']??'')),0,50000),'corpus_type'=>'licensed_source_text','state'=>['status'=>$r['status'],'content_hash'=>$r['content_hash'],'version_number'=>$r['version_number']!==null?(int)$r['version_number']:null],'meta'=>['title'=>$r['title'],'url'=>$r['canonical_url'],'domain'=>$r['domain']]];
@@ -172,6 +178,12 @@ function data_training_eligibility(PDO $pdo,string $objectType,string $publicId)
     $d=data_object_descriptor($pdo,$objectType,$publicId);$base=['shared_retrieval'=>false,'evaluation'=>false,'training'=>false,'commercial_training'=>false,'attribution_required'=>true,'reason'=>'object_unavailable'];
     if(!$d)return $base;
     if(trim((string)$d['text'])==='')return array_merge($base,['reason'=>'no_reusable_text']);
+    if($d['object_type']==='model_improvement_example'){
+        $state=(array)($d['state']??[]);$approved=!empty($state['redaction_attested'])&&!empty($state['rights_attested'])&&!empty($state['approval_hash'])&&($state['status']??'')==='published';
+        if(!$approved)return array_merge($base,['reason'=>'improvement_example_not_approved']);
+        $evaluation=($state['proposal_type']??'')==='evaluation_case';$training=($state['proposal_type']??'')==='training_example';
+        return ['shared_retrieval'=>false,'evaluation'=>$evaluation,'training'=>$training,'commercial_training'=>false,'attribution_required'=>true,'reason'=>'human_approved_model_improvement_example'];
+    }
     if($d['object_type']==='source'){
         $rights=data_source_rights($pdo,$publicId);if(!$rights)return array_merge($base,['reason'=>'source_rights_unknown']);
         $reviewed=(string)($rights['review_status']??'unreviewed')==='reviewed'&&!in_array((string)($rights['rights_class']??'unknown'),['unknown','restricted'],true);
@@ -203,7 +215,7 @@ function data_corpus_refresh_object(PDO $pdo,string $objectType,string $publicId
 
 function data_attribution_capture_object(PDO $pdo,int $actorUserId,string $objectType,string $publicId): ?array {
     if(!data_attribution_ready($pdo))return null;$d=data_object_descriptor($pdo,$objectType,$publicId);if(!$d)return null;
-    $type=$d['object_type'];$contributionType=match($type){'annotation'=>'annotation','claim'=>'claim','finding'=>'finding','report_version'=>'publication',default=>'contribution'};
+    $type=$d['object_type'];$contributionType=match($type){'annotation'=>'annotation','claim'=>'claim','finding'=>'finding','report_version'=>'publication','model_improvement_example'=>'model_improvement_example',default=>'contribution'};
     $row=data_contribution_record($pdo,'user',$actorUserId,$type,$publicId,$contributionType,(string)$d['text'],(array)$d['state'],(array)$d['meta'],null,(string)($d['version']??''));
     if($type==='annotation'&&!empty($d['meta']['source_public_id']))data_provenance_edge_record($pdo,'source',(string)$d['meta']['source_public_id'],(string)($d['meta']['source_version_number']??''),'captured_as','annotation',$publicId,null,$actorUserId);
     if($type==='claim'){
@@ -217,7 +229,7 @@ function data_attribution_capture_object(PDO $pdo,int $actorUserId,string $objec
         if(!empty($d['meta']['project_public_id']))data_provenance_edge_record($pdo,'research_project',$d['meta']['project_public_id'],null,'published_as','report_version',$publicId,(string)$d['version'],$actorUserId);
         $q=$pdo->prepare('SELECT snapshot_json FROM research_report_versions WHERE public_id=? LIMIT 1');$q->execute([$publicId]);$snapshot=json_decode((string)($q->fetchColumn()?:''),true);if(is_array($snapshot)){foreach((array)($snapshot['claims']??[]) as $x)if(!empty($x['id']))data_provenance_edge_record($pdo,'claim',(string)$x['id'],null,'included_in','report_version',$publicId,(string)$d['version'],$actorUserId);foreach((array)($snapshot['findings']??[]) as $x)if(!empty($x['id']))data_provenance_edge_record($pdo,'finding',(string)$x['id'],null,'included_in','report_version',$publicId,(string)$d['version'],$actorUserId);}
     }
-    if(in_array($type,['annotation','report_version'],true))data_corpus_refresh_object($pdo,$type,$publicId);
+    if(in_array($type,['annotation','report_version','model_improvement_example'],true))data_corpus_refresh_object($pdo,$type,$publicId);
     return $row;
 }
 function data_attribution_try_capture_object(PDO $pdo,int $actorUserId,string $objectType,string $publicId): ?array {
@@ -277,6 +289,7 @@ function data_ref_contributor(PDO $pdo,string $type,string $id): ?int {
             'report_version'=>'SELECT published_by_user_id FROM research_report_versions WHERE public_id=?',
             'research_review'=>'SELECT requested_by_user_id FROM research_reviews WHERE public_id=?',
             'verification'=>'SELECT reviewer_user_id FROM research_verification_events WHERE public_id=?',
+            'model_improvement_example'=>'SELECT COALESCE(approved_by_user_id,created_by_user_id) FROM data_model_improvement_proposals WHERE public_id=?',
             default=>null
         };if(!$sql)return null;$q=$pdo->prepare($sql);$q->execute([$id]);$uid=(int)($q->fetchColumn()?:0);return $uid?:null;
     }catch(Throwable $e){return null;}

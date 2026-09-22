@@ -51,6 +51,11 @@ if($version&&data_model_observability_ready($pdo)){
     $q=$pdo->prepare("SELECT s.*,d.public_id deployment_public_id FROM data_model_health_snapshots s JOIN data_model_deployments d ON d.id=s.deployment_id WHERE s.model_version_id=? ORDER BY s.id DESC LIMIT 12");$q->execute([$version['id']]);$observabilityRows=$q->fetchAll();foreach($observabilityRows as &$orow)$orow['metrics']=json_decode((string)$orow['metrics_json'],true)?:[];unset($orow);
     $q=$pdo->prepare("SELECT i.*,d.public_id deployment_public_id FROM data_model_incidents i JOIN data_model_deployments d ON d.id=i.deployment_id WHERE i.model_version_id=? ORDER BY i.id DESC LIMIT 12");$q->execute([$version['id']]);$observabilityIncidents=$q->fetchAll();
 }
+$improvementRows=[];$regressionRows=[];
+if($version&&data_model_improvement_ready($pdo)){
+    $q=$pdo->prepare("SELECT * FROM data_model_improvement_cases WHERE model_version_id=? ORDER BY FIELD(status,'new','investigating','ready_for_evaluation','ready_for_training','resolved','no_action'),updated_at DESC LIMIT 20");$q->execute([$version['id']]);$improvementRows=$q->fetchAll();
+    $regressionRows=data_model_improvement_regression_cases($pdo,(int)$version['id'],20);
+}
 $events=$registry?data_model_events($pdo,(int)$registry['id'],100):[];
 $origins=data_model_origins();
 
@@ -83,7 +88,7 @@ if($version){
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">MODEL REGISTRY</span><h1>Candidate lifecycle & release governance</h1><p>Register model versions, attach integrity-valid Phase 39 evidence, apply explicit release gates, record approval receipts, activate governed versions, and roll back prior active versions. Registry status never silently rewrites AI task routing.</p></div>
-  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a><a class="button secondary" href="/admin/post-training.php">Post-Training Readiness</a><a class="button secondary" href="/admin/model-release.php">Release Decisions</a><a class="button secondary" href="/admin/model-deployment.php">Model Deployments</a><a class="button secondary" href="/admin/model-observability.php">Model Health</a></div>
+  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a><a class="button secondary" href="/admin/post-training.php">Post-Training Readiness</a><a class="button secondary" href="/admin/model-release.php">Release Decisions</a><a class="button secondary" href="/admin/model-deployment.php">Model Deployments</a><a class="button secondary" href="/admin/model-observability.php">Model Health</a><a class="button secondary" href="/admin/model-improvements.php">Model Improvements</a></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
 
   <section class="healthGrid">
@@ -123,6 +128,14 @@ if($version){
     <?php if(!$observabilityRows):?><p class="empty">No production health snapshots for this model version yet.</p><?php else:?><div class="unifiedActivityList"><?php foreach($observabilityRows as $oh):$om=$oh['metrics'];?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($oh['health_status'])?></span> <strong><a href="/admin/model-observability.php?deployment=<?=rawurlencode((string)$oh['deployment_public_id'])?>"><?=h($oh['route_key'])?> health</a></strong></div><span class="meta"><?=h($oh['created_at'])?></span></div><p class="meta">samples <?=h((string)($om['sample_count']??0))?> · failure <?=h(number_format((float)($om['failure_rate']??0)*100,1))?>% · p95 <?=h(isset($om['p95_latency_ms'])&&$om['p95_latency_ms']!==null?number_format((float)$om['p95_latency_ms'],1).' ms':'—')?> · outcome <?=h(isset($om['avg_outcome_score'])&&$om['avg_outcome_score']!==null?number_format((float)$om['avg_outcome_score'],2):'—')?></p></div></article><?php endforeach?></div><?php endif?>
     <?php if($observabilityIncidents):?><h3>Recent incidents</h3><div class="unifiedActivityList"><?php foreach($observabilityIncidents as $oi):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><span class="badge"><?=h($oi['severity'])?></span> <span class="badge"><?=h($oi['status'])?></span> <a href="/admin/model-observability.php?incident=<?=rawurlencode((string)$oi['public_id'])?>"><?=h($oi['title'])?></a></div></article><?php endforeach?></div><?php endif?>
     <p class="meta">Phase 45 presents observed evidence only. Deployment control and rollback remain explicit Phase 44 actions.</p>
+  </section>
+  <?php endif?>
+
+  <?php if($version&&data_model_improvement_ready($pdo)):?>
+  <section class="card"><span class="eyebrow">PHASE 46 IMPROVEMENT LOOP</span><h2>Production improvement lineage for <?=h($version['version_label'])?></h2><div class="inlineActions"><a class="button secondary" href="/admin/model-improvements.php">Open Model Improvements</a></div>
+    <?php if(!$improvementRows):?><p class="empty">No clustered production improvement cases for this model version.</p><?php else:?><div class="unifiedActivityList"><?php foreach($improvementRows as $ic):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($ic['severity'])?></span> <span class="badge"><?=h($ic['status'])?></span> <strong><a href="/admin/model-improvements.php?case=<?=rawurlencode((string)$ic['public_id'])?>"><?=h($ic['title'])?></a></strong></div><span class="meta"><?=h((string)$ic['recurrence_count'])?> recurrence(s)</span></div><p class="meta"><?=h(str_replace('_',' ',$ic['classification']))?> · route <?=h($ic['route_key'])?> · evidence <?=h((string)$ic['evidence_count'])?></p></div></article><?php endforeach?></div><?php endif?>
+    <h3>Regression coverage</h3><?php if(!$regressionRows):?><p class="empty">No published Phase 46 regression cases yet.</p><?php else:?><div class="unifiedActivityList"><?php foreach($regressionRows as $rr):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><strong><?=h($rr['label'])?></strong><p class="meta">route <?=h($rr['route_key'])?> · case <?=h(substr((string)$rr['case_hash'],0,16))?>…</p></div></article><?php endforeach?></div><?php endif?>
+    <p class="meta">Phase 46 can publish human-sanitized examples into governed dataset eligibility. It cannot launch evaluation/training or change model lifecycle/routing.</p>
   </section>
   <?php endif?>
 
