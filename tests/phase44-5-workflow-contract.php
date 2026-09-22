@@ -21,6 +21,7 @@ $full=$read('.github/workflows/full-regression.yml');
 $package=$read('.github/workflows/package-two-zips.yml');
 $static=$read('tests/ci/run-static-contracts.sh');
 $governance=$read('tests/ci/run-model-governance.sh');
+$prepare=$read('tests/ci/prepare-current-schema.php');
 $regression=$read('tests/ci/run-full-regression.sh');
 $docs=$read('docs/phase-44-5-ci-workflow-hardening.md');
 
@@ -34,7 +35,9 @@ $avoid($ci,'Annotated-Website.zip','Fast PR CI must not package release artifact
 
 $need($governance,'seq 37 99','Targeted governance runner must automatically discover numeric Phase 37+ database suites.');
 $need($governance,'tests/phase"${phase}"-*-db.php','Targeted governance runner must discover future phase DB tests without YAML edits.');
-$need($governance,'php tests/install-db.php','Targeted governance runner must begin from a fresh installed schema.');
+$need($governance,'php tests/ci/prepare-current-schema.php','Targeted governance runner must prepare the current service database explicitly.');
+$need($prepare,'installer_run','Targeted CI schema preparation must use the production installer/migration path.');
+$need($prepare,'installer_pending_migrations','Targeted CI schema preparation must fail if migrations remain pending.');
 
 $need($static,'tests/release-contracts.php','Static runner must retain release contracts.');
 $need($static,'tests/security-contracts.php','Static runner must retain security contracts.');
