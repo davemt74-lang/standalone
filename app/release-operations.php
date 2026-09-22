@@ -46,6 +46,13 @@ function release_command_path(array|string $commands): ?string {
     foreach((array)$commands as $command){if(!preg_match('/^[A-Za-z0-9._-]+$/',(string)$command))continue;$out=[];$code=1;if(function_exists('exec')){@exec('command -v '.escapeshellarg((string)$command).' 2>/dev/null',$out,$code);if($code===0&&!empty($out[0]))return trim((string)$out[0]);}}
     return null;
 }
+function release_backup_destination_assert(string $base,string $root): string {
+    $rootReal=realpath($root)?:rtrim($root,'/');$base=rtrim($base,'/');if($base==='')throw new RuntimeException('Backup output directory is required.');
+    if(!str_starts_with($base,'/'))$base=getcwd().'/'.$base;$normalized=preg_replace('#/+#','/',$base);
+    $probe=is_dir($normalized)?(realpath($normalized)?:$normalized):(realpath(dirname($normalized))?:dirname($normalized)).'/'.basename($normalized);
+    if($probe===$rootReal||str_starts_with(rtrim($probe,'/').'/',rtrim($rootReal,'/').'/'))throw new RuntimeException('Backup output must be outside the Annotated application/web tree.');
+    return $normalized;
+}
 function release_backup_requirements(array $config): array {
     $checks=[];$target=null;try{$target=release_database_target($config);$checks['database_target']=['pass'=>true,'detail'=>$target['database'].' @ '.($target['unix_socket']?:($target['host'].':'.$target['port']))];}catch(Throwable $e){$checks['database_target']=['pass'=>false,'detail'=>$e->getMessage()];}
     $commands=['dump'=>['mysqldump','mariadb-dump'],'client'=>['mysql','mariadb'],'tar'=>['tar']];
