@@ -82,7 +82,7 @@ $historicalDbTests=[
     'tests/phase39-dataset-evaluation-db.php','tests/phase40-model-registry-db.php',
     'tests/phase41-training-registry-db.php','tests/phase42-post-training-readiness-db.php',
     'tests/phase43-model-release-decision-db.php','tests/phase44-model-deployment-db.php',
-    'tests/phase45-model-observability-db.php','tests/phase46-model-improvement-db.php','tests/phase47-model-campaign-db.php','tests/phase48-closed-loop-release-audit-db.php','tests/phase49-release-candidate-ops-db.php',
+    'tests/phase45-model-observability-db.php','tests/phase46-model-improvement-db.php','tests/phase47-model-campaign-db.php','tests/phase48-closed-loop-release-audit-db.php','tests/phase49-release-candidate-ops-db.php','tests/phase49-5-recent-build-hardening-db.php',
 ];
 foreach($historicalDbTests as $test){
     if(!str_contains($regression,$test))$fail[]='Full regression dropped historical coverage: '.$test;
