@@ -12,7 +12,7 @@ $avoid('database/migrations/20260921_040_training_job_registry_controlled_fine_t
 $avoid('database/migrations/20260921_040_training_job_registry_controlled_fine_tuning.sql','TRUNCATE','Phase 41 migration must be expand-only.');
 
 $runtime=(string)file_get_contents($root.'/app/data-training.php');
-foreach(['data_training_ready','data_training_job_create','data_training_job_update_draft','data_training_preflight','data_training_package_inspect','data_training_queue','data_training_job_integrity','data_training_current_use_status','data_training_runtime_snapshot','data_training_approval_receipt_status','data_training_provider_submit','data_training_provider_retrieve','data_training_provider_cancel','data_training_provider_events','data_training_register_output','data_training_completion_integrity','data_training_finalize_provider_success','data_training_request_cancel','data_training_retry','data_training_manual_complete','data_training_export_package','data_training_handle_worker_exception','data_training_process_next'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 41 runtime helper missing: '.$fn;
+foreach(['data_training_ready','data_training_job_create','data_training_job_update_draft','data_training_preflight','data_training_package_inspect','data_training_queue','data_training_job_integrity','data_training_current_use_status','data_training_runtime_snapshot','data_training_approval_receipt_status','data_training_provider_submit','data_training_provider_retrieve','data_training_provider_cancel','data_training_provider_events','data_training_register_output','data_training_completion_integrity','data_training_finalize_provider_success','data_training_handle_worker_exception','data_training_request_cancel','data_training_retry','data_training_manual_complete','data_training_export_package','data_training_handle_worker_exception','data_training_process_next'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 41 runtime helper missing: '.$fn;
 $need('app/data-training.php','Training use class $useClass requires a frozen dataset with purpose $required.','Training jobs must enforce internal vs commercial dataset purpose separation.');
 $need('app/data-training.php',"Training base model requires an integrity-valid Phase 40 approval receipt.",'Training base must have a valid Phase 40 approval receipt.');
 $need('app/data-training.php',"Phase 41 v1 supports supervised fine-tuning only.",'Phase 41 method scope must be explicit.');
@@ -21,6 +21,10 @@ $need('app/data-training.php',"attribution_blocked_items",'Training preflight mu
 $need('app/data-training.php',"external_provider_acknowledged",'External/provider training transfer must require explicit Admin acknowledgement.');
 $need('app/data-training.php',"package_hash",'Training package identity must be frozen and hashed before execution.');
 $need('app/data-training.php',"job_hash",'Queued training decisions must have an immutable job hash.');
+$need('app/data-training.php','base_approval_receipt_hash','Queued training jobs must freeze the exact Phase 40 approval receipt that authorized the base model.');
+$need('app/data-training.php','runtime_snapshot_hash','Queued training jobs must freeze runtime/build identity.');
+$need('app/data-training.php','provider_transient_error','Provider polling/cancellation outages must remain retryable operational errors.');
+$need('app/data-training.php','output_registration_blocked','Provider-success output handoff failures must be blocked rather than retrained.');
 $need('app/data-training.php',"base_approval_receipt_hash",'Queued training jobs must bind the exact Phase 40 approval receipt used for the base model.');
 $need('app/data-training.php',"training_runtime_version",'Queued jobs must snapshot the Phase 41/app runtime identity.');
 $need('app/data-training.php',"provider_transient_error",'Provider polling/cancellation transport errors must remain retryable operational failures.');
