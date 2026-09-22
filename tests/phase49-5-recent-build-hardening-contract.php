@@ -60,6 +60,10 @@ $need('app/release-operations.php','package fingerprint mismatch','Installed pac
 $need('app/release-operations.php','Backup database target does not match the configured database.','Restore planning must fail closed on database-target mismatch.');
 $need('app/release-operations.php','Backup private-storage target does not match the configured storage directory.','Restore planning must fail closed on storage-target mismatch.');
 $need('app/release-operations.php','Restore prerequisites are incomplete','Restore planning must refuse to emit an executable plan without required tools.');
+$need('app/release-operations.php','Backup is marked incomplete.','Backup verification must refuse partial backup directories.');
+$need('bin/release-backup.php',".INCOMPLETE",'Backup creation must mark the directory incomplete until verification succeeds.');
+$need('bin/release-backup.php','@unlink($incomplete)','Backup completion must remove the incomplete marker only after verification succeeds.');
+$need('app/release-operations.php','Release package file could not be hashed','Release fingerprint must fail closed on unreadable package files.');
 $need('app/release-operations.php',"'package_integrity'=>",'Operational readiness must include installed package integrity.');
 
 $need('.github/workflows/package-two-zips.yml','php package-website/bin/release-manifest.php','Release manifest must be generated from the staged deploy tree.');
