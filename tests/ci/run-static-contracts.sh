@@ -5,6 +5,7 @@ php tests/release-contracts.php
 php tests/security-contracts.php
 php tests/app-shell-contracts.php
 php -n tests/runtime-compat-contract.php
+php -n tests/installer-runtime-compat-contract.php
 php tests/concurrency-contracts.php
 php tests/rate-limit-contracts.php
 php tests/v1-rc-e2e-contract.php
