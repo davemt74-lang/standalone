@@ -254,6 +254,7 @@ function data_model_deployment_advance(PDO $pdo,array $viewer,string $publicId):
     data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
     if(!$d)throw new RuntimeException('Deployment not found.');if(!in_array($d['status'],['shadow','canary','limited'],true))throw new RuntimeException('This deployment stage cannot advance.');
     data_model_deployment_assert_stage_checkpoint($pdo,$d);if($d['status']==='limited')return data_model_deployment_full_activate($pdo,$viewer,$d);
+    $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context changed before stage advance: '.implode(', ',array_keys(array_filter($ctx['checks'],fn($v)=>!$v))));
     $next=$d['status']==='shadow'?'canary':'limited';$traffic=$next==='canary'?max(1,min(50,(int)$d['planned_traffic_percent'])):100;
     $pdo->beginTransaction();try{data_model_deployment_replace_overrides($pdo,$d,$next,$traffic,true);$routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);$pdo->prepare('UPDATE data_model_deployments SET status=?,revision=revision+1,current_traffic_percent=?,routing_current_json=?,routing_current_hash=?,stage_changed_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$next,$traffic,$json,hash('sha256',$json),$d['id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'stage_advanced',$next,['from'=>$d['status'],'to'=>$next,'served_candidate_traffic_percent'=>$traffic],$fresh['routing_current_hash']??null);return $fresh??[];
@@ -268,6 +269,7 @@ function data_model_deployment_pause(PDO $pdo,array $viewer,string $publicId): a
 function data_model_deployment_resume(PDO $pdo,array $viewer,string $publicId): array {
     data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
     if(!$d||$d['status']!=='paused'||!in_array($d['paused_stage'],['shadow','canary','limited'],true))throw new RuntimeException('Deployment is not resumable.');
+    $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context changed while paused: '.implode(', ',array_keys(array_filter($ctx['checks'],fn($v)=>!$v))));
     $stage=(string)$d['paused_stage'];$traffic=$stage==='shadow'?0:($stage==='canary'?max(1,min(50,(int)$d['planned_traffic_percent'])):100);
     $pdo->prepare('UPDATE data_model_routing_overrides SET enabled=1 WHERE deployment_id=?')->execute([$d['id']]);
     $pdo->prepare('UPDATE data_model_deployments SET status=?,paused_stage=NULL,revision=revision+1,current_traffic_percent=?,stage_changed_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$stage,$traffic,$d['id']]);
