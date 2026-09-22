@@ -27,7 +27,7 @@ function change_impact_event(PDO $pdo,array $viewer,int $eventId): ?array {
 }
 
 function change_impact_project_candidates(PDO $pdo,array $viewer,array $event): array {
-    $sid=(int)$event['source_id'];$q=$pdo->prepare("SELECT DISTINCT rp.public_id
+    $sid=(int)$event['source_id'];$q=$pdo->prepare("SELECT rp.public_id
       FROM research_projects rp
       WHERE EXISTS(SELECT 1 FROM project_sources ps WHERE ps.project_id=rp.id AND ps.source_id=?)
          OR EXISTS(SELECT 1 FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id WHERE pa.project_id=rp.id AND a.source_id=?)
@@ -51,7 +51,7 @@ function change_impact_annotation_rows(PDO $pdo,array $event,array $project): ar
 }
 
 function change_impact_claim_rows(PDO $pdo,array $event,array $project): array {
-    $q=$pdo->prepare("SELECT DISTINCT rc.public_id,rc.statement,rc.status,rc.claim_type,rc.updated_at,
+    $q=$pdo->prepare("SELECT rc.public_id,rc.statement,rc.status,rc.claim_type,rc.updated_at,
       ce.public_id evidence_public_id,ce.relationship,ev.version_number evidence_version_number,nv.version_number current_version_number
       FROM research_claims rc
       JOIN claim_evidence ce ON ce.claim_id=rc.id
@@ -66,7 +66,7 @@ function change_impact_claim_rows(PDO $pdo,array $event,array $project): array {
 
 function change_impact_finding_rows(PDO $pdo,array $project,array $claims): array {
     if(!$claims)return [];$ids=array_column($claims,'public_id');$marks=implode(',',array_fill(0,count($ids),'?'));
-    $params=array_merge([$project['id']],$ids);$q=$pdo->prepare("SELECT DISTINCT rf.public_id,rf.title,rf.summary,rf.status,rf.updated_at,rc.public_id claim_public_id
+    $params=array_merge([$project['id']],$ids);$q=$pdo->prepare("SELECT rf.public_id,rf.title,rf.summary,rf.status,rf.updated_at,rc.public_id claim_public_id
       FROM research_findings rf JOIN finding_claims fc ON fc.finding_id=rf.id JOIN research_claims rc ON rc.id=fc.claim_id
       WHERE rf.project_id=? AND rc.public_id IN ($marks) AND rf.status<>'archived' ORDER BY rf.updated_at DESC,rf.id DESC");$q->execute($params);$out=[];
     foreach($q->fetchAll() as $r){$id=(string)$r['public_id'];if(!isset($out[$id]))$out[$id]=['public_id'=>$id,'title'=>$r['title'],'summary'=>$r['summary'],'status'=>$r['status'],'updated_at'=>$r['updated_at'],'claim_ids'=>[],'severity'=>'high'];$out[$id]['claim_ids'][]=$r['claim_public_id'];}
@@ -190,7 +190,7 @@ function change_impact_review_upstream_staleness(PDO $pdo,array $viewer,array $r
 }
 
 function change_impact_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limitProjects=12): void {
-    if(!change_impact_ready($pdo))return;$q=$pdo->prepare("SELECT DISTINCT rp.public_id FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.updated_at DESC LIMIT ".$limitProjects);$q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
+    if(!change_impact_ready($pdo))return;$q=$pdo->prepare("SELECT rp.public_id FROM research_projects rp WHERE rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?) ORDER BY rp.updated_at DESC,rp.id DESC LIMIT ".$limitProjects);$q->execute([$viewer['id'],$viewer['id']]);
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $projectPublic){$summary=change_impact_project_summary($pdo,$viewer,(string)$projectPublic,6);foreach($summary['items'] as $i){if($i['unresolved_count']<=0)continue;$priority=$i['severity']==='high'?'high':'medium';$actions=[cognitive_feed_action_link('Review Impact','/research-impact.php?event='.(int)$i['event_id'].'&project='.rawurlencode((string)$projectPublic)),cognitive_feed_action_agent('Ask Agent','Explain the downstream impact of this Source change and which Research needs human review. Do not automatically change Research conclusions.',[['type'=>'research','public_id'=>(string)$projectPublic],['type'=>'source','public_id'=>$i['source_public_id']]])];cognitive_feed_add($items,['key'=>cognitive_feed_key('change_impact','source_change',(string)$i['event_id'].':'.$projectPublic,(string)$i['state_revision']),'type'=>'change_impact','section'=>'needs_attention','priority'=>$priority,'created_at'=>$i['created_at'],'score_extra'=>$priority==='high'?18:8,'title'=>'Source change affects downstream Research','body'=>$i['source_title'].' affects '.$i['unresolved_count'].' Research item(s) that still need review.','meta'=>['project'=>$projectPublic,'source'=>$i['source_public_id'],'event_id'=>$i['event_id'],'counts'=>$i['counts']],'actions'=>$actions]);}}
 }
 
