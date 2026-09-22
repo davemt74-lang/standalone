@@ -101,7 +101,7 @@ $executors=data_training_executors();
       <span><small>Attempts</small><?=h((string)$job['attempt_count'])?> / <?=h((string)$job['max_attempts'])?></span>
     </div>
     <p><?=h((string)($job['description']?:'No description.'))?></p>
-    <?php if(!empty($job['job_hash'])):?><p class="meta">Job <?=h(substr((string)$job['job_hash'],0,16))?>… · package <?=h(substr((string)$job['package_hash'],0,16))?>… · dataset <?=h(substr((string)$job['dataset_manifest_hash'],0,16))?>… · base <?=h(substr((string)$job['base_model_version_hash'],0,16))?>…</p><?php endif?>
+    <?php if(!empty($job['job_hash'])):?><p class="meta">Job <?=h(substr((string)$job['job_hash'],0,16))?>… · package <?=h(substr((string)$job['package_hash'],0,16))?>… · dataset <?=h(substr((string)$job['dataset_manifest_hash'],0,16))?>… · base <?=h(substr((string)$job['base_model_version_hash'],0,16))?>… · approval <?=h(substr((string)$job['base_approval_receipt_hash'],0,16))?>… · runtime <?=h(substr((string)$job['runtime_snapshot_hash'],0,16))?>…</p><?php endif?>
 
     <?php if($job['status']==='draft'):?>
       <div class="card">
@@ -139,7 +139,7 @@ $executors=data_training_executors();
     <?php else:?>
       <div class="card">
         <span class="eyebrow">CURRENT GOVERNANCE</span><h3><?=$currentUse&&$currentUse['usable']?'Current use valid':'Current use blocked'?></h3>
-        <p class="meta">Job integrity: <?=!empty($currentUse['job_integrity']['ok'])?'VALID':'FAILED'?> · dataset: <?=!empty($currentUse['dataset_status']['usable'])?'VALID':'BLOCKED'?> · base model: <?=!empty($currentUse['base_integrity']['ok'])?'VALID':'FAILED'?> · snapshot match: <?=!empty($currentUse['snapshot_match'])?'YES':'NO'?></p>
+        <p class="meta">Job integrity: <?=!empty($currentUse['job_integrity']['ok'])?'VALID':'FAILED'?> · dataset: <?=!empty($currentUse['dataset_status']['usable'])?'VALID':'BLOCKED'?> · base model: <?=!empty($currentUse['base_integrity']['ok'])?'VALID':'FAILED'?> · approval receipt: <?=!empty($currentUse['base_approval_receipt']['ok'])?'VALID':'BLOCKED'?> · snapshot match: <?=!empty($currentUse['snapshot_match'])?'YES':'NO'?></p>
       </div>
       <?php if(!in_array($job['status'],['succeeded','failed','cancelled','blocked'],true)):?><form method="post" onsubmit="return confirm('Request cancellation of this training job?');"><?=csrf_field()?><input type="hidden" name="op" value="cancel"><input type="hidden" name="job" value="<?=h($job['public_id'])?>"><button class="button secondary" type="submit">Cancel training</button></form><?php endif?>
       <?php if($job['status']==='failed'&&(int)$job['attempt_count']<(int)$job['max_attempts']):?><form method="post"><?=csrf_field()?><input type="hidden" name="op" value="retry"><input type="hidden" name="job" value="<?=h($job['public_id'])?>"><button class="button secondary" type="submit">Retry controlled training</button></form><?php endif?>
