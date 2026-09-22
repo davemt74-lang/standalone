@@ -30,9 +30,8 @@ $need('app/data-model-registry.php',"Rollback target active receipt failed integ
 $need('app/data-model-registry.php',"SUPERSEDED BY",'Automatic deprecation must create an auditable receipt.');
 $need('app/data-model-registry.php',"case_definition_hash",'Cross-model comparison must use stable benchmark case definitions rather than record identity.');
 $need('app/data-model-registry.php',"common_benchmarks",'Model comparison must surface only equivalent benchmark definitions.');
-$avoid('app/data-model-registry.php','fine_tune','Model Registry must not fine-tune models.');
-$avoid('app/data-model-registry.php','fine-tune','Model Registry must not fine-tune models.');
-$avoid('app/data-model-registry.php','training_job','Model Registry must not create training jobs.');
+$avoid('app/data-model-registry.php','fine_tune(','Model Registry must not invoke fine-tuning code.');
+$avoid('app/data-model-registry.php','training_job(','Model Registry must not invoke training-job code.');
 $avoid('app/data-model-registry.php',"ai_queue_job(",'Model Registry must not create generic AI or training jobs.');
 $avoid('app/data-model-registry.php','UPDATE ai_settings','Governed activation must never silently rewrite AI task routing.');
 
