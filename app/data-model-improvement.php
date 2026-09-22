@@ -63,9 +63,9 @@ function data_model_improvement_refresh_evidence(PDO $pdo,int $caseId): void {
     $q=$pdo->prepare('SELECT evidence_hash FROM data_model_improvement_evidence WHERE case_id=? ORDER BY id');$q->execute([$caseId]);$hashes=$q->fetchAll(PDO::FETCH_COLUMN);$hash=data_attribution_hash(['case_id'=>$caseId,'evidence_hashes'=>$hashes]);
     $pdo->prepare('UPDATE data_model_improvement_cases SET evidence_count=?,evidence_hash=?,updated_at=NOW() WHERE id=?')->execute([count($hashes),$hash,$caseId]);
 }
-function data_model_improvement_add_evidence(PDO $pdo,int $caseId,string $type,string $refPublicId,string $hash,?int $incidentId=null,?int $observationId=null,?int $signalId=null): void {
-    $pdo->prepare('INSERT IGNORE INTO data_model_improvement_evidence(case_id,incident_id,observation_id,outcome_signal_id,evidence_type,evidence_ref_public_id,evidence_hash) VALUES(?,?,?,?,?,?,?)')->execute([$caseId,$incidentId,$observationId,$signalId,$type,$refPublicId,$hash]);
-    data_model_improvement_refresh_evidence($pdo,$caseId);
+function data_model_improvement_add_evidence(PDO $pdo,int $caseId,string $type,string $refPublicId,string $hash,?int $incidentId=null,?int $observationId=null,?int $signalId=null): bool {
+    $q=$pdo->prepare('INSERT IGNORE INTO data_model_improvement_evidence(case_id,incident_id,observation_id,outcome_signal_id,evidence_type,evidence_ref_public_id,evidence_hash) VALUES(?,?,?,?,?,?,?)');$q->execute([$caseId,$incidentId,$observationId,$signalId,$type,$refPublicId,$hash]);$inserted=$q->rowCount()>0;
+    data_model_improvement_refresh_evidence($pdo,$caseId);return $inserted;
 }
 function data_model_improvement_notify_case(PDO $pdo,array $case): void {
     if(!function_exists('notification_create'))return;$admins=$pdo->query("SELECT id FROM users WHERE role='admin' AND status='active'")->fetchAll(PDO::FETCH_COLUMN);
@@ -80,11 +80,12 @@ function data_model_improvement_ingest_incident(PDO $pdo,array $incident): ?arra
         $pdo->prepare("INSERT INTO data_model_improvement_cases(public_id,model_version_id,deployment_id,primary_incident_id,route_key,cluster_key,classification,severity,status,title,summary,recurrence_count,evidence_count,evidence_hash) VALUES(?,?,?,?,?,?,'untriaged',?,'new',?,?,1,0,?)")
           ->execute([$public,$modelVersionId,$deploymentId,$incident['id'],$route,$cluster,$incident['severity'],$title,$summary,data_attribution_hash([])]);
         $case=data_model_improvement_case_get($pdo,$public);if(!$case)return null;data_model_improvement_event($pdo,(int)$case['id'],null,'case_created_from_incident',['incident_public_id'=>$incident['public_id'],'incident_evidence_hash'=>$incident['evidence_hash']]);data_model_improvement_notify_case($pdo,$case);
-    }else{
+    }
+    $inserted=data_model_improvement_add_evidence($pdo,(int)$case['id'],'model_health_incident',(string)$incident['public_id'],(string)$incident['evidence_hash'],(int)$incident['id'],null,null);
+    if($inserted&&$case['primary_incident_id']!==null){
         $severity=$case['severity']==='critical'||$incident['severity']!=='critical'?$case['severity']:'critical';
         $pdo->prepare('UPDATE data_model_improvement_cases SET recurrence_count=recurrence_count+1,severity=?,updated_at=NOW() WHERE id=?')->execute([$severity,$case['id']]);
     }
-    data_model_improvement_add_evidence($pdo,(int)$case['id'],'model_health_incident',(string)$incident['public_id'],(string)$incident['evidence_hash'],(int)$incident['id'],null,null);
     return data_model_improvement_case_get($pdo,(string)$case['public_id']);
 }
 function data_model_improvement_ingest_negative_signal(PDO $pdo,array $signal): ?array {
@@ -97,8 +98,9 @@ function data_model_improvement_ingest_negative_signal(PDO $pdo,array $signal): 
         $pdo->prepare("INSERT INTO data_model_improvement_cases(public_id,model_version_id,deployment_id,route_key,cluster_key,classification,severity,status,title,summary,recurrence_count,evidence_count,evidence_hash) VALUES(?,?,?,?,?,'untriaged','warning','new',?,?,1,0,?)")
           ->execute([$public,$obs['model_version_id'],$obs['deployment_id'],$obs['route_key'],$cluster,$title,$summary,data_attribution_hash([])]);
         $case=data_model_improvement_case_get($pdo,$public);if(!$case)return null;data_model_improvement_event($pdo,(int)$case['id'],null,'case_created_from_outcome_signal',['signal_public_id'=>$signal['public_id'],'signal_hash'=>$signal['signal_hash']]);data_model_improvement_notify_case($pdo,$case);
-    }else $pdo->prepare('UPDATE data_model_improvement_cases SET recurrence_count=recurrence_count+1,updated_at=NOW() WHERE id=?')->execute([$case['id']]);
-    data_model_improvement_add_evidence($pdo,(int)$case['id'],'negative_outcome_signal',(string)$signal['public_id'],(string)$signal['signal_hash'],null,(int)$obs['id'],(int)$signal['id']);
+    }
+    $inserted=data_model_improvement_add_evidence($pdo,(int)$case['id'],'negative_outcome_signal',(string)$signal['public_id'],(string)$signal['signal_hash'],null,(int)$obs['id'],(int)$signal['id']);
+    if($inserted&&$case['evidence_count']>0)$pdo->prepare('UPDATE data_model_improvement_cases SET recurrence_count=recurrence_count+1,updated_at=NOW() WHERE id=?')->execute([$case['id']]);
     return data_model_improvement_case_get($pdo,(string)$case['public_id']);
 }
 function data_model_improvement_triage(PDO $pdo,array $viewer,string $publicId,array $input): array {
@@ -152,11 +154,12 @@ function data_model_improvement_proposal_publish(PDO $pdo,array $viewer,string $
             $caseHash=data_attribution_hash(['proposal_public_id'=>$p['public_id'],'content_hash'=>$p['content_hash'],'route_key'=>$p['route_key'],'model_version_id'=>$p['model_version_id']!==null?(int)$p['model_version_id']:null]);
             $pdo->prepare('INSERT IGNORE INTO data_model_regression_cases(public_id,proposal_id,case_id,model_version_id,route_key,label,query_text,expected_behavior,case_hash) VALUES(?,?,?,?,?,?,?,?,?)')->execute([ulid_like(),$p['id'],$p['case_id'],$p['model_version_id'],$p['route_key'],$p['title'],$p['sanitized_input'],$p['sanitized_expected_output'],$caseHash]);
         }
+        $capture=data_attribution_capture_object($pdo,(int)$viewer['id'],'model_improvement_example',$publicId);if(!$capture)throw new RuntimeException('Approved improvement example could not be captured by corpus governance.');
+        $q=$pdo->prepare("SELECT public_id FROM data_corpus_items WHERE source_object_type='model_improvement_example' AND source_object_public_id=? AND invalidated_at IS NULL ORDER BY id DESC LIMIT 1");$q->execute([$publicId]);$corpus=(string)($q->fetchColumn()?:'');if($corpus==='')throw new RuntimeException('Approved improvement example was not admitted to the governed corpus.');
+        $pdo->prepare('UPDATE data_model_improvement_proposals SET corpus_item_public_id=? WHERE id=?')->execute([$corpus,$p['id']]);
+        data_model_improvement_event($pdo,(int)$p['case_id'],(int)$viewer['id'],'proposal_published_to_corpus',['proposal_public_id'=>$publicId,'corpus_item_public_id'=>$corpus,'proposal_type'=>$p['proposal_type'],'approval_hash'=>$p['approval_hash']]);
         $pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    $fresh=data_model_improvement_proposal_get($pdo,$publicId);if(!$fresh)throw new RuntimeException('Published proposal could not be reloaded.');
-    $capture=data_attribution_capture_object($pdo,(int)$viewer['id'],'model_improvement_example',$publicId);$q=$pdo->prepare("SELECT public_id FROM data_corpus_items WHERE source_object_type='model_improvement_example' AND source_object_public_id=? AND invalidated_at IS NULL ORDER BY id DESC LIMIT 1");$q->execute([$publicId]);$corpus=(string)($q->fetchColumn()?:'');if($corpus==='')throw new RuntimeException('Approved improvement example was not admitted to the governed corpus.');
-    $pdo->prepare('UPDATE data_model_improvement_proposals SET corpus_item_public_id=? WHERE id=?')->execute([$corpus,$fresh['id']]);data_model_improvement_event($pdo,(int)$fresh['case_id'],(int)$viewer['id'],'proposal_published_to_corpus',['proposal_public_id'=>$publicId,'corpus_item_public_id'=>$corpus,'proposal_type'=>$fresh['proposal_type'],'approval_hash'=>$fresh['approval_hash']]);
     return data_model_improvement_proposal_get($pdo,$publicId)??[];
 }
 function data_model_improvement_create_dataset_draft(PDO $pdo,array $viewer,string $purpose): array {
