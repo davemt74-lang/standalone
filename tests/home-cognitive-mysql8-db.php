@@ -8,14 +8,14 @@ $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO
 
 require_once $root.'/app/installer.php';
 $modules=[
- 'storage.php','jobs.php','concurrency.php','functions.php','access.php','object-handoff.php','notifications.php',
+ 'storage.php','jobs.php','ai.php','concurrency.php','functions.php','access.php','object-handoff.php','notifications.php',
  'source-integrity.php','annotation-intelligence.php','live.php','conversations.php','moderation.php','search.php',
  'rate-limit.php','proactive-intelligence.php','research-automation.php','cross-research.php','research-outcomes.php',
  'research-reviews.php','change-impact.php','research-portfolio.php','living-research.php','research-network.php',
  'research-provenance.php','data-attribution.php','data-datasets.php','data-evaluations.php','data-model-registry.php',
  'data-training.php','data-post-training.php','data-model-release.php','data-model-deployment.php','data-model-observability.php',
  'data-model-improvement.php','data-model-campaigns.php','intelligence-release-audit.php','research-verification.php',
- 'research-evidence-packs.php','research-workflow.php'
+ 'research-evidence-packs.php','research-workflow.php','action-center.php'
 ];
 foreach($modules as $module)require_once $root.'/app/'.$module;
 
