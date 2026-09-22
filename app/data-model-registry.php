@@ -164,7 +164,7 @@ function data_model_rollback(PDO $pdo,array $viewer,string $registryPublicId,str
     return data_model_version_get($pdo,$targetVersionPublicId)??[];
 }
 function data_model_receipts(PDO $pdo,int $versionId): array {
-    $q=$pdo->prepare('SELECT r.*,u.display_name actor_name,pv.public_id previous_active_public_id,pv.version_label previous_active_label FROM data_model_promotion_receipts r JOIN users u ON u.id=r.actor_user_id LEFT JOIN data_model_versions pv ON pv.id=r.previous_active_version_id WHERE r.version_id=? ORDER BY r.id DESC');$q->execute([$versionId]);return $q->fetchAll();
+    $q=$pdo->prepare('SELECT r.*,u.display_name actor_name,pv.public_id previous_active_public_id,pv.version_label previous_active_label FROM data_model_promotion_receipts r JOIN users u ON u.id=r.actor_user_id LEFT JOIN data_model_versions pv ON pv.id=r.previous_active_version_id WHERE r.version_id=? ORDER BY r.id DESC');$q->execute([$versionId]);$rows=$q->fetchAll();$vq=$pdo->prepare('SELECT public_id FROM data_model_versions WHERE id=?');$vq->execute([$versionId]);$public=(string)($vq->fetchColumn()?:'');$version=$public!==''?data_model_version_get($pdo,$public):null;if($version)foreach($rows as &$row)$row['integrity']=data_model_receipt_integrity($row,$version);unset($row);return $rows;
 }
 function data_model_events(PDO $pdo,int $registryId,int $limit=100): array {
     $limit=max(1,min(250,$limit));$q=$pdo->prepare("SELECT e.*,v.public_id version_public_id,v.version_label,u.display_name actor_name FROM data_model_events e LEFT JOIN data_model_versions v ON v.id=e.version_id LEFT JOIN users u ON u.id=e.actor_user_id WHERE e.registry_id=? ORDER BY e.id DESC LIMIT $limit");$q->execute([$registryId]);return $q->fetchAll();
