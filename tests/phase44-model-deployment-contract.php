@@ -19,7 +19,7 @@ $avoid('app/data-model-deployment.php','ai_generate(','Phase 44 deployment contr
 $avoid('app/data-model-deployment.php','data_training_provider_submit(','Phase 44 deployment control must never launch training.');
 foreach(['PHASE 44 · GOVERNED MODEL DEPLOYMENT','Shadow → Canary → Limited → Full','INDEPENDENT HUMAN CHECKPOINT','DEPLOYMENT CONTROL','CHECKPOINT SIGNATURES','AUDIT EVENTS','Rollback'] as $needle)$need('admin/model-deployment.php',$needle,'Phase 44 Admin Deployment contract missing: '.$needle);
 $need('admin/model-deployment.php','never advances Shadow → Canary → Limited → Full automatically','Admin UI must explain the human checkpoint boundary.');
-$need('admin/model-deployment-export.php',"$_SERVER['REQUEST_METHOD']!=='POST'",'Phase 44 audit export must be POST-only.');
+$need('admin/model-deployment-export.php',"\$_SERVER['REQUEST_METHOD']!=='POST'",'Phase 44 audit export must be POST-only.');
 $need('admin/model-deployment-export.php','require_csrf()','Phase 44 audit export must require CSRF.');
 $need('admin/model-deployment-export.php','data_model_release_decision_integrity','Phase 44 audit export must refuse invalid signed release provenance.');
 $need('app/ai.php','data_model_deployment_resolve_route','Existing AI routing must consult the governed Phase 44 temporary route resolver.');
