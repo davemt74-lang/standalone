@@ -16,6 +16,7 @@ db_tests=(
   tests/research-intelligence-db.php
   tests/research-entities-db.php
   tests/research-reports-db.php
+  tests/research-library-db.php
   tests/rich-capture-db.php
   tests/phase6-feeds-db.php
   tests/phase7-public-discovery-db.php
