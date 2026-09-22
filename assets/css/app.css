@@ -1385,3 +1385,341 @@
   .researchFolderSocial{grid-template-columns:repeat(2,minmax(0,1fr))}
   .researchFolderFooter{align-items:flex-start;flex-direction:column}
 }
+
+
+/* Shared Saved + Teams library canvases */
+.savedLibraryCanvas,
+.teamsLibraryCanvas{
+  width:min(100%,1480px);
+  margin:0 auto;
+  padding:30px 34px 72px;
+}
+.libraryCanvasHero{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:28px;
+  padding:6px 2px 22px;
+}
+.libraryCanvasHero>div:first-child{max-width:860px}
+.libraryCanvasHero h1{
+  margin:.18em 0 .18em;
+  font-size:clamp(2.3rem,4.6vw,4.3rem);
+  line-height:.96;
+  letter-spacing:-.055em;
+}
+.libraryCanvasHero p{
+  max-width:780px;
+  margin:0;
+  color:#555b63;
+  font-size:.96rem;
+  line-height:1.55;
+}
+.libraryAddMenu{
+  position:relative;
+  z-index:30;
+  flex:0 0 auto;
+}
+.libraryAddMenu>summary{
+  list-style:none;
+  cursor:pointer;
+  min-height:40px!important;
+  padding:.72rem 1rem!important;
+  border-radius:8px!important;
+  letter-spacing:.025em;
+}
+.libraryAddMenu>summary::-webkit-details-marker{display:none}
+.libraryAddMenu[open]>summary{background:#303238}
+.libraryCreatePopover{
+  position:absolute;
+  top:48px;
+  right:0;
+  width:min(370px,calc(100vw - 36px));
+  padding:18px;
+  border:1px solid #d9dde2;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 22px 60px rgba(17,24,39,.16);
+  z-index:80;
+}
+.libraryCreatePopover h2{
+  margin:4px 0 14px;
+  font-size:1.2rem;
+}
+.libraryCanvasMessage{margin-bottom:14px}
+.libraryCanvasToolbar{
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:24px;
+  padding:7px 8px;
+  border:1px solid #dfe2e6;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(17,24,39,.03);
+}
+.libraryCanvasToolbar nav{
+  min-width:0;
+  display:flex;
+  gap:3px;
+  overflow:auto;
+}
+.libraryCanvasToolbar nav a{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 10px;
+  border-radius:6px;
+  color:#5d636b;
+  text-decoration:none;
+  font-size:.75rem;
+  font-weight:720;
+}
+.libraryCanvasToolbar nav a:hover{background:#f2f3f5;color:#111}
+.libraryCanvasToolbar nav a.active{background:#111;color:#fff}
+.libraryCanvasToolbar nav a span{
+  min-width:17px;
+  height:17px;
+  padding:0 5px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  background:rgba(255,255,255,.18);
+  font-size:.6rem;
+}
+.libraryToolbarMeta{
+  flex:0 0 auto;
+  color:#8a9098;
+  font-size:.67rem;
+}
+.savedCollectionGrid,
+.teamWorkspaceGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:18px;
+  margin-bottom:28px;
+}
+.savedCollectionCard,
+.teamWorkspaceCard{
+  min-width:0;
+  display:block;
+  padding:18px;
+  border:1px solid #d9dde2;
+  border-radius:11px;
+  background:#fff;
+  color:#17181a;
+  text-decoration:none;
+  box-shadow:0 1px 2px rgba(17,24,39,.035);
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.savedCollectionCard:hover,
+.teamWorkspaceCard:hover{
+  transform:translateY(-2px);
+  border-color:#c9ced4;
+  box-shadow:0 12px 28px rgba(17,24,39,.07);
+}
+.savedCollectionCard{
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr) auto;
+  gap:11px;
+  align-items:start;
+}
+.libraryFolderGlyph{
+  width:32px;
+  height:25px;
+  position:relative;
+  margin-top:3px;
+  border:1.5px solid #22262b;
+  border-radius:4px;
+  background:#f7f8f9;
+}
+.libraryFolderGlyph:before{
+  content:"";
+  position:absolute;
+  top:-7px;
+  left:2px;
+  width:14px;
+  height:7px;
+  border:1.5px solid #22262b;
+  border-bottom:0;
+  border-radius:4px 4px 0 0;
+  background:#f7f8f9;
+}
+.savedCollectionCopy{min-width:0}
+.savedCollectionVisibility,
+.teamWorkspaceIdentity>span{
+  display:block;
+  margin-bottom:3px;
+  color:#8a9098;
+  font-size:.58rem;
+  font-weight:760;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.savedCollectionCopy h2,
+.teamWorkspaceIdentity h2{
+  margin:0;
+  font-size:.96rem;
+  line-height:1.25;
+}
+.savedCollectionCopy p{
+  margin:8px 0 0;
+  display:-webkit-box;
+  overflow:hidden;
+  color:#686e76;
+  font-size:.7rem;
+  line-height:1.4;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+}
+.savedCollectionMeta{
+  display:grid;
+  justify-items:end;
+  gap:1px;
+}
+.savedCollectionMeta strong{font-size:.9rem}
+.savedCollectionMeta span{color:#8a9098;font-size:.58rem}
+.libraryContentHeader{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:18px;
+  margin:8px 0 14px;
+}
+.libraryContentHeader h2{
+  margin:3px 0 0;
+  font-size:1.15rem;
+}
+.savedAnnotationGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(360px,1fr));
+  gap:18px;
+  align-items:start;
+}
+.savedAnnotationItem{
+  min-width:0;
+}
+.savedAnnotationItem>.annotationWebCard{
+  margin-bottom:8px;
+}
+.savedCollectionAction{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin:0 0 10px;
+  padding:8px;
+  border:1px solid #e0e3e7;
+  border-radius:8px;
+  background:#fff;
+}
+.savedCollectionAction select{
+  min-width:0;
+  flex:1;
+  padding:.56rem .65rem;
+  border:1px solid #d7dbe0;
+  border-radius:6px;
+  font-size:.68rem;
+}
+.savedCollectionAction .button{
+  min-height:30px!important;
+  padding:.46rem .62rem!important;
+  font-size:.65rem!important;
+}
+.libraryCanvasEmpty{
+  min-height:300px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:8px;
+  padding:36px;
+  border:1px dashed #cfd4da;
+  border-radius:12px;
+  background:rgba(255,255,255,.55);
+  text-align:center;
+}
+.libraryCanvasEmpty h2{margin:0;font-size:1.08rem}
+.libraryCanvasEmpty p{
+  max-width:520px;
+  margin:0;
+  color:#727880;
+  font-size:.78rem;
+  line-height:1.5;
+}
+.teamWorkspaceCard{
+  display:flex;
+  flex-direction:column;
+  min-height:230px;
+}
+.teamWorkspaceCard header{
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  gap:10px;
+  align-items:start;
+}
+.teamWorkspaceGlyph{
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border:1.5px solid #22262b;
+  border-radius:8px;
+  background:#f7f8f9;
+}
+.teamWorkspaceGlyph:before{
+  content:"";
+  width:16px;
+  height:12px;
+  border:1.5px solid #22262b;
+  border-radius:50% 50% 42% 42%;
+}
+.teamWorkspaceIdentity{min-width:0}
+.teamWorkspaceStats{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:17px 0 14px;
+}
+.teamWorkspaceStats>span{
+  display:grid;
+  gap:2px;
+  padding:10px;
+  border:1px solid #eceef1;
+  border-radius:8px;
+  background:#fafbfc;
+}
+.teamWorkspaceStats strong{font-size:.92rem}
+.teamWorkspaceStats small{color:#8b9199;font-size:.59rem}
+.teamWorkspaceCard .teamMemberStrip{
+  margin:0 0 14px;
+}
+.teamWorkspaceCard footer{
+  margin-top:auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding-top:11px;
+  border-top:1px solid #eceef1;
+  color:#686e76;
+  font-size:.68rem;
+  font-weight:720;
+}
+@media(max-width:900px){
+  .savedLibraryCanvas,.teamsLibraryCanvas{padding:22px 18px 60px}
+  .libraryCanvasHero{display:grid;grid-template-columns:1fr}
+  .libraryAddMenu{justify-self:start}
+  .libraryCreatePopover{left:0;right:auto}
+  .savedAnnotationGrid{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .savedLibraryCanvas,.teamsLibraryCanvas{padding-left:14px;padding-right:14px}
+  .libraryCanvasHero h1{font-size:2.45rem}
+  .libraryCanvasToolbar{align-items:flex-start;display:grid}
+  .savedCollectionGrid,.teamWorkspaceGrid{grid-template-columns:1fr}
+  .savedCollectionCard{grid-template-columns:34px minmax(0,1fr)}
+  .savedCollectionMeta{grid-column:2;justify-items:start}
+}
