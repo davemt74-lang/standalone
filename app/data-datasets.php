@@ -49,12 +49,17 @@ function data_dataset_create(PDO $pdo,array $viewer,array $input): array {
     data_dataset_require_admin($viewer);if(!data_dataset_ready($pdo))throw new RuntimeException('Dataset Registry requires the Phase 38 database upgrade.');
     $name=mb_substr(trim((string)($input['name']??'')),0,180);if($name==='')throw new InvalidArgumentException('Dataset name is required.');
     $description=mb_substr(trim((string)($input['description']??'')),0,5000)?:null;$policy=data_dataset_policy_normalize($input);$slug=data_dataset_slug($name);
-    $q=$pdo->prepare('SELECT COALESCE(MAX(version_number),0)+1 FROM data_datasets WHERE slug=?');$q->execute([$slug]);$version=(int)$q->fetchColumn();
-    $public=ulid_like();$policyJson=data_attribution_encode($policy);$policyHash=hash('sha256',$policyJson);
-    $pdo->prepare("INSERT INTO data_datasets(public_id,name,slug,version_number,purpose,status,description,selection_policy_json,selection_policy_hash,created_by_user_id) VALUES(?,?,?,?,?,'draft',?,?,?,?)")
-        ->execute([$public,$name,$slug,$version,$policy['purpose'],$description,$policyJson,$policyHash,$viewer['id']]);$id=(int)$pdo->lastInsertId();
-    data_dataset_event($pdo,$id,(int)$viewer['id'],'created',['selection_policy_hash'=>$policyHash,'purpose'=>$policy['purpose']]);
-    return data_dataset_get($pdo,$public)??[];
+    return app_with_advisory_lock($pdo,'dataset-slug',$slug,function() use($pdo,$viewer,$name,$description,$policy,$slug){
+        $ownsTx=!$pdo->inTransaction();if($ownsTx)$pdo->beginTransaction();
+        try{
+            $q=$pdo->prepare('SELECT COALESCE(MAX(version_number),0)+1 FROM data_datasets WHERE slug=?');$q->execute([$slug]);$version=(int)$q->fetchColumn();
+            $public=ulid_like();$policyJson=data_attribution_encode($policy);$policyHash=hash('sha256',$policyJson);
+            $pdo->prepare("INSERT INTO data_datasets(public_id,name,slug,version_number,purpose,status,description,selection_policy_json,selection_policy_hash,created_by_user_id) VALUES(?,?,?,?,?,'draft',?,?,?,?)")
+              ->execute([$public,$name,$slug,$version,$policy['purpose'],$description,$policyJson,$policyHash,$viewer['id']]);$id=(int)$pdo->lastInsertId();
+            data_dataset_event($pdo,$id,(int)$viewer['id'],'created',['selection_policy_hash'=>$policyHash,'purpose'=>$policy['purpose']]);
+            $result=data_dataset_get($pdo,$public)??[];if($ownsTx)$pdo->commit();return $result;
+        }catch(Throwable $e){if($ownsTx&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+    },5);
 }
 function data_dataset_get(PDO $pdo,string $publicId): ?array {
     if(!data_dataset_ready($pdo))return null;$q=$pdo->prepare('SELECT d.*,cu.display_name created_by_name,fu.display_name frozen_by_name FROM data_datasets d JOIN users cu ON cu.id=d.created_by_user_id LEFT JOIN users fu ON fu.id=d.frozen_by_user_id WHERE d.public_id=? LIMIT 1');$q->execute([trim($publicId)]);$r=$q->fetch();if(!$r)return null;$r['selection_policy']=json_decode((string)$r['selection_policy_json'],true)?:[];return $r;
