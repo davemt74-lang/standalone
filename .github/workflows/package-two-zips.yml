@@ -39,7 +39,7 @@ jobs:
           mkdir -p package-website/downloads package-website/extension
           cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
           cp extension/manifest.json package-website/extension/manifest.json
-          GITHUB_SHA="$GITHUB_SHA" php bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
+          GITHUB_SHA="$GITHUB_SHA" php package-website/bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
           (cd package-website && zip -qr ../Annotated-Website.zip .)
           unzip -t Annotated-Website.zip
           test -f package-website/index.php
