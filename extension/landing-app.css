@@ -1723,3 +1723,90 @@
   .savedCollectionCard{grid-template-columns:34px minmax(0,1fr)}
   .savedCollectionMeta{grid-column:2;justify-items:start}
 }
+
+
+/* Agent composer anchored context UI */
+.homeAgentDock{
+  isolation:isolate;
+}
+.homeAgentDock .agentChatContextPicker{
+  position:absolute;
+  left:0;
+  right:auto;
+  top:auto;
+  bottom:calc(100% + 10px);
+  z-index:132;
+  width:min(360px,calc(100vw - 28px));
+  max-height:min(58vh,440px);
+  overflow:auto;
+  border:1px solid #d9dde2;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 16px 44px rgba(17,24,39,.14);
+}
+.homeAgentDock .agentChatContextTray{
+  position:absolute;
+  left:50%;
+  right:auto;
+  top:auto;
+  bottom:calc(100% + 8px);
+  transform:translateX(-50%);
+  width:min(720px,100%);
+  max-width:calc(100vw - 28px);
+  min-height:0;
+  padding:6px 8px;
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:6px;
+  border:1px solid #e3e3dd;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(17,24,39,.08);
+  z-index:131;
+}
+.homeAgentDock .agentChatContextTray[hidden]{
+  display:none!important;
+}
+.homeAgentDock .agentChatContextPicker button{
+  width:auto;
+  height:auto;
+  font-size:inherit;
+}
+.homeAgentDock .agentChatContextPickerHead button{
+  width:28px;
+  height:28px;
+  padding:0;
+  border-radius:50%;
+}
+.homeAgentDock .agentContextOption{
+  width:100%;
+  height:auto;
+  padding:10px 12px;
+  border-radius:0;
+  text-align:left;
+}
+.homeAgentDock .agentContextChip button{
+  width:18px;
+  height:18px;
+  padding:0;
+  border-radius:50%;
+  font-size:.72rem;
+}
+@media(max-width:900px){
+  .homeAgentDock .agentChatContextPicker{
+    position:absolute;
+    left:0;
+    right:auto;
+    bottom:calc(100% + 10px);
+    width:min(360px,calc(100vw - 20px));
+    max-height:55vh;
+  }
+  .homeAgentDock .agentChatContextTray{
+    left:50%;
+    right:auto;
+    bottom:calc(100% + 8px);
+    width:min(100%,calc(100vw - 20px));
+    transform:translateX(-50%);
+  }
+}
