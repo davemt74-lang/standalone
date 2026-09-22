@@ -12,7 +12,7 @@ foreach([
 ] as $file)if(!is_file($root.'/'.$file))$fail[]='Phase 45 file missing: '.$file;
 
 $migration=(string)file_get_contents($root.'/database/migrations/20260922_044_production_model_observability.sql');
-foreach(['input_cost_per_million_usd','output_cost_per_million_usd','data_model_observations','data_model_outcome_signals','data_model_monitoring_policies','data_model_health_snapshots','data_model_incidents','data_model_incident_events','observation_hash','metrics_hash','policy_hash','evidence_hash'] as $needle)if(!str_contains($migration,$needle))$fail[]='Phase 45 migration contract missing: '.$needle;
+foreach(['input_cost_per_million_usd','output_cost_per_million_usd','max_failure_rate_delta','max_p95_latency_delta_ms','data_model_observations','data_model_outcome_signals','data_model_monitoring_policies','data_model_health_snapshots','data_model_incidents','data_model_incident_events','observation_hash','metrics_hash','policy_hash','evidence_hash'] as $needle)if(!str_contains($migration,$needle))$fail[]='Phase 45 migration contract missing: '.$needle;
 $avoid('database/migrations/20260922_044_production_model_observability.sql','DROP TABLE','Phase 45 migration must be expand-only.');
 $avoid('database/migrations/20260922_044_production_model_observability.sql','TRUNCATE','Phase 45 migration must be expand-only.');
 
@@ -34,6 +34,9 @@ foreach([
  ['ai_generate(','Phase 45 monitoring must not delegate health decisions to model inference.']
 ] as [$needle,$message])$avoid('app/data-model-observability.php',$needle,$message);
 
+$need('app/data-model-observability.php','candidate_vs_baseline','Phase 45 health snapshots must compare candidate and baseline cohorts.');
+$need('app/data-model-observability.php','candidate_failure_rate_delta','Phase 45 must detect candidate failure-rate drift against the concurrent baseline.');
+$need('app/data-model-observability.php','candidate_p95_latency_delta_ms','Phase 45 must detect candidate latency drift against the concurrent baseline.');
 $need('app/ai.php','data_model_observability_record_ai_run','Every AI run path must attempt production telemetry recording.');
 $need('app/ai.php','microtime(true)','AI run telemetry must measure request latency.');
 $need('app/ai.php','catch(Throwable $ignored)','Observability failures must fail open for user AI responses.');
@@ -47,7 +50,7 @@ $need('admin/model-observability-export.php',"\$_SERVER['REQUEST_METHOD']!=='POS
 $need('admin/model-observability-export.php','require_csrf()','Phase 45 health export must require CSRF.');
 $need('admin/model-observability-export.php','Telemetry/outcomes only; no prompts or model output text.','Phase 45 export must state its privacy boundary.');
 $avoid('admin/model-observability-export.php','output_text','Phase 45 export must not include model output text.');
-$avoid('admin/model-observability-export.php','prompt','Phase 45 export must not include prompts.');
+$avoid('admin/model-observability-export.php','input_refs_json','Phase 45 export must not include raw AI input-reference payloads.');
 
 $need('app/notifications.php','model_observability_incident','Model health incidents must integrate with existing Notifications.');
 $need('app/cognitive-feed.php','data_model_observability_cognitive_observations','Model health incidents must integrate with Agent Now / Cognitive Feed.');
