@@ -36,6 +36,10 @@ $need('app/shell.php','<a href="/data-attribution.php">Data & Attribution</a>','
 $need('app/shell.php','app_shell_research_agent_rows','Sidebar Research Agents must come from permission-scoped Agent conversations.');
 $need('app/shell.php','appShellSectionTitle">Research Agents','User sidebar must expose a Research Agents section.');
 $need('app/shell.php','/home.php?agent=','Research Agent sidebar items must deep-link to existing Agent chats.');
+$need('app/shell.php','app_shell_research_project_rows','Sidebar Research Projects must come from permission-scoped project records.');
+$need('app/shell.php','appShellSectionTitle">Research Projects','Accessible Research projects must appear in the sidebar.');
+$need('app/shell.php','/research-project.php?id=','Research Project sidebar items must deep-link to existing project workspaces.');
+$need('assets/css/app.css','/* Sidebar Research Projects */','Research Projects must have compact sidebar styling.');
 $need('assets/css/app.css','/* Sidebar Research Agents */','Research Agents list must have dedicated compact sidebar styling.');
 $avoid('app/shell.php','<strong>Chrome Extension</strong>','User sidebar footer must not include the Chrome Extension download button.');
 $avoid('app/shell.php','Open Admin','User sidebar footer must not include an Open Admin button.');
