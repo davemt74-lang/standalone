@@ -416,3 +416,16 @@
 @media(max-width:900px){
   .homeFeedPage.agentChatMode .homeWorkspaceLayout{max-width:none;padding-bottom:108px}
 }
+
+
+/* Home single-column focus */
+.homeWorkspaceLayout{grid-template-columns:minmax(0,820px)!important;justify-content:center;max-width:900px!important;margin-left:auto!important;margin-right:auto!important;gap:0!important}
+.homeWorkspaceLayout>#homeFeedCanvas{grid-column:1!important;grid-row:1;min-width:0;width:100%}
+.homeWorkspaceLayout>.homeRightRail{display:none!important}
+.homeFeedRuntimeNotice{width:auto;margin:0 0 18px}
+.homeFeedPage.agentChatMode .homeWorkspaceLayout{grid-template-columns:minmax(0,980px)!important;max-width:1020px!important;justify-content:center}
+.homeFeedPage.agentChatMode .homeAgentCanvas{max-width:980px;margin:0 auto}
+@media(max-width:900px){
+  .homeWorkspaceLayout,.homeFeedPage.agentChatMode .homeWorkspaceLayout{grid-template-columns:minmax(0,1fr)!important;max-width:none!important;padding-left:16px;padding-right:16px}
+  .homeFeedRuntimeNotice{margin-bottom:14px}
+}
