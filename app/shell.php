@@ -82,6 +82,7 @@ function app_shell_admin_nav(string $path): string {
     $links[]=app_shell_link('/admin/model-observability.php','Model Health','◉',$path);
     $links[]=app_shell_link('/admin/model-improvements.php','Model Improvements','↻',$path);
     $links[]=app_shell_link('/admin/model-campaigns.php','Improvement Campaigns','⇄',$path);
+    $links[]=app_shell_link('/admin/intelligence-release-audit.php','Intelligence Release Audit','✓',$path);
     $links[]=app_shell_link('/admin/system-health.php','System Health','◫',$path);
     $links[]=app_shell_link('/upgrade.php','Database Upgrade','⇧',$path);
     $links[]=app_shell_link('/admin/assistant.php','Admin Assistant','⌁',$path);
