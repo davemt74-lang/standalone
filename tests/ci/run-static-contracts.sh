@@ -7,6 +7,7 @@ php tests/app-shell-contracts.php
 php tests/home-runtime-hardening-contract.php
 php tests/home-render-integrity-contract.php
 php tests/research-folder-canvas-contract.php
+php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
 php -n tests/installer-runtime-compat-contract.php
 php tests/concurrency-contracts.php
