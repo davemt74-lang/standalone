@@ -22,7 +22,7 @@ $specs=release_worker_specs();$expected=['media','transcription','source_monitor
 p49(array_keys($specs)===$expected,'one canonical release schedule covers all nine required workers');
 p49(($specs['evaluation']['command']??'')==='php bin/evaluation-worker.php','Evaluation Harness worker is part of the release-critical schedule');
 $evaluationWorker=(string)file_get_contents($root.'/bin/evaluation-worker.php');
-p49(str_contains($evaluationWorker,"release_worker_heartbeat($pdo,'evaluation','starting'")&&str_contains($evaluationWorker,"release_worker_heartbeat($pdo,'evaluation',$status"),'Evaluation worker emits start and terminal release heartbeats');
+p49(str_contains($evaluationWorker,'release_worker_heartbeat($pdo,\'evaluation\',\'starting\'')&&str_contains($evaluationWorker,'release_worker_heartbeat($pdo,\'evaluation\',$status'),'Evaluation worker emits start and terminal release heartbeats');
 $queues=release_queue_health($pdo);p49(isset($queues['evaluation'],$queues['training'],$queues['post_training']),'release queue health covers Evaluation, Training, and Post-Training pipeline queues');
 
 $parts=parse_url('https://annotated.example.test');p49(($parts['scheme']??'')==='https','test production URL fixture is HTTPS');
