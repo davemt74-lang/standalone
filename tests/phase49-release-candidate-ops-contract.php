@@ -55,6 +55,11 @@ $need('tests/ci/package-smoke.sh','Phase 49 release package smoke test passed.',
 
 $need('.github/workflows/release-rc.yml',"'v1.1.0-rc*'",'RC workflow must use the V1.1 RC tag family.');
 $avoid('.github/workflows/release-rc.yml',"'v1.0.0-rc*'",'Old V1.0 RC tag family must not remain authoritative.');
+$need('.github/workflows/release-rc.yml',"php-version: ['8.1', '8.3']", 'RC tag workflow must repeat the PHP 8.1/8.3 full-regression matrix.');
+$need('.github/workflows/release-rc.yml','bash tests/ci/run-full-regression.sh','RC tag workflow must run the complete historical regression before packaging.');
+$need('.github/workflows/release-rc.yml','php tests/install-db.php','RC tag workflow must repeat the MySQL 8 fresh-install gate.');
+$need('.github/workflows/release-rc.yml','uses: ./.github/workflows/package-two-zips.yml','RC tag workflow must use the same hardened reusable packager as the PR phase gate.');
+$need('.github/workflows/release-rc.yml','git merge-base --is-ancestor','RC tag workflow must prove the tagged commit belongs to the tested development lineage.');
 $need('docs/RELEASE-V1.1-RC1.md','php bin/release-backup.php --dry-run --json','Operator runbook must include backup preflight.');
 $need('docs/RELEASE-V1.1-RC1.md','php bin/release-backup-verify.php','Operator runbook must include independent backup verification.');
 $need('docs/RELEASE-V1.1-RC1.md','php bin/evaluation-worker.php','Operator runbook must include the Evaluation worker.');
