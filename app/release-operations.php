@@ -12,13 +12,14 @@ function release_latest_migration(string $root): ?string {
 function release_package_fingerprint(string $root): string {
     $root=rtrim($root,'/');if(!is_dir($root))throw new RuntimeException('Release package root is unavailable.');
     $material=[];$it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS));
-    foreach($it as $file){$path=str_replace('\\','/',$file->getPathname());$relative=ltrim(substr($path,strlen($root)),'/');if($file->isLink())throw new RuntimeException('Release package contains a symlink: '.$relative);if(!$file->isFile())continue;
+    foreach($it as $file){$path=str_replace('\\','/',$file->getPathname());$relative=ltrim(substr($path,strlen($root)),'/');
         if($relative===''||$relative==='RELEASE-MANIFEST.json'||$relative==='config.php'||$relative==='.DS_Store')continue;
         if(str_starts_with($relative,'.git/')||str_starts_with($relative,'.github/')||str_starts_with($relative,'tests/'))continue;
         if(str_starts_with($relative,'extension/')&&$relative!=='extension/manifest.json')continue;
         if(str_starts_with($relative,'storage/uploads/')||str_starts_with($relative,'storage/logs/')||str_starts_with($relative,'storage/private/'))continue;
         if(str_starts_with($relative,'uploads/')&&$relative!=='uploads/.htaccess')continue;
         if(in_array($relative,['SHA256SUMS.txt','BUILD-METADATA.txt','Annotated-Website.zip','Annotated-Chrome-Extension.zip'],true))continue;
+        if($file->isLink())throw new RuntimeException('Release package contains a symlink: '.$relative);if(!$file->isFile())continue;
         $hash=hash_file('sha256',$path);if($hash===false)throw new RuntimeException('Release package file could not be hashed: '.$relative);$material[$relative]=$hash;
     }
     ksort($material,SORT_STRING);return hash('sha256',json_encode($material,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
