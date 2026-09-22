@@ -82,7 +82,7 @@ Each deployment gets a monitoring policy with:
 - optional maximum average micro-USD cost,
 - optional minimum average outcome score.
 
-Policies are hashed. Editing a policy does not change Phase 44 state.
+Policies are hashed. During Shadow/Canary periods, policy can also bound candidate-vs-baseline drift with maximum failure-rate delta and maximum p95-latency delta. Drift checks require enough samples in both cohorts. Editing a policy does not change Phase 44 state.
 
 ## Health snapshots
 
@@ -94,6 +94,8 @@ Health snapshots are append-only metric records for a deployment route/window. M
 - average input/output tokens,
 - average/total estimated cost when available,
 - outcome signal count and mean score,
+- candidate and baseline cohort metrics,
+- candidate-vs-baseline failure-rate and p95-latency deltas,
 - Shadow-candidate observation count,
 - served observation count,
 - threshold breaches.
