@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/runtime-compat.php';
+
 $configFile = dirname(__DIR__) . '/config.php';
 if (!is_file($configFile)) {
     if(PHP_SAPI!=='cli'){header('Location: /install.php');exit;}
