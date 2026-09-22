@@ -22,7 +22,7 @@ assert_home_runtime($cognitive!==false&&$preflight<$cognitive,'Schema preflight 
 assert_home_runtime($feed!==false&&$preflight<$feed,'Schema preflight runs before feed queries');
 assert_home_runtime(str_contains($home,"header('Location: /upgrade.php?from=home')"),'Admin is routed to the database upgrader when migrations are pending');
 assert_home_runtime(str_contains($home,'catch(Throwable $e)'),'Home contains fail-closed runtime guards');
-assert_home_runtime(str_contains($home,'home-optional-runtime'),'Optional Home modules log a traceable runtime incident');
+assert_home_runtime(str_contains($home,'$homeRuntimeIncidents=[]')&&str_contains($home,'app_schema_runtime_incident($e,\'home-\'.$component)'),'Optional Home modules log traceable component-level runtime incidents');
 assert_home_runtime(str_contains($schema,"['users','profile_image_url']"),'Schema preflight verifies the Home profile-image dependency');
 assert_home_runtime(str_contains($schema,"['user_preferences','profile_visibility']"),'Schema preflight verifies Home privacy preference dependencies');
 assert_home_runtime(str_contains($schema,"['user_preferences','search_visibility']"),'Schema preflight verifies Home discovery preference dependencies');
