@@ -12,12 +12,12 @@ $creator=$makeUser('ReleaseCreator','admin');$reviewer=$makeUser('ReleaseReviewe
 $routeBefore=(int)($pdo->query('SELECT admin_default_model_id FROM ai_settings WHERE id=1')->fetchColumn()?:0);
 
 $registry=data_model_registry_create($pdo,$creator,['name'=>'Phase43 Model Family '.$run,'description'=>'Release decision fixture']);
-$baseline=data_model_version_create($pdo,$creator,$registry['public_id'],['version_label'=>'baseline-v1','origin'=>'external_hosted','architecture'=>'fixture','intended_use'=>'rollback baseline']);$pdo->prepare("UPDATE data_model_versions SET status='approved',status_changed_at=NOW() WHERE id=?")->execute([$baseline['id']]);$baseline=data_model_version_get($pdo,$baseline['public_id']);
+$baseline=data_model_version_create($pdo,$creator,$registry['public_id'],['version_label'=>'baseline-v1','origin'=>'annotated_trained','architecture'=>'fixture','intended_use'=>'rollback baseline']);$pdo->prepare("UPDATE data_model_versions SET status='approved',status_changed_at=NOW() WHERE id=?")->execute([$baseline['id']]);$baseline=data_model_version_get($pdo,$baseline['public_id']);
 $candidate=data_model_version_create($pdo,$creator,$registry['public_id'],['version_label'=>'candidate-v1','origin'=>'annotated_trained','architecture'=>'fixture trained','intended_use'=>'release candidate','artifact_ref'=>'registry://phase43/candidate','artifact_hash'=>hash('sha256','candidate-'.$run)]);
 p43($baseline['status']==='approved'&&$candidate['status']==='experimental'&&data_model_version_integrity($baseline)['ok']&&data_model_version_integrity($candidate)['ok'],'fixture has integrity-valid governed baseline and experimental candidate');
 
 $otherRegistry=data_model_registry_create($pdo,$creator,['name'=>'Other Family '.$run]);
-$wrongRollback=data_model_version_create($pdo,$creator,$otherRegistry['public_id'],['version_label'=>'wrong-rollback','origin'=>'external_hosted']);$pdo->prepare("UPDATE data_model_versions SET status='approved' WHERE id=?")->execute([$wrongRollback['id']]);$wrongRollback=data_model_version_get($pdo,$wrongRollback['public_id']);
+$wrongRollback=data_model_version_create($pdo,$creator,$otherRegistry['public_id'],['version_label'=>'wrong-rollback','origin'=>'annotated_trained']);$pdo->prepare("UPDATE data_model_versions SET status='approved' WHERE id=?")->execute([$wrongRollback['id']]);$wrongRollback=data_model_version_get($pdo,$wrongRollback['public_id']);
 
 $datasetPublic=$pub('dataset');$policyJson=data_attribution_encode(['fixture'=>'phase43']);$pdo->prepare("INSERT INTO data_datasets(public_id,name,slug,version_number,purpose,status,selection_policy_json,selection_policy_hash,created_by_user_id) VALUES(?,?,?,1,'training','frozen',?,?,?)")->execute([$datasetPublic,'Phase43 Fixture Dataset','phase43-'.$run,$policyJson,hash('sha256',$policyJson),$creator['id']]);$datasetId=(int)$pdo->lastInsertId();
 
