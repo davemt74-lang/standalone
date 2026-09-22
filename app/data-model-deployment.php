@@ -70,6 +70,13 @@ function data_model_deployment_route_keys(array|string $value): array {
     if(!$keys)throw new InvalidArgumentException('Select at least one governed AI routing task.');
     return $keys;
 }
+function data_model_deployment_assert_routing_edit_allowed(PDO $pdo,array $routeKeys): void {
+    if(!data_model_deployment_ready($pdo))return;
+    $wanted=data_model_deployment_route_keys($routeKeys);$blocked=[];
+    $q=$pdo->query("SELECT public_id,status,route_keys_json FROM data_model_deployments WHERE status IN ('preflight_passed','shadow','canary','limited','paused','full')");
+    foreach($q->fetchAll() as $row){$reserved=json_decode((string)$row['route_keys_json'],true);if(!is_array($reserved))continue;$hit=array_values(array_intersect($wanted,$reserved));foreach($hit as $key)$blocked[$key]=(string)$row['public_id'];}
+    if($blocked)throw new RuntimeException('AI routing change is blocked by active Phase 44 deployment reservation: '.implode(', ',array_keys($blocked)).'. Use the Model Deployments workspace.');
+}
 function data_model_deployment_monitoring_policy(array $input): array {
     return [
         'monitoring_window_minutes'=>max(15,min(10080,(int)($input['monitoring_window_minutes']??120))),
