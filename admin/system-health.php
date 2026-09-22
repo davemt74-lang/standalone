@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__).'/app/bootstrap.php';$admin=require_admin($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');$health=release_environment_checks($pdo,$config);
+require dirname(__DIR__).'/app/bootstrap.php';$admin=require_admin($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');$ops=release_operational_audit($pdo,$config,dirname(__DIR__));$health=$ops['environment'];
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>System Health · Annotated Admin</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <header class="topbar"><a class="brand" href="/admin/">Annotated Admin</a><nav><a href="/admin/source-monitor.php">Sources</a><a href="/admin/moderation.php">Moderation</a><a href="/admin/users.php">Users</a></nav></header>
 <main class="panel releaseHealth"><div class="pageTitle"><span class="eyebrow"><?=h($health['release'])?></span><h1>Production readiness</h1><p><?= $ops['ready']?'Operational release checks pass.':'One or more blocking operational checks require attention.'?> <?=h((string)$health['warnings'])?> environment warning(s).</p></div>
