@@ -59,14 +59,14 @@ $need('app/data-datasets.php','source_object_public_ids','Phase 38 selection pol
 $need('app/data-datasets.php','source_object_public_id IN','Phase 38 candidate query must enforce the campaign source-object scope.');
 $need('admin/datasets.php','CAMPAIGN-SCOPED SELECTION','Dataset Registry must visibly disclose Phase 47 exact-ID scoping before human freeze.');
 
-$need('app/data-attribution.php',"$meta['training_example']",'Approved Phase 46 training examples must expose Phase 41 supervised metadata.');
+$need('app/data-attribution.php','$meta[\'training_example\']','Approved Phase 46 training examples must expose Phase 41 supervised metadata.');
 $need('app/data-attribution.php',"'attribution_required'=>false,'reason'=>'human_approved_model_improvement_example'",'Human-sanitized approved Phase 46 examples must not be blocked from internal Phase 41 training by attribution-required policy.');
 $need('app/data-attribution.php',"'commercial_training'=>false",'Phase 46/47 approved examples must remain commercial-training ineligible.');
 $need('app/data-attribution.php',"'shared_retrieval'=>false",'Phase 46/47 approved examples must remain outside shared retrieval.');
 
 foreach(['PHASE 47 · MODEL IMPROVEMENT CAMPAIGNS','Controlled retraining & remediation handoff','1 · SCOPE','2 · APPROVED EVIDENCE','3 · DATASET DRAFTS','4 · LOCK PLAN','5 · HUMAN DATASET FREEZE','6 · REGRESSION BASELINE','7 · TRAINING HANDOFF','8 · POST-TRAINING HANDOFF','CLOSED-LOOP OUTCOME'] as $needle)$need('admin/model-campaigns.php',$needle,'Phase 47 Admin workspace contract missing: '.$needle);
-$need('admin/model-campaigns.php','does not freeze a dataset','Phase 47 UI must state the human dataset-freeze boundary.');
-$need('admin/model-campaigns.php','does not queue or submit training','Phase 47 UI must state the Phase 41 execution boundary.');
+$need('admin/model-campaigns.php','Phase 47 cannot freeze them','Phase 47 UI must state the human dataset-freeze boundary.');
+$need('admin/model-campaigns.php','Queue/submission remains an explicit Training Registry action.','Phase 47 UI must state the Phase 41 execution boundary.');
 $need('admin/model-campaigns.php','not a claim that the problem can never recur','Phase 47 UI must avoid overstating absence of recurrence.');
 
 $need('admin/model-campaigns-export.php',"\$_SERVER['REQUEST_METHOD']!=='POST'",'Phase 47 campaign export must be POST-only.');
