@@ -46,6 +46,9 @@ function data_model_improvement_case_get(PDO $pdo,string $publicId): ?array {
     $q=$pdo->prepare('SELECT c.*,mv.public_id model_version_public_id,mv.version_label model_version_label,d.public_id deployment_public_id,i.public_id incident_public_id,u.display_name owner_name,t.display_name triaged_by_name FROM data_model_improvement_cases c LEFT JOIN data_model_versions mv ON mv.id=c.model_version_id LEFT JOIN data_model_deployments d ON d.id=c.deployment_id LEFT JOIN data_model_incidents i ON i.id=c.primary_incident_id LEFT JOIN users u ON u.id=c.owner_user_id LEFT JOIN users t ON t.id=c.triaged_by_user_id WHERE c.public_id=? LIMIT 1');
     $q->execute([trim($publicId)]);return $q->fetch()?:null;
 }
+function data_model_improvement_case_for_incident(PDO $pdo,int $incidentId): ?array {
+    $q=$pdo->prepare("SELECT c.public_id FROM data_model_improvement_evidence e JOIN data_model_improvement_cases c ON c.id=e.case_id WHERE e.incident_id=? ORDER BY e.id DESC LIMIT 1");$q->execute([$incidentId]);$p=(string)($q->fetchColumn()?:'');return $p!==''?data_model_improvement_case_get($pdo,$p):null;
+}
 function data_model_improvement_case_by_cluster(PDO $pdo,string $clusterKey): ?array {
     $q=$pdo->prepare('SELECT public_id FROM data_model_improvement_cases WHERE cluster_key=? LIMIT 1');$q->execute([$clusterKey]);$p=(string)($q->fetchColumn()?:'');return $p!==''?data_model_improvement_case_get($pdo,$p):null;
 }
@@ -170,6 +173,12 @@ function data_model_improvement_create_dataset_draft(PDO $pdo,array $viewer,stri
 }
 function data_model_improvement_regression_cases(PDO $pdo,?int $modelVersionId=null,int $limit=100): array {
     $limit=max(1,min(500,$limit));$where=$modelVersionId?' WHERE r.model_version_id=?':'';$q=$pdo->prepare("SELECT r.*,p.public_id proposal_public_id,c.public_id case_public_id,mv.version_label model_version_label FROM data_model_regression_cases r JOIN data_model_improvement_proposals p ON p.id=r.proposal_id JOIN data_model_improvement_cases c ON c.id=r.case_id LEFT JOIN data_model_versions mv ON mv.id=r.model_version_id$where ORDER BY r.id DESC LIMIT $limit");$q->execute($modelVersionId?[$modelVersionId]:[]);return $q->fetchAll();
+}
+function data_model_improvement_backfill(PDO $pdo,array $viewer,int $limit=500): array {
+    data_model_improvement_require_admin($viewer);$limit=max(1,min(5000,$limit));$cases=[];
+    $q=$pdo->query("SELECT * FROM data_model_incidents ORDER BY id DESC LIMIT $limit");foreach($q->fetchAll() as $incident){$case=data_model_improvement_ingest_incident($pdo,$incident);if($case)$cases[$case['public_id']]=1;}
+    $q=$pdo->query("SELECT * FROM data_model_outcome_signals WHERE signal_value<0 ORDER BY id DESC LIMIT $limit");foreach($q->fetchAll() as $signal){$case=data_model_improvement_ingest_negative_signal($pdo,$signal);if($case)$cases[$case['public_id']]=1;}
+    return ['cases_touched'=>count($cases),'evidence_scanned'=>(int)$limit];
 }
 function data_model_improvement_summary(PDO $pdo): array {
     if(!data_model_improvement_ready($pdo))return ['ready'=>false];$scalar=fn(string $sql)=>(int)$pdo->query($sql)->fetchColumn();
