@@ -4,6 +4,7 @@ set -euo pipefail
 php tests/release-contracts.php
 php tests/security-contracts.php
 php tests/app-shell-contracts.php
+php tests/home-runtime-hardening-contract.php
 php -n tests/runtime-compat-contract.php
 php -n tests/installer-runtime-compat-contract.php
 php tests/concurrency-contracts.php
