@@ -28,6 +28,21 @@ function post_auth_destination(PDO $pdo,int $userId): string {
 }
 function users_exist(PDO $pdo): bool { return (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn() > 0; }
 function ulid_like(): string { return bin2hex(random_bytes(13)); }
+function app_advisory_lock_name(string $namespace,string|int $key): string {
+    $namespace=preg_replace('/[^a-z0-9_-]+/i','-',trim($namespace))?:'lock';
+    return 'annotated:'.substr($namespace,0,16).':'.substr(hash('sha256',$namespace.':'.(string)$key),0,32);
+}
+function app_advisory_lock(PDO $pdo,string $namespace,string|int $key,int $timeoutSeconds=5): string {
+    $name=app_advisory_lock_name($namespace,$key);$timeout=max(0,min(30,$timeoutSeconds));
+    $q=$pdo->prepare('SELECT GET_LOCK(?,?)');$q->execute([$name,$timeout]);if((int)$q->fetchColumn()!==1)throw new RuntimeException('This governed operation is already in progress. Please retry.');
+    return $name;
+}
+function app_advisory_unlock(PDO $pdo,string $name): void {
+    try{$q=$pdo->prepare('SELECT RELEASE_LOCK(?)');$q->execute([$name]);}catch(Throwable $ignored){}
+}
+function app_with_advisory_lock(PDO $pdo,string $namespace,string|int $key,callable $callback,int $timeoutSeconds=5): mixed {
+    $name=app_advisory_lock($pdo,$namespace,$key,$timeoutSeconds);try{return $callback();}finally{app_advisory_unlock($pdo,$name);}
+}
 function json_response(array $data, int $status=200): never { http_response_code($status); header('Content-Type: application/json; charset=utf-8'); echo json_encode($data, JSON_UNESCAPED_SLASHES); exit; }
 function api_headers(): void { $origin=$_SERVER['HTTP_ORIGIN']??''; if($origin && preg_match('#^chrome-extension://[a-p]{32}$#',$origin)){header('Access-Control-Allow-Origin: '.$origin);header('Vary: Origin');} header('Access-Control-Allow-Headers: Content-Type, Authorization');header('Access-Control-Allow-Methods: GET, POST, OPTIONS'); if($_SERVER['REQUEST_METHOD']==='OPTIONS'){http_response_code(204);exit;} }
 function canonicalize_url_legacy(string $url): string {

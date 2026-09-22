@@ -61,7 +61,7 @@ function intelligence_release_campaign_checks(PDO $pdo,int $limit=100): array {
 function intelligence_release_closed_loop_sample(PDO $pdo): array {
     $result=['available'=>false,'pass'=>false,'campaign'=>null,'checks'=>[]];
     if(!data_model_campaign_ready($pdo))return $result;
-    $q=$pdo->query("SELECT public_id FROM data_model_improvement_campaigns WHERE plan_hash IS NOT NULL ORDER BY id DESC LIMIT 1");$public=(string)($q->fetchColumn()?:'');if($public==='')return $result;
+    $q=$pdo->query("SELECT public_id FROM data_model_improvement_campaigns WHERE plan_hash IS NOT NULL AND status<>'abandoned' ORDER BY id DESC LIMIT 1");$public=(string)($q->fetchColumn()?:'');if($public==='')return $result;
     $campaign=data_model_campaign_get($pdo,$public);if(!$campaign)return $result;$result['available']=true;$result['campaign']=['public_id'=>$campaign['public_id'],'title'=>$campaign['title'],'status'=>$campaign['status']];
     $checks=[];
     $checks[]=intelligence_release_audit_check('phase47_plan','Phase 47 campaign plan',data_model_campaign_plan_integrity($pdo,$campaign)['ok'],'Locked campaign plan hash validates.');

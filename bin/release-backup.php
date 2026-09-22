@@ -10,6 +10,7 @@ $preview=['ready'=>$req['pass'],'destination'=>$dest,'requirements'=>$req['check
 if($dry){echo $json?json_encode($preview,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL:("Backup dry run: ".($req['pass']?'READY':'BLOCKED')."\nDestination: $dest\n");exit($req['pass']?0:1);}
 if(!$req['pass']){fwrite(STDERR,"Backup blocked: prerequisites are incomplete. Run with --dry-run --json for details.\n");exit(2);}
 if(!is_dir($base)&&!mkdir($base,0700,true)&&!is_dir($base))throw new RuntimeException('Unable to create backup output directory.');if(!mkdir($dest,0700,true))throw new RuntimeException('Unable to create backup directory.');
+$incomplete=$dest.'/.INCOMPLETE';file_put_contents($incomplete,"Backup creation has not completed successfully.\n",LOCK_EX);@chmod($incomplete,0600);
 $target=$req['database'];$clientFile=tempnam(sys_get_temp_dir(),'annotated-db-');if($clientFile===false)throw new RuntimeException('Unable to create temporary database client file.');
 try{
     chmod($clientFile,0600);$cnf="[client]\nuser=".release_mysql_option_quote($target['user'])."\npassword=".release_mysql_option_quote($target['password'])."\n";if($target['unix_socket'])$cnf.="socket=".release_mysql_option_quote((string)$target['unix_socket'])."\n";else $cnf.="host=".release_mysql_option_quote((string)$target['host'])."\nport=".(int)$target['port']."\n";file_put_contents($clientFile,$cnf,LOCK_EX);
@@ -17,5 +18,6 @@ try{
     $storage=rtrim((string)$config['storage']['private_root'],'/');$tar=release_process_run([$req['commands']['tar'],'-C',dirname($storage),'-czf',$dest.'/private-storage.tar.gz',basename($storage)]);if($tar['code']!==0)throw new RuntimeException('Private storage backup failed: '.mb_substr(trim($tar['stderr']),0,500));@chmod($dest.'/private-storage.tar.gz',0600);
     $manifest=release_backup_manifest_write($dest,$config,$root,['build_sha'=>(string)(getenv('ANNOTATED_BUILD_SHA')?:getenv('GITHUB_SHA')?:'')]);$verify=release_backup_manifest_verify($dest);if(!$verify['ok'])throw new RuntimeException('Backup verification failed immediately after creation: '.implode(' ',$verify['errors']));
     $restoreFile=$dest.'/RESTORE.txt';file_put_contents($restoreFile,"Annotated backup ".$manifest['backup_id']."\nVerify: php bin/release-backup-verify.php --backup=".escapeshellarg($dest)."\nRestore plan: php bin/release-restore-plan.php --backup=".escapeshellarg($dest)."\n",LOCK_EX);@chmod($restoreFile,0600);
+    @unlink($incomplete);
     $result=['ok'=>true,'backup_id'=>$manifest['backup_id'],'directory'=>$dest,'files'=>$manifest['files']];echo $json?json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL:("Backup complete.\nID: ".$manifest['backup_id']."\nDirectory: $dest\n");
 }finally{@unlink($clientFile);}
