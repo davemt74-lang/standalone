@@ -10,13 +10,18 @@ function release_latest_migration(string $root): ?string {
     $files=glob(rtrim($root,'/').'/database/migrations/*.sql')?:[];sort($files,SORT_STRING);return $files?basename((string)end($files)):null;
 }
 function release_package_fingerprint(string $root): string {
-    $root=rtrim($root,'/');$files=[
-      $root.'/app/release.php',$root.'/app/release-operations.php',$root.'/database/schema.sql',$root.'/extension/manifest.json',
-      $root.'/bin/release-preflight.php',$root.'/bin/release-backup.php',$root.'/bin/release-backup-verify.php',$root.'/bin/release-restore-plan.php',
-      $root.'/docs/RELEASE-V1.1-RC1.md',$root.'/docs/phase-49-release-candidate-operational-hardening.md'
-    ];$latest=release_latest_migration($root);if($latest)$files[]=$root.'/database/migrations/'.$latest;
-    $material=[];foreach($files as $file)$material[substr($file,strlen($root)+1)]=is_file($file)?hash_file('sha256',$file):null;
-    return hash('sha256',json_encode($material,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
+    $root=rtrim($root,'/');if(!is_dir($root))throw new RuntimeException('Release package root is unavailable.');
+    $material=[];$it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS));
+    foreach($it as $file){if(!$file->isFile())continue;$path=str_replace('\\','/',$file->getPathname());$relative=ltrim(substr($path,strlen($root)),'/');
+        if($relative===''||$relative==='RELEASE-MANIFEST.json'||$relative==='config.php'||$relative==='.DS_Store')continue;
+        if(str_starts_with($relative,'.git/')||str_starts_with($relative,'.github/')||str_starts_with($relative,'tests/'))continue;
+        if(str_starts_with($relative,'extension/')&&$relative!=='extension/manifest.json')continue;
+        if(str_starts_with($relative,'storage/uploads/')||str_starts_with($relative,'storage/logs/')||str_starts_with($relative,'storage/private/'))continue;
+        if(str_starts_with($relative,'uploads/')&&$relative!=='uploads/.htaccess')continue;
+        if(in_array($relative,['SHA256SUMS.txt','BUILD-METADATA.txt','Annotated-Website.zip','Annotated-Chrome-Extension.zip'],true))continue;
+        $material[$relative]=hash_file('sha256',$path);
+    }
+    ksort($material,SORT_STRING);return hash('sha256',json_encode($material,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
 }
 function release_manifest_data(string $root,?string $buildSha=null): array {
     $manifestPath=rtrim($root,'/').'/extension/manifest.json';$manifest=is_file($manifestPath)?json_decode((string)file_get_contents($manifestPath),true):null;
@@ -35,6 +40,17 @@ function release_manifest_data(string $root,?string $buildSha=null): array {
       'build_sha'=>$buildSha?:null,
     ];
 }
+function release_installed_manifest_status(string $root): array {
+    $path=rtrim($root,'/').'/RELEASE-MANIFEST.json';if(!is_file($path))return ['pass'=>false,'detail'=>'RELEASE-MANIFEST.json is missing from the deployed package.','manifest'=>null];
+    try{$manifest=json_decode((string)file_get_contents($path),true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){return ['pass'=>false,'detail'=>'RELEASE-MANIFEST.json is invalid JSON.','manifest'=>null];}
+    $errors=[];if(($manifest['schema']??'')!=='annotated.release-manifest.v1')$errors[]='schema mismatch';if(($manifest['version']??'')!==ANNOTATED_RELEASE_VERSION)$errors[]='application version mismatch';if((int)($manifest['phase']??0)!==ANNOTATED_RELEASE_PHASE)$errors[]='release phase mismatch';if(($manifest['extension_version']??'')!==ANNOTATED_EXTENSION_VERSION)$errors[]='extension version mismatch';
+    $latest=release_latest_migration($root);if(($manifest['latest_migration']??null)!==$latest)$errors[]='latest migration mismatch';
+    try{$computed=release_package_fingerprint($root);}catch(Throwable $e){$computed='';$errors[]='package fingerprint could not be computed';}
+    $stored=(string)($manifest['package_fingerprint']??'');if($stored===''||$computed===''||!hash_equals($stored,$computed))$errors[]='package fingerprint mismatch';
+    $sha=(string)($manifest['build_sha']??'');if($sha!==''&&!preg_match('/^[a-f0-9]{40}$/',$sha))$errors[]='build SHA is invalid';
+    return ['pass'=>!$errors,'detail'=>$errors?('Installed package integrity failed: '.implode(', ',$errors)):'Installed release manifest and full deploy-tree fingerprint validate.','manifest'=>$manifest,'computed_fingerprint'=>$computed,'errors'=>$errors];
+}
+
 function release_database_target(array $config): array {
     $dsn=trim((string)($config['db']['dsn']??''));if(!str_starts_with(strtolower($dsn),'mysql:'))throw new RuntimeException('Release backup supports MySQL/MariaDB DSNs only.');
     $target=['host'=>'127.0.0.1','port'=>3306,'database'=>'','unix_socket'=>null,'charset'=>'utf8mb4'];
@@ -105,18 +121,21 @@ function release_backup_manifest_write(string $backupDir,array $config,string $r
 function release_backup_manifest_verify(string $backupDir): array {
     $backupDir=rtrim($backupDir,'/');$path=$backupDir.'/manifest.json';if(!is_file($path))return ['ok'=>false,'errors'=>['manifest.json is missing.'],'manifest'=>null];
     try{$manifest=json_decode((string)file_get_contents($path),true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){return ['ok'=>false,'errors'=>['manifest.json is invalid JSON.'],'manifest'=>null];}
-    $errors=[];$copy=$manifest;$stored=(string)($copy['backup_id']??'');unset($copy['backup_id']);$computed=hash('sha256',json_encode($copy,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));if($stored===''||!hash_equals($stored,$computed))$errors[]='Backup manifest identity hash does not match.';
+    $errors=[];if(($manifest['schema']??'')!=='annotated.release-backup.v1')$errors[]='Backup manifest schema is unsupported.';
+    if(empty($manifest['release']['package_fingerprint'])||!preg_match('/^[a-f0-9]{64}$/',(string)$manifest['release']['package_fingerprint']))$errors[]='Backup release package fingerprint is missing or invalid.';
+    $copy=$manifest;$stored=(string)($copy['backup_id']??'');unset($copy['backup_id']);$computed=hash('sha256',json_encode($copy,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));if($stored===''||!hash_equals($stored,$computed))$errors[]='Backup manifest identity hash does not match.';
     foreach((array)($manifest['files']??[]) as $name=>$meta){if(!preg_match('/^[A-Za-z0-9._-]+$/',(string)$name)){$errors[]='Unsafe backup component name.';continue;}$file=$backupDir.'/'.$name;if(!is_file($file)){$errors[]=$name.' is missing.';continue;}$sha=hash_file('sha256',$file);if(empty($meta['sha256'])||!hash_equals((string)$meta['sha256'],$sha))$errors[]=$name.' checksum does not match.';$bytes=filesize($file)?:0;if((int)($meta['bytes']??-1)!==$bytes)$errors[]=$name.' byte size does not match.';}
     foreach(['database.sql.gz','private-storage.tar.gz'] as $required)if(!isset($manifest['files'][$required]))$errors[]=$required.' is absent from manifest.';
     return ['ok'=>!$errors,'errors'=>$errors,'manifest'=>$manifest,'computed_backup_id'=>$computed];
 }
 function release_restore_plan(string $backupDir,array $config): array {
-    $verified=release_backup_manifest_verify($backupDir);if(!$verified['ok'])throw new RuntimeException('Backup verification failed: '.implode(' ',$verified['errors']));$target=release_database_target($config);$req=release_backup_requirements($config);
-    $storage=(string)$config['storage']['private_root'];$parent=dirname(rtrim($storage,'/'));$base=basename(rtrim($storage,'/'));
+    $verified=release_backup_manifest_verify($backupDir);if(!$verified['ok'])throw new RuntimeException('Backup verification failed: '.implode(' ',$verified['errors']));
+    $target=release_database_target($config);$req=release_backup_requirements($config);if(!$req['pass'])throw new RuntimeException('Restore prerequisites are incomplete: '.implode('; ',array_map(fn($k,$v)=>$v['pass']?null:$k.'='.$v['detail'],array_keys($req['checks']),$req['checks'])));
+    $storage=(string)$config['storage']['private_root'];$parent=dirname(rtrim($storage,'/'));$base=basename(rtrim($storage,'/'));$manifest=$verified['manifest'];
+    $sourceDb=(string)($manifest['database']['database']??'');if($sourceDb===''||$sourceDb!==$target['database'])throw new RuntimeException('Backup database target does not match the configured database. Restore requires an explicitly matching target.');
+    $sourceStorage=(string)($manifest['private_storage_basename']??'');if($sourceStorage===''||$sourceStorage!==$base)throw new RuntimeException('Backup private-storage target does not match the configured storage directory.');
     return [
-      'backup_id'=>$verified['manifest']['backup_id'],
-      'database_target'=>$target['database'],
-      'storage_target'=>$storage,
+      'backup_id'=>$manifest['backup_id'],'backup_release'=>$manifest['release']??null,'database_source'=>$sourceDb,'database_target'=>$target['database'],'storage_source_basename'=>$sourceStorage,'storage_target'=>$storage,
       'steps'=>[
         'Stop web traffic and every Annotated worker.',
         'Create a fresh emergency backup of the currently deployed database and private storage.',
@@ -127,27 +146,27 @@ function release_restore_plan(string $backupDir,array $config): array {
         'Run php bin/release-preflight.php and the post-deploy smoke checklist before reopening traffic.',
       ],
       'commands'=>[
-        'database'=>($req['commands']['gzip']?:'gzip').' -dc '.escapeshellarg(rtrim($backupDir,'/').'/database.sql.gz').' | '.($req['commands']['client']?:'mysql').' --defaults-extra-file=<0600-client.cnf> '.escapeshellarg($target['database']),
-        'storage'=>($req['commands']['tar']?:'tar').' -C '.escapeshellarg($parent).' -xzf '.escapeshellarg(rtrim($backupDir,'/').'/private-storage.tar.gz'),
+        'database'=>$req['commands']['gzip'].' -dc '.escapeshellarg(rtrim($backupDir,'/').'/database.sql.gz').' | '.$req['commands']['client'].' --defaults-extra-file=<0600-client.cnf> '.escapeshellarg($target['database']),
+        'storage'=>$req['commands']['tar'].' -C '.escapeshellarg($parent).' -xzf '.escapeshellarg(rtrim($backupDir,'/').'/private-storage.tar.gz'),
       ],
-      'destructive'=>true,
-      'execution'=>'manual_confirmation_required',
+      'destructive'=>true,'execution'=>'manual_confirmation_required',
     ];
 }
 function release_config_file_security(string $root): array {
     $path=rtrim($root,'/').'/config.php';if(!is_file($path))return ['pass'=>false,'detail'=>'config.php is missing.'];clearstatcache(true,$path);$mode=fileperms($path);$writableByOthers=$mode!==false&&(($mode&0022)!==0);return ['pass'=>!$writableByOthers,'detail'=>$writableByOthers?'config.php is group/world writable; restrict filesystem permissions.':'config.php is not group/world writable.'];
 }
 function release_operational_audit(PDO $pdo,array $config,string $root): array {
-    $health=release_environment_checks($pdo,$config);$backup=release_backup_requirements($config);$configSecurity=release_config_file_security($root);$manifest=release_manifest_data($root);
+    $health=release_environment_checks($pdo,$config);$backup=release_backup_requirements($config);$configSecurity=release_config_file_security($root);$manifest=release_manifest_data($root);$installed=release_installed_manifest_status($root);
     $extPath=rtrim($root,'/').'/extension/manifest.json';$ext=is_file($extPath)?json_decode((string)file_get_contents($extPath),true):[];$extensionMatch=(string)($ext['version']??'')===ANNOTATED_EXTENSION_VERSION&&(int)($ext['manifest_version']??0)===3;
     $workers=$health['workers'];$workerProblems=[];foreach($workers as $name=>$worker)if(in_array($worker['status'],['never','stale','failure'],true))$workerProblems[]=$name.':'.$worker['status'];
     $checks=[
       'environment'=>['pass'=>$health['ready'],'detail'=>$health['ready']?'Critical environment checks pass.':'One or more critical environment checks fail.'],
+      'package_integrity'=>['pass'=>$installed['pass'],'detail'=>$installed['detail']],
       'required_workers'=>['pass'=>!$workerProblems,'detail'=>$workerProblems?('Worker readiness failures: '.implode(', ',$workerProblems)):'All required workers have fresh non-failing heartbeats.'],
       'backup_tooling'=>['pass'=>$backup['pass'],'detail'=>$backup['pass']?'Database/private-storage backup tooling is available.':'Backup prerequisites are incomplete.'],
       'config_permissions'=>$configSecurity,
       'extension_identity'=>['pass'=>$extensionMatch,'detail'=>$extensionMatch?'Manifest V3 extension version matches release identity.':'Extension manifest does not match the canonical release identity.'],
     ];
     $ready=count(array_filter($checks,fn($c)=>!$c['pass']))===0;
-    return ['ready'=>$ready,'release'=>$manifest,'checks'=>$checks,'environment'=>$health,'backup'=>$backup,'worker_specs'=>release_worker_specs(),'generated_at'=>gmdate('c')];
+    return ['ready'=>$ready,'release'=>$manifest,'installed_manifest'=>$installed,'checks'=>$checks,'environment'=>$health,'backup'=>$backup,'worker_specs'=>release_worker_specs(),'generated_at'=>gmdate('c')];
 }
