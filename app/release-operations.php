@@ -52,11 +52,19 @@ function release_normalize_path(string $path): string {
     foreach(explode('/',$path) as $part){if($part===''||$part==='.')continue;if($part==='..'){array_pop($parts);continue;}$parts[]=$part;}
     return ($absolute?'/':'').implode('/',$parts);
 }
+function release_resolve_path(string $path): string {
+    $normalized=release_normalize_path($path);$probe=$normalized;$tail=[];
+    while(!file_exists($probe)&&dirname($probe)!==$probe){array_unshift($tail,basename($probe));$probe=dirname($probe);}
+    $resolved=realpath($probe)?:$probe;return release_normalize_path(rtrim($resolved,'/').($tail?'/'.implode('/',$tail):''));
+}
 function release_backup_destination_assert(string $base,string $root): string {
     $base=rtrim(trim($base),'/');if($base==='')throw new RuntimeException('Backup output directory is required.');
-    if(!str_starts_with($base,'/'))$base=getcwd().'/'.$base;$normalized=release_normalize_path($base);$rootNormalized=release_normalize_path(realpath($root)?:$root);
+    if(!str_starts_with($base,'/'))$base=getcwd().'/'.$base;$normalized=release_resolve_path($base);$rootNormalized=release_resolve_path($root);
     if($normalized===$rootNormalized||str_starts_with(rtrim($normalized,'/').'/',rtrim($rootNormalized,'/').'/'))throw new RuntimeException('Backup output must be outside the Annotated application/web tree.');
     return $normalized;
+}
+function release_mysql_option_quote(string $value): string {
+    return '"'.str_replace(["\\","\"","\n","\r","\t"],["\\\\","\\\"","\\n","\\r","\\t"],$value).'"';
 }
 function release_backup_requirements(array $config): array {
     $checks=[];$target=null;try{$target=release_database_target($config);$checks['database_target']=['pass'=>true,'detail'=>$target['database'].' @ '.($target['unix_socket']?:($target['host'].':'.$target['port']))];}catch(Throwable $e){$checks['database_target']=['pass'=>false,'detail'=>$e->getMessage()];}
@@ -91,7 +99,7 @@ function release_backup_manifest_write(string $backupDir,array $config,string $r
       'files'=>$files,
     ];
     $id=hash('sha256',json_encode($manifest,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));$manifest['backup_id']=$id;
-    file_put_contents($backupDir.'/manifest.json',json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR).PHP_EOL,LOCK_EX);
+    $manifestPath=$backupDir.'/manifest.json';file_put_contents($manifestPath,json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR).PHP_EOL,LOCK_EX);@chmod($manifestPath,0600);
     return $manifest;
 }
 function release_backup_manifest_verify(string $backupDir): array {
