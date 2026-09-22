@@ -28,8 +28,8 @@ $avoid('app/data-model-release.php','data_training_provider_submit(','Phase 43 m
 
 foreach(['NEW DECISION','MODEL-RISK CHECKLIST','INDEPENDENT REVIEW','FINAL HUMAN DECISION','SIGNED DECISION','SIGNATURES','AUDIT EVENTS'] as $needle)$need('admin/model-release.php',$needle,'Phase 43 Admin Release Decision contract missing: '.$needle);
 $need('admin/model-release.php','Another administrator must sign the independent review.','Admin UI must explain creator/reviewer separation.');
-$need('admin/model-release.php','Open Model Registry for governed lifecycle action','Admin UI must hand Proceed decisions to explicit Phase 40 controls.');
-$need('admin/model-release.php','Review AI routing separately','Admin UI must keep routing separate from lifecycle decision.');
+$need('admin/model-release.php','Open Governed Deployment','Admin UI must hand Proceed decisions to the explicit Phase 44 governed deployment controller.');
+$need('admin/model-release.php','Review baseline AI routing','Admin UI must keep baseline routing review separate from the Phase 43 human decision.');
 $need('admin/model-release.php','it will not change model lifecycle or production routing','Final signing UI must state the non-automatic boundary.');
 $need('admin/model-release-export.php',"\$_SERVER['REQUEST_METHOD']!=='POST'",'Signed decision export must be POST-only.');
 $need('admin/model-release-export.php','require_csrf()','Signed decision export must require CSRF.');
