@@ -1,6 +1,6 @@
-# Annotated V1 RC1 Release Runbook
+# Annotated V1.1 RC1 Release Runbook
 
-This runbook applies to **Annotated V1 RC1 (`1.0.0-rc1`)** and must be executed against the exact release-candidate commit that passed CI and package validation.
+This runbook applies to **Annotated V1.1 RC1 (`1.1.0-rc1`)** and must be executed against the exact release-candidate commit that passed CI and package validation.
 
 ## Fresh installation
 
@@ -11,21 +11,22 @@ This runbook applies to **Annotated V1 RC1 (`1.0.0-rc1`)** and must be executed 
 5. Create the first administrator when redirected to `/first-admin.php`.
 6. No manual SQL import and no bootstrap/setup key are required.
 7. Complete the production settings and run `php bin/release-preflight.php`.
+8. Confirm Admin → **System Health** and Admin → **Intelligence Release Audit** have no blocking failures.
 
 If the installer detects unrelated or partially initialized tables, it stops rather than modifying that database. Use a fresh empty database for a new install.
 
 ## 1. Before deployment
 
-1. Back up the MariaDB database with a transaction-consistent dump appropriate to your environment.
-2. Back up the complete directory configured as `storage.private_root`.
-3. Record the currently deployed Git commit and deployment-package checksum.
-4. Confirm that the previous deploy package is still available for rollback.
-5. Run:
-   ```bash
-   php bin/release-preflight.php
-   ```
-6. Resolve every **FAIL**. Review **WARN** items before continuing.
-7. Confirm Admin → **System Health & Release** reports the expected RC version.
+1. Run `php bin/release-preflight.php` and resolve every blocking failure.
+2. Run `php bin/release-backup.php --dry-run --json` and confirm backup prerequisites are available.
+3. Create a matched database/private-storage backup with `php bin/release-backup.php --output=/private/backup/root`.
+4. Verify it independently with `php bin/release-backup-verify.php --backup=/private/backup/root/<backup-directory>`.
+5. Generate the destructive restore plan with `php bin/release-restore-plan.php --backup=/private/backup/root/<backup-directory>` and archive it with the release evidence.
+6. Record the currently deployed Git commit, package fingerprint, deploy ZIP SHA-256, extension ZIP SHA-256, and backup ID.
+7. Confirm the previous known-good deploy package is still available for application rollback.
+8. Confirm Admin → **System Health** and **Intelligence Release Audit** report the expected V1.1 RC1 identity and no blocking failures.
+
+Backups must be written **outside the application/web tree**. The Phase 49 backup command enforces this boundary.
 
 ## 2. Required worker schedule
 
@@ -34,15 +35,18 @@ Run workers through Supervisor/systemd/cron using the same PHP/config/database e
 Suggested minimum cadence:
 
 ```text
-media-worker.php             continuously / at least every minute
-transcription-worker.php     continuously / at least every minute
-source-monitor-worker.php    every 5 minutes
-ai-worker.php                continuously / at least every minute
-saved-search-worker.php
-php bin/research-automations.php --limit=25      every 5 minutes
+php worker/media-worker.php                 continuously / at least every minute
+php worker/transcription-worker.php         continuously / at least every minute
+php worker/source-monitor-worker.php        every 5 minutes
+php worker/ai-worker.php                    continuously / at least every minute
+php worker/saved-search-worker.php          every 5 minutes
+php bin/research-automations.php --limit=25 every 5 minutes
+php bin/evaluation-worker.php               every minute while evaluations are queued
+php bin/training-worker.php                 every minute while training is queued/running
+php bin/post-training-worker.php            every minute while post-training work is queued
 ```
 
-After starting each worker, reload **Admin → System Health & Release** and verify a fresh heartbeat.
+After starting each worker, reload **Admin → System Health** and verify a fresh heartbeat for every required worker. Evaluation, Training, and Post-Training are release-critical whenever their queues are active.
 
 ## 3. Deployment
 
@@ -51,7 +55,8 @@ After starting each worker, reload **Admin → System Health & Release** and ver
 3. Sign in as an administrator.
 4. Open `/upgrade.php` and apply all pending forward-only migrations.
 5. Run `php bin/release-preflight.php` again.
-6. Verify login, OAuth buttons, extension authorization, evidence playback, source pages, Search, Live, Notifications, Research, claims/moderation, and Admin health.
+6. Verify `RELEASE-MANIFEST.json` reports V1.1 RC1 / `1.1.0-rc1`, Phase 49, the expected package fingerprint, and the exact deploy commit.
+7. Verify login, OAuth buttons, extension authorization, evidence playback, source pages, Search, Live, Notifications, Research, claims/moderation, Model Registry, Model Health, Improvement Campaigns, Intelligence Release Audit, and System Health.
 
 ## 4. Chrome extension RC
 
@@ -68,7 +73,7 @@ Before Chrome Web Store upload:
 - connect an account and verify Connected Accounts shows the extension version and expiry
 - revoke the session and confirm the sidebar requires reconnect
 
-## 5. V1 RC1 end-to-end release gate
+## 5. V1.1 RC1 end-to-end release gate
 
 Use a non-admin test account:
 
@@ -123,16 +128,20 @@ Archive with the release:
 - post-deploy health screenshot/export
 
 
-## 8. Phase 36 release-candidate baseline
+## 8. Phase 49 release-candidate baseline
 
-The V1 RC1 baseline is the merged Phase 36 release-candidate tree. Before promotion, verify the exact branch/commit being packaged contains:
+The V1.1 RC1 baseline is the exact merged Phase 49 release-candidate tree. Before promotion, verify the exact branch/commit being packaged contains:
 
-- Chrome `0.36.0`
-- Phase 36 end-to-end workspace journey gate
-- Phase 36 release-hardening contract
-- PHP 8.1 and PHP 8.3 CI
-- MariaDB integration and authorization suites
+- application release `1.1.0-rc1`
+- Chrome extension `0.36.0` (unchanged because Phase 37–49 did not require a Chrome feature revision)
+- Phase 37–48 intelligence governance and closed-loop audit gates
+- Phase 49 release operations contract and database audit
+- PHP 8.1 and PHP 8.3 full historical regression
+- MariaDB targeted Phase 37–49 integration
 - MySQL 8 fresh-install compatibility
-- two-package ZIP integrity and SHA-256 checksums
+- generated `RELEASE-MANIFEST.json`
+- package smoke verification
+- website/Chrome ZIP SHA-256 checksums
+- matched database/private-storage backup ID and verification result
 
-Do not promote an older `main` tree merely because it is the repository default branch; release from the exact tested release-candidate commit.
+Do not promote an older `main` tree merely because it is the repository default branch; release from the exact tested `annotated-v1-1-development` Phase 49 commit.

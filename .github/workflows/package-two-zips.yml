@@ -36,8 +36,10 @@ jobs:
             --exclude 'package-extension/' \
             --exclude 'Annotated-Website.zip' \
             --exclude 'Annotated-Chrome-Extension.zip'
-          mkdir -p package-website/downloads
+          mkdir -p package-website/downloads package-website/extension
           cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
+          cp extension/manifest.json package-website/extension/manifest.json
+          GITHUB_SHA="$GITHUB_SHA" php bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
           (cd package-website && zip -qr ../Annotated-Website.zip .)
           unzip -t Annotated-Website.zip
           test -f package-website/index.php
@@ -48,8 +50,21 @@ jobs:
           test -f package-website/admin/model-campaigns.php
           test -f package-website/admin/intelligence-release-audit.php
           test -f package-website/docs/phase-48-end-to-end-closed-loop-release-hardening.md
+          test -f package-website/docs/phase-49-release-candidate-operational-hardening.md
+          test -f package-website/app/release-operations.php
+          test -f package-website/bin/release-backup.php
+          test -f package-website/bin/release-backup-verify.php
+          test -f package-website/bin/release-restore-plan.php
+          test -f package-website/RELEASE-MANIFEST.json
+          test -f package-website/extension/manifest.json
           test -f package-website/chrome-extension.php
           test -f package-website/downloads/Annotated-Chrome-Extension.zip
+
+      - name: Smoke test release packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tests/ci/package-smoke.sh Annotated-Website.zip Annotated-Chrome-Extension.zip
 
       - name: Build metadata and checksums
         shell: bash
@@ -59,6 +74,7 @@ jobs:
             echo "validated_commit=$GITHUB_SHA"
             echo "workflow_run_id=$GITHUB_RUN_ID"
             echo "workflow_run_attempt=$GITHUB_RUN_ATTEMPT"
+            php -r '$m=json_decode(file_get_contents("package-website/RELEASE-MANIFEST.json"),true,512,JSON_THROW_ON_ERROR); echo "release=".($m["release"]??"").PHP_EOL."release_version=".($m["version"]??"").PHP_EOL."release_phase=".($m["phase"]??"").PHP_EOL."package_fingerprint=".($m["package_fingerprint"]??"").PHP_EOL;'
           } > BUILD-METADATA.txt
           sha256sum Annotated-Website.zip Annotated-Chrome-Extension.zip > SHA256SUMS.txt
 
