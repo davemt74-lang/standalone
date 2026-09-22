@@ -72,17 +72,19 @@ $teams=$q->fetchAll();
   </section>
 
   <section class="researchLibraryToolbar" aria-label="Research workspace tools">
-    <nav class="researchLibraryTabs">
+    <nav class="researchLibraryTabs researchPrimaryActions">
       <a class="active" href="/research.php">Projects <span><?=h((string)count($projects))?></span></a>
       <a href="/research-portfolio.php">Portfolio</a>
       <a href="/research-publications.php">Living Research</a>
       <a href="/research-reviews.php">Review Center</a>
     </nav>
     <details class="researchAdvancedTools">
-      <summary>Advanced tools</summary>
+      <summary>Advanced Research tools</summary>
       <div class="researchAdvancedMenu">
         <a href="/research-network.php">Research Network</a>
+        <a href="/research-citations.php">Citations</a>
         <a href="/research-audit.php">Audit Ledger</a>
+        <a href="/research-provenance.php">Provenance</a>
         <a href="/research-verification.php">Verification</a>
         <a href="/research-evidence-packs.php">Evidence Packs</a>
         <a href="/research-outcomes.php">Decision Memory</a>
