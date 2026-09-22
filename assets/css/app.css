@@ -814,3 +814,15 @@
   .appShellContent>.notificationCenter{margin-top:10px}
   .notificationCenter{padding:18px}
 }
+
+
+/* Shared header stacking integrity */
+.appShellHeader{
+  z-index:400;
+  isolation:isolate;
+}
+.appHeaderNotificationMenu[open],
+.appUserMenu[open],
+.appMobileMenu[open]{
+  z-index:410;
+}
