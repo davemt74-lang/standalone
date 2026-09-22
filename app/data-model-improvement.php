@@ -38,8 +38,9 @@ function data_model_improvement_statuses(): array {
     ];
 }
 function data_model_improvement_case_actionable(array $case): bool {
+    $status=(string)($case['status']??$case['case_status']??'');
     return !in_array((string)($case['classification']??'untriaged'),['untriaged','expected_behavior','no_action'],true)
-        && (string)($case['status']??'')!=='no_action';
+        && $status!=='no_action';
 }
 
 function data_model_improvement_case_locked_campaign(PDO $pdo,int $caseId): ?array {
