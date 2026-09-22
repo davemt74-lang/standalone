@@ -11,6 +11,12 @@ $need('app/functions.php','profile_image_url','Current user identity must expose
 $need('app/shell.php','/teams.php','Teams must be first-class universal navigation.');
 $need('app/shell.php','/chrome-extension.php','Universal shell must expose Chrome extension download/install.');
 $need('app/shell.php','appUserMenu','Universal header must include the profile/avatar dropdown.');
+$need('app/shell.php','app_shell_header_notification','Universal header must render the notification center control.');
+$need('app/shell.php','app_shell_unread_count','Header notification badge must use the live unread notification count.');
+$need('app/shell.php','appHeaderNotificationBadge','Unread notifications must render as a header badge.');
+$need('assets/css/app.css','/* Annotated shell sharp UI pass */','Shared shell must include the sharp visual refinement layer.');
+$need('assets/css/app.css','.appHeaderNotificationBadge{','Header notification badge must have dedicated centered styling.');
+$need('assets/css/app.css','box-shadow:inset 2px 0 0 #111','Active sidebar navigation must use the sharper inset indicator.');
 $need('app/shell.php','appShellFooter','Every authenticated product page must inherit the shared footer.');
 $need('app/shell.php','$isAdmin','Admin navigation must be role-gated.');
 $need('app/shell.php','app_shell_admin_nav','Admin pages must use the dedicated permission-aware admin navigation.');
