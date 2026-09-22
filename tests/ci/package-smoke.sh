@@ -36,6 +36,8 @@ if(($r["extension_version"]??"")!=="0.36.0"||($m["version"]??"")!=="0.36.0")thro
 if(($m["manifest_version"]??0)!==3)throw new RuntimeException("Extension must remain Manifest V3.");
 if(($r["latest_migration"]??"")!=="20260922_046_model_improvement_campaigns.sql")throw new RuntimeException("Release manifest does not identify latest migration.");
 if(!preg_match("/^[a-f0-9]{64}$/",(string)($r["package_fingerprint"]??"")))throw new RuntimeException("Release package fingerprint missing.");
+require $site."/app/release.php"; require $site."/app/release-operations.php";
+if(!hash_equals((string)$r["package_fingerprint"],release_package_fingerprint($site)))throw new RuntimeException("Extracted package fingerprint does not match release manifest.");
 '
 for file in app/release.php app/release-operations.php admin/system-health.php bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php; do php -l "$tmp/site/$file" >/dev/null; done
 echo "Phase 49 release package smoke test passed."
