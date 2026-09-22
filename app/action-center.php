@@ -17,7 +17,9 @@ function action_center_kind_for_type(string $type): ?string {
     return match($type){
       'pending_agent_action'=>'confirm',
       'team_activity','review_requested','review_overdue'=>'respond',
-      'source_change','research_gap','research_conflict','related_conflict','review_stale','review_changes_requested','review_objection','change_impact','model_health_incident','model_improvement_case'=>'review',
+      'source_change','research_gap','research_conflict','related_conflict','review_stale','review_changes_requested','review_objection','change_impact'=>'review',
+      'model_health_incident'=>'review',
+      'model_improvement_case'=>'review',
       'research_task'=>'continue',
       default=>null
     };
