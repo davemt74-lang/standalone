@@ -34,6 +34,10 @@ $teamCtx=agent_chat_context_item($pdo,$owner,'team',$teamPublic);p12b(($teamCtx[
 p12b(agent_chat_context_item($pdo,$other,'team',$teamPublic)===null,'Agent Chat refuses Team context for non-members');
 
 $projectPublic=$pub('project');$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,title) VALUES(?,?,?)")->execute([$projectPublic,$owner['id'],'Agent Context Research']);
+$privateOtherProject=$pub('project-other');$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,title) VALUES(?,?,?)")->execute([$privateOtherProject,$other['id'],'Other Private Research']);
+$sidebarProjects=app_shell_research_project_rows($pdo,$owner,30);
+p12b(count(array_filter($sidebarProjects,fn($r)=>$r['public_id']===$projectPublic))===1,'Research project appears in the owner sidebar');
+p12b(count(array_filter($sidebarProjects,fn($r)=>$r['public_id']===$privateOtherProject))===0,'Research project sidebar does not leak inaccessible projects');
 $researchCtx=agent_chat_context_item($pdo,$owner,'research',$projectPublic);p12b(($researchCtx['public_id']??'')===$projectPublic,'Agent Chat can attach an authorized Research project');
 p12b(agent_chat_context_item($pdo,$other,'research',$projectPublic)===null,'Agent Chat refuses private Research context for unauthorized users');
 $contextOptions=agent_chat_context_options($pdo,$owner);
