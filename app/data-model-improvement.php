@@ -181,6 +181,22 @@ function data_model_improvement_backfill(PDO $pdo,array $viewer,int $limit=500):
     $q=$pdo->query("SELECT * FROM data_model_outcome_signals WHERE signal_value<0 ORDER BY id DESC LIMIT $limit");foreach($q->fetchAll() as $signal){$case=data_model_improvement_ingest_negative_signal($pdo,$signal);if($case)$cases[$case['public_id']]=1;}
     return ['cases_touched'=>count($cases),'evidence_scanned'=>(int)$limit];
 }
+function data_model_improvement_regression_gate(PDO $pdo,array $version): array {
+    if(!data_model_improvement_ready($pdo))return ['pass'=>true,'required'=>0,'covered'=>0,'missing'=>[],'reason'=>'phase46_unavailable'];
+    if(in_array((string)($version['status']??''),['active','deprecated','retired'],true))return ['pass'=>true,'required'=>0,'covered'=>0,'missing'=>[],'reason'=>'prior_lifecycle_state_exempt'];
+    $q=$pdo->prepare("SELECT r.public_id,r.label,p.corpus_item_public_id FROM data_model_regression_cases r JOIN data_model_improvement_proposals p ON p.id=r.proposal_id JOIN data_model_versions src ON src.id=r.model_version_id WHERE src.registry_id=? AND r.active=1 AND p.status='published' ORDER BY r.id");
+    $q->execute([$version['registry_id']]);$required=$q->fetchAll();if(!$required)return ['pass'=>true,'required'=>0,'covered'=>0,'missing'=>[],'reason'=>'no_active_production_regressions'];
+    $links=data_model_evaluation_links($pdo,(int)$version['id']);$covered=[];$missing=[];
+    foreach($required as $reg){
+        $ok=false;foreach($links as $link){
+            if($link['run_status']!=='completed'||$link['benchmark_type']!=='model'||(int)$link['model_id']!==(int)$version['ai_model_id'])continue;
+            $run=data_evaluation_run_get($pdo,(string)$link['run_public_id']);if(!$run||!data_evaluation_run_integrity($pdo,$run)['ok'])continue;
+            $cq=$pdo->prepare('SELECT COUNT(*) FROM data_evaluation_cases ec JOIN data_dataset_items di ON di.id=ec.expected_dataset_item_id WHERE ec.suite_id=? AND di.corpus_public_id=?');$cq->execute([$run['suite_id'],$reg['corpus_item_public_id']]);if((int)$cq->fetchColumn()>0){$ok=true;break;}
+        }
+        if($ok)$covered[]=(string)$reg['public_id'];else$missing[]=['public_id'=>$reg['public_id'],'label'=>$reg['label']];
+    }
+    return ['pass'=>count($missing)===0,'required'=>count($required),'covered'=>count($covered),'covered_public_ids'=>$covered,'missing'=>$missing,'reason'=>$missing?'production_regression_coverage_missing':'all_active_production_regressions_covered'];
+}
 function data_model_improvement_summary(PDO $pdo): array {
     if(!data_model_improvement_ready($pdo))return ['ready'=>false];$scalar=fn(string $sql)=>(int)$pdo->query($sql)->fetchColumn();
     return ['ready'=>true,'cases'=>$scalar('SELECT COUNT(*) FROM data_model_improvement_cases'),'needs_triage'=>$scalar("SELECT COUNT(*) FROM data_model_improvement_cases WHERE status IN ('new','investigating')"),'eval_ready'=>$scalar("SELECT COUNT(*) FROM data_model_improvement_cases WHERE status='ready_for_evaluation'"),'training_ready'=>$scalar("SELECT COUNT(*) FROM data_model_improvement_cases WHERE status='ready_for_training'"),'published_eval'=>$scalar("SELECT COUNT(*) FROM data_model_improvement_proposals WHERE proposal_type='evaluation_case' AND status='published'"),'published_training'=>$scalar("SELECT COUNT(*) FROM data_model_improvement_proposals WHERE proposal_type='training_example' AND status='published'"),'regression_cases'=>$scalar('SELECT COUNT(*) FROM data_model_regression_cases WHERE active=1')];
