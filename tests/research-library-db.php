@@ -56,8 +56,9 @@ $pdo->prepare("INSERT INTO annotations(public_id,user_id,source_id,source_versio
 $annotationId=(int)$pdo->lastInsertId();
 $pdo->prepare('INSERT INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')
     ->execute([$projectId,$annotationId,$owner['id']]);
-$pdo->prepare("INSERT INTO comments(annotation_id,user_id,body) VALUES(?,?,?)")
-    ->execute([$annotationId,$owner['id'],'Folder comment']);
+$commentPublic=$pub('comment');
+$pdo->prepare("INSERT INTO comments(public_id,annotation_id,user_id,body) VALUES(?,?,?,?)")
+    ->execute([$commentPublic,$annotationId,$owner['id'],'Folder comment']);
 $pdo->prepare("INSERT INTO annotation_reactions(annotation_id,user_id,reaction) VALUES(?,?,'like')")
     ->execute([$annotationId,$owner['id']]);
 
