@@ -224,8 +224,9 @@ function research_review_list(PDO $pdo,array $viewer,string $scope='all',int $li
     elseif($scope==='completed')$where[]="rr.status='completed'";
     elseif($scope==='open')$where[]="rr.status='open'";
     $sql=$where?implode(' AND ',$where):'1=1';
-    $q=$pdo->prepare("SELECT DISTINCT rr.public_id FROM research_reviews rr JOIN research_projects rp ON rp.id=rr.project_id LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE $sql ORDER BY rr.status='open' DESC,COALESCE(rr.due_at,'9999-12-31') ASC,rr.created_at DESC LIMIT ".$limit);
-    array_unshift($params,$viewer['id']);$q->execute($params);$out=[];
+    $accessJoin='';if(($viewer['role']??'')!=='admin'){$sql=str_replace('(rp.owner_user_id=? OR tm.user_id=?)','(rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?))',$sql);}
+    $q=$pdo->prepare("SELECT rr.public_id FROM research_reviews rr JOIN research_projects rp ON rp.id=rr.project_id WHERE $sql ORDER BY rr.status='open' DESC,COALESCE(rr.due_at,'9999-12-31') ASC,rr.created_at DESC,rr.id DESC LIMIT ".$limit);
+    $q->execute($params);$out=[];
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$r=research_review_access($pdo,$viewer,(string)$id);if(!$r)continue;$agg=research_review_aggregate($pdo,$r);$r['aggregate']=$agg;$r['assigned_to_viewer']=research_review_is_assigned($pdo,$viewer,$r);$r['overdue']=$r['status']==='open'&&!empty($r['due_at'])&&strtotime((string)$r['due_at'])<time();$out[]=$r;}return $out;
 }
 
