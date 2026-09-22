@@ -152,7 +152,7 @@ function data_model_deployment_runtime_context(PDO $pdo,array $d): array {
     $routingNow=data_model_deployment_routing_snapshot($pdo,(array)$d['route_keys']);$routingNowJson=data_attribution_encode($routingNow);$before=(array)$d['routing_before'];
     $allRollback=true;foreach((array)$d['route_keys'] as $key){if((int)($before[$key]??0)!==(int)($rollback['ai_model_id']??0)){$allRollback=false;break;}}
     $overrideConflict=false;
-    if($d['status']==='draft'&&$d['route_keys']){$marks=implode(',',array_fill(0,count($d['route_keys']),'?'));$q=$pdo->prepare("SELECT COUNT(*) FROM data_model_routing_overrides WHERE enabled=1 AND route_key IN ($marks)");$q->execute($d['route_keys']);$overrideConflict=(int)$q->fetchColumn()>0;}
+    if($d['status']==='draft'&&$d['route_keys']){$marks=implode(',',array_fill(0,count($d['route_keys']),'?'));$q=$pdo->prepare("SELECT COUNT(*) FROM data_model_routing_overrides WHERE route_key IN ($marks)");$q->execute($d['route_keys']);$overrideConflict=(int)$q->fetchColumn()>0;}
     $checks=[
         'release_decision_integrity'=>$releaseIntegrity['ok']??false,
         'release_context_current'=>$releaseContext['pass']??false,
