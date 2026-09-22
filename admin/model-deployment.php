@@ -11,7 +11,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     try{
         if($op==='create'){$d=data_model_deployment_create($pdo,$u,$releaseId,$_POST);header('Location:/admin/model-deployment.php?deployment='.rawurlencode((string)$d['public_id']));exit;}
         if($op==='preflight'){data_model_deployment_preflight($pdo,$u,$deploymentId);$success='Preflight passed. No production routing changed.';}
-        if($op==='shadow'){data_model_deployment_start_shadow($pdo,$u,$deploymentId);$success='Shadow stage started. Candidate responses are not user-visible.';}
+        if($op==='shadow'){data_model_deployment_start_shadow($pdo,$u,$deploymentId);$success='Shadow stage started. User-visible routing remains on the baseline; matching AI requests are mirrored asynchronously to the candidate.';}
         if($op==='checkpoint'){data_model_deployment_checkpoint_submit($pdo,$u,$deploymentId,(string)($_POST['recommendation']??''),(string)($_POST['note']??''));$success='Independent rollout checkpoint signed.';}
         if($op==='advance'){$d=data_model_deployment_advance($pdo,$u,$deploymentId);$success='Rollout advanced to '.$d['status'].'.';}
         if($op==='pause'){data_model_deployment_pause($pdo,$u,$deploymentId);$success='Staged rollout paused; temporary route overrides are disabled.';}
@@ -25,7 +25,7 @@ $context=$deployment&&in_array($deployment['status'],['draft','preflight_passed'
 $routeLabels=data_model_deployment_route_labels();
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Deployments · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="panel article">
-  <div class="pageTitle"><span class="eyebrow">PHASE 44 · GOVERNED MODEL DEPLOYMENT</span><h1>Staged rollout & rollback</h1><p>A signed Phase 43 Proceed decision authorizes consideration, not automatic production use. Phase 44 revalidates that decision, requires an approved runtime-bound candidate and active rollback model, then moves through explicit human-gated Shadow → Canary → Limited → Full stages.</p></div>
+  <div class="pageTitle"><span class="eyebrow">PHASE 44 · GOVERNED MODEL DEPLOYMENT</span><h1>Staged rollout & rollback</h1><p>A signed Phase 43 Proceed decision authorizes consideration, not automatic production use. Phase 44 revalidates that decision, requires an approved runtime-bound candidate and active rollback model, then moves through explicit human-gated Shadow → Canary → Limited → Full stages. Shadow mirrors production-shaped AI requests asynchronously while the baseline response remains authoritative.</p></div>
   <div class="inlineActions"><a class="button secondary" href="/admin/model-release.php">Release Decisions</a><a class="button secondary" href="/admin/model-registry.php">Model Registry</a><a class="button secondary" href="/admin/ai.php">Baseline AI Routing</a></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
   <section class="healthGrid">
