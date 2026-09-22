@@ -77,6 +77,8 @@ $purposeOptions=data_dataset_purposes();
         <label>Name<input name="name" maxlength="180" required value="<?=h($selected['name'])?>"></label>
         <label>Purpose<select name="purpose"><?php foreach($purposeOptions as $key=>$meta):?><option value="<?=h($key)?>" <?=$selected['purpose']===$key?'selected':''?>><?=h($meta['label'])?></option><?php endforeach?></select></label>
         <label>Corpus types<input name="corpus_types" value="<?=h(implode(', ',(array)($policy['corpus_types']??[])))?>"></label>
+        <input type="hidden" name="source_object_public_ids" value="<?=h(implode(', ',(array)($policy['source_object_public_ids']??[])))?>">
+        <?php if(!empty($policy['source_object_public_ids'])):?><div class="notice"><strong>CAMPAIGN-SCOPED SELECTION</strong><br>This draft is restricted to <?=h((string)count((array)$policy['source_object_public_ids']))?> exact approved source object(s). Phase 47 locked scope is preserved when this draft is edited.<br><span class="meta"><?=h(implode(', ',(array)$policy['source_object_public_ids']))?></span></div><?php endif?>
         <label>Maximum items<input type="number" name="max_items" min="1" max="10000" value="<?=h((string)($policy['max_items']??1000))?>"></label>
         <label>Description<textarea name="description" rows="3"><?=h((string)($selected['description']??''))?></textarea></label>
         <button class="button secondary" type="submit">Update draft</button>
