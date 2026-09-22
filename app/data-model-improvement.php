@@ -42,6 +42,18 @@ function data_model_improvement_case_actionable(array $case): bool {
         && (string)($case['status']??'')!=='no_action';
 }
 
+function data_model_improvement_case_locked_campaign(PDO $pdo,int $caseId): ?array {
+    if(!installer_table_exists($pdo,'data_model_improvement_campaigns')||!installer_table_exists($pdo,'data_model_improvement_campaign_cases'))return null;
+    $q=$pdo->prepare("SELECT c.public_id,c.title,c.status,c.plan_hash FROM data_model_improvement_campaign_cases cc JOIN data_model_improvement_campaigns c ON c.id=cc.campaign_id WHERE cc.improvement_case_id=? AND c.plan_hash IS NOT NULL AND c.status NOT IN ('completed','abandoned') ORDER BY c.id DESC LIMIT 1");$q->execute([$caseId]);return $q->fetch()?:null;
+}
+function data_model_improvement_actionable_proposal_locked(PDO $pdo,string $publicId,callable $callback): mixed {
+    $seed=data_model_improvement_proposal_get($pdo,$publicId);if(!$seed)throw new RuntimeException('Improvement proposal not found.');
+    return data_model_improvement_case_locked($pdo,(string)$seed['case_public_id'],function(array $case) use($pdo,$publicId,$callback){
+        if(!data_model_improvement_case_actionable($case))throw new RuntimeException('The source improvement case is no longer actionable.');
+        return data_model_improvement_proposal_locked($pdo,$publicId,function(array $proposal) use($callback,$case){return $callback($proposal,$case);});
+    });
+}
+
 function data_model_improvement_event(PDO $pdo,int $caseId,?int $actorId,string $type,array $details=[]): void {
     $json=$details?data_attribution_encode($details):null;$hash=data_attribution_hash(['case_id'=>$caseId,'event_type'=>$type,'details'=>$details]);
     $pdo->prepare('INSERT INTO data_model_improvement_events(case_id,actor_user_id,event_type,details_json,evidence_hash) VALUES(?,?,?,?,?)')->execute([$caseId,$actorId,$type,$json,$hash]);
@@ -131,6 +143,7 @@ function data_model_improvement_ingest_negative_signal(PDO $pdo,array $signal): 
 function data_model_improvement_triage(PDO $pdo,array $viewer,string $publicId,array $input): array {
     data_model_improvement_require_admin($viewer);
     return data_model_improvement_case_locked($pdo,$publicId,function(array $case) use($pdo,$viewer,$publicId,$input){
+        $lockedCampaign=data_model_improvement_case_locked_campaign($pdo,(int)$case['id']);if($lockedCampaign)throw new RuntimeException('Human triage is locked by active campaign '.$lockedCampaign['public_id'].'; close or abandon that campaign before reclassifying this case.');
         $classification=(string)($input['classification']??'untriaged');$status=(string)($input['status']??'investigating');if(!isset(data_model_improvement_classifications()[$classification]))throw new InvalidArgumentException('Invalid improvement classification.');if(!isset(data_model_improvement_statuses()[$status]))throw new InvalidArgumentException('Invalid improvement status.');
         if($classification==='no_action')$status='no_action';$note=mb_substr(trim((string)($input['triage_note']??'')),0,5000)?:null;$owner=(int)($input['owner_user_id']??0)?:null;$resolved=in_array($status,['resolved','no_action'],true)?gmdate('Y-m-d H:i:s'):null;
         $pdo->beginTransaction();try{
@@ -182,9 +195,8 @@ function data_model_improvement_proposal_update(PDO $pdo,array $viewer,string $p
 }
 function data_model_improvement_proposal_approve(PDO $pdo,array $viewer,string $publicId): array {
     data_model_improvement_require_admin($viewer);
-    return data_model_improvement_proposal_locked($pdo,$publicId,function(array $p) use($pdo,$viewer,$publicId){
+    return data_model_improvement_actionable_proposal_locked($pdo,$publicId,function(array $p,array $case) use($pdo,$viewer,$publicId){
         if($p['status']!=='draft')throw new RuntimeException('Only draft improvement proposals can be approved.');
-        $case=data_model_improvement_case_get($pdo,(string)$p['case_public_id']);if(!$case||!data_model_improvement_case_actionable($case))throw new RuntimeException('Proposal approval is blocked because the source improvement case is no longer actionable.');
         if(!(int)$p['redaction_attested']||!(int)$p['rights_attested'])throw new RuntimeException('Redaction and rights attestations are required before approval.');if(!hash_equals((string)$p['content_hash'],data_model_improvement_proposal_hash($p)))throw new RuntimeException('Proposal content integrity failed.');
         $approvedAt=gmdate('Y-m-d H:i:s');$approvalHash=data_attribution_hash(['proposal_public_id'=>$p['public_id'],'content_hash'=>$p['content_hash'],'approved_by_user_id'=>(int)$viewer['id'],'approved_at'=>$approvedAt,'boundary'=>'sanitized_human_approved_reuse']);
         $pdo->beginTransaction();try{
@@ -196,9 +208,8 @@ function data_model_improvement_proposal_approve(PDO $pdo,array $viewer,string $
 }
 function data_model_improvement_proposal_publish(PDO $pdo,array $viewer,string $publicId): array {
     data_model_improvement_require_admin($viewer);
-    return data_model_improvement_proposal_locked($pdo,$publicId,function(array $p) use($pdo,$viewer,$publicId){
+    return data_model_improvement_actionable_proposal_locked($pdo,$publicId,function(array $p,array $case) use($pdo,$viewer,$publicId){
         if($p['status']!=='approved')throw new RuntimeException('Only an approved sanitized proposal can be published to the governed corpus.');
-        $case=data_model_improvement_case_get($pdo,(string)$p['case_public_id']);if(!$case||!data_model_improvement_case_actionable($case))throw new RuntimeException('Proposal publication is blocked because the source improvement case is no longer actionable.');
         if(!(int)$p['redaction_attested']||!(int)$p['rights_attested']||empty($p['approval_hash']))throw new RuntimeException('Proposal reuse approval is incomplete.');if(!hash_equals((string)$p['content_hash'],data_model_improvement_proposal_hash($p)))throw new RuntimeException('Proposal content changed after approval.');
         $pdo->beginTransaction();try{
             $q=$pdo->prepare("UPDATE data_model_improvement_proposals SET status='published',published_at=NOW(),updated_at=NOW() WHERE id=? AND status='approved'");$q->execute([$p['id']]);if($q->rowCount()!==1)throw new RuntimeException('Proposal changed during publication; reload and retry.');
