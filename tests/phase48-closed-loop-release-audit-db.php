@@ -65,7 +65,7 @@ $validPacket=false;$q=$pdo->query("SELECT p.id,p.public_id,p.plan_id FROM data_p
 foreach($q->fetchAll() as $pr){$packets=data_post_training_packets($pdo,(int)$pr['plan_id']);foreach($packets as $packet)if((int)$packet['id']===(int)$pr['id']&&data_post_training_packet_integrity($packet)['ok']){$validPacket=true;break 2;}}
 p48($validPacket,'Phase 42 historical suite contains at least one integrity-valid post-training readiness packet');
 
-$recorded=data_model_release_decision_checks($pdo,200);p48(count($recorded)>0&&count(array_filter($recorded,fn($r)=>!$r['pass']))===0,'all recorded Phase 43 release decisions pass deterministic integrity checks');
+$recorded=intelligence_release_decision_checks($pdo,200);p48(count($recorded)>0&&count(array_filter($recorded,fn($r)=>!$r['pass']))===0,'all recorded Phase 43 release decisions pass deterministic integrity checks');
 $active=intelligence_release_active_model_checks($pdo);p48(count(array_filter($active,fn($r)=>!$r['pass']))===0,'all currently active Phase 40 model versions retain valid identity and approval evidence');
 $campaignAudit=intelligence_release_campaign_checks($pdo,200);p48(count($campaignAudit)>0&&count(array_filter($campaignAudit,fn($r)=>!$r['pass']))===0,'all locked Phase 47 campaigns pass plan/current-use release audit rules');
 
