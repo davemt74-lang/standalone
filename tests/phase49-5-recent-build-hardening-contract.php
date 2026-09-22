@@ -40,6 +40,10 @@ $need('app/data-model-improvement.php','function data_model_improvement_proposal
 $need('app/data-model-improvement.php','app_with_advisory_lock($pdo,\'model-improvement-cluster\'','Phase 46 production evidence ingestion must serialize cluster creation.');
 foreach(['data_model_improvement_proposal_update','data_model_improvement_proposal_approve','data_model_improvement_proposal_publish'] as $fn){$b=$block($improvement,$fn);if($b===''||!str_contains($b,'data_model_improvement_proposal_locked('))$fail[]="$fn must serialize proposal state.";}
 $need('app/data-model-improvement.php',"fresh['status']!=='draft'",'Idempotent proposal saves must verify reloaded draft state instead of relying on affected-row count.');
+$need('app/data-model-improvement.php','function data_model_improvement_case_actionable','Reusable evidence must share one human-triage actionability rule.');
+$need('app/data-model-improvement.php','function data_model_improvement_actionable_proposal_locked','Proposal approval/publication must hold the source case lock while enforcing actionability.');
+$need('app/data-model-improvement.php','function data_model_improvement_case_locked_campaign','Phase 46 must detect active locked campaigns before re-triage.');
+$need('app/data-model-improvement.php','close or abandon that campaign before reclassifying','Human triage must not mutate a case underneath an active locked campaign.');
 
 $campaign=$read('app/data-model-campaigns.php');
 $need('app/data-model-campaigns.php','function data_model_campaign_locked','Phase 47 campaign mutations must have a shared lock helper.');
@@ -47,6 +51,9 @@ foreach(['data_model_campaign_add_case','data_model_campaign_remove_case','data_
 $sync=$block($campaign,'data_model_campaign_sync_status');$need('app/data-model-campaigns.php',"status NOT IN ('completed','abandoned')",'Campaign sync must never reopen a human-closed campaign.');
 if(!str_contains($sync,'AND status=?'))$fail[]='Campaign sync must compare-and-swap against the state it evaluated.';
 $need('app/data-model-campaigns.php','data_model_improvement_proposal_locked($pdo,$proposalPublicId','Campaign proposal refresh must serialize against Phase 46 proposal mutations.');
+$need('app/data-model-campaigns.php','FOR UPDATE','Campaign plan locking must stabilize linked case/proposal rows while snapshotting human governance.');
+$need('app/data-model-campaigns.php',"'case_governance'=>",'Campaign current-use validation must include the human-triage case snapshot.');
+$need('app/data-model-campaigns.php','data_model_improvement_case_actionable($case)','Campaign locking/current-use must reject non-actionable Phase 46 cases.');
 
 $need('app/data-datasets.php','$ownsTx=!$pdo->inTransaction()', 'Dataset creation must be composable inside an outer governance transaction.');
 $need('app/data-datasets.php','app_with_advisory_lock($pdo,\'dataset-slug\'','Dataset version allocation must be serialized by slug.');
