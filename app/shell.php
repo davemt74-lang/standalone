@@ -49,7 +49,6 @@ function app_shell_user_nav(PDO $pdo,array $user,string $path): string {
     $unread=0;$teamCount=0;
     try{if(function_exists('notification_unread_count'))$unread=notification_unread_count($pdo,$user);}catch(Throwable $e){}
     try{$q=$pdo->prepare('SELECT COUNT(*) FROM team_members WHERE user_id=?');$q->execute([$user['id']]);$teamCount=(int)$q->fetchColumn();}catch(Throwable $e){}
-    $pro=false;try{$pro=function_exists('user_is_pro')&&user_is_pro($pdo,$user);}catch(Throwable $e){}
     $links=[];
     $links[]=app_shell_link('/home.php','Home','⌂',$path);
     $links[]=app_shell_link('/explore.php','Explore','◎',$path);
@@ -60,7 +59,6 @@ function app_shell_user_nav(PDO $pdo,array $user,string $path): string {
     $links[]=app_shell_link('/saved.php','Saved','◇',$path,'/saved');
     if(function_exists('data_attribution_ready')&&data_attribution_ready($pdo))$links[]=app_shell_link('/data-attribution.php','Data & Attribution','⌘',$path);
     $links[]=app_shell_link('/notifications.php','Notifications','♢',$path,null,app_shell_badge($unread));
-    if($pro)$links[]=app_shell_link('/ai.php','Ask Annotated','✦',$path);
     return implode('',$links);
 }
 function app_shell_admin_nav(string $path): string {
@@ -110,8 +108,6 @@ function app_shell_markup(PDO $pdo,array $user): array {
     $aside='<aside class="appShellSidebar">'.$brand.'<div class="appShellRole">'.app_shell_h($roleText).'</div><nav class="appShellNav" aria-label="'.($adminMode?'Admin':'Application').' navigation">'.$nav.'</nav>';
     if($adminMode){
         $aside.='<div class="appShellSidebarBottom"><a class="appShellExtension secondaryShellAction" href="/home.php">← Back to social app</a></div>';
-    }else{
-        $aside.='<div class="appShellSidebarBottom"><a class="appShellExtension" href="/chrome-extension.php"><span>⬇</span><span><strong>Chrome Extension</strong><small>Capture from any page</small></span></a>'.($isAdmin?'<a class="secondaryShellAction" href="/admin/">Open Admin</a>':'').'</div>';
     }
     $aside.='</aside>';
     $header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions"><a class="appHeaderIcon" href="/notifications.php" aria-label="Notifications">♢</a>'.app_shell_user_menu($user,$isAdmin).'</div></header>';
