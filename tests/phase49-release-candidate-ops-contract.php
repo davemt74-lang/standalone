@@ -46,6 +46,7 @@ $need('bin/release-preflight.php','release_operational_audit','CLI preflight mus
 $need('bin/release-preflight.php','Fingerprint:','CLI preflight must expose package identity.');
 
 $need('.github/workflows/package-two-zips.yml','RELEASE-MANIFEST.json','Authoritative package must contain the generated release manifest.');
+$need('.github/workflows/package-two-zips.yml','package-website/extension/manifest.json','Server package must retain the canonical extension manifest needed to recompute release identity.');
 $need('.github/workflows/package-two-zips.yml','tests/ci/package-smoke.sh','Authoritative package build must run the Phase 49 smoke test.');
 $need('.github/workflows/package-two-zips.yml','bin/release-backup.php','Authoritative server ZIP must include backup tooling.');
 $need('tests/ci/package-smoke.sh','Production config.php must never ship','Package smoke must reject production config.php.');
