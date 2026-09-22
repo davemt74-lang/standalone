@@ -113,6 +113,39 @@ function app_shell_research_agents(PDO $pdo,array $user,string $path): string {
     if($items==='')$items='<div class="appShellAgentEmpty">No research agents yet.</div>';
     return '<section class="appShellAgentSection" aria-label="Research Agents"><div class="appShellSectionTitle">Research Agents</div><div class="appShellAgentList">'.$items.'</div></section>';
 }
+function app_shell_research_project_rows(PDO $pdo,array $user,int $limit=30): array {
+    $limit=max(1,min(50,$limit));
+    try{
+        $q=$pdo->prepare("SELECT rp.public_id,rp.title,rp.status,rp.updated_at,t.name team_name
+          FROM research_projects rp
+          LEFT JOIN teams t ON t.id=rp.team_id
+          WHERE rp.status<>'archived'
+            AND (rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?))
+          ORDER BY rp.updated_at DESC,rp.id DESC
+          LIMIT ".$limit);
+        $q->execute([(int)$user['id'],(int)$user['id']]);
+        return $q->fetchAll()?:[];
+    }catch(Throwable $e){
+        return [];
+    }
+}
+function app_shell_research_projects(PDO $pdo,array $user,string $path): string {
+    $rows=app_shell_research_project_rows($pdo,$user,30);
+    if(!$rows)return '';
+    $current=trim((string)($_GET['id']??$_GET['project']??''));
+    $items='';
+    foreach($rows as $row){
+        $id=trim((string)($row['public_id']??''));if($id==='')continue;
+        $title=trim((string)($row['title']??''));if($title==='')$title='Untitled research';
+        if(mb_strlen($title)>46)$title=mb_substr($title,0,43).'…';
+        $team=trim((string)($row['team_name']??''));$status=trim((string)($row['status']??'active'));
+        $meta=$team!==''?$team:ucfirst($status);
+        $active=$current===$id&&str_starts_with($path,'/research');
+        $items.='<a class="appShellProjectLink'.($active?' active':'').'" href="/research-project.php?id='.rawurlencode($id).'"><span class="appShellProjectIcon" aria-hidden="true">▤</span><span class="appShellProjectCopy"><strong>'.app_shell_h($title).'</strong><small>'.app_shell_h($meta).'</small></span></a>';
+    }
+    return $items===''?'':'<section class="appShellProjectSection" aria-label="Research Projects"><div class="appShellSectionTitle">Research Projects</div><div class="appShellProjectList">'.$items.'</div></section>';
+}
+
 function app_shell_user_nav(PDO $pdo,array $user,string $path,?int $unread=null): string {
     $teamCount=0;
     try{$q=$pdo->prepare('SELECT COUNT(*) FROM team_members WHERE user_id=?');$q->execute([$user['id']]);$teamCount=(int)$q->fetchColumn();}catch(Throwable $e){}
@@ -176,7 +209,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
     if($adminMode){
         $aside.='<div class="appShellSidebarBottom"><a class="appShellExtension secondaryShellAction" href="/home.php">← Back to social app</a></div>';
     }else{
-        $aside.=app_shell_research_agents($pdo,$user,$path);
+        $aside.=app_shell_research_agents($pdo,$user,$path).app_shell_research_projects($pdo,$user,$path);
     }
     $aside.='</aside>';
     $header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>';
