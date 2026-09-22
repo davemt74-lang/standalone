@@ -65,7 +65,7 @@ function release_worker_health(PDO $pdo): array {
 }
 function release_queue_health(PDO $pdo): array {
     $tables=['media'=>'media_jobs','transcription'=>'transcription_jobs','source_monitor'=>'source_monitor_jobs','ai'=>'ai_jobs','research_automation'=>'research_automation_runs','training'=>'data_training_jobs'];$out=[];
-    foreach($tables as $name=>$table){try{$q=$pdo->query("SELECT status,COUNT(*) c FROM $table GROUP BY status");$counts=[];foreach($q->fetchAll() as $r)$counts[$r['status']]=(int)$r['c'];$out[$name]=['queued'=>$counts['queued']??0,'processing'=>$counts['processing']??0,'failed'=>$counts['failed']??0,'blocked'=>$counts['blocked']??0,'done'=>$counts['done']??0,'completed'=>$counts['completed']??0,'skipped'=>$counts['skipped']??0];}catch(PDOException $e){$out[$name]=['error'=>'unavailable'];}}
+    foreach($tables as $name=>$table){try{$q=$pdo->query("SELECT status,COUNT(*) c FROM $table GROUP BY status");$counts=[];foreach($q->fetchAll() as $r)$counts[$r['status']]=(int)$r['c'];if($name==='training'){$out[$name]=['queued'=>$counts['queued']??0,'processing'=>($counts['preparing']??0)+($counts['submitted']??0)+($counts['running']??0)+($counts['cancel_requested']??0),'prepared'=>$counts['prepared']??0,'failed'=>$counts['failed']??0,'blocked'=>$counts['blocked']??0,'done'=>$counts['succeeded']??0,'cancelled'=>$counts['cancelled']??0];}else{$out[$name]=['queued'=>$counts['queued']??0,'processing'=>$counts['processing']??0,'failed'=>$counts['failed']??0,'blocked'=>$counts['blocked']??0,'done'=>$counts['done']??0,'completed'=>$counts['completed']??0,'skipped'=>$counts['skipped']??0];}}catch(PDOException $e){$out[$name]=['error'=>'unavailable'];}}
     return $out;
 }
 function release_command_available(string $command): bool {
