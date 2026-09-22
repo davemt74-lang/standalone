@@ -11,7 +11,8 @@ function release_latest_migration(string $root): ?string {
 }
 function release_package_fingerprint(string $root): string {
     $root=rtrim($root,'/');$files=[
-      $root.'/app/release.php',$root.'/database/schema.sql',$root.'/extension/manifest.json',
+      $root.'/app/release.php',$root.'/app/release-operations.php',$root.'/database/schema.sql',$root.'/extension/manifest.json',
+      $root.'/bin/release-preflight.php',$root.'/bin/release-backup.php',$root.'/bin/release-backup-verify.php',$root.'/bin/release-restore-plan.php',
       $root.'/docs/RELEASE-V1.1-RC1.md',$root.'/docs/phase-49-release-candidate-operational-hardening.md'
     ];$latest=release_latest_migration($root);if($latest)$files[]=$root.'/database/migrations/'.$latest;
     $material=[];foreach($files as $file)$material[substr($file,strlen($root)+1)]=is_file($file)?hash_file('sha256',$file):null;
@@ -46,11 +47,15 @@ function release_command_path(array|string $commands): ?string {
     foreach((array)$commands as $command){if(!preg_match('/^[A-Za-z0-9._-]+$/',(string)$command))continue;$out=[];$code=1;if(function_exists('exec')){@exec('command -v '.escapeshellarg((string)$command).' 2>/dev/null',$out,$code);if($code===0&&!empty($out[0]))return trim((string)$out[0]);}}
     return null;
 }
+function release_normalize_path(string $path): string {
+    $path=str_replace('\\','/',$path);$absolute=str_starts_with($path,'/');$parts=[];
+    foreach(explode('/',$path) as $part){if($part===''||$part==='.')continue;if($part==='..'){array_pop($parts);continue;}$parts[]=$part;}
+    return ($absolute?'/':'').implode('/',$parts);
+}
 function release_backup_destination_assert(string $base,string $root): string {
-    $rootReal=realpath($root)?:rtrim($root,'/');$base=rtrim($base,'/');if($base==='')throw new RuntimeException('Backup output directory is required.');
-    if(!str_starts_with($base,'/'))$base=getcwd().'/'.$base;$normalized=preg_replace('#/+#','/',$base);
-    $probe=is_dir($normalized)?(realpath($normalized)?:$normalized):(realpath(dirname($normalized))?:dirname($normalized)).'/'.basename($normalized);
-    if($probe===$rootReal||str_starts_with(rtrim($probe,'/').'/',rtrim($rootReal,'/').'/'))throw new RuntimeException('Backup output must be outside the Annotated application/web tree.');
+    $base=rtrim(trim($base),'/');if($base==='')throw new RuntimeException('Backup output directory is required.');
+    if(!str_starts_with($base,'/'))$base=getcwd().'/'.$base;$normalized=release_normalize_path($base);$rootNormalized=release_normalize_path(realpath($root)?:$root);
+    if($normalized===$rootNormalized||str_starts_with(rtrim($normalized,'/').'/',rtrim($rootNormalized,'/').'/'))throw new RuntimeException('Backup output must be outside the Annotated application/web tree.');
     return $normalized;
 }
 function release_backup_requirements(array $config): array {
@@ -122,13 +127,15 @@ function release_restore_plan(string $backupDir,array $config): array {
     ];
 }
 function release_config_file_security(string $root): array {
-    $path=rtrim($root,'/').'/config.php';if(!is_file($path))return ['pass'=>false,'detail'=>'config.php is missing.'];$mode=fileperms($path);$writableByOthers=$mode!==false&&(($mode&0x0012)!==0);return ['pass'=>!$writableByOthers,'detail'=>$writableByOthers?'config.php is group/world writable; restrict filesystem permissions.':'config.php is not group/world writable.'];
+    $path=rtrim($root,'/').'/config.php';if(!is_file($path))return ['pass'=>false,'detail'=>'config.php is missing.'];$mode=fileperms($path);$writableByOthers=$mode!==false&&(($mode&0022)!==0);return ['pass'=>!$writableByOthers,'detail'=>$writableByOthers?'config.php is group/world writable; restrict filesystem permissions.':'config.php is not group/world writable.'];
 }
 function release_operational_audit(PDO $pdo,array $config,string $root): array {
     $health=release_environment_checks($pdo,$config);$backup=release_backup_requirements($config);$configSecurity=release_config_file_security($root);$manifest=release_manifest_data($root);
     $extPath=rtrim($root,'/').'/extension/manifest.json';$ext=is_file($extPath)?json_decode((string)file_get_contents($extPath),true):[];$extensionMatch=(string)($ext['version']??'')===ANNOTATED_EXTENSION_VERSION&&(int)($ext['manifest_version']??0)===3;
+    $workers=$health['workers'];$workerProblems=[];foreach($workers as $name=>$worker)if(in_array($worker['status'],['never','stale','failure'],true))$workerProblems[]=$name.':'.$worker['status'];
     $checks=[
       'environment'=>['pass'=>$health['ready'],'detail'=>$health['ready']?'Critical environment checks pass.':'One or more critical environment checks fail.'],
+      'required_workers'=>['pass'=>!$workerProblems,'detail'=>$workerProblems?('Worker readiness failures: '.implode(', ',$workerProblems)):'All required workers have fresh non-failing heartbeats.'],
       'backup_tooling'=>['pass'=>$backup['pass'],'detail'=>$backup['pass']?'Database/private-storage backup tooling is available.':'Backup prerequisites are incomplete.'],
       'config_permissions'=>$configSecurity,
       'extension_identity'=>['pass'=>$extensionMatch,'detail'=>$extensionMatch?'Manifest V3 extension version matches release identity.':'Extension manifest does not match the canonical release identity.'],
