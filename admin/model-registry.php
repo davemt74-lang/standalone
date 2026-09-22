@@ -225,7 +225,7 @@ if($version){
     <?php endif?>
 
     <?php
-      $rollbackTargets=array_filter($versions,fn($v)=>(int)$v['id']!==(int)($registry['active_version_id']??0)&&in_array($v['status'],['approved','deprecated'],true));
+      $rollbackTargets=array_filter($versions,fn($v)=>(int)$v['id']!==(int)($registry['active_version_id']??0)&&in_array($v['status'],['approved','deprecated'],true)&&data_model_was_active($pdo,(int)$v['id']));
       if($registry['active_version_id']&&$rollbackTargets):
     ?>
     <div class="card">
@@ -242,7 +242,7 @@ if($version){
 
     <section class="card">
       <span class="eyebrow">PROMOTION RECEIPTS</span><h3>Immutable decision history</h3>
-      <?php if(!$receipts):?><p class="empty">No lifecycle receipts yet.</p><?php else:?><div class="unifiedActivityList"><?php foreach($receipts as $rec):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($rec['from_status'])?> → <?=h($rec['to_status'])?></span><strong><?=h($rec['actor_name'])?></strong></div><time><?=h($rec['created_at'])?></time></div><p class="meta">Receipt <?=h(substr((string)$rec['receipt_hash'],0,16))?>… · gate <?=h(substr((string)$rec['gate_snapshot_hash'],0,12))?>… · evidence <?=h(substr((string)$rec['evidence_snapshot_hash'],0,12))?>…</p><?php if($rec['note']):?><p><?=h($rec['note'])?></p><?php endif?></div></article><?php endforeach?></div><?php endif?>
+      <?php if(!$receipts):?><p class="empty">No lifecycle receipts yet.</p><?php else:?><div class="unifiedActivityList"><?php foreach($receipts as $rec):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($rec['from_status'])?> → <?=h($rec['to_status'])?></span><strong><?=h($rec['actor_name'])?></strong></div><time><?=h($rec['created_at'])?></time></div><p class="meta">Integrity <strong><?=!empty($rec['integrity']['ok'])?'VALID':'FAILED'?></strong> · receipt <?=h(substr((string)$rec['receipt_hash'],0,16))?>… · gate <?=h(substr((string)$rec['gate_snapshot_hash'],0,12))?>… · evidence <?=h(substr((string)$rec['evidence_snapshot_hash'],0,12))?>…</p><?php if($rec['note']):?><p><?=h($rec['note'])?></p><?php endif?></div></article><?php endforeach?></div><?php endif?>
     </section>
   </section>
   <?php endif?>
