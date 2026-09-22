@@ -21,6 +21,11 @@ home_render_assert(!str_contains($home,'$homeRuntimeIncident='),'legacy all-or-n
 home_render_assert(str_contains($home,'homeWorkspaceLayout'),'Home uses dedicated workspace layout hooks');
 home_render_assert(str_contains($css,'.homeWorkspaceLayout>#homeFeedCanvas'),'Home feed has explicit grid placement');
 home_render_assert(str_contains($css,'.homeWorkspaceLayout>.homeRightRail'),'Home right rail has explicit grid placement');
+home_render_assert(str_contains($css,'.homeFeedPage.agentChatMode .homeRightRail{display:none!important}'),'Agent mode removes the Home right rail');
+home_render_assert(str_contains($css,'.homeFeedPage.agentChatMode .appShellFooter{display:none}'),'Agent mode removes the universal footer under the fixed composer');
+home_render_assert(str_contains($css,'.homeFeedPage.agentChatMode{overflow-x:clip}'),'Agent mode clips horizontal overflow without creating another scroll container');
+home_render_assert(str_contains($js,"if(rightRail)rightRail.hidden=true"),'Agent mode explicitly hides the right rail');
+home_render_assert(str_contains($js,"if(rightRail)rightRail.hidden=false"),'Returning to Feed restores the right rail');
 
 home_render_assert(!str_contains($agent,'SELECT DISTINCT rp.public_id,rp.title'),'Agent context picker no longer uses DISTINCT with an unselected ORDER BY column');
 home_render_assert(str_contains($agent,'EXISTS(SELECT 1 FROM team_members tm'),'Agent Research options use membership EXISTS');
