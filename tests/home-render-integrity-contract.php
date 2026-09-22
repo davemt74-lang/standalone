@@ -14,8 +14,8 @@ function home_render_assert(bool $ok,string $message): void {
 }
 
 home_render_assert(str_contains($home,'$homeRuntimeIncidents=[]'),'Home tracks component-level runtime failures');
-home_render_assert(str_contains($home,"$recordHomeIncident('chat',$e)"),'Home isolates chat failures');
-home_render_assert(str_contains($home,"$recordHomeIncident('cognitive',$e)"),'Home isolates cognitive failures');
+home_render_assert(str_contains($home,'$recordHomeIncident(\'chat\',$e)'),'Home isolates chat failures');
+home_render_assert(str_contains($home,'$recordHomeIncident(\'cognitive\',$e)'),'Home isolates cognitive failures');
 home_render_assert(str_contains($home,'$cognitiveRuntimeReady'),'Home distinguishes schema readiness from cognitive runtime readiness');
 home_render_assert(!str_contains($home,'$homeRuntimeIncident='),'legacy all-or-nothing Home incident state is removed');
 home_render_assert(str_contains($home,'homeWorkspaceLayout'),'Home uses dedicated workspace layout hooks');
