@@ -11,6 +11,7 @@ db_tests=(
   tests/install-db.php
   tests/integration-mariadb.php
   tests/integration-security-db.php
+  tests/home-schema-preflight-db.php
   tests/research-knowledge-db.php
   tests/research-intelligence-db.php
   tests/research-entities-db.php
