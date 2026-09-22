@@ -1,4 +1,4 @@
-# Annotated V1 RC1 Release Runbook
+# Annotated V1.1 RC1 Release Runbook
 
 This runbook applies to **Annotated V1.1 RC1 (`1.1.0-rc1`)** and must be executed against the exact release-candidate commit that passed CI and package validation.
 
@@ -73,7 +73,7 @@ Before Chrome Web Store upload:
 - connect an account and verify Connected Accounts shows the extension version and expiry
 - revoke the session and confirm the sidebar requires reconnect
 
-## 5. V1 RC1 end-to-end release gate
+## 5. V1.1 RC1 end-to-end release gate
 
 Use a non-admin test account:
 
