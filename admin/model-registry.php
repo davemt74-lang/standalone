@@ -44,6 +44,8 @@ $gate=$version?data_model_gate_evaluate($pdo,$version):null;
 $receipts=$version?data_model_receipts($pdo,(int)$version['id']):[];
 $releaseDecisionRows=[];
 if($version&&data_model_release_ready($pdo)){$q=$pdo->prepare("SELECT public_id,status,outcome,title,decision_hash,final_signature_hash,decided_at FROM data_model_release_decisions WHERE model_version_id=? ORDER BY id DESC");$q->execute([$version['id']]);$releaseDecisionRows=$q->fetchAll();}
+$deploymentRows=[];
+if($version&&data_model_deployment_ready($pdo)){$q=$pdo->prepare("SELECT public_id,status,current_traffic_percent,created_at,full_at,rolled_back_at FROM data_model_deployments WHERE model_version_id=? ORDER BY id DESC");$q->execute([$version['id']]);$deploymentRows=$q->fetchAll();}
 $events=$registry?data_model_events($pdo,(int)$registry['id'],100):[];
 $origins=data_model_origins();
 
@@ -76,7 +78,7 @@ if($version){
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">MODEL REGISTRY</span><h1>Candidate lifecycle & release governance</h1><p>Register model versions, attach integrity-valid Phase 39 evidence, apply explicit release gates, record approval receipts, activate governed versions, and roll back prior active versions. Registry status never silently rewrites AI task routing.</p></div>
-  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a><a class="button secondary" href="/admin/post-training.php">Post-Training Readiness</a><a class="button secondary" href="/admin/model-release.php">Release Decisions</a></div>
+  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a><a class="button secondary" href="/admin/post-training.php">Post-Training Readiness</a><a class="button secondary" href="/admin/model-release.php">Release Decisions</a><a class="button secondary" href="/admin/model-deployment.php">Model Deployments</a></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
 
   <section class="healthGrid">
@@ -107,6 +109,7 @@ if($version){
 
   <?php if($version&&$releaseDecisionRows):?>
   <section class="card"><span class="eyebrow">PHASE 43 RELEASE DECISIONS</span><h2>Human release records for <?=h($version['version_label'])?></h2><div class="unifiedActivityList"><?php foreach($releaseDecisionRows as $rd):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($rd['status'])?></span><strong><a href="/admin/model-release.php?decision=<?=rawurlencode((string)$rd['public_id'])?>"><?=h($rd['title'])?></a></strong></div><span class="meta"><?=h((string)($rd['outcome']?:'—'))?></span></div><p class="meta"><?=!empty($rd['decision_hash'])?'Signed decision '.h(substr((string)$rd['decision_hash'],0,14)).'…':'Decision not yet signed'?></p></div></article><?php endforeach?></div><p class="meta">These records never perform the lifecycle transition shown on this page.</p></section>
+  <section class="card"><span class="eyebrow">PHASE 44 DEPLOYMENTS</span><h2>Governed rollout history for <?=h($version['version_label'])?></h2><?php if(!$deploymentRows):?><p class="empty">No governed deployments for this version.</p><?php else:?><div class="unifiedActivityList"><?php foreach($deploymentRows as $dr):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($dr['status'])?></span><strong><a href="/admin/model-deployment.php?deployment=<?=rawurlencode((string)$dr['public_id'])?>">Deployment <?=h(substr((string)$dr['public_id'],0,12))?>…</a></strong></div><span class="meta"><?=h((string)$dr['current_traffic_percent'])?>% candidate traffic</span></div><p class="meta">Human-gated staged routing and rollback are controlled from the Phase 44 deployment workspace.</p></div></article><?php endforeach?></div><?php endif?></section>
   <?php endif?>
 
   <?php if($registry):?>
