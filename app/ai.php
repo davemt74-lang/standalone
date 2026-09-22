@@ -20,7 +20,12 @@ function ai_model_record(PDO $pdo,int $modelId): array {
     $q=$pdo->prepare('SELECT m.*,p.label provider_label,p.provider_type,p.api_base_url,p.api_key_ciphertext,p.enabled provider_enabled FROM ai_models m JOIN ai_providers p ON p.id=m.provider_id WHERE m.id=?');$q->execute([$modelId]);$r=$q->fetch();if(!$r||!(int)$r['enabled']||!(int)$r['provider_enabled'])throw new RuntimeException('AI model is disabled or unavailable.');return $r;
 }
 function ai_setting_model_id(PDO $pdo,string $task,bool $pro=false): int {
-    $map=['admin'=>'admin_default_model_id','pro'=>'pro_default_model_id','source_monitor'=>'source_monitor_model_id','moderation'=>'moderation_model_id','research'=>'research_model_id','transcript_cleanup'=>'transcript_cleanup_model_id','annotation_intelligence'=>'annotation_intelligence_model_id'];$col=$map[$task]??($pro?'pro_default_model_id':'admin_default_model_id');$q=$pdo->query("SELECT $col FROM ai_settings WHERE id=1");$id=(int)($q->fetchColumn()?:0);if(!$id&&$pro){$id=(int)($pdo->query('SELECT pro_default_model_id FROM ai_settings WHERE id=1')->fetchColumn()?:0);}if(!$id&&!$pro){$id=(int)($pdo->query('SELECT admin_default_model_id FROM ai_settings WHERE id=1')->fetchColumn()?:0);}return $id;
+    $map=['admin'=>'admin_default_model_id','pro'=>'pro_default_model_id','source_monitor'=>'source_monitor_model_id','moderation'=>'moderation_model_id','research'=>'research_model_id','transcript_cleanup'=>'transcript_cleanup_model_id','annotation_intelligence'=>'annotation_intelligence_model_id'];
+    $routeKey=isset($map[$task])?$task:($pro?'pro':'admin');$col=$map[$routeKey];$q=$pdo->query("SELECT $col FROM ai_settings WHERE id=1");$id=(int)($q->fetchColumn()?:0);
+    if(!$id&&$pro){$routeKey='pro';$id=(int)($pdo->query('SELECT pro_default_model_id FROM ai_settings WHERE id=1')->fetchColumn()?:0);}
+    if(!$id&&!$pro){$routeKey='admin';$id=(int)($pdo->query('SELECT admin_default_model_id FROM ai_settings WHERE id=1')->fetchColumn()?:0);}
+    if($id&&function_exists('data_model_deployment_resolve_route'))$id=data_model_deployment_resolve_route($pdo,$routeKey,$id);
+    return $id;
 }
 function ai_extract_openai_text(array $j): string {
     if(isset($j['output_text'])&&is_string($j['output_text']))return trim($j['output_text']);$parts=[];foreach(($j['output']??[]) as $item)foreach(($item['content']??[]) as $c){if(isset($c['text'])&&is_string($c['text']))$parts[]=$c['text'];}return trim(implode("\n",$parts));
@@ -35,7 +40,12 @@ function ai_generate(PDO $pdo,array $config,int $modelId,string $system,string $
 }
 function ai_run(PDO $pdo,array $config,?array $user,string $initiatedBy,string $taskType,int $modelId,string $system,string $prompt,array $refs=[],?string $scopeType=null,?string $scopePublicId=null): array {
     $public=ulid_like();$q=$pdo->prepare("INSERT INTO ai_runs(public_id,user_id,initiated_by,task_type,model_id,prompt_version,scope_type,scope_public_id,input_refs_json,status) VALUES(?,?,?,?,?,'v1',?,?,?,'processing')");$q->execute([$public,$user['id']??null,$initiatedBy,$taskType,$modelId,$scopeType,$scopePublicId,json_encode($refs,JSON_UNESCAPED_SLASHES)]);$id=(int)$pdo->lastInsertId();
-    try{$r=ai_generate($pdo,$config,$modelId,$system,$prompt);$pdo->prepare("UPDATE ai_runs SET output_text=?,status='completed',input_tokens=?,output_tokens=?,completed_at=NOW() WHERE id=?")->execute([$r['text'],$r['input_tokens'],$r['output_tokens'],$id]);$lineage=function_exists('data_response_try_record')?data_response_try_record($pdo,$id,$public,$user,(string)$r['text'],$refs):null;return ['public_id'=>$public,'text'=>$r['text'],'model'=>$r['model'],'lineage'=>$lineage];}catch(Throwable $e){$pdo->prepare("UPDATE ai_runs SET status='failed',error_text=?,completed_at=NOW() WHERE id=?")->execute([substr($e->getMessage(),0,1000),$id]);throw $e;}
+    try{
+        $r=ai_generate($pdo,$config,$modelId,$system,$prompt);$pdo->prepare("UPDATE ai_runs SET output_text=?,status='completed',input_tokens=?,output_tokens=?,completed_at=NOW() WHERE id=?")->execute([$r['text'],$r['input_tokens'],$r['output_tokens'],$id]);
+        $lineage=$taskType==='deployment_shadow'?null:(function_exists('data_response_try_record')?data_response_try_record($pdo,$id,$public,$user,(string)$r['text'],$refs):null);
+        if($taskType!=='deployment_shadow'&&function_exists('data_model_deployment_queue_shadow'))data_model_deployment_queue_shadow($pdo,$user,$taskType,$modelId,$system,$prompt,$refs,$scopeType,$scopePublicId);
+        return ['public_id'=>$public,'text'=>$r['text'],'model'=>$r['model'],'lineage'=>$lineage];
+    }catch(Throwable $e){$pdo->prepare("UPDATE ai_runs SET status='failed',error_text=?,completed_at=NOW() WHERE id=?")->execute([substr($e->getMessage(),0,1000),$id]);throw $e;}
 }
 function ai_queue_job(PDO $pdo,?int $userId,string $taskType,?int $modelId,string $objectType,string $objectPublicId,array $input=[],int $priority=5): string {
     $public=ulid_like();$q=$pdo->prepare('INSERT INTO ai_jobs(public_id,requested_by_user_id,task_type,model_id,object_type,object_public_id,input_json,priority) VALUES(?,?,?,?,?,?,?,?)');$q->execute([$public,$userId,$taskType,$modelId?:null,$objectType,$objectPublicId,json_encode($input,JSON_UNESCAPED_SLASHES),max(1,min(9,$priority))]);return $public;

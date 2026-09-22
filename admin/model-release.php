@@ -191,8 +191,8 @@ $finalProceed=$decision&&$decision['status']==='in_review'?data_model_release_fi
       <p class="meta">The signed record documents a human decision. Current model status is still <strong><?=h($decision['model_status'])?></strong>. Any lifecycle or routing action remains separate.</p>
       <div class="inlineActions">
         <form method="post" action="/admin/model-release-export.php"><?=csrf_field()?><input type="hidden" name="decision_id" value="<?=h($decision['public_id'])?>"><button class="button secondary" type="submit">Export signed decision JSON</button></form>
-        <?php if($decision['outcome']==='proceed_to_governed_release'):?><a class="button" href="/admin/model-registry.php?registry=<?=rawurlencode((string)$decision['registry_public_id'])?>&version=<?=rawurlencode((string)$decision['model_version_public_id'])?>">Open Model Registry for governed lifecycle action</a><?php endif?>
-        <a class="button secondary" href="/admin/ai.php">Review AI routing separately</a>
+        <?php if($decision['outcome']==='proceed_to_governed_release'):?><a class="button" href="/admin/model-deployment.php?release=<?=rawurlencode((string)$decision['public_id'])?>">Open Governed Deployment</a><a class="button secondary" href="/admin/model-registry.php?registry=<?=rawurlencode((string)$decision['registry_public_id'])?>&version=<?=rawurlencode((string)$decision['model_version_public_id'])?>">Review Model Registry</a><?php endif?>
+        <a class="button secondary" href="/admin/ai.php">Review baseline AI routing</a>
       </div>
       <?php if($decision['status']==='decision_recorded'):?><form method="post" onsubmit="return confirm('Archive this signed decision?');"><?=csrf_field()?><input type="hidden" name="op" value="archive"><input type="hidden" name="decision" value="<?=h($decision['public_id'])?>"><button class="button secondary" type="submit">Archive signed decision</button></form><?php endif?>
     </section>

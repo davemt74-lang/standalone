@@ -1,0 +1,40 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$path=$root.'/'.$file;if(!is_file($path)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($path),$needle))$fail[]=$message;};
+$avoid=function(string $file,string $needle,string $message)use(&$fail,$root){$path=$root.'/'.$file;if(is_file($path)&&str_contains((string)file_get_contents($path),$needle))$fail[]=$message;};
+foreach(['database/migrations/20260922_043_governed_model_deployment_rollout.sql','app/data-model-deployment.php','admin/model-deployment.php','admin/model-deployment-export.php','tests/phase44-model-deployment-db.php','tests/phase44-model-deployment-contract.php','docs/phase-44-governed-model-deployment-rollout.md'] as $file)if(!is_file($root.'/'.$file))$fail[]='Phase 44 file missing: '.$file;
+$migration=(string)file_get_contents($root.'/database/migrations/20260922_043_governed_model_deployment_rollout.sql');foreach(['data_model_deployments','data_model_deployment_checkpoints','data_model_deployment_events','data_model_routing_overrides','release_decision_hash','release_signature_hash','routing_before_hash','routing_current_hash','planned_traffic_percent','revision'] as $needle)if(!str_contains($migration,$needle))$fail[]='Phase 44 migration contract missing: '.$needle;
+$avoid('database/migrations/20260922_043_governed_model_deployment_rollout.sql','DROP TABLE','Phase 44 migration must be expand-only.');$avoid('database/migrations/20260922_043_governed_model_deployment_rollout.sql','TRUNCATE','Phase 44 migration must be expand-only.');
+$runtime=(string)file_get_contents($root.'/app/data-model-deployment.php');foreach(['data_model_deployment_create','data_model_deployment_runtime_context','data_model_deployment_preflight','data_model_deployment_start_shadow','data_model_deployment_queue_shadow','data_model_deployment_assert_routing_edit_allowed','data_model_deployment_checkpoint_submit','data_model_deployment_advance','data_model_deployment_pause','data_model_deployment_resume','data_model_deployment_stop','data_model_deployment_rollback','data_model_deployment_resolve_route','data_model_deployment_subject_hash'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 44 runtime helper missing: '.$fn;
+foreach(['Only a signed Phase 43 Proceed decision may create a deployment.','release_decision_integrity','model_approved','approval_receipt_integrity','rollback_is_current_active','routing_uses_rollback_runtime','no_route_override_conflict'] as $needle)$need('app/data-model-deployment.php',$needle,'Phase 44 preflight/governance contract missing: '.$needle);
+$need('app/data-model-deployment.php','The deployment creator cannot satisfy the independent rollout checkpoint.','Phase 44 must enforce independent stage checkpoint review.');
+$need('app/data-model-deployment.php','if($o[\'mode\']===\'shadow\')return $baseModelId','Shadow routing must never return the candidate response path.');
+$need('app/data-model-deployment.php','if($o[\'mode\']===\'limited\')return $candidate','Limited rollout must use the candidate only through the governed route override.');
+$need('app/data-model-deployment.php','random_int(1,100)','Canary routing must bound candidate traffic probabilistically rather than rewrite baseline routing.');
+$need('app/data-model-deployment.php','data_model_transition($pdo,$viewer','Full rollout must use the existing governed Model Registry lifecycle transition.');
+$need('app/data-model-deployment.php','data_model_rollback($pdo,$viewer','Full rollback must use the existing governed Model Registry rollback.');
+$need('app/data-model-deployment.php','UPDATE ai_settings','Phase 44 is the explicit governed layer permitted to write production routing.');
+$avoid('app/data-model-deployment.php','ai_generate(','Phase 44 deployment control must never delegate rollout decisions to model inference.');
+$avoid('app/data-model-deployment.php','data_training_provider_submit(','Phase 44 deployment control must never launch training.');
+foreach(['PHASE 44 · GOVERNED MODEL DEPLOYMENT','Shadow → Canary → Limited → Full','INDEPENDENT HUMAN CHECKPOINT','DEPLOYMENT CONTROL','CHECKPOINT SIGNATURES','AUDIT EVENTS','Rollback'] as $needle)$need('admin/model-deployment.php',$needle,'Phase 44 Admin Deployment contract missing: '.$needle);
+$need('admin/model-deployment.php','never advances Shadow → Canary → Limited → Full automatically','Admin UI must explain the human checkpoint boundary.');
+$need('admin/model-deployment-export.php',"\$_SERVER['REQUEST_METHOD']!=='POST'",'Phase 44 audit export must be POST-only.');
+$need('admin/model-deployment-export.php','require_csrf()','Phase 44 audit export must require CSRF.');
+$need('admin/model-deployment-export.php','data_model_release_decision_integrity','Phase 44 audit export must refuse invalid signed release provenance.');
+$need('app/ai.php','data_model_deployment_resolve_route','Existing AI routing must consult the governed Phase 44 temporary route resolver.');
+$need('app/ai.php','data_model_deployment_queue_shadow','Completed baseline AI runs must enqueue non-serving Phase 44 Shadow inference when applicable.');
+$need('app/ai.php',"\$taskType==='deployment_shadow'?null",'Shadow candidate output must not enter user/cognitive response lineage.');
+$need('worker/ai-worker.php',"task_type']==='deployment_shadow'",'AI worker must recognize fixed-model Phase 44 Shadow jobs.');
+$need('worker/ai-worker.php',"'model_deployment'",'Shadow inference runs must be scoped to the deployment audit object.');
+$need('worker/ai-worker.php','shadow job {$job[\'id\']} stale; skipped','Worker must discard stale Shadow jobs after rollout revision changes.');
+
+$need('app/bootstrap.php',"require_once __DIR__ . '/data-model-deployment.php';",'Phase 44 runtime must load with the application.');
+$need('app/shell.php','Model Deployments','Model Deployments must be first-class Admin navigation.');
+$need('admin/index.php','Model Deployments','Admin Home must surface Model Deployments.');
+$need('admin/model-release.php','Open Governed Deployment','Phase 43 Proceed decisions must hand off explicitly into Phase 44.');
+$need('admin/model-registry.php','PHASE 44 DEPLOYMENTS','Model Registry must display Phase 44 deployment history.');
+$need('admin/ai.php','Phase 44 staged deployments can temporarily override these baseline routes','AI Admin must explain Phase 44 routing precedence.');
+$need('admin/ai.php','data_model_deployment_assert_routing_edit_allowed','Legacy AI Admin must not bypass active Phase 44 route reservations.');
+
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Phase 44 Governed Model Deployment & Rollout architecture and Admin UI contract suite passed.\n";
