@@ -14,6 +14,11 @@ $need('app/shell.php','appUserMenu','Universal header must include the profile/a
 $need('app/shell.php','app_shell_header_notification','Universal header must render the notification center control.');
 $need('app/shell.php','app_shell_unread_count','Header notification badge must use the live unread notification count.');
 $need('app/shell.php','appHeaderNotificationBadge','Unread notifications must render as a header badge.');
+$need('app/shell.php','appHeaderNotificationDropdown','Header bell must expose a notification dropdown.');
+$need('app/shell.php','app_shell_notification_preview','Header dropdown must use permission-filtered notification rows.');
+$need('app/shell.php','View all notifications','Header dropdown must link to the full notification center.');
+$need('assets/css/app.css','/* Header notification dropdown + notification page rhythm */','Notification dropdown and page spacing layer must exist.');
+$need('assets/css/app.css','.appShellContent>.notificationCenter{','Notifications page must have dedicated shell spacing.');
 $need('assets/css/app.css','/* Annotated shell sharp UI pass */','Shared shell must include the sharp visual refinement layer.');
 $need('assets/css/app.css','.appHeaderNotificationBadge{','Header notification badge must have dedicated centered styling.');
 $need('assets/css/app.css','box-shadow:inset 2px 0 0 #111','Active sidebar navigation must use the sharper inset indicator.');
