@@ -47,7 +47,7 @@ function release_installed_manifest_status(string $root): array {
     $latest=release_latest_migration($root);if(($manifest['latest_migration']??null)!==$latest)$errors[]='latest migration mismatch';
     try{$computed=release_package_fingerprint($root);}catch(Throwable $e){$computed='';$errors[]='package fingerprint could not be computed';}
     $stored=(string)($manifest['package_fingerprint']??'');if($stored===''||$computed===''||!hash_equals($stored,$computed))$errors[]='package fingerprint mismatch';
-    $sha=(string)($manifest['build_sha']??'');if($sha!==''&&!preg_match('/^[a-f0-9]{40}$/',$sha))$errors[]='build SHA is invalid';
+    $sha=(string)($manifest['build_sha']??'');if($sha===''||!preg_match('/^[a-f0-9]{40}$/',$sha))$errors[]='build SHA is missing or invalid';
     return ['pass'=>!$errors,'detail'=>$errors?('Installed package integrity failed: '.implode(', ',$errors)):'Installed release manifest and full deploy-tree fingerprint validate.','manifest'=>$manifest,'computed_fingerprint'=>$computed,'errors'=>$errors];
 }
 
@@ -106,9 +106,10 @@ function release_gzip_file(string $source,string $dest): void {
 function release_backup_manifest_write(string $backupDir,array $config,string $root,array $extra=[]): array {
     $backupDir=rtrim($backupDir,'/');$required=['database.sql.gz','private-storage.tar.gz'];$files=[];
     foreach($required as $name){$path=$backupDir.'/'.$name;if(!is_file($path))throw new RuntimeException('Backup component missing: '.$name);$files[$name]=['sha256'=>hash_file('sha256',$path),'bytes'=>filesize($path)?:0];}
-    $target=release_database_target($config);$manifest=[
+    $target=release_database_target($config);$installed=release_installed_manifest_status($root);$release=$installed['pass']?$installed['manifest']:release_manifest_data($root,(string)($extra['build_sha']??''));
+    $manifest=[
       'schema'=>'annotated.release-backup.v1',
-      'release'=>release_manifest_data($root,(string)($extra['build_sha']??'')),
+      'release'=>$release,
       'created_at'=>gmdate('c'),
       'database'=>['host'=>$target['host'],'port'=>$target['port'],'database'=>$target['database'],'unix_socket'=>$target['unix_socket']],
       'private_storage_basename'=>basename(rtrim((string)$config['storage']['private_root'],'/')),
