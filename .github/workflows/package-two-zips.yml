@@ -42,7 +42,12 @@ jobs:
           unzip -t Annotated-Website.zip
           test -f package-website/index.php
           test -f package-website/install.php
+          test -f package-website/upgrade.php
           test -f package-website/database/schema.sql
+          test -f package-website/database/migrations/20260922_046_model_improvement_campaigns.sql
+          test -f package-website/admin/model-campaigns.php
+          test -f package-website/admin/intelligence-release-audit.php
+          test -f package-website/docs/phase-48-end-to-end-closed-loop-release-hardening.md
           test -f package-website/chrome-extension.php
           test -f package-website/downloads/Annotated-Chrome-Extension.zip
 
