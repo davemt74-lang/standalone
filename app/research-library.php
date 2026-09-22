@@ -24,8 +24,10 @@ function research_library_projects(PDO $pdo,array $viewer,int $limit=100): array
       ) recent_at
       FROM research_projects rp
       LEFT JOIN teams t ON t.id=rp.team_id
-      WHERE rp.owner_user_id=? OR EXISTS(
-        SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?
+      WHERE rp.status<>'archived' AND (
+        rp.owner_user_id=? OR EXISTS(
+          SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?
+        )
       )
       ORDER BY recent_at DESC,rp.id DESC
       LIMIT ".$limit;
