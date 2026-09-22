@@ -56,6 +56,7 @@ db_tests=(
   tests/phase42-post-training-readiness-db.php
   tests/phase43-model-release-decision-db.php
   tests/phase44-model-deployment-db.php
+  tests/phase45-model-observability-db.php
 )
 
 for test_file in "${db_tests[@]}"; do
