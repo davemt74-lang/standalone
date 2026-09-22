@@ -136,7 +136,7 @@ if($version){
     <?php if(count($versions)>=2):?>
     <form method="get" class="settingsForm">
       <input type="hidden" name="registry" value="<?=h($registry['public_id'])?>">
-      <span class="eyebrow">COMPARE</span><h3>Common-suite evidence comparison</h3>
+      <span class="eyebrow">COMPARE</span><h3>Equivalent-benchmark evidence comparison</h3>
       <?php foreach($versions as $v):?><label><input type="checkbox" name="compare[]" value="<?=h($v['public_id'])?>" <?=in_array($v['public_id'],$compareIds,true)?'checked':''?>> <?=h($v['version_label'])?> · <?=h($v['status'])?></label><?php endforeach?>
       <button class="button secondary" type="submit">Compare selected versions</button>
     </form>
@@ -145,11 +145,11 @@ if($version){
 
   <?php if($comparison):?>
   <section class="card">
-    <span class="eyebrow">MODEL COMPARISON</span><h2>Same-suite evidence</h2>
+    <span class="eyebrow">MODEL COMPARISON</span><h2>Equivalent benchmark evidence</h2>
     <p class="meta">This view presents comparable evidence only. It does not choose or rank a winner.</p>
-    <?php if(!$comparison['common_suites']):?><p class="empty">The selected versions do not yet share an integrity-valid model benchmark suite.</p><?php else:?>
-      <?php foreach($comparison['common_suites'] as $cmp):?><div class="card"><h3><?=h($cmp['suite_name'])?></h3><p class="meta">Dataset: <?=h((string)$cmp['dataset_name'])?> · <?=h((string)$cmp['dataset_public_id'])?></p><div class="unifiedActivityList">
-        <?php foreach($cmp['versions'] as $cv):$sum=$cv['summary'];$human=$cv['human'];?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><strong><?=h($cv['version']['version_label'])?></strong><p class="meta">Run <?=h((string)$cv['run']['public_id'])?> · pass <?=h(number_format((float)($sum['automated_pass_rate']??0)*100,1))?>% · citation <?=h(number_format((float)($sum['metrics']['expected_citation']??0)*100,1))?>% · grounded <?=h(number_format((float)($sum['metrics']['grounded_token_ratio']??0)*100,1))?>% · latency <?=h(number_format((float)($sum['metrics']['latency_ms']??0),1))?> ms</p><p class="meta">Human reviews <?=h((string)$human['reviews'])?> · pass <?=h((string)$human['pass'])?> · fail <?=h((string)$human['fail'])?> · accuracy <?=h($human['avg_accuracy']!==null?number_format($human['avg_accuracy'],2):'—')?></p></div></article><?php endforeach?>
+    <?php if(!$comparison['common_benchmarks']):?><p class="empty">The selected versions do not yet share an integrity-valid equivalent benchmark definition.</p><?php else:?>
+      <?php foreach($comparison['common_benchmarks'] as $cmp):?><div class="card"><h3>Benchmark <?=h(substr((string)$cmp['benchmark_fingerprint'],0,14))?>…</h3><p class="meta">Dataset manifest <?=h(substr((string)$cmp['dataset_manifest_hash'],0,14))?>… · cases <?=h(substr((string)$cmp['cases_hash'],0,14))?>…</p><div class="unifiedActivityList">
+        <?php foreach($cmp['versions'] as $cv):$sum=$cv['summary'];$human=$cv['human'];?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><strong><?=h($cv['version']['version_label'])?></strong><p class="meta">Suite <?=h((string)($cv['suite']['name']??'—'))?> · run <?=h((string)$cv['run']['public_id'])?> · pass <?=h(number_format((float)($sum['automated_pass_rate']??0)*100,1))?>% · citation <?=h(number_format((float)($sum['metrics']['expected_citation']??0)*100,1))?>% · grounded <?=h(number_format((float)($sum['metrics']['grounded_token_ratio']??0)*100,1))?>% · latency <?=h(number_format((float)($sum['metrics']['latency_ms']??0),1))?> ms</p><p class="meta">Human reviews <?=h((string)$human['reviews'])?> · pass <?=h((string)$human['pass'])?> · fail <?=h((string)$human['fail'])?> · accuracy <?=h($human['avg_accuracy']!==null?number_format($human['avg_accuracy'],2):'—')?></p></div></article><?php endforeach?>
       </div></div><?php endforeach?>
     <?php endif?>
   </section>
