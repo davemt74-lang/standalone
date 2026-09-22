@@ -48,11 +48,35 @@ function app_shell_unread_count(PDO $pdo,array $user): int {
         return 0;
     }
 }
-function app_shell_header_notification(int $unread): string {
+function app_shell_notification_preview(PDO $pdo,array $user,int $limit=5): array {
+    if(!function_exists('notification_rows'))return [];
+    try{
+        return array_slice(notification_rows($pdo,$user,max(1,min(12,$limit)),true),0,$limit);
+    }catch(Throwable $e){
+        return [];
+    }
+}
+function app_shell_notification_time_label(string $createdAt): string {
+    $createdAt=trim($createdAt);if($createdAt==='')return '';
+    try{$dt=new DateTimeImmutable($createdAt);return $dt->format('M j · g:i A');}
+    catch(Throwable $e){return $createdAt;}
+}
+function app_shell_header_notification(PDO $pdo,array $user,int $unread): string {
     $label='Notifications'.($unread>0?', '.$unread.' unread':'');
     $count=$unread>0?'<span class="appHeaderNotificationBadge">'.app_shell_h((string)min($unread,99)).($unread>99?'+':'').'</span>':'';
     $icon='<span class="appHeaderNotificationGlyph" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span>';
-    return '<a class="appHeaderIcon appHeaderNotification" href="/notifications.php" aria-label="'.app_shell_h($label).'">'.$icon.$count.'</a>';
+    $items=app_shell_notification_preview($pdo,$user,5);
+    $rows='';
+    foreach($items as $item){
+        $category=ucfirst((string)($item['category']??'Update'));
+        $title=ucwords(str_replace('_',' ',(string)($item['notification_type']??'notification')));
+        $body=trim((string)($item['body']??''));if(mb_strlen($body)>118)$body=mb_substr($body,0,115).'…';
+        $url=(string)($item['url']??'');if($url===''||!str_starts_with($url,'/')||str_starts_with($url,'//'))$url='/notifications.php';
+        $time=app_shell_notification_time_label((string)($item['created_at']??''));
+        $rows.='<a class="appHeaderNotificationItem" href="'.app_shell_h($url).'"><span class="appHeaderNotificationItemTop"><strong>'.app_shell_h($category).'</strong><small>'.app_shell_h($time).'</small></span><span class="appHeaderNotificationItemTitle">'.app_shell_h($title).'</span>'.($body!==''?'<span class="appHeaderNotificationItemBody">'.app_shell_h($body).'</span>':'').'</a>';
+    }
+    if($rows==='')$rows='<div class="appHeaderNotificationEmpty"><strong>You’re caught up.</strong><span>No unread notifications right now.</span></div>';
+    return '<details class="appHeaderNotificationMenu"><summary class="appHeaderIcon appHeaderNotification" aria-label="'.app_shell_h($label).'">'.$icon.$count.'</summary><div class="appHeaderNotificationDropdown"><div class="appHeaderNotificationHead"><strong>Notifications</strong>'.($unread>0?'<span>'.app_shell_h((string)$unread).' unread</span>':'<span>All caught up</span>').'</div><div class="appHeaderNotificationList">'.$rows.'</div><a class="appHeaderNotificationFooter" href="/notifications.php">View all notifications</a></div></details>';
 }
 function app_shell_link(string $href,string $label,string $icon,string $path,?string $match=null,string $badge=''): string {
     $active=$match!==null?str_starts_with($path,$match):$path===$href;
@@ -123,7 +147,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
         $aside.='<div class="appShellSidebarBottom"><a class="appShellExtension secondaryShellAction" href="/home.php">← Back to social app</a></div>';
     }
     $aside.='</aside>';
-    $header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.app_shell_header_notification($unread).app_shell_user_menu($user,$isAdmin).'</div></header>';
+    $header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>';
     $footer='<footer class="appShellFooter"><span>Annotated · Research the web in context.</span><nav><a href="/explore.php">Explore</a><a href="/teams.php">Teams</a><a href="/chrome-extension.php">Chrome Extension</a><a href="/settings.php">Privacy & Settings</a></nav></footer>';
     return [$aside,$header,$footer];
 }
