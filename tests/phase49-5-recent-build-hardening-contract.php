@@ -32,12 +32,12 @@ if($registryPos===false||$routingPos===false||$registryPos>$routingPos)$fail[]='
 $need('app/data-model-deployment.php','rollback_compensation_failed','Rollback compensation failure must be explicitly audited.');
 $need('app/data-model-deployment.php','activation_compensation_failed','Activation compensation failure must be explicitly audited.');
 
-$need('app/data-model-observability.php',"app_with_advisory_lock($pdo,'model-incident'",'Production incident upserts must be serialized per deployment/route/metric.');
+$need('app/data-model-observability.php','app_with_advisory_lock($pdo,\'model-incident\'','Production incident upserts must be serialized per deployment/route/metric.');
 
 $improvement=$read('app/data-model-improvement.php');
 $need('app/data-model-improvement.php','function data_model_improvement_case_locked','Phase 46 case mutations must have a shared lock helper.');
 $need('app/data-model-improvement.php','function data_model_improvement_proposal_locked','Phase 46 proposal mutations must have a shared lock helper.');
-$need('app/data-model-improvement.php',"app_with_advisory_lock($pdo,'model-improvement-cluster'",'Phase 46 production evidence ingestion must serialize cluster creation.');
+$need('app/data-model-improvement.php','app_with_advisory_lock($pdo,\'model-improvement-cluster\'','Phase 46 production evidence ingestion must serialize cluster creation.');
 foreach(['data_model_improvement_proposal_update','data_model_improvement_proposal_approve','data_model_improvement_proposal_publish'] as $fn){$b=$block($improvement,$fn);if($b===''||!str_contains($b,'data_model_improvement_proposal_locked('))$fail[]="$fn must serialize proposal state.";}
 $need('app/data-model-improvement.php',"fresh['status']!=='draft'",'Idempotent proposal saves must verify reloaded draft state instead of relying on affected-row count.');
 
@@ -48,13 +48,13 @@ $sync=$block($campaign,'data_model_campaign_sync_status');$need('app/data-model-
 if(!str_contains($sync,'AND status=?'))$fail[]='Campaign sync must compare-and-swap against the state it evaluated.';
 $need('app/data-model-campaigns.php','data_model_improvement_proposal_locked($pdo,$proposalPublicId','Campaign proposal refresh must serialize against Phase 46 proposal mutations.');
 
-$need('app/data-datasets.php',"$ownsTx=!$pdo->inTransaction()", 'Dataset creation must be composable inside an outer governance transaction.');
-$need('app/data-datasets.php',"app_with_advisory_lock($pdo,'dataset-slug'",'Dataset version allocation must be serialized by slug.');
-$need('app/data-post-training.php',"$ownsTx=!$pdo->inTransaction()", 'Post-training plan creation must be composable inside the Phase 47 transaction.');
+$need('app/data-datasets.php','$ownsTx=!$pdo->inTransaction()', 'Dataset creation must be composable inside an outer governance transaction.');
+$need('app/data-datasets.php','app_with_advisory_lock($pdo,\'dataset-slug\'','Dataset version allocation must be serialized by slug.');
+$need('app/data-post-training.php','$ownsTx=!$pdo->inTransaction()', 'Post-training plan creation must be composable inside the Phase 47 transaction.');
 
 $release=$read('app/release-operations.php');
 $need('app/release-operations.php','RecursiveDirectoryIterator','Release fingerprint must cover the deploy tree rather than a selected file list.');
-$need('app/release-operations.php',"if($file->isLink())throw new RuntimeException",'Release fingerprint must reject package symlinks.');
+$need('app/release-operations.php','if($file->isLink())throw new RuntimeException','Release fingerprint must reject package symlinks.');
 $need('app/release-operations.php','function release_installed_manifest_status','Runtime preflight must verify the installed release manifest.');
 $need('app/release-operations.php','package fingerprint mismatch','Installed package verification must fail on deploy-tree drift.');
 $need('app/release-operations.php','Backup database target does not match the configured database.','Restore planning must fail closed on database-target mismatch.');
