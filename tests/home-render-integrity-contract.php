@@ -21,6 +21,11 @@ home_render_assert(!str_contains($home,'$homeRuntimeIncident='),'legacy all-or-n
 home_render_assert(str_contains($home,'homeWorkspaceLayout'),'Home uses dedicated workspace layout hooks');
 home_render_assert(str_contains($css,'.homeWorkspaceLayout>#homeFeedCanvas'),'Home feed has explicit grid placement');
 home_render_assert(str_contains($css,'.homeWorkspaceLayout>.homeRightRail'),'Home right rail has explicit grid placement');
+home_render_assert(str_contains($css,'.homeWorkspaceLayout>.homeRightRail{display:none!important}'),'Home removes the right column');
+home_render_assert(str_contains($css,'grid-template-columns:minmax(0,820px)!important'),'Home feed is centered as a single content column');
+home_render_assert(str_contains($home,'homeRuntimeNotice homeFeedRuntimeNotice'),'Reduced-mode diagnostics are scoped to the Feed canvas');
+$feedPos=strpos($home,'data-home-feed-canvas');$noticePos=strpos($home,'homeFeedRuntimeNotice');
+home_render_assert($feedPos!==false&&$noticePos!==false&&$noticePos>$feedPos,'Reduced-mode diagnostics render inside Feed, not above Agent Chat');
 home_render_assert(str_contains($css,'.homeFeedPage.agentChatMode .homeRightRail{display:none!important}'),'Agent mode removes the Home right rail');
 home_render_assert(str_contains($css,'.homeFeedPage.agentChatMode .appShellFooter{display:none}'),'Agent mode removes the universal footer under the fixed composer');
 home_render_assert(str_contains($css,'.homeFeedPage.agentChatMode{overflow-x:clip}'),'Agent mode clips horizontal overflow without creating another scroll container');
