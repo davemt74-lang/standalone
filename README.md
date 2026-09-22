@@ -313,3 +313,33 @@ The controlled path is now:
 **Governed data → Frozen training dataset → Training job → Experimental model → Equivalent evaluation → Human review → Readiness packet → Human Phase 40 decision**
 
 See `docs/phase-42-post-training-evaluation-readiness.md`.
+
+
+## Phase 43 — Model Release Decision Workspace
+
+Annotated now has the explicit human decision layer between a Phase 42 readiness packet and Phase 40 lifecycle controls.
+
+Phase 43 adds:
+
+- integrity-valid readiness-packet intake
+- rollout and rollback plans
+- governed rollback-target validation
+- model-risk checklist
+- creator/reviewer separation
+- configurable independent reviewer requirement
+- reviewer signatures bound to the current decision snapshot
+- automatic stale-signature detection after checklist/plan changes
+- signed Proceed / Hold / Reject outcomes
+- deterministic decision and signature hashes
+- signed release-decision JSON export
+- Model Registry decision history/handoff
+- separate AI routing handoff
+- a first-class **Admin Model Release Decision UI**
+
+A Proceed decision is an authorization record for human continuation into Model Registry. It never changes model lifecycle or production AI routing automatically.
+
+The controlled path is:
+
+**Readiness packet → Risk/rollout/rollback review → Independent signatures → Signed human decision → Explicit Model Registry action → Separate routing action**
+
+See `docs/phase-43-model-release-decision-workspace.md`.

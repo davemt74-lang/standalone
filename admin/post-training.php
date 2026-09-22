@@ -155,7 +155,7 @@ $latestPacketIntegrity=$latestPacket?data_post_training_packet_integrity($latest
       <p>This packet means the configured evidence, review, regression, and Phase 40 gates were satisfied at packet creation. It is <strong>not</strong> an approval or activation decision.</p>
       <div class="inlineActions">
         <form method="post" action="/admin/post-training-export.php"><?=csrf_field()?><input type="hidden" name="plan_id" value="<?=h($plan['public_id'])?>"><input type="hidden" name="packet_id" value="<?=h($latestPacket['public_id'])?>"><button class="button secondary" type="submit">Export readiness JSON</button></form>
-        <a class="button" href="/admin/model-registry.php?registry=<?=rawurlencode((string)$plan['registry_public_id'])?>&version=<?=rawurlencode((string)$plan['output_version_public_id'])?>">Open Model Registry for human decision</a>
+        <a class="button" href="/admin/model-release.php?packet=<?=rawurlencode((string)$latestPacket['public_id'])?>">Open Model Release Decision</a><a class="button secondary" href="/admin/model-registry.php?registry=<?=rawurlencode((string)$plan['registry_public_id'])?>&version=<?=rawurlencode((string)$plan['output_version_public_id'])?>">Open Model Registry for human decision</a>
       </div>
     </section>
     <?php endif?>
