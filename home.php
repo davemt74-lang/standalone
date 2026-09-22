@@ -1,27 +1,104 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/annotation-ui.php';require_once __DIR__.'/app/cognitive-feed-ui.php';require_once __DIR__.'/app/action-center.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/annotation-ui.php';require_once __DIR__.'/app/cognitive-feed-ui.php';require_once __DIR__.'/app/action-center.php';require_once __DIR__.'/app/schema-health.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
 
-$conversationReady=conversation_runtime_ready($pdo);$chatTeams=$conversationReady?conversation_team_list($pdo,$u):[];$preferredTeam=trim((string)($_GET['team']??''));$preferredTeamContext=$preferredTeam!==''&&in_array($preferredTeam,array_column($chatTeams,'team_public_id'),true)?$preferredTeam:'';$chatStatus=conversation_presence_ready($pdo)?conversation_status_get($pdo,(int)$u['id']):['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];$workspaceResearchCandidate=trim((string)($_GET['project']??''));$workspaceResearchContext=$workspaceResearchCandidate!==''&&project_access($pdo,(int)$u['id'],$workspaceResearchCandidate)?$workspaceResearchCandidate:'';$workspaceAgentContext=trim((string)($_GET['agent']??''));
-$cognitiveReady=cognitive_feed_ready($pdo);$requestedFeedMode=strtolower(trim((string)($_GET['view']??'')));$feedMode=in_array($requestedFeedMode,['cognitive','latest'],true)?$requestedFeedMode:cognitive_feed_mode_get($pdo,$u);if(!$cognitiveReady)$feedMode='latest';
-$cognitiveBase=cognitive_feed_items($pdo,$u,$chatTeams,false);$cognitiveFeed=$feedMode==='cognitive'?cognitive_feed_compose_from_items($cognitiveBase,4,28):['ready'=>$cognitiveReady,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];$actionCenter=action_center_compose($pdo,$u,$chatTeams,60,$cognitiveBase);$proactiveReady=proactive_intelligence_ready($pdo);if($proactiveReady&&$feedMode==='cognitive')proactive_intelligence_sync($pdo,$u,$cognitiveFeed);$proactiveBriefing=$proactiveReady?proactive_briefing($pdo,$u,3):['ready'=>false,'items'=>[],'count'=>0];$proactiveAgentKey=trim((string)($_GET['proactive_agent']??''));$proactiveAgentHandoff=$proactiveReady&&$proactiveAgentKey!==''?proactive_agent_handoff($pdo,$u,$proactiveAgentKey):null;$crossResearchAgentKey=trim((string)($_GET['cross_research_agent']??''));$crossResearchAgentHandoff=cross_research_ready($pdo)&&$crossResearchAgentKey!==''?cross_research_agent_handoff($pdo,$u,$crossResearchAgentKey):null;$reviewAgentKey=trim((string)($_GET['review_agent']??''));$reviewAgentHandoff=research_reviews_ready($pdo)&&$reviewAgentKey!==''?research_review_agent_handoff($pdo,$u,$reviewAgentKey):null;$impactAgentId=(int)($_GET['impact_agent']??0);$impactAgentProject=trim((string)($_GET['project']??''));$impactAgentHandoff=change_impact_ready($pdo)&&$impactAgentId>0?change_impact_agent_handoff($pdo,$u,$impactAgentId,$impactAgentProject):null;$portfolioAgent=isset($_GET['portfolio_agent']);$portfolioAgentProject=trim((string)($_GET['project']??''));$portfolioAgentHandoff=$portfolioAgent&&research_portfolio_ready($pdo)?research_portfolio_agent_handoff($pdo,$u,$portfolioAgentProject!==''?$portfolioAgentProject:null):null;
-$directAgentHandoff=null;$directAgentType=strtolower(trim((string)($_GET['agent_context_type']??'')));$directAgentId=trim((string)($_GET['agent_context_id']??''));
-if($directAgentType!==''&&$directAgentId!==''&&function_exists('object_handoff_resolve')){
-    $handoffObject=object_handoff_resolve($pdo,$u,$directAgentType,$directAgentId);
-    if($handoffObject)$directAgentHandoff=['prompt'=>object_handoff_agent_prompt($directAgentType),'context'=>[['type'=>$directAgentType,'public_id'=>$directAgentId,'label'=>$handoffObject['label']??ucfirst($directAgentType)]],'source'=>'direct_object_handoff'];
+$schemaStatus=app_schema_runtime_status($pdo,__DIR__.'/database/migrations');
+if(empty($schemaStatus['ready'])){
+    $migrationPending=array_values(array_filter((array)($schemaStatus['pending']??[]),fn($item)=>$item==='schema_migrations'||(!str_starts_with((string)$item,'table:')&&!str_starts_with((string)$item,'column:'))));
+    if(($u['role']??'')==='admin'&&$migrationPending&&!($schemaStatus['changed']??[])&&empty($schemaStatus['error'])){
+        header('Location: /upgrade.php?from=home');
+        exit;
+    }
+    $incident=app_schema_runtime_incident((string)($schemaStatus['error']?:('Runtime schema is not current: '.implode(', ',(array)($schemaStatus['pending']??[])).' changed='.implode(',',(array)($schemaStatus['changed']??[])))),'home-schema');
+    http_response_code(503);
+    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated database update required</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><main class="panel narrow"><h1>Database update required</h1><p>Annotated cannot safely load the Home workspace until the database schema matches this release.</p><?php if(($u['role']??'')==='admin'):?><p><a class="button" href="/upgrade.php">Open database upgrade</a></p><?php else:?><p>Please ask an Annotated administrator to complete the database upgrade.</p><?php endif?><p class="meta">Reference: <?=h($incident)?></p></main></body></html><?php
+    exit;
 }
-$feed=$feedMode==='latest'?feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations']:[];
 
-$q=$pdo->prepare("SELECT u.username,u.display_name,u.profile_image_url,u.bio,(SELECT COUNT(*) FROM annotations a WHERE a.user_id=u.id AND a.visibility='public' AND a.status='published') annotation_count FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.id<>? AND u.status='active' AND COALESCE(p.profile_visibility,'public')='public' AND COALESCE(p.search_visibility,1)=1 AND NOT EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=u.id) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=u.id) OR (b.blocker_user_id=u.id AND b.blocked_user_id=?)) ORDER BY annotation_count DESC,u.created_at DESC LIMIT 5");
-$q->execute([$u['id'],$u['id'],$u['id'],$u['id']]);$people=$q->fetchAll();
+$preferredTeam=trim((string)($_GET['team']??''));
+$workspaceResearchCandidate=trim((string)($_GET['project']??''));
+$workspaceAgentContext=trim((string)($_GET['agent']??''));
+$requestedFeedMode=strtolower(trim((string)($_GET['view']??'')));
 
-$q=$pdo->prepare("SELECT t.public_id,t.name,tm.role,(SELECT COUNT(*) FROM team_members x WHERE x.team_id=t.id) member_count FROM teams t JOIN team_members tm ON tm.team_id=t.id WHERE tm.user_id=? ORDER BY t.name LIMIT 5");
-$q->execute([$u['id']]);$teams=$q->fetchAll();
+$conversationReady=false;$chatTeams=[];$preferredTeamContext='';$chatStatus=['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
+$workspaceResearchContext='';$cognitiveReady=false;$feedMode='latest';
+$cognitiveBase=['ready'=>false,'items'=>[],'hidden_count'=>0];
+$cognitiveFeed=['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+$actionCenter=['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
+$proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];
+$proactiveAgentHandoff=null;$crossResearchAgentHandoff=null;$reviewAgentHandoff=null;$impactAgentHandoff=null;$portfolioAgentHandoff=null;$directAgentHandoff=null;
+$homeRuntimeIncident='';
 
-$q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
-$q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:['followers'=>0,'following_count'=>0,'annotation_count'=>0];
+try{
+    $conversationReady=conversation_runtime_ready($pdo);
+    $chatTeams=$conversationReady?conversation_team_list($pdo,$u):[];
+    $preferredTeamContext=$preferredTeam!==''&&in_array($preferredTeam,array_column($chatTeams,'team_public_id'),true)?$preferredTeam:'';
+    $chatStatus=conversation_presence_ready($pdo)?conversation_status_get($pdo,(int)$u['id']):$chatStatus;
+    $workspaceResearchContext=$workspaceResearchCandidate!==''&&project_access($pdo,(int)$u['id'],$workspaceResearchCandidate)?$workspaceResearchCandidate:'';
+
+    $cognitiveReady=cognitive_feed_ready($pdo);
+    $feedMode=in_array($requestedFeedMode,['cognitive','latest'],true)?$requestedFeedMode:cognitive_feed_mode_get($pdo,$u);
+    if(!$cognitiveReady)$feedMode='latest';
+    $cognitiveBase=cognitive_feed_items($pdo,$u,$chatTeams,false);
+    $cognitiveFeed=$feedMode==='cognitive'?cognitive_feed_compose_from_items($cognitiveBase,4,28):['ready'=>$cognitiveReady,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+    $actionCenter=action_center_compose($pdo,$u,$chatTeams,60,$cognitiveBase);
+
+    $proactiveReady=proactive_intelligence_ready($pdo);
+    if($proactiveReady&&$feedMode==='cognitive')proactive_intelligence_sync($pdo,$u,$cognitiveFeed);
+    $proactiveBriefing=$proactiveReady?proactive_briefing($pdo,$u,3):$proactiveBriefing;
+    $proactiveAgentKey=trim((string)($_GET['proactive_agent']??''));
+    $proactiveAgentHandoff=$proactiveReady&&$proactiveAgentKey!==''?proactive_agent_handoff($pdo,$u,$proactiveAgentKey):null;
+    $crossResearchAgentKey=trim((string)($_GET['cross_research_agent']??''));
+    $crossResearchAgentHandoff=cross_research_ready($pdo)&&$crossResearchAgentKey!==''?cross_research_agent_handoff($pdo,$u,$crossResearchAgentKey):null;
+    $reviewAgentKey=trim((string)($_GET['review_agent']??''));
+    $reviewAgentHandoff=research_reviews_ready($pdo)&&$reviewAgentKey!==''?research_review_agent_handoff($pdo,$u,$reviewAgentKey):null;
+    $impactAgentId=(int)($_GET['impact_agent']??0);
+    $impactAgentProject=trim((string)($_GET['project']??''));
+    $impactAgentHandoff=change_impact_ready($pdo)&&$impactAgentId>0?change_impact_agent_handoff($pdo,$u,$impactAgentId,$impactAgentProject):null;
+    $portfolioAgent=isset($_GET['portfolio_agent']);
+    $portfolioAgentProject=trim((string)($_GET['project']??''));
+    $portfolioAgentHandoff=$portfolioAgent&&research_portfolio_ready($pdo)?research_portfolio_agent_handoff($pdo,$u,$portfolioAgentProject!==''?$portfolioAgentProject:null):null;
+
+    $directAgentType=strtolower(trim((string)($_GET['agent_context_type']??'')));
+    $directAgentId=trim((string)($_GET['agent_context_id']??''));
+    if($directAgentType!==''&&$directAgentId!==''&&function_exists('object_handoff_resolve')){
+        $handoffObject=object_handoff_resolve($pdo,$u,$directAgentType,$directAgentId);
+        if($handoffObject)$directAgentHandoff=['prompt'=>object_handoff_agent_prompt($directAgentType),'context'=>[['type'=>$directAgentType,'public_id'=>$directAgentId,'label'=>$handoffObject['label']??ucfirst($directAgentType)]],'source'=>'direct_object_handoff'];
+    }
+}catch(Throwable $e){
+    $homeRuntimeIncident=app_schema_runtime_incident($e,'home-optional-runtime');
+    $conversationReady=false;$chatTeams=[];$preferredTeamContext='';$chatStatus=['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
+    $cognitiveReady=false;$feedMode='latest';$cognitiveBase=['ready'=>false,'items'=>[],'hidden_count'=>0];
+    $cognitiveFeed=['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+    $actionCenter=['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
+    $proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];
+    $proactiveAgentHandoff=$crossResearchAgentHandoff=$reviewAgentHandoff=$impactAgentHandoff=$portfolioAgentHandoff=$directAgentHandoff=null;
+}
+
+$feed=[];
+try{$feed=$feedMode==='latest'?feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations']:[];}
+catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-feed');$feed=[];}
+
+$people=[];
+try{
+    $q=$pdo->prepare("SELECT u.username,u.display_name,u.profile_image_url,u.bio,(SELECT COUNT(*) FROM annotations a WHERE a.user_id=u.id AND a.visibility='public' AND a.status='published') annotation_count FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.id<>? AND u.status='active' AND COALESCE(p.profile_visibility,'public')='public' AND COALESCE(p.search_visibility,1)=1 AND NOT EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=u.id) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=u.id) OR (b.blocker_user_id=u.id AND b.blocked_user_id=?)) ORDER BY annotation_count DESC,u.created_at DESC LIMIT 5");
+    $q->execute([$u['id'],$u['id'],$u['id'],$u['id']]);$people=$q->fetchAll();
+}catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-people');}
+
+$teams=[];
+try{
+    $q=$pdo->prepare("SELECT t.public_id,t.name,tm.role,(SELECT COUNT(*) FROM team_members x WHERE x.team_id=t.id) member_count FROM teams t JOIN team_members tm ON tm.team_id=t.id WHERE tm.user_id=? ORDER BY t.name LIMIT 5");
+    $q->execute([$u['id']]);$teams=$q->fetchAll();
+}catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-teams');}
+
+$stats=['followers'=>0,'following_count'=>0,'annotation_count'=>0];
+try{
+    $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
+    $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:$stats;
+}catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-stats');}
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>">
+<?php if($homeRuntimeIncident!==''&&($u['role']??'')==='admin'):?><div class="panel narrow" style="margin:16px auto"><div class="error"><strong>Some Home modules were temporarily disabled.</strong><p>The core Home feed is still available. Check the PHP error log using reference <code><?=h($homeRuntimeIncident)?></code>.</p></div></div><?php endif?>
 <main class="layout"><section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
 <div class="homeFeedModeBar" data-cognitive-feed data-csrf="<?=h(csrf_token())?>">
   <nav class="homeFeedModeTabs" aria-label="Home feed view">
