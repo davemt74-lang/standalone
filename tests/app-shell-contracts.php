@@ -29,6 +29,14 @@ $need('app/shell.php','appShellFooter','Every authenticated product page must in
 $need('app/shell.php','$isAdmin','Admin navigation must be role-gated.');
 $need('app/shell.php','app_shell_admin_nav','Admin pages must use the dedicated permission-aware admin navigation.');
 $avoid('app/shell.php',"app_shell_link('/ai.php','Ask Annotated'",'User sidebar must not include Ask Annotated.');
+$avoid('app/shell.php',"'SOCIAL RESEARCH'",'User sidebar must not render the Social Research section title.');
+$avoid('app/shell.php',"app_shell_link('/notifications.php','Notifications'",'User sidebar must not include Notifications; the shared header owns notifications.');
+$avoid('app/shell.php',"app_shell_link('/data-attribution.php','Data & Attribution'",'User sidebar must not include Data & Attribution.');
+$need('app/shell.php','<a href="/data-attribution.php">Data & Attribution</a>','Data & Attribution must live in the user dropdown.');
+$need('app/shell.php','app_shell_research_agent_rows','Sidebar Research Agents must come from permission-scoped Agent conversations.');
+$need('app/shell.php','appShellSectionTitle">Research Agents','User sidebar must expose a Research Agents section.');
+$need('app/shell.php','/home.php?agent=','Research Agent sidebar items must deep-link to existing Agent chats.');
+$need('assets/css/app.css','/* Sidebar Research Agents */','Research Agents list must have dedicated compact sidebar styling.');
 $avoid('app/shell.php','<strong>Chrome Extension</strong>','User sidebar footer must not include the Chrome Extension download button.');
 $avoid('app/shell.php','Open Admin','User sidebar footer must not include an Open Admin button.');
 $need('assets/css/app.css','line-height:calc(1.2em - 3px)','Sidebar navigation line height must be reduced by 3px.');
