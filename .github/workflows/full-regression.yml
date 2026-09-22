@@ -1,0 +1,90 @@
+name: Annotated Full Regression
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: annotated-full-regression-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  full-regression:
+    if: contains(github.event.pull_request.title, '[phase-gate]')
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: annotated_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    strategy:
+      matrix:
+        php-version: ['8.1', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: PHP syntax
+        run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
+      - name: Extension JavaScript syntax
+        run: find extension assets/js -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Complete historical regression
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: bash tests/ci/run-full-regression.sh
+
+  mysql8-fresh-install:
+    if: contains(github.event.pull_request.title, '[phase-gate]')
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: annotated_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - name: PHP syntax
+        run: php -l app/migrations.php && php -l app/installer.php && php -l install.php
+      - name: Fresh install MySQL 8 compatibility suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/install-db.php
+
+  package:
+    if: contains(github.event.pull_request.title, '[phase-gate]')
+    needs: [full-regression, mysql8-fresh-install]
+    uses: ./.github/workflows/package-two-zips.yml
