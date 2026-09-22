@@ -120,6 +120,14 @@ Publishing an evaluation proposal creates a permanent `data_model_regression_cas
 
 Future evaluation datasets can include corpus type `model_regression_case`.
 
+### Future-candidate release gate
+
+Once an evaluation regression case is published, Phase 40 candidate/approved model gates require integrity-valid model-benchmark coverage of every active Phase 46 regression case belonging to that logical model family.
+
+Coverage means the candidate has a linked, completed, integrity-valid model evaluation whose suite contains the published regression corpus item as a benchmark case.
+
+This requirement is intentionally not applied to model versions already in `active`, `deprecated`, or `retired` lifecycle states. In particular, a previously active deprecated rollback target is not blocked by regression cases created after it originally shipped.
+
 ## Dataset handoff
 
 Phase 46 can create a **draft** Dataset Registry record for:
