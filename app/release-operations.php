@@ -119,12 +119,13 @@ function release_backup_manifest_write(string $backupDir,array $config,string $r
     return $manifest;
 }
 function release_backup_manifest_verify(string $backupDir): array {
-    $backupDir=rtrim($backupDir,'/');$path=$backupDir.'/manifest.json';if(!is_file($path))return ['ok'=>false,'errors'=>['manifest.json is missing.'],'manifest'=>null];
+    $backupDir=rtrim($backupDir,'/');if(is_file($backupDir.'/.INCOMPLETE'))return ['ok'=>false,'errors'=>['Backup is marked incomplete.'],'manifest'=>null];
+    $path=$backupDir.'/manifest.json';if(!is_file($path))return ['ok'=>false,'errors'=>['manifest.json is missing.'],'manifest'=>null];
     try{$manifest=json_decode((string)file_get_contents($path),true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){return ['ok'=>false,'errors'=>['manifest.json is invalid JSON.'],'manifest'=>null];}
     $errors=[];if(($manifest['schema']??'')!=='annotated.release-backup.v1')$errors[]='Backup manifest schema is unsupported.';
     if(empty($manifest['release']['package_fingerprint'])||!preg_match('/^[a-f0-9]{64}$/',(string)$manifest['release']['package_fingerprint']))$errors[]='Backup release package fingerprint is missing or invalid.';
     $copy=$manifest;$stored=(string)($copy['backup_id']??'');unset($copy['backup_id']);$computed=hash('sha256',json_encode($copy,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));if($stored===''||!hash_equals($stored,$computed))$errors[]='Backup manifest identity hash does not match.';
-    foreach((array)($manifest['files']??[]) as $name=>$meta){if(!preg_match('/^[A-Za-z0-9._-]+$/',(string)$name)){$errors[]='Unsafe backup component name.';continue;}$file=$backupDir.'/'.$name;if(!is_file($file)){$errors[]=$name.' is missing.';continue;}$sha=hash_file('sha256',$file);if(empty($meta['sha256'])||!hash_equals((string)$meta['sha256'],$sha))$errors[]=$name.' checksum does not match.';$bytes=filesize($file)?:0;if((int)($meta['bytes']??-1)!==$bytes)$errors[]=$name.' byte size does not match.';}
+    foreach((array)($manifest['files']??[]) as $name=>$meta){if(!preg_match('/^[A-Za-z0-9._-]+$/',(string)$name)){$errors[]='Unsafe backup component name.';continue;}$file=$backupDir.'/'.$name;if(!is_file($file)){$errors[]=$name.' is missing.';continue;}$sha=hash_file('sha256',$file);if(empty($meta['sha256'])||!hash_equals((string)$meta['sha256'],$sha))$errors[]=$name.' checksum does not match.';$bytes=filesize($file)?:0;if($bytes<=0)$errors[]=$name.' is empty.';if((int)($meta['bytes']??-1)!==$bytes)$errors[]=$name.' byte size does not match.';}
     foreach(['database.sql.gz','private-storage.tar.gz'] as $required)if(!isset($manifest['files'][$required]))$errors[]=$required.' is absent from manifest.';
     return ['ok'=>!$errors,'errors'=>$errors,'manifest'=>$manifest,'computed_backup_id'=>$computed];
 }
