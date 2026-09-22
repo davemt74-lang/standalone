@@ -21,6 +21,9 @@ $need('assets/css/app.css','/* Header notification dropdown + notification page 
 $need('assets/css/app.css','.appShellContent>.notificationCenter{','Notifications page must have dedicated shell spacing.');
 $need('assets/css/app.css','/* Annotated shell sharp UI pass */','Shared shell must include the sharp visual refinement layer.');
 $need('assets/css/app.css','.appHeaderNotificationBadge{','Header notification badge must have dedicated centered styling.');
+$need('assets/css/app.css','/* Shared header stacking integrity */','Shared header must own a stacking context above sticky page controls.');
+$need('assets/css/app.css','z-index:400','Shared header must render above Home sticky controls and menus.');
+$need('assets/css/app.css','isolation:isolate','Shared header stacking context must be isolated.');
 $need('assets/css/app.css','box-shadow:inset 2px 0 0 #111','Active sidebar navigation must use the sharper inset indicator.');
 $need('app/shell.php','appShellFooter','Every authenticated product page must inherit the shared footer.');
 $need('app/shell.php','$isAdmin','Admin navigation must be role-gated.');
