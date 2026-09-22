@@ -402,3 +402,17 @@
   .homeWorkspaceLayout>.homeRightRail:not(.teamChatRightRail){display:none}
   .homeRuntimeNotice{width:calc(100% - 32px)}
 }
+
+
+/* Agent canvas focused workspace */
+.homeFeedPage.agentChatMode{overflow-x:clip}
+.homeFeedPage.agentChatMode .homeWorkspaceLayout{grid-template-columns:minmax(0,1fr);max-width:1040px;gap:0;padding-bottom:118px}
+.homeFeedPage.agentChatMode .homeAgentCanvas{grid-column:1!important;grid-row:1;width:100%;min-width:0}
+.homeFeedPage.agentChatMode .homeRightRail{display:none!important}
+.homeFeedPage.agentChatMode .appShellFooter{display:none}
+.homeFeedPage.agentChatMode .agentChatCanvas{min-height:calc(100vh - 96px);padding-bottom:0}
+.homeFeedPage.agentChatMode .agentChatMessages{min-height:calc(100vh - 250px);padding-bottom:116px}
+.homeFeedPage.agentChatMode .homeAgentDock{z-index:90}
+@media(max-width:900px){
+  .homeFeedPage.agentChatMode .homeWorkspaceLayout{max-width:none;padding-bottom:108px}
+}
