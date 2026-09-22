@@ -29,6 +29,32 @@ function data_model_deployment_route_map(): array {
         'annotation_intelligence'=>'annotation_intelligence_model_id',
     ];
 }
+function data_model_deployment_task_route(string $taskType): string {
+    return match(true){
+        $taskType==='research_workspace_intelligence'=>'research',
+        $taskType==='annotation_intelligence'=>'annotation_intelligence',
+        str_starts_with($taskType,'moderation_')=>'moderation',
+        $taskType==='source_change_summary'=>'source_monitor',
+        str_starts_with($taskType,'research_')=>'research',
+        $taskType==='transcript_cleanup'=>'transcript_cleanup',
+        default=>'admin',
+    };
+}
+function data_model_deployment_queue_shadow(PDO $pdo,?array $user,string $taskType,int $servedModelId,string $system,string $prompt,array $refs=[],?string $scopeType=null,?string $scopePublicId=null): ?string {
+    if($taskType==='deployment_shadow'||!data_model_deployment_ready($pdo)||!$servedModelId)return null;
+    $routeKey=data_model_deployment_task_route($taskType);
+    try{
+        $q=$pdo->prepare("SELECT o.candidate_ai_model_id,d.id deployment_id,d.public_id deployment_public_id,d.revision FROM data_model_routing_overrides o JOIN data_model_deployments d ON d.id=o.deployment_id WHERE o.route_key=? AND o.enabled=1 AND o.mode='shadow' AND o.baseline_ai_model_id=? AND d.status='shadow' LIMIT 1");
+        $q->execute([$routeKey,$servedModelId]);$row=$q->fetch();if(!$row)return null;
+        $candidate=(int)$row['candidate_ai_model_id'];ai_model_record($pdo,$candidate);
+        $job=ai_queue_job($pdo,$user['id']??null,'deployment_shadow',$candidate,'model_deployment',(string)$row['deployment_public_id'],[
+            'deployment_public_id'=>(string)$row['deployment_public_id'],'deployment_revision'=>(int)$row['revision'],'source_task_type'=>$taskType,
+            'system'=>$system,'prompt'=>$prompt,'refs'=>$refs,'scope_type'=>$scopeType,'scope_public_id'=>$scopePublicId,
+        ],8);
+        data_model_deployment_event($pdo,(int)$row['deployment_id'],$user['id']??null,'shadow_inference_queued','shadow',['job_public_id'=>$job,'source_task_type'=>$taskType,'candidate_ai_model_id'=>$candidate]);
+        return $job;
+    }catch(Throwable $e){return null;}
+}
 function data_model_deployment_route_labels(): array {
     return [
         'admin'=>'Admin default','pro'=>'Pro default','source_monitor'=>'Source monitoring',
