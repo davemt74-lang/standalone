@@ -43,7 +43,7 @@ function agent_chat_context_options(PDO $pdo,array $viewer): array {
     $out=['annotations'=>[],'research'=>[],'teams'=>[]];
     $q=$pdo->prepare("SELECT a.public_id,a.text_commentary,s.title source_title,s.domain,a.created_at FROM annotations a JOIN sources s ON s.id=a.source_id WHERE a.user_id=? AND a.status='published' ORDER BY a.created_at DESC LIMIT 12");$q->execute([$viewer['id']]);
     foreach($q->fetchAll() as $r)$out['annotations'][]=['type'=>'annotation','public_id'=>$r['public_id'],'label'=>trim((string)$r['text_commentary'])!==''?mb_substr(trim((string)$r['text_commentary']),0,80):($r['source_title']?:$r['domain'])];
-    $q=$pdo->prepare("SELECT DISTINCT rp.public_id,rp.title FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.created_at DESC LIMIT 12");$q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
+    $q=$pdo->prepare("SELECT rp.public_id,rp.title FROM research_projects rp WHERE rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?) ORDER BY rp.created_at DESC,rp.id DESC LIMIT 12");$q->execute([$viewer['id'],$viewer['id']]);
     foreach($q->fetchAll() as $r)$out['research'][]=['type'=>'research','public_id'=>$r['public_id'],'label'=>$r['title']];
     $q=$pdo->prepare("SELECT t.public_id,t.name FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=? ORDER BY t.name LIMIT 12");$q->execute([$viewer['id']]);
     foreach($q->fetchAll() as $r)$out['teams'][]=['type'=>'team','public_id'=>$r['public_id'],'label'=>$r['name']];
