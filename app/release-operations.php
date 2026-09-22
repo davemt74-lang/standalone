@@ -60,7 +60,7 @@ function release_backup_destination_assert(string $base,string $root): string {
 }
 function release_backup_requirements(array $config): array {
     $checks=[];$target=null;try{$target=release_database_target($config);$checks['database_target']=['pass'=>true,'detail'=>$target['database'].' @ '.($target['unix_socket']?:($target['host'].':'.$target['port']))];}catch(Throwable $e){$checks['database_target']=['pass'=>false,'detail'=>$e->getMessage()];}
-    $commands=['dump'=>['mysqldump','mariadb-dump'],'client'=>['mysql','mariadb'],'tar'=>['tar']];
+    $commands=['dump'=>['mysqldump','mariadb-dump'],'client'=>['mysql','mariadb'],'tar'=>['tar'],'gzip'=>['gzip']];
     $paths=[];foreach($commands as $key=>$names){$paths[$key]=release_command_path($names);$checks[$key]=['pass'=>$paths[$key]!==null,'detail'=>$paths[$key]?:('Missing '.implode(' or ',$names))];}
     $checks['zlib']=['pass'=>function_exists('gzopen'),'detail'=>function_exists('gzopen')?'PHP zlib available.':'PHP zlib extension is required.'];
     $storage=(string)($config['storage']['private_root']??'');$checks['storage']=['pass'=>$storage!==''&&is_dir($storage)&&is_readable($storage),'detail'=>$storage!==''?$storage:'Private storage path is not configured.'];
@@ -119,7 +119,7 @@ function release_restore_plan(string $backupDir,array $config): array {
         'Run php bin/release-preflight.php and the post-deploy smoke checklist before reopening traffic.',
       ],
       'commands'=>[
-        'database'=>'gzip -dc '.escapeshellarg(rtrim($backupDir,'/').'/database.sql.gz').' | '.($req['commands']['client']?:'mysql').' --defaults-extra-file=<0600-client.cnf> '.escapeshellarg($target['database']),
+        'database'=>($req['commands']['gzip']?:'gzip').' -dc '.escapeshellarg(rtrim($backupDir,'/').'/database.sql.gz').' | '.($req['commands']['client']?:'mysql').' --defaults-extra-file=<0600-client.cnf> '.escapeshellarg($target['database']),
         'storage'=>($req['commands']['tar']?:'tar').' -C '.escapeshellarg($parent).' -xzf '.escapeshellarg(rtrim($backupDir,'/').'/private-storage.tar.gz'),
       ],
       'destructive'=>true,
