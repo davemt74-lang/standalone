@@ -135,7 +135,7 @@ function release_restore_plan(string $backupDir,array $config): array {
     ];
 }
 function release_config_file_security(string $root): array {
-    $path=rtrim($root,'/').'/config.php';if(!is_file($path))return ['pass'=>false,'detail'=>'config.php is missing.'];$mode=fileperms($path);$writableByOthers=$mode!==false&&(($mode&0022)!==0);return ['pass'=>!$writableByOthers,'detail'=>$writableByOthers?'config.php is group/world writable; restrict filesystem permissions.':'config.php is not group/world writable.'];
+    $path=rtrim($root,'/').'/config.php';if(!is_file($path))return ['pass'=>false,'detail'=>'config.php is missing.'];clearstatcache(true,$path);$mode=fileperms($path);$writableByOthers=$mode!==false&&(($mode&0022)!==0);return ['pass'=>!$writableByOthers,'detail'=>$writableByOthers?'config.php is group/world writable; restrict filesystem permissions.':'config.php is not group/world writable.'];
 }
 function release_operational_audit(PDO $pdo,array $config,string $root): array {
     $health=release_environment_checks($pdo,$config);$backup=release_backup_requirements($config);$configSecurity=release_config_file_security($root);$manifest=release_manifest_data($root);
