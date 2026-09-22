@@ -18,6 +18,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $v=data_model_version_create($pdo,$u,$registryId,$_POST);header('Location:/admin/model-registry.php?registry='.rawurlencode($registryId).'&version='.rawurlencode((string)$v['public_id']));exit;
         }elseif($op==='update_version'){
             data_model_version_update_experimental($pdo,$u,$versionId,$_POST);$success='Experimental model version updated.';
+        }elseif($op==='bind_runtime'){
+            data_model_version_bind_runtime($pdo,$u,$versionId,(int)($_POST['ai_model_id']??0));$success='Experimental model version runtime binding updated.';
         }elseif($op==='link_run'){
             data_model_link_evaluation($pdo,$u,$versionId,(string)($_POST['run_id']??''),(string)($_POST['note']??''));$success='Evaluation evidence linked.';
         }elseif($op==='unlink_run'){
@@ -69,7 +71,7 @@ if($version){
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">MODEL REGISTRY</span><h1>Candidate lifecycle & release governance</h1><p>Register model versions, attach integrity-valid Phase 39 evidence, apply explicit release gates, record approval receipts, activate governed versions, and roll back prior active versions. Registry status never silently rewrites AI task routing.</p></div>
-  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a></div>
+  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
 
   <section class="healthGrid">
@@ -186,6 +188,11 @@ if($version){
         <label><input type="checkbox" name="require_no_regression" value="1" <?=$version['gate_policy']['require_no_regression']?'checked':''?>> Require regression baseline comparison</label>
         <label>Maximum regressed metrics<input type="number" name="max_regressed_metrics" min="0" max="50" value="<?=h((string)$version['gate_policy']['max_regressed_metrics'])?>"></label>
         <button class="button secondary" type="submit">Update experimental version</button>
+      </form>
+      <form method="post" class="settingsForm">
+        <?=csrf_field()?><input type="hidden" name="op" value="bind_runtime"><input type="hidden" name="registry" value="<?=h($registry['public_id'])?>"><input type="hidden" name="version" value="<?=h($version['public_id'])?>">
+        <label>Runtime model binding<select name="ai_model_id" required><?php foreach($runtimeModels as $m):?><option value="<?=h((string)$m['id'])?>" <?=((int)($version['ai_model_id']??0)===(int)$m['id'])?'selected':''?>><?=h($m['display_name'])?> · <?=h($m['provider_label'])?> · <?=h($m['model_name'])?></option><?php endforeach?></select></label>
+        <button class="button secondary" type="submit">Bind experimental runtime model</button>
       </form>
     <?php endif?>
 
