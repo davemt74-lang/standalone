@@ -45,9 +45,9 @@ $need('app/data-model-improvement.php','production_regression_coverage_missing',
 $need('app/data-model-registry.php','data_model_improvement_regression_gate','Phase 40 release gates must consult active Phase 46 production regressions when the runtime is available.');
 $need('app/data-model-improvement.php',"'model_regression_case':'model_training_example'",'Phase 46 dataset drafts must keep evaluation/training corpus types separate.');
 
-$need('app/data-attribution.php',"if($objectType==='model_improvement_example')",'Phase 37 corpus governance must understand approved Phase 46 examples.');
+$need('app/data-attribution.php','if($objectType===\'model_improvement_example\')','Phase 37 corpus governance must understand approved Phase 46 examples.');
 $need('app/data-attribution.php',"'source_material_policy'=>'human_sanitized_no_raw_production_text'",'Phase 46 corpus metadata must state the sanitized-source boundary.');
-$need('app/data-attribution.php',"evaluation'=>$evaluation,'training'=>$training,'commercial_training'=>false",'Phase 46 examples must never become commercial-training eligible automatically.');
+$need('app/data-attribution.php','evaluation\'=>$evaluation,\'training\'=>$training,\'commercial_training\'=>false','Phase 46 examples must never become commercial-training eligible automatically.');
 $need('app/data-attribution.php',"'shared_retrieval'=>false",'Phase 46 improvement examples must not silently enter shared retrieval.');
 
 $need('app/data-model-observability.php','data_model_improvement_ingest_incident','Phase 45 incidents must feed Phase 46 best-effort.');
