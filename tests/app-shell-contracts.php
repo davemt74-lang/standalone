@@ -14,7 +14,10 @@ $need('app/shell.php','appUserMenu','Universal header must include the profile/a
 $need('app/shell.php','appShellFooter','Every authenticated product page must inherit the shared footer.');
 $need('app/shell.php','$isAdmin','Admin navigation must be role-gated.');
 $need('app/shell.php','app_shell_admin_nav','Admin pages must use the dedicated permission-aware admin navigation.');
-$need('app/shell.php','if($pro)','Ask Annotated navigation must be plan/permission gated.');
+$avoid('app/shell.php',"app_shell_link('/ai.php','Ask Annotated'",'User sidebar must not include Ask Annotated.');
+$avoid('app/shell.php','<strong>Chrome Extension</strong>','User sidebar footer must not include the Chrome Extension download button.');
+$avoid('app/shell.php','Open Admin','User sidebar footer must not include an Open Admin button.');
+$need('assets/css/app.css','line-height:calc(1.2em - 3px)','Sidebar navigation line height must be reduced by 3px.');
 $need('teams.php','/team.php?id=','Teams list must open real team workspaces.');
 $need('team.php','team_members','Team workspace must expose permission-scoped membership.');
 $need('team.php','profile_image_url','Team members must display social identity/profile images.');
