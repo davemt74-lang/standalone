@@ -70,6 +70,7 @@ require_once __DIR__ . '/data-datasets.php';
 require_once __DIR__ . '/data-evaluations.php';
 require_once __DIR__ . '/data-model-registry.php';
 require_once __DIR__ . '/data-training.php';
+require_once __DIR__ . '/data-post-training.php';
 require_once __DIR__ . '/research-verification.php';
 require_once __DIR__ . '/research-evidence-packs.php';
 require_once __DIR__ . '/research-workflow.php';

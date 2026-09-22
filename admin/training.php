@@ -169,6 +169,7 @@ $executors=data_training_executors();
     <?php if($job['status']==='succeeded'):?>
     <div class="notice <?=$completionIntegrity&&$completionIntegrity['ok']?'success':'error'?>"><strong>COMPLETION INTEGRITY <?=$completionIntegrity&&$completionIntegrity['ok']?'VALID':'FAILED'?></strong><br><?=h(str_replace('_',' ',(string)($completionIntegrity['reason']??'unknown')))?>.</div>
     <div class="notice success"><strong>TRAINING OUTPUT REGISTERED</strong><br>Output model version: <?php if($job['output_model_version_public_id']):?><a href="/admin/model-registry.php?registry=<?=rawurlencode($job['output_registry_public_id'])?>&version=<?=rawurlencode($job['output_model_version_public_id'])?>"><?=h($job['output_model_version_label'])?></a><?php else:?>—<?php endif?>. It is experimental and still requires Phase 39 evaluation and Phase 40 approval.</div>
+    <?php if($completionIntegrity&&$completionIntegrity['ok']):?><div class="inlineActions"><a class="button" href="/admin/post-training.php?training_job=<?=rawurlencode((string)$job['public_id'])?>">Start post-training evaluation</a></div><?php endif?>
     <?php endif?>
     <?php if($job['last_error']):?><div class="notice error"><?=h($job['last_error'])?></div><?php endif?>
 
