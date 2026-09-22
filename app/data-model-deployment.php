@@ -8,12 +8,13 @@ declare(strict_types=1);
  * No stage advances automatically. Shadow never serves the candidate.
  */
 function data_model_deployment_ready(PDO $pdo): bool {
-    try{return data_model_release_ready($pdo)
+    static $ready=null;if($ready!==null)return $ready;
+    try{$ready=data_model_release_ready($pdo)
         &&installer_table_exists($pdo,'data_model_deployments')
         &&installer_table_exists($pdo,'data_model_deployment_checkpoints')
         &&installer_table_exists($pdo,'data_model_deployment_events')
         &&installer_table_exists($pdo,'data_model_routing_overrides');}
-    catch(Throwable $e){return false;}
+    catch(Throwable $e){$ready=false;}return $ready;
 }
 function data_model_deployment_require_admin(array $viewer): void {
     if(($viewer['role']??'')!=='admin')throw new RuntimeException('Administrator access is required for Model Deployment operations.');
