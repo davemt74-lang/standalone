@@ -67,7 +67,7 @@ $types=data_evaluation_types();
   </section>
 
   <section class="card">
-    <div class="caseHeader"><div><span class="eyebrow">CREATE SUITE</span><h2>New benchmark suite</h2></div><a class="button secondary" href="/admin/datasets.php">Dataset Registry</a></div>
+    <div class="caseHeader"><div><span class="eyebrow">CREATE SUITE</span><h2>New benchmark suite</h2></div><div class="inlineActions"><a class="button secondary" href="/admin/datasets.php">Dataset Registry</a><a class="button secondary" href="/admin/model-registry.php">Model Registry</a></div></div>
     <?php if(!$datasets):?><p class="empty">Create and freeze a dataset with purpose <strong>Evaluation</strong> before creating a benchmark suite.</p><?php else:?>
     <form method="post" class="settingsForm">
       <?=csrf_field()?><input type="hidden" name="op" value="create_suite">
