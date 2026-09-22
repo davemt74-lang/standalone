@@ -84,6 +84,7 @@ jobs:
           DB_PASS: root
         run: |
           php tests/install-db.php
+          php tests/ci/prepare-current-schema.php
           php tests/phase12b-agent-chat-db.php
 
   package:
