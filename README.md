@@ -216,3 +216,32 @@ The architecture remains:
 **Production object → Contribution Ledger → Rights / Consent → Derived Corpus → Frozen Dataset → Evaluation Harness → future controlled model systems**
 
 See `docs/phase-39-dataset-evaluation-benchmark-harness.md`.
+
+
+## Phase 40 — Model Registry & Candidate Lifecycle
+
+The post-V1 intelligence architecture now includes a governed model-release layer above existing provider/runtime configuration.
+
+Phase 40 adds:
+
+- logical model families and immutable governed model versions
+- lifecycle states from experimental through retired
+- tamper-evident model-version identity hashes
+- Phase 39 model-evaluation linkage
+- configurable release gates
+- explicit human approval and activation
+- tamper-evident promotion receipts
+- governed active-version history
+- explicit rollback to prior active versions
+- equivalent-benchmark model comparison without automatic winner selection
+- a first-class **Admin Model Registry UI**
+
+Governed activation is intentionally separate from `ai_settings`; approval, activation, and rollback never silently change production AI task routing.
+
+Phase 40 does not train, fine-tune, or modify model weights.
+
+The architecture is now:
+
+**Production object → Contribution Ledger → Rights / Consent → Derived Corpus → Frozen Dataset → Evaluation Harness → Model Registry → future controlled training/runtime systems**
+
+See `docs/phase-40-model-registry-candidate-lifecycle.md`.
