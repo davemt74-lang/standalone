@@ -35,6 +35,7 @@ $avoid('app/shell.php',"app_shell_link('/data-attribution.php','Data & Attributi
 $need('app/shell.php','<a href="/data-attribution.php">Data & Attribution</a>','Data & Attribution must live in the user dropdown.');
 $need('app/shell.php','app_shell_research_agent_rows','Sidebar Research Agents must come from permission-scoped Agent conversations.');
 $need('app/shell.php','appShellSectionTitle">Research Agents','User sidebar must expose a Research Agents section.');
+$avoid('annotation.php','<header class="topbar">','Annotation detail pages must not render a second legacy header inside the shared app shell.');
 $need('app/shell.php','/home.php?agent=','Research Agent sidebar items must deep-link to existing Agent chats.');
 $need('app/shell.php','app_shell_research_project_rows','Sidebar Research Projects must come from permission-scoped project records.');
 $need('app/shell.php','appShellSectionTitle">Research Projects','Accessible Research projects must appear in the sidebar.');
