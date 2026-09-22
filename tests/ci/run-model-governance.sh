@@ -5,7 +5,7 @@ set -euo pipefail
 : "${DB_USER:?DB_USER is required}"
 : "${DB_PASS:=}"
 
-php tests/install-db.php
+php tests/ci/prepare-current-schema.php
 
 for phase in $(seq 37 99); do
   matched=0
