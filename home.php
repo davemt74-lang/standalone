@@ -151,13 +151,11 @@ try{
 </section>
 <section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" hidden>
   <header class="agentChatCanvasHeader">
-    <div class="agentChatCanvasHeaderLeft"><button type="button" class="button secondary" data-agent-back>← Back to Feed</button><div><span class="eyebrow">AGENT CHAT</span><h2 data-agent-title>New chat</h2></div></div>
-    <div class="agentChatCanvasActions"><button type="button" class="button secondary" data-agent-history-toggle>History</button><button type="button" class="button" data-agent-new>New chat</button></div>
+    <div class="agentChatCanvasHeaderLeft"><button type="button" class="button secondary" data-agent-back>← Back to Feed</button><div><span class="eyebrow">AGENT CHAT</span><h2 data-agent-title>New Research</h2></div></div>
+    <div class="agentChatCanvasActions"><button type="button" class="button secondary" data-agent-history-toggle>History</button><button type="button" class="button" data-agent-new>NEW RESEARCH</button></div>
   </header>
   <div class="agentChatHistoryPanel" data-agent-history hidden><div class="agentChatHistoryHead"><strong>Recent chats</strong><button type="button" data-agent-history-close aria-label="Close chat history">×</button></div><div data-agent-history-list></div></div>
   <div class="agentChatMessages" data-agent-messages role="log" aria-live="polite"><div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p><?php if(($proactiveBriefing['count']??0)>0):?><section class="agentProactiveBriefing"><div class="eyebrow">RESEARCH BRIEFING</div><h3><?=h((string)$proactiveBriefing['count'])?> things worth reviewing</h3><?php foreach((array)$proactiveBriefing['items'] as $brief):?><article><strong><?=h((string)($brief['title']??'Research update'))?></strong><p><?=h((string)($brief['why']??''))?></p><?php if(!empty($brief['primary_url'])):?><a href="<?=h((string)$brief['primary_url'])?>">Open context</a><?php endif?></article><?php endforeach?></section><?php endif?></div></div>
-  <div class="agentChatContextTray" data-agent-context-tray hidden></div>
-  <div class="agentChatContextPicker" data-agent-context-picker hidden><div class="agentChatContextPickerHead"><strong>Add Annotated context</strong><button type="button" data-agent-context-close aria-label="Close context picker">×</button></div><div class="agentChatContextPickerBody" data-agent-context-options><div class="meta">Loading context…</div></div></div>
 </section><aside class="homeRightRail <?=$chatTeams?'teamChatRightRail':''?>">
 <?php if($chatTeams):?>
 <section class="teamChatRail" id="team-chat" data-team-chat-rail data-csrf="<?=h(csrf_token())?>" data-preferred-team="<?=h($preferredTeam)?>" data-agent-enabled="<?=(user_is_pro($pdo,$u)||($u['role']??'')==='admin')?'1':'0'?>">
@@ -180,6 +178,8 @@ try{
 <?php if($chatTeams):?><button class="teamChatMobileToggle" type="button" data-team-chat-open aria-controls="team-chat">Team Chat <span data-team-chat-total-unread></span></button><div class="teamChatPopupLayer" data-team-chat-popups aria-live="polite"></div><?php endif?>
 <form class="homeAgentDock" id="homeAgentComposer" data-agent-chat-composer>
   <button type="button" class="homeAgentAdd" id="homeAgentAdd" aria-label="Add context">+</button>
+  <div class="agentChatContextPicker" data-agent-context-picker hidden><div class="agentChatContextPickerHead"><strong>Add Annotated context</strong><button type="button" data-agent-context-close aria-label="Close context picker">×</button></div><div class="agentChatContextPickerBody" data-agent-context-options><div class="meta">Loading context…</div></div></div>
+  <div class="agentChatContextTray" data-agent-context-tray hidden></div>
   <textarea id="homeAgentPrompt" name="prompt" rows="1" placeholder="Ask Annotated…" aria-label="Ask Annotated"></textarea>
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
