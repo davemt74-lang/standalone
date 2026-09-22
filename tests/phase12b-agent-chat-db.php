@@ -58,6 +58,8 @@ p12b(count($normalized)===2,'Agent Chat deduplicates structured context before p
 p12bthrows(fn()=>agent_chat_context_normalize($pdo,$other,[['type'=>'team','public_id'=>$teamPublic]]),'Agent Chat rejects unavailable structured context rather than trusting the client');
 
 $second=agent_chat_create($pdo,$owner,'Second Agent Thread');p12b($second['public_id']!==$c['public_id'],'New Chat creates a distinct persistent Agent conversation');
+$defaultResearch=agent_chat_create($pdo,$owner);
+p12b(($defaultResearch['title']??'')==='New Research','Fresh Agent sessions use the New Research default title');
 p12b(agent_chat_available($pdo,$owner),'administrator account is eligible for Agent Chat');
 p12b(!agent_chat_available($pdo,$other),'free account does not silently consume Pro Agent Chat');
 
