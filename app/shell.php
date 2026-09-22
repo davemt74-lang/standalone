@@ -82,8 +82,72 @@ function app_shell_link(string $href,string $label,string $icon,string $path,?st
     $active=$match!==null?str_starts_with($path,$match):$path===$href;
     return '<a class="appNavLink'.($active?' active':'').'" href="'.app_shell_h($href).'"><span class="appNavIcon" aria-hidden="true">'.$icon.'</span><span>'.$label.'</span>'.$badge.'</a>';
 }
+function app_shell_research_agent_rows(PDO $pdo,array $user,int $limit=30): array {
+    $limit=max(1,min(50,$limit));
+    try{
+        $q=$pdo->prepare("SELECT c.public_id,c.title,COALESCE(c.last_message_at,c.updated_at,c.created_at) activity_at,
+          (SELECT m.body FROM conversation_messages m WHERE m.conversation_id=c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) last_message
+          FROM conversations c
+          JOIN conversation_members cm ON cm.conversation_id=c.id AND cm.user_id=?
+          WHERE c.conversation_type='agent'
+          ORDER BY COALESCE(c.last_message_at,c.updated_at,c.created_at) DESC,c.id DESC
+          LIMIT ".$limit);
+        $q->execute([(int)$user['id']]);
+        return $q->fetchAll()?:[];
+    }catch(Throwable $e){
+        return [];
+    }
+}
+function app_shell_research_agents(PDO $pdo,array $user,string $path): string {
+    $rows=app_shell_research_agent_rows($pdo,$user,30);
+    $current=trim((string)($_GET['agent']??''));
+    $items='';
+    foreach($rows as $row){
+        $id=trim((string)($row['public_id']??''));if($id==='')continue;
+        $title=trim((string)($row['title']??''));if($title==='')$title='New research chat';
+        if(mb_strlen($title)>46)$title=mb_substr($title,0,43).'…';
+        $last=trim((string)($row['last_message']??''));if($last!==''&&mb_strlen($last)>62)$last=mb_substr($last,0,59).'…';
+        $active=$path==='/home.php'&&$current===$id;
+        $items.='<a class="appShellAgentLink'.($active?' active':'').'" href="/home.php?agent='.rawurlencode($id).'"><span class="appShellAgentIcon" aria-hidden="true">✦</span><span class="appShellAgentCopy"><strong>'.app_shell_h($title).'</strong>'.($last!==''?'<small>'.app_shell_h($last).'</small>':'').'</span></a>';
+    }
+    if($items==='')$items='<div class="appShellAgentEmpty">No research agents yet.</div>';
+    return '<section class="appShellAgentSection" aria-label="Research Agents"><div class="appShellSectionTitle">Research Agents</div><div class="appShellAgentList">'.$items.'</div></section>';
+}
+function app_shell_research_project_rows(PDO $pdo,array $user,int $limit=30): array {
+    $limit=max(1,min(50,$limit));
+    try{
+        $q=$pdo->prepare("SELECT rp.public_id,rp.title,rp.status,rp.updated_at,t.name team_name
+          FROM research_projects rp
+          LEFT JOIN teams t ON t.id=rp.team_id
+          WHERE rp.status<>'archived'
+            AND (rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?))
+          ORDER BY rp.updated_at DESC,rp.id DESC
+          LIMIT ".$limit);
+        $q->execute([(int)$user['id'],(int)$user['id']]);
+        return $q->fetchAll()?:[];
+    }catch(Throwable $e){
+        return [];
+    }
+}
+function app_shell_research_projects(PDO $pdo,array $user,string $path): string {
+    $rows=app_shell_research_project_rows($pdo,$user,30);
+    if(!$rows)return '';
+    $current=trim((string)($_GET['id']??$_GET['project']??''));
+    $items='';
+    foreach($rows as $row){
+        $id=trim((string)($row['public_id']??''));if($id==='')continue;
+        $title=trim((string)($row['title']??''));if($title==='')$title='Untitled research';
+        if(mb_strlen($title)>46)$title=mb_substr($title,0,43).'…';
+        $team=trim((string)($row['team_name']??''));$status=trim((string)($row['status']??'active'));
+        $meta=$team!==''?$team:ucfirst($status);
+        $active=$current===$id&&str_starts_with($path,'/research');
+        $items.='<a class="appShellProjectLink'.($active?' active':'').'" href="/research-project.php?id='.rawurlencode($id).'"><span class="appShellProjectIcon" aria-hidden="true">▤</span><span class="appShellProjectCopy"><strong>'.app_shell_h($title).'</strong><small>'.app_shell_h($meta).'</small></span></a>';
+    }
+    return $items===''?'':'<section class="appShellProjectSection" aria-label="Research Projects"><div class="appShellSectionTitle">Research Projects</div><div class="appShellProjectList">'.$items.'</div></section>';
+}
+
 function app_shell_user_nav(PDO $pdo,array $user,string $path,?int $unread=null): string {
-    $unread=$unread??app_shell_unread_count($pdo,$user);$teamCount=0;
+    $teamCount=0;
     try{$q=$pdo->prepare('SELECT COUNT(*) FROM team_members WHERE user_id=?');$q->execute([$user['id']]);$teamCount=(int)$q->fetchColumn();}catch(Throwable $e){}
     $links=[];
     $links[]=app_shell_link('/home.php','Home','⌂',$path);
@@ -93,8 +157,6 @@ function app_shell_user_nav(PDO $pdo,array $user,string $path,?int $unread=null)
     $links[]=app_shell_link('/research.php','Research','▤',$path,'/research');
     $links[]=app_shell_link('/live.php','Live','◉',$path);
     $links[]=app_shell_link('/saved.php','Saved','◇',$path,'/saved');
-    if(function_exists('data_attribution_ready')&&data_attribution_ready($pdo))$links[]=app_shell_link('/data-attribution.php','Data & Attribution','⌘',$path);
-    $links[]=app_shell_link('/notifications.php','Notifications','♢',$path,null,app_shell_badge($unread));
     return implode('',$links);
 }
 function app_shell_admin_nav(string $path): string {
@@ -132,7 +194,7 @@ function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode,
 function app_shell_user_menu(array $user,bool $isAdmin): string {
     $username=(string)($user['username']??'');
     $profile=profile_path($username);
-    return '<details class="appUserMenu"><summary>'.app_shell_avatar($user,'appAvatar').'<span class="appUserSummary"><strong>'.app_shell_h((string)($user['display_name']??$username)).'</strong><small>@'.app_shell_h($username).'</small></span><span aria-hidden="true">⌄</span></summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/connected-accounts.php">Connected accounts</a><a href="/data-attribution.php">Data & attribution</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
+    return '<details class="appUserMenu"><summary>'.app_shell_avatar($user,'appAvatar').'<span class="appUserSummary"><strong>'.app_shell_h((string)($user['display_name']??$username)).'</strong><small>@'.app_shell_h($username).'</small></span><span aria-hidden="true">⌄</span></summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/connected-accounts.php">Connected accounts</a><a href="/data-attribution.php">Data & Attribution</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
 }
 function app_shell_markup(PDO $pdo,array $user): array {
     $path=app_shell_request_path();
@@ -141,10 +203,13 @@ function app_shell_markup(PDO $pdo,array $user): array {
     $unread=app_shell_unread_count($pdo,$user);
     $brand='<a class="appShellBrand" href="'.($adminMode?'/admin/':'/home.php').'"><span class="appShellMark">A</span><span>Annotated</span></a>';
     $nav=$adminMode?app_shell_admin_nav($path):app_shell_user_nav($pdo,$user,$path,$unread);
-    $roleText=$adminMode?'ADMIN WORKSPACE':'SOCIAL RESEARCH';
-    $aside='<aside class="appShellSidebar">'.$brand.'<div class="appShellRole">'.app_shell_h($roleText).'</div><nav class="appShellNav" aria-label="'.($adminMode?'Admin':'Application').' navigation">'.$nav.'</nav>';
+    $aside='<aside class="appShellSidebar">'.$brand;
+    if($adminMode)$aside.='<div class="appShellRole">ADMIN WORKSPACE</div>';
+    $aside.='<nav class="appShellNav" aria-label="'.($adminMode?'Admin':'Application').' navigation">'.$nav.'</nav>';
     if($adminMode){
         $aside.='<div class="appShellSidebarBottom"><a class="appShellExtension secondaryShellAction" href="/home.php">← Back to social app</a></div>';
+    }else{
+        $aside.=app_shell_research_agents($pdo,$user,$path).app_shell_research_projects($pdo,$user,$path);
     }
     $aside.='</aside>';
     $header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>';
