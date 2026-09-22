@@ -37,6 +37,9 @@ $need('app/data-model-observability.php','app_with_advisory_lock($pdo,\'model-in
 $improvement=$read('app/data-model-improvement.php');
 $need('app/data-model-improvement.php','function data_model_improvement_case_locked','Phase 46 case mutations must have a shared lock helper.');
 $need('app/data-model-improvement.php','function data_model_improvement_proposal_locked','Phase 46 proposal mutations must have a shared lock helper.');
+$need('app/data-model-improvement.php','function data_model_improvement_case_actionable','Phase 46 must centralize the actionable human-triage boundary.');
+$need('app/data-model-improvement.php','Proposal approval is blocked because the source improvement case is no longer actionable.','Phase 46 approval must recheck current human triage.');
+$need('app/data-model-improvement.php','Proposal publication is blocked because the source improvement case is no longer actionable.','Phase 46 publication must recheck current human triage.');
 $need('app/data-model-improvement.php','app_with_advisory_lock($pdo,\'model-improvement-cluster\'','Phase 46 production evidence ingestion must serialize cluster creation.');
 foreach(['data_model_improvement_proposal_update','data_model_improvement_proposal_approve','data_model_improvement_proposal_publish'] as $fn){$b=$block($improvement,$fn);if($b===''||!str_contains($b,'data_model_improvement_proposal_locked('))$fail[]="$fn must serialize proposal state.";}
 $need('app/data-model-improvement.php',"fresh['status']!=='draft'",'Idempotent proposal saves must verify reloaded draft state instead of relying on affected-row count.');
