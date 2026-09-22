@@ -1768,6 +1768,31 @@
 .homeAgentDock .agentChatContextTray[hidden]{
   display:none!important;
 }
+.homeAgentDock .agentChatContextPicker button{
+  width:auto;
+  height:auto;
+  font-size:inherit;
+}
+.homeAgentDock .agentChatContextPickerHead button{
+  width:28px;
+  height:28px;
+  padding:0;
+  border-radius:50%;
+}
+.homeAgentDock .agentContextOption{
+  width:100%;
+  height:auto;
+  padding:10px 12px;
+  border-radius:0;
+  text-align:left;
+}
+.homeAgentDock .agentContextChip button{
+  width:18px;
+  height:18px;
+  padding:0;
+  border-radius:50%;
+  font-size:.72rem;
+}
 @media(max-width:900px){
   .homeAgentDock .agentChatContextPicker{
     position:absolute;
