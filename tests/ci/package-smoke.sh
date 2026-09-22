@@ -41,5 +41,6 @@ require $site."/app/release.php"; require $site."/app/release-operations.php";
 if(!hash_equals((string)$r["package_fingerprint"],release_package_fingerprint($site)))throw new RuntimeException("Extracted package fingerprint does not match release manifest.");
 $status=release_installed_manifest_status($site);if(!$status["pass"])throw new RuntimeException($status["detail"]);
 '
-for file in app/release.php app/release-operations.php admin/system-health.php bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php; do php -l "$tmp/site/$file" >/dev/null; done
+for file in home.php app/bootstrap.php app/runtime-compat.php app/release.php app/release-operations.php admin/system-health.php bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php; do php -l "$tmp/site/$file" >/dev/null; done
+php -n "$tmp/site/tests/runtime-compat-contract.php" >/dev/null
 echo "Phase 49 release package smoke test passed."
