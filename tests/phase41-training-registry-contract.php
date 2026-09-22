@@ -56,6 +56,9 @@ $need('admin/training.php','I acknowledge that Provider API training sends','Adm
 $need('admin/training-export.php',"\$_SERVER['REQUEST_METHOD']!=='POST'",'Training package export must be POST-only.');
 $need('admin/training-export.php','require_csrf()','Training package export must require CSRF.');
 $need('bin/training-worker.php','data_training_process_next','Training execution must have an out-of-request worker path.');
+$need('bin/training-worker.php',"release_worker_heartbeat($pdo,'training'",'Training worker must heartbeat into release health.');
+$need('app/release.php',"'training'=>'data_training_jobs'",'System Health must include the governed training queue.');
+$need('admin/system-health.php',"$name==='training'",'System Health UI must render Phase 41 training lifecycle states.');
 $need('app/shell.php','Training Registry','Training Registry must be a first-class Admin navigation item.');
 $need('admin/index.php','Training Registry','Admin Home must surface Training Registry.');
 $need('admin/ai.php','Open Training Registry','AI Admin must hand off to Training Registry.');
