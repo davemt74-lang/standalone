@@ -33,6 +33,8 @@ Pause, resume, stage change, or other revision-changing operations make earlier 
 - `limited`: returns the candidate for the selected route key.
 - `full`: no override remains; the governed baseline settings themselves contain the candidate runtime.
 
+While a deployment is preflighted, staged, paused, or full, its selected route keys are reserved from legacy AI Admin edits. Unrelated task routes remain editable. Phase 44 controller operations bypass that UI guard only to perform the audited Full or rollback write.
+
 Any invalid/disabled candidate runtime, stale baseline mismatch, missing deployment schema, or resolver error fails safe to the baseline model ID.
 
 ## Auditability
