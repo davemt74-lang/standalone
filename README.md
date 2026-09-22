@@ -259,6 +259,8 @@ Phase 41 adds:
 - explicit supervised-example validation with no synthetic labeling fallback
 - attribution-compatibility blocking for weight training
 - immutable config/rights/provider/package/job hashes
+- exact base-model approval-receipt and Phase 41/app runtime snapshots
+- retryable provider polling/cancellation errors without duplicate retraining
 - Provider API and Manual/Self-hosted executors
 - out-of-request training worker
 - provider upload/submit/poll/cancel lifecycle
