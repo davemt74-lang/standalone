@@ -19,3 +19,8 @@ try{
 catch(AgentActionForbidden $e){json_response(['ok'=>false,'error'=>['code'=>'FORBIDDEN','message'=>$e->getMessage()]],403);}
 catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_INPUT','message'=>$e->getMessage()]],422);}
 catch(RuntimeException $e){json_response(['ok'=>false,'error'=>['code'=>'AGENT_CHAT_ERROR','message'=>$e->getMessage()]],403);}
+catch(Throwable $e){
+  $reference=substr(hash('sha256','agent-chat|'.$e->getMessage().'|'.microtime(true).'|'.random_bytes(8)),0,12);
+  error_log('[Annotated agent-chat '.$reference.'] '.$e->getMessage().' in '.$e->getFile().':'.$e->getLine());
+  json_response(['ok'=>false,'error'=>['code'=>'AGENT_CHAT_INTERNAL','message'=>'Agent Chat could not complete this request. Reference: '.$reference]],500);
+}
