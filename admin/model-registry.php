@@ -71,7 +71,7 @@ if($version){
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">MODEL REGISTRY</span><h1>Candidate lifecycle & release governance</h1><p>Register model versions, attach integrity-valid Phase 39 evidence, apply explicit release gates, record approval receipts, activate governed versions, and roll back prior active versions. Registry status never silently rewrites AI task routing.</p></div>
-  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a></div>
+  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
 
   <section class="healthGrid">
