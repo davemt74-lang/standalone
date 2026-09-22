@@ -36,8 +36,9 @@ jobs:
             --exclude 'package-extension/' \
             --exclude 'Annotated-Website.zip' \
             --exclude 'Annotated-Chrome-Extension.zip'
-          mkdir -p package-website/downloads
+          mkdir -p package-website/downloads package-website/extension
           cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
+          cp extension/manifest.json package-website/extension/manifest.json
           GITHUB_SHA="$GITHUB_SHA" php bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
           (cd package-website && zip -qr ../Annotated-Website.zip .)
           unzip -t Annotated-Website.zip
@@ -55,6 +56,7 @@ jobs:
           test -f package-website/bin/release-backup-verify.php
           test -f package-website/bin/release-restore-plan.php
           test -f package-website/RELEASE-MANIFEST.json
+          test -f package-website/extension/manifest.json
           test -f package-website/chrome-extension.php
           test -f package-website/downloads/Annotated-Chrome-Extension.zip
 
