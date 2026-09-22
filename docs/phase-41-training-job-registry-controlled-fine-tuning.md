@@ -209,9 +209,16 @@ The queued job stores:
 - example count
 - invalid example count
 - dataset manifest hash
+- base-model version hash
+- the exact Phase 40 approval-receipt hash authorizing that base
 - rights snapshot hash
 - provider snapshot hash
+- Phase 41/app runtime snapshot hash
 - job hash
+
+The runtime snapshot records the Phase 41 runtime version, Annotated release version, PHP major/minor version, and an optional deployment/build SHA when supplied by the environment.
+
+Current-use validation does not merely check that the base model is still marked approved: it reopens the exact snapshotted approval receipt and verifies that receipt's integrity.
 
 The worker rebuilds the JSONL from the frozen dataset snapshot and refuses execution if the rebuilt package does not match the queued package hash.
 
@@ -239,6 +246,10 @@ Failed jobs may be retried only while:
 - immutable job snapshots remain valid
 
 Previous attempts are never deleted.
+
+Provider polling and cancellation transport errors are treated as transient operational failures. They preserve the submitted/running/cancel-requested state and are retried by a later worker invocation instead of being mislabeled as a failed training run.
+
+If the provider reports training success but Annotated cannot register the output model—for example because the reserved Model Registry version label now conflicts—the training job becomes `blocked` with the provider result preserved. It is not retried as another provider training run.
 
 ## Cancellation
 
