@@ -90,6 +90,7 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
         $context=json_decode((string)($n['context_json']??''),true)?:[];
         return function_exists('proactive_context_access')&&proactive_context_access($pdo,$viewer,$context);
     }
+    if($type==='model_observability_incident')return ($viewer['role']??'')==='admin'&&function_exists('data_model_observability_incident_get')&&data_model_observability_incident_get($pdo,$public)!==null;
     if($type==='conversation'){
         if(!function_exists('conversation_access'))return false;return conversation_access($pdo,$viewer,$public)!==null;
     }
@@ -110,6 +111,7 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
         $url='/research-automations.php?id='.rawurlencode($public);if(!empty($context['run_public_id']))$url.='#run-'.rawurlencode((string)$context['run_public_id']);return $url;
     }
     if($type==='cognitive_alert'){$url=(string)($context['primary_url']??'');return ($url!==''&&str_starts_with($url,'/')&&!str_starts_with($url,'//'))?$url:'/home.php?view=cognitive';}
+    if($type==='model_observability_incident')return ($viewer['role']??'')==='admin'?'/admin/model-observability.php?incident='.rawurlencode($public):null;
     if($type==='annotation')return '/annotation.php?id='.rawurlencode($public).(!empty($context['comment_id'])?'#discussion':'');
     if($type==='source')return '/source.php?id='.rawurlencode($public).(!empty($context['source_change_event_id'])?'#change-'.rawurlencode((string)$context['source_change_event_id']):'');
     if($type==='user'){
