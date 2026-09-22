@@ -38,6 +38,7 @@ jobs:
             --exclude 'Annotated-Chrome-Extension.zip'
           mkdir -p package-website/downloads
           cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
+          GITHUB_SHA="$GITHUB_SHA" php bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
           (cd package-website && zip -qr ../Annotated-Website.zip .)
           unzip -t Annotated-Website.zip
           test -f package-website/index.php
@@ -48,6 +49,12 @@ jobs:
           test -f package-website/admin/model-campaigns.php
           test -f package-website/admin/intelligence-release-audit.php
           test -f package-website/docs/phase-48-end-to-end-closed-loop-release-hardening.md
+          test -f package-website/docs/phase-49-release-candidate-operational-hardening.md
+          test -f package-website/app/release-operations.php
+          test -f package-website/bin/release-backup.php
+          test -f package-website/bin/release-backup-verify.php
+          test -f package-website/bin/release-restore-plan.php
+          test -f package-website/RELEASE-MANIFEST.json
           test -f package-website/chrome-extension.php
           test -f package-website/downloads/Annotated-Chrome-Extension.zip
 
