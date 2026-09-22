@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
 $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-require_once $root.'/app/installer.php';require_once $root.'/app/functions.php';require_once $root.'/app/data-attribution.php';require_once $root.'/app/notifications.php';require_once $root.'/app/ai.php';require_once $root.'/app/data-evaluations.php';require_once $root.'/app/data-model-registry.php';require_once $root.'/app/data-training.php';require_once $root.'/app/data-post-training.php';require_once $root.'/app/data-model-release.php';require_once $root.'/app/data-model-deployment.php';require_once $root.'/app/data-model-observability.php';
+require_once $root.'/app/installer.php';require_once $root.'/app/functions.php';require_once $root.'/app/data-attribution.php';require_once $root.'/app/data-datasets.php';require_once $root.'/app/notifications.php';require_once $root.'/app/ai.php';require_once $root.'/app/data-evaluations.php';require_once $root.'/app/data-model-registry.php';require_once $root.'/app/data-training.php';require_once $root.'/app/data-post-training.php';require_once $root.'/app/data-model-release.php';require_once $root.'/app/data-model-deployment.php';require_once $root.'/app/data-model-observability.php';
 function p45(bool $v,string $m): void {if(!$v)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
 p45(data_model_observability_ready($pdo),'Phase 45 Production Model Observability schema is available');
 
