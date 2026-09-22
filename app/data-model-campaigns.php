@@ -40,6 +40,14 @@ function data_model_campaign_get(PDO $pdo,string $publicId,bool $sync=false): ?a
     if($sync&&!in_array($c['status'],['completed','abandoned'],true)){data_model_campaign_sync_status($pdo,$c);$q->execute([trim($publicId)]);$c=$q->fetch();if(!$c)return null;$c['plan']=$c['plan_json']?json_decode((string)$c['plan_json'],true):null;}
     return $c;
 }
+function data_model_campaign_locked(PDO $pdo,string $publicId,callable $callback): mixed {
+    $seed=data_model_campaign_get($pdo,$publicId,false);if(!$seed)throw new RuntimeException('Improvement campaign not found.');
+    return app_with_advisory_lock($pdo,'model-campaign',(int)$seed['id'],function() use($pdo,$publicId,$callback){
+        $fresh=data_model_campaign_get($pdo,$publicId,false);if(!$fresh)throw new RuntimeException('Improvement campaign not found.');
+        return $callback($fresh);
+    },5);
+}
+
 function data_model_campaign_lock(PDO $pdo,array $viewer,string $campaignPublicId): array {
     data_model_campaign_require_admin($viewer);
     $locked=data_model_campaign_locked($pdo,$campaignPublicId,function(array $campaign) use($pdo,$viewer,$campaignPublicId){
