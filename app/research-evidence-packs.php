@@ -170,7 +170,7 @@ function research_evidence_pack_project_context(PDO $pdo,array $viewer,string $p
 }
 
 function research_evidence_pack_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limitProjects=10): void {
-    if(!research_evidence_packs_ready($pdo))return;$q=$pdo->prepare("SELECT DISTINCT rp.public_id FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.updated_at DESC LIMIT ".$limitProjects);$q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
+    if(!research_evidence_packs_ready($pdo))return;$q=$pdo->prepare("SELECT rp.public_id FROM research_projects rp WHERE rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?) ORDER BY rp.updated_at DESC,rp.id DESC LIMIT ".$limitProjects);$q->execute([$viewer['id'],$viewer['id']]);
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $projectPublic){$packs=research_evidence_pack_list($pdo,$viewer,(string)$projectPublic,3);$drift=array_values(array_filter($packs,fn($p)=>!$p['current_matches_pack']));if(!$drift)continue;$latest=$drift[0];cognitive_feed_add($items,[
         'key'=>cognitive_feed_key('evidence_pack_drift','evidence_pack',(string)$latest['public_id'],(string)($latest['created_at']??'')),
         'type'=>'evidence_pack_drift','section'=>'needs_attention','priority'=>'medium','created_at'=>$latest['created_at'],'score_extra'=>8,
