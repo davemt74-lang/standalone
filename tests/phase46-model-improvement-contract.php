@@ -21,7 +21,7 @@ foreach([
  'data_model_improvement_ready','data_model_improvement_ingest_incident','data_model_improvement_ingest_negative_signal',
  'data_model_improvement_triage','data_model_improvement_proposal_create','data_model_improvement_proposal_approve',
  'data_model_improvement_proposal_publish','data_model_improvement_create_dataset_draft','data_model_improvement_backfill',
- 'data_model_improvement_regression_cases','data_model_improvement_cognitive_observations'
+ 'data_model_improvement_regression_cases','data_model_improvement_regression_gate','data_model_improvement_cognitive_observations'
 ] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 46 runtime helper missing: '.$fn;
 
 foreach([
@@ -41,6 +41,8 @@ $need('app/data-model-improvement.php','Redaction and rights attestations are re
 $need('app/data-model-improvement.php','Proposal content changed after approval.','Phase 46 publication must revalidate the approved content hash.');
 $need('app/data-model-improvement.php',"source_object_type='model_improvement_example'",'Phase 46 publication must verify governed corpus admission.');
 $need('app/data-model-improvement.php','data_dataset_create','Phase 46 may create only an explicit Dataset Registry draft handoff.');
+$need('app/data-model-improvement.php','production_regression_coverage_missing','Phase 46 must report missing permanent regression coverage for future candidates.');
+$need('app/data-model-registry.php','data_model_improvement_regression_gate','Phase 40 release gates must consult active Phase 46 production regressions when the runtime is available.');
 $need('app/data-model-improvement.php',"'model_regression_case':'model_training_example'",'Phase 46 dataset drafts must keep evaluation/training corpus types separate.');
 
 $need('app/data-attribution.php',"if($objectType==='model_improvement_example')",'Phase 37 corpus governance must understand approved Phase 46 examples.');
