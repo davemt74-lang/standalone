@@ -69,7 +69,7 @@ function data_model_release_default_checklist(): array {
     ];
 }
 function data_model_release_packet_by_id(PDO $pdo,int $id): ?array {
-    $q=$pdo->prepare('SELECT p.*,pt.public_id plan_public_id,pt.status plan_status,pt.output_model_version_id,pt.baseline_model_version_id,pt.registry_public_id FROM data_post_training_packets p JOIN data_post_training_plans pt ON pt.id=p.plan_id WHERE p.id=? LIMIT 1');$q->execute([$id]);$row=$q->fetch();if(!$row)return null;$row['packet']=json_decode((string)$row['packet_json'],true)?:[];return $row;
+    $q=$pdo->prepare('SELECT p.*,pt.public_id plan_public_id,pt.status plan_status,pt.output_model_version_id,pt.baseline_model_version_id FROM data_post_training_packets p JOIN data_post_training_plans pt ON pt.id=p.plan_id WHERE p.id=? LIMIT 1');$q->execute([$id]);$row=$q->fetch();if(!$row)return null;$row['packet']=json_decode((string)$row['packet_json'],true)?:[];return $row;
 }
 function data_model_release_packet_by_public(PDO $pdo,string $publicId): ?array {
     $q=$pdo->prepare('SELECT id FROM data_post_training_packets WHERE public_id=? LIMIT 1');$q->execute([trim($publicId)]);$id=(int)($q->fetchColumn()?:0);return $id?data_model_release_packet_by_id($pdo,$id):null;
