@@ -22,33 +22,66 @@ $workspaceAgentContext=trim((string)($_GET['agent']??''));
 $requestedFeedMode=strtolower(trim((string)($_GET['view']??'')));
 
 $conversationReady=false;$chatTeams=[];$preferredTeamContext='';$chatStatus=['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
-$workspaceResearchContext='';$cognitiveReady=false;$feedMode='latest';
+$workspaceResearchContext='';$cognitiveReady=false;$cognitiveRuntimeReady=false;$feedMode='latest';
 $cognitiveBase=['ready'=>false,'items'=>[],'hidden_count'=>0];
 $cognitiveFeed=['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
 $actionCenter=['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
 $proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];
 $proactiveAgentHandoff=null;$crossResearchAgentHandoff=null;$reviewAgentHandoff=null;$impactAgentHandoff=null;$portfolioAgentHandoff=null;$directAgentHandoff=null;
-$homeRuntimeIncident='';
+$homeRuntimeIncidents=[];
+
+$recordHomeIncident=function(string $component,Throwable $e) use (&$homeRuntimeIncidents): void {
+    $homeRuntimeIncidents[$component]=app_schema_runtime_incident($e,'home-'.$component);
+};
 
 try{
     $conversationReady=conversation_runtime_ready($pdo);
-    $chatTeams=$conversationReady?conversation_team_list($pdo,$u):[];
+    if($conversationReady)$chatTeams=conversation_team_list($pdo,$u);
     $preferredTeamContext=$preferredTeam!==''&&in_array($preferredTeam,array_column($chatTeams,'team_public_id'),true)?$preferredTeam:'';
-    $chatStatus=conversation_presence_ready($pdo)?conversation_status_get($pdo,(int)$u['id']):$chatStatus;
+    if(conversation_presence_ready($pdo))$chatStatus=conversation_status_get($pdo,(int)$u['id']);
+}catch(Throwable $e){
+    $recordHomeIncident('chat',$e);
+    $chatTeams=[];$preferredTeamContext='';
+}
+
+try{
     $workspaceResearchContext=$workspaceResearchCandidate!==''&&project_access($pdo,(int)$u['id'],$workspaceResearchCandidate)?$workspaceResearchCandidate:'';
+}catch(Throwable $e){
+    $recordHomeIncident('research-context',$e);
+    $workspaceResearchContext='';
+}
 
+try{
     $cognitiveReady=cognitive_feed_ready($pdo);
-    $feedMode=in_array($requestedFeedMode,['cognitive','latest'],true)?$requestedFeedMode:cognitive_feed_mode_get($pdo,$u);
-    if(!$cognitiveReady)$feedMode='latest';
-    $cognitiveBase=cognitive_feed_items($pdo,$u,$chatTeams,false);
-    $cognitiveFeed=$feedMode==='cognitive'?cognitive_feed_compose_from_items($cognitiveBase,4,28):['ready'=>$cognitiveReady,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
-    $actionCenter=action_center_compose($pdo,$u,$chatTeams,60,$cognitiveBase);
+    if($cognitiveReady){
+        $feedMode=in_array($requestedFeedMode,['cognitive','latest'],true)?$requestedFeedMode:cognitive_feed_mode_get($pdo,$u);
+        $cognitiveBase=cognitive_feed_items($pdo,$u,$chatTeams,false);
+        $cognitiveFeed=$feedMode==='cognitive'?cognitive_feed_compose_from_items($cognitiveBase,4,28):['ready'=>true,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+        $actionCenter=action_center_compose($pdo,$u,$chatTeams,60,$cognitiveBase);
+        $cognitiveRuntimeReady=true;
+    }else{
+        $feedMode='latest';
+    }
+}catch(Throwable $e){
+    $recordHomeIncident('cognitive',$e);
+    $feedMode='latest';
+    $cognitiveBase=['ready'=>$cognitiveReady,'items'=>[],'hidden_count'=>0];
+    $cognitiveFeed=['ready'=>$cognitiveReady,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
+    $actionCenter=['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
+}
 
+try{
     $proactiveReady=proactive_intelligence_ready($pdo);
-    if($proactiveReady&&$feedMode==='cognitive')proactive_intelligence_sync($pdo,$u,$cognitiveFeed);
+    if($proactiveReady&&$cognitiveRuntimeReady&&$feedMode==='cognitive')proactive_intelligence_sync($pdo,$u,$cognitiveFeed);
     $proactiveBriefing=$proactiveReady?proactive_briefing($pdo,$u,3):$proactiveBriefing;
     $proactiveAgentKey=trim((string)($_GET['proactive_agent']??''));
     $proactiveAgentHandoff=$proactiveReady&&$proactiveAgentKey!==''?proactive_agent_handoff($pdo,$u,$proactiveAgentKey):null;
+}catch(Throwable $e){
+    $recordHomeIncident('proactive',$e);
+    $proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];$proactiveAgentHandoff=null;
+}
+
+try{
     $crossResearchAgentKey=trim((string)($_GET['cross_research_agent']??''));
     $crossResearchAgentHandoff=cross_research_ready($pdo)&&$crossResearchAgentKey!==''?cross_research_agent_handoff($pdo,$u,$crossResearchAgentKey):null;
     $reviewAgentKey=trim((string)($_GET['review_agent']??''));
@@ -67,39 +100,34 @@ try{
         if($handoffObject)$directAgentHandoff=['prompt'=>object_handoff_agent_prompt($directAgentType),'context'=>[['type'=>$directAgentType,'public_id'=>$directAgentId,'label'=>$handoffObject['label']??ucfirst($directAgentType)]],'source'=>'direct_object_handoff'];
     }
 }catch(Throwable $e){
-    $homeRuntimeIncident=app_schema_runtime_incident($e,'home-optional-runtime');
-    $conversationReady=false;$chatTeams=[];$preferredTeamContext='';$chatStatus=['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
-    $cognitiveReady=false;$feedMode='latest';$cognitiveBase=['ready'=>false,'items'=>[],'hidden_count'=>0];
-    $cognitiveFeed=['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
-    $actionCenter=['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
-    $proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];
-    $proactiveAgentHandoff=$crossResearchAgentHandoff=$reviewAgentHandoff=$impactAgentHandoff=$portfolioAgentHandoff=$directAgentHandoff=null;
+    $recordHomeIncident('agent-handoff',$e);
+    $crossResearchAgentHandoff=$reviewAgentHandoff=$impactAgentHandoff=$portfolioAgentHandoff=$directAgentHandoff=null;
 }
 
 $feed=[];
 try{$feed=$feedMode==='latest'?feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations']:[];}
-catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-feed');$feed=[];}
+catch(Throwable $e){$recordHomeIncident('feed',$e);$feed=[];}
 
 $people=[];
 try{
     $q=$pdo->prepare("SELECT u.username,u.display_name,u.profile_image_url,u.bio,(SELECT COUNT(*) FROM annotations a WHERE a.user_id=u.id AND a.visibility='public' AND a.status='published') annotation_count FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.id<>? AND u.status='active' AND COALESCE(p.profile_visibility,'public')='public' AND COALESCE(p.search_visibility,1)=1 AND NOT EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=u.id) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=u.id) OR (b.blocker_user_id=u.id AND b.blocked_user_id=?)) ORDER BY annotation_count DESC,u.created_at DESC LIMIT 5");
     $q->execute([$u['id'],$u['id'],$u['id'],$u['id']]);$people=$q->fetchAll();
-}catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-people');}
+}catch(Throwable $e){$recordHomeIncident('people',$e);}
 
 $teams=[];
 try{
     $q=$pdo->prepare("SELECT t.public_id,t.name,tm.role,(SELECT COUNT(*) FROM team_members x WHERE x.team_id=t.id) member_count FROM teams t JOIN team_members tm ON tm.team_id=t.id WHERE tm.user_id=? ORDER BY t.name LIMIT 5");
     $q->execute([$u['id']]);$teams=$q->fetchAll();
-}catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-teams');}
+}catch(Throwable $e){$recordHomeIncident('teams',$e);}
 
 $stats=['followers'=>0,'following_count'=>0,'annotation_count'=>0];
 try{
     $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
     $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:$stats;
-}catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-stats');}
+}catch(Throwable $e){$recordHomeIncident('stats',$e);}
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>">
-<?php if($homeRuntimeIncident!==''&&($u['role']??'')==='admin'):?><div class="panel narrow" style="margin:16px auto"><div class="error"><strong>Some Home modules were temporarily disabled.</strong><p>The core Home feed is still available. Check the PHP error log using reference <code><?=h($homeRuntimeIncident)?></code>.</p></div></div><?php endif?>
-<main class="layout"><section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
+<?php if($homeRuntimeIncidents&&($u['role']??'')==='admin'):?><div class="homeRuntimeNotice" role="status"><strong>Home is running in reduced mode.</strong><span><?=h(implode(', ',array_keys($homeRuntimeIncidents)))?> unavailable.</span><details><summary>Diagnostics</summary><?php foreach($homeRuntimeIncidents as $component=>$reference):?><div><code><?=h($component)?></code> · <code><?=h($reference)?></code></div><?php endforeach?></details></div><?php endif?>
+<main class="layout homeWorkspaceLayout"><section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
 <div class="homeFeedModeBar" data-cognitive-feed data-csrf="<?=h(csrf_token())?>">
   <nav class="homeFeedModeTabs" aria-label="Home feed view">
     <a href="/home.php?view=cognitive" data-cognitive-mode="cognitive" class="<?=$feedMode==='cognitive'?'active':''?>" <?=$feedMode==='cognitive'?'aria-current="page"':''?>>Now</a>
@@ -112,7 +140,7 @@ try{
     <button type="button" data-cognitive-refresh>Refresh</button>
   </div>
 </div>
-<?php if(!$cognitiveReady):?><div class="card empty cognitiveUpgradeCard"><h2>Cognitive Feed needs the Phase 16 database upgrade.</h2><p>The chronological Latest feed remains available until migration 023 is installed.</p><?php if(($u['role']??'')==='admin'):?><a class="button secondary" href="/upgrade.php">Run database upgrade</a><?php endif?></div><?php endif?>
+<?php if(!$cognitiveReady):?><div class="card empty cognitiveUpgradeCard"><h2>Cognitive Feed database update required.</h2><p>The chronological Latest feed remains available until the Cognitive Feed schema is installed.</p><?php if(($u['role']??'')==='admin'):?><a class="button secondary" href="/upgrade.php">Open database upgrade</a><?php endif?></div><?php elseif(!$cognitiveRuntimeReady):?><div class="card empty cognitiveRuntimeFallback"><h2>Now is temporarily unavailable.</h2><p>Latest annotations are still available while the cognitive workspace recovers.</p></div><?php endif?>
 <?php if($feedMode==='cognitive'):?>
   <details class="cognitiveRankingNote"><summary>How Now is ranked</summary><p><?=h((string)($cognitiveFeed['ranking']??''))?></p></details>
   <?php if(!($cognitiveFeed['sections']??[])):?><div class="card empty cognitiveCaughtUp"><h2>You’re caught up.</h2><p>No unresolved Research, source, Team, or Agent items need priority right now.</p><a class="button secondary" href="/home.php?view=latest">See latest annotations</a></div><?php else:?><?=cognitive_feed_ui_sections($cognitiveFeed)?><?php endif?>
@@ -121,7 +149,7 @@ try{
   <?php foreach($feed as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?>
 <?php endif?>
 </section>
-<section class="agentChatCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" hidden>
+<section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" hidden>
   <header class="agentChatCanvasHeader">
     <div class="agentChatCanvasHeaderLeft"><button type="button" class="button secondary" data-agent-back>← Back to Feed</button><div><span class="eyebrow">AGENT CHAT</span><h2 data-agent-title>New chat</h2></div></div>
     <div class="agentChatCanvasActions"><button type="button" class="button secondary" data-agent-history-toggle>History</button><button type="button" class="button" data-agent-new>New chat</button></div>
@@ -145,7 +173,7 @@ try{
 <?php else:?>
 <div class="card"><div class="profileMini"><?=app_shell_avatar($u,'avatarImageLg')?><span><strong><?=h($u['display_name'])?></strong><small>@<?=h($u['username'])?></small></span></div><div class="profileStats"><span><strong><?=h((string)$stats['followers'])?></strong> followers</span><span><strong><?=h((string)$stats['following_count'])?></strong> following</span><span><strong><?=h((string)$stats['annotation_count'])?></strong> annotations</span></div><a href="<?=h(profile_path((string)$u['username']))?>">View your profile</a></div>
 <div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">PEOPLE</span><h3>Discover researchers</h3></div></div><?php foreach($people as $p):?><a class="profileMini" style="margin:12px 0" href="<?=h(profile_path((string)$p['username']))?>"><?=app_shell_avatar($p,'avatarSm')?><span><strong><?=h($p['display_name'])?></strong><small>@<?=h($p['username'])?> · <?=h((string)$p['annotation_count'])?> annotations</small></span></a><?php endforeach?><?php if(!$people):?><p class="meta">No new profile suggestions right now.</p><?php endif?><a href="/explore.php">Explore Annotated</a></div>
-<div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">TEAMS</span><h3>Your teams</h3></div></div><?php if(!$conversationReady&&$teams):?><p class="meta">Team Chat requires the Phase 12A database upgrade before it can load.</p><?php if(($u['role']??'')==='admin'):?><a class="button secondary" href="/upgrade.php">Run database upgrade</a><?php else:?><a href="/teams.php">Open Teams</a><?php endif?><?php else:?><p class="meta">Create a team for private collaboration, chat, and shared Research.</p><a href="/teams.php">Create or join a Team</a><?php endif?></div>
+<div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">TEAMS</span><h3>Your teams</h3></div></div><?php if($teams):?><p class="meta"><?=h((string)count($teams))?> team<?=count($teams)===1?'':'s'?> available.</p><a href="/teams.php">Open Teams</a><?php else:?><p class="meta">Create a team for private collaboration, chat, and shared Research.</p><a href="/teams.php">Create or join a Team</a><?php endif?></div>
 <div class="card"><span class="eyebrow">BROWSER SIDEBAR</span><h3>Annotate while you browse</h3><p class="meta">The Chrome extension connects this social website to the live page you are researching.</p><a class="button" href="/chrome-extension.php">Download Chrome Extension</a></div>
 <?php endif?>
 </aside></main>
