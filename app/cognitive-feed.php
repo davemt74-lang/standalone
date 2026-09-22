@@ -55,6 +55,7 @@ function cognitive_feed_recency_bonus(?string $createdAt): int {
 
 function cognitive_feed_base_score(string $type): int {
     return match($type){
+      'model_health_incident'=>96,
       'pending_agent_action'=>92,
       'research_conflict'=>88,
       'related_conflict'=>86,
@@ -429,6 +430,7 @@ function cognitive_feed_items(PDO $pdo,array $viewer,?array $teamList=null,bool 
     if(!cognitive_feed_ready($pdo))return ['ready'=>false,'items'=>[],'hidden_count'=>0];
     $items=[];
     cognitive_feed_collect_pending_actions($pdo,$viewer,$items);
+    if(function_exists('data_model_observability_cognitive_observations'))data_model_observability_cognitive_observations($pdo,$viewer,$items,12);
     cognitive_feed_collect_research($pdo,$viewer,$items);
     cognitive_feed_collect_watched_source_changes($pdo,$viewer,$items);
     cognitive_feed_collect_team_activity($pdo,$viewer,$items,$teamList);
