@@ -150,6 +150,14 @@ function data_model_deployment_checkpoint_summary(PDO $pdo,array $d,string $stag
     }
     return ['current'=>$current,'stale'=>$stale,'counts'=>$counts,'pass'=>$counts['proceed']>=1&&$counts['hold']===0&&$counts['stop']===0];
 }
+function data_model_deployment_locked(PDO $pdo,string $publicId,callable $callback): mixed {
+    $seed=data_model_deployment_get($pdo,$publicId);if(!$seed)throw new RuntimeException('Deployment not found.');
+    return app_with_advisory_lock($pdo,'model-deployment',(int)$seed['id'],function() use($pdo,$publicId,$callback){
+        $fresh=data_model_deployment_get($pdo,$publicId);if(!$fresh)throw new RuntimeException('Deployment not found.');
+        return $callback($fresh);
+    },5);
+}
+
 function data_model_deployment_create(PDO $pdo,array $viewer,string $releaseDecisionPublicId,array $input): array {
     data_model_deployment_require_admin($viewer);
     if(!data_model_deployment_ready($pdo))throw new RuntimeException('Model Deployment requires the Phase 44 database upgrade.');
@@ -209,97 +217,162 @@ function data_model_deployment_runtime_context(PDO $pdo,array $d): array {
     return ['pass'=>!in_array(false,$checks,true),'checks'=>$checks,'decision'=>$decision,'model'=>$model,'rollback'=>$rollback,'registry'=>$registry,'approval'=>$approval,'approval_integrity'=>$approvalIntegrity,'candidate_runtime'=>$candidateRuntime,'rollback_runtime'=>$rollbackRuntime,'routing_now'=>$routingNow];
 }
 function data_model_deployment_preflight(PDO $pdo,array $viewer,string $publicId): array {
-    data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
-    if(!$d)throw new RuntimeException('Deployment not found.');if($d['status']!=='draft')throw new RuntimeException('Preflight can run only for a draft deployment.');
-    $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment preflight failed: '.implode(', ',array_keys(array_filter($ctx['checks'],fn($v)=>!$v))));
-    $routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);
-    $pdo->prepare("UPDATE data_model_deployments SET status='preflight_passed',revision=revision+1,routing_current_json=?,routing_current_hash=?,preflight_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$json,hash('sha256',$json),$d['id']]);
-    $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'preflight_passed','preflight_passed',['checks'=>$ctx['checks']],$fresh['routing_current_hash']??null);return $fresh??[];
+    data_model_deployment_require_admin($viewer);
+    return data_model_deployment_locked($pdo,$publicId,function(array $d) use($pdo,$viewer,$publicId){
+        if($d['status']!=='draft')throw new RuntimeException('Preflight can run only for a draft deployment.');
+        $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment preflight failed: '.implode(', ',array_keys(array_filter($ctx['checks'],fn($v)=>!$v))));
+        $routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);
+        $pdo->beginTransaction();try{
+            $q=$pdo->prepare("UPDATE data_model_deployments SET status='preflight_passed',revision=revision+1,routing_current_json=?,routing_current_hash=?,preflight_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=? AND revision=? AND status='draft'");
+            $q->execute([$json,hash('sha256',$json),$d['id'],$d['revision']]);if($q->rowCount()!==1)throw new RuntimeException('Deployment changed during preflight; reload and retry.');
+            $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'preflight_passed','preflight_passed',['checks'=>$ctx['checks']],$fresh['routing_current_hash']??null);$pdo->commit();return $fresh??[];
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    });
 }
 function data_model_deployment_replace_overrides(PDO $pdo,array $d,string $mode,int $traffic,bool $enabled=true): void {
     $pdo->prepare('DELETE FROM data_model_routing_overrides WHERE deployment_id=?')->execute([$d['id']]);$before=(array)$d['routing_before'];
     foreach($d['route_keys'] as $key){$baseline=(int)($before[$key]??0);if(!$baseline)throw new RuntimeException('Deployment route baseline is missing.');$pdo->prepare('INSERT INTO data_model_routing_overrides(deployment_id,route_key,baseline_ai_model_id,candidate_ai_model_id,mode,traffic_percent,enabled) VALUES(?,?,?,?,?,?,?)')->execute([$d['id'],$key,$baseline,(int)$d['candidate_ai_model_id'],$mode,$traffic,$enabled?1:0]);}
 }
 function data_model_deployment_start_shadow(PDO $pdo,array $viewer,string $publicId): array {
-    data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
-    if(!$d)throw new RuntimeException('Deployment not found.');if($d['status']!=='preflight_passed')throw new RuntimeException('Shadow rollout requires a successful preflight.');
-    $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context changed after preflight.');
-    $pdo->beginTransaction();try{data_model_deployment_replace_overrides($pdo,$d,'shadow',0,true);$pdo->prepare("UPDATE data_model_deployments SET status='shadow',revision=revision+1,current_traffic_percent=0,started_at=COALESCE(started_at,NOW()),stage_changed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$d['id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'shadow_started','shadow',['served_candidate_traffic_percent'=>0,'candidate_responses_user_visible'=>false],$fresh['routing_current_hash']??null);return $fresh??[];
+    data_model_deployment_require_admin($viewer);
+    return data_model_deployment_locked($pdo,$publicId,function(array $d) use($pdo,$viewer,$publicId){
+        if($d['status']!=='preflight_passed')throw new RuntimeException('Shadow rollout requires a successful preflight.');
+        $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context changed after preflight.');
+        $pdo->beginTransaction();try{
+            data_model_deployment_replace_overrides($pdo,$d,'shadow',0,true);
+            $q=$pdo->prepare("UPDATE data_model_deployments SET status='shadow',revision=revision+1,current_traffic_percent=0,started_at=COALESCE(started_at,NOW()),stage_changed_at=NOW(),updated_at=NOW() WHERE id=? AND revision=? AND status='preflight_passed'");
+            $q->execute([$d['id'],$d['revision']]);if($q->rowCount()!==1)throw new RuntimeException('Deployment changed before shadow start; reload and retry.');
+            $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'shadow_started','shadow',['served_candidate_traffic_percent'=>0,'candidate_responses_user_visible'=>false],$fresh['routing_current_hash']??null);$pdo->commit();return $fresh??[];
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    });
 }
 function data_model_deployment_checkpoint_submit(PDO $pdo,array $viewer,string $publicId,string $recommendation,string $note=''): array {
-    data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
-    if(!$d)throw new RuntimeException('Deployment not found.');if(!in_array($d['status'],['shadow','canary','limited'],true))throw new RuntimeException('Checkpoints can be signed only during shadow, canary, or limited rollout.');
-    if((int)$viewer['id']===(int)$d['created_by_user_id'])throw new RuntimeException('The deployment creator cannot satisfy the independent rollout checkpoint.');
-    if(!in_array($recommendation,['proceed','hold','stop'],true))throw new InvalidArgumentException('Invalid rollout checkpoint recommendation.');
-    $subject=data_model_deployment_subject_hash($pdo,$d);$note=mb_substr(trim($note),0,3000)?:null;$signedAt=gmdate('Y-m-d H:i:s');
-    $row=['deployment_id'=>(int)$d['id'],'stage'=>$d['status'],'reviewer_user_id'=>(int)$viewer['id'],'recommendation'=>$recommendation,'note'=>$note,'deployment_snapshot_hash'=>$subject,'signed_at'=>$signedAt];$sig=data_model_deployment_checkpoint_signature_hash($row);
-    $pdo->prepare('INSERT INTO data_model_deployment_checkpoints(deployment_id,stage,reviewer_user_id,recommendation,note,deployment_snapshot_hash,signature_hash,signed_at) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE recommendation=VALUES(recommendation),note=VALUES(note),deployment_snapshot_hash=VALUES(deployment_snapshot_hash),signature_hash=VALUES(signature_hash),signed_at=VALUES(signed_at),updated_at=NOW()')->execute([$d['id'],$d['status'],$viewer['id'],$recommendation,$note,$subject,$sig,$signedAt]);
-    data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'checkpoint_signed',(string)$d['status'],['recommendation'=>$recommendation,'subject_hash'=>$subject,'signature_hash'=>$sig],$d['routing_current_hash']);return data_model_deployment_get($pdo,$publicId)??[];
+    data_model_deployment_require_admin($viewer);
+    return data_model_deployment_locked($pdo,$publicId,function(array $d) use($pdo,$viewer,$publicId,$recommendation,$note){
+        if(!in_array($d['status'],['shadow','canary','limited'],true))throw new RuntimeException('Checkpoints can be signed only during shadow, canary, or limited rollout.');
+        if((int)$viewer['id']===(int)$d['created_by_user_id'])throw new RuntimeException('The deployment creator cannot satisfy the independent rollout checkpoint.');
+        if(!in_array($recommendation,['proceed','hold','stop'],true))throw new InvalidArgumentException('Invalid rollout checkpoint recommendation.');
+        $subject=data_model_deployment_subject_hash($pdo,$d);$signedNote=mb_substr(trim($note),0,3000)?:null;$signedAt=gmdate('Y-m-d H:i:s');
+        $row=['deployment_id'=>(int)$d['id'],'stage'=>$d['status'],'reviewer_user_id'=>(int)$viewer['id'],'recommendation'=>$recommendation,'note'=>$signedNote,'deployment_snapshot_hash'=>$subject,'signed_at'=>$signedAt];$sig=data_model_deployment_checkpoint_signature_hash($row);
+        $pdo->beginTransaction();try{
+            $pdo->prepare('INSERT INTO data_model_deployment_checkpoints(deployment_id,stage,reviewer_user_id,recommendation,note,deployment_snapshot_hash,signature_hash,signed_at) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE recommendation=VALUES(recommendation),note=VALUES(note),deployment_snapshot_hash=VALUES(deployment_snapshot_hash),signature_hash=VALUES(signature_hash),signed_at=VALUES(signed_at),updated_at=NOW()')->execute([$d['id'],$d['status'],$viewer['id'],$recommendation,$signedNote,$subject,$sig,$signedAt]);
+            data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'checkpoint_signed',(string)$d['status'],['recommendation'=>$recommendation,'subject_hash'=>$subject,'signature_hash'=>$sig],$d['routing_current_hash']);$pdo->commit();
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        return data_model_deployment_get($pdo,$publicId)??[];
+    });
 }
 function data_model_deployment_assert_stage_checkpoint(PDO $pdo,array $d): array {
     $summary=data_model_deployment_checkpoint_summary($pdo,$d,(string)$d['status']);
     if(!$summary['pass'])throw new RuntimeException('A current independent Proceed checkpoint is required before advancing rollout.');
     return $summary;
 }
-function data_model_deployment_full_activate(PDO $pdo,array $viewer,array $d): array {
+function data_model_deployment_full_activate(PDO $pdo,array $viewer,array $d,bool $lockHeld=false): array {
+    data_model_deployment_require_admin($viewer);
+    if(!$lockHeld){
+        return data_model_deployment_locked($pdo,(string)$d['public_id'],function(array $fresh) use($pdo,$viewer){
+            return data_model_deployment_full_activate($pdo,$viewer,$fresh,true);
+        });
+    }
+    $d=data_model_deployment_get($pdo,(string)$d['public_id'])??$d;
+    if($d['status']!=='limited')throw new RuntimeException('Full activation requires the limited rollout stage.');
+    data_model_deployment_assert_stage_checkpoint($pdo,$d);
     $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context is no longer valid for full activation.');
     if($ctx['model']['status']!=='approved')throw new RuntimeException('Full deployment requires an approved candidate model.');
     $activated=false;
     try{
         data_model_transition($pdo,$viewer,(string)$d['model_version_public_id'],'active','PHASE 44 FULL DEPLOYMENT '.$d['public_id']);$activated=true;
         $target=[];foreach($d['route_keys'] as $key)$target[$key]=(int)$d['candidate_ai_model_id'];
-        $pdo->beginTransaction();data_model_deployment_apply_routing($pdo,$viewer,$target);$routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);
+        $pdo->beginTransaction();
+        data_model_deployment_apply_routing($pdo,$viewer,$target);$routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);
         $pdo->prepare('DELETE FROM data_model_routing_overrides WHERE deployment_id=?')->execute([$d['id']]);
-        $pdo->prepare("UPDATE data_model_deployments SET status='full',revision=revision+1,current_traffic_percent=100,routing_current_json=?,routing_current_hash=?,full_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$json,hash('sha256',$json),$d['id']]);$pdo->commit();
+        $q=$pdo->prepare("UPDATE data_model_deployments SET status='full',revision=revision+1,current_traffic_percent=100,routing_current_json=?,routing_current_hash=?,full_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=? AND revision=? AND status='limited'");
+        $q->execute([$json,hash('sha256',$json),$d['id'],$d['revision']]);if($q->rowCount()!==1)throw new RuntimeException('Deployment changed during full activation; activation will be compensated.');
+        $fresh=data_model_deployment_get($pdo,(string)$d['public_id']);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'full_activated','full',['candidate_ai_model_id'=>(int)$d['candidate_ai_model_id'],'routes'=>$d['route_keys']],$fresh['routing_current_hash']??null);$pdo->commit();return $fresh??[];
     }catch(Throwable $e){
         if($pdo->inTransaction())$pdo->rollBack();
-        if($activated){try{data_model_rollback($pdo,$viewer,(string)$d['registry_public_id'],(string)$d['rollback_version_public_id'],'Phase 44 activation compensation after routing failure');}catch(Throwable $ignored){}}
+        if($activated){
+            try{data_model_rollback($pdo,$viewer,(string)$d['registry_public_id'],(string)$d['rollback_version_public_id'],'Phase 44 activation compensation after routing/state failure');}
+            catch(Throwable $comp){try{data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'activation_compensation_failed',(string)$d['status'],['error'=>mb_substr($comp->getMessage(),0,1000)]);}catch(Throwable $ignored){}throw new RuntimeException($e->getMessage().' Activation compensation also failed: '.$comp->getMessage(),0,$e);}
+        }
         throw $e;
     }
-    $fresh=data_model_deployment_get($pdo,(string)$d['public_id']);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'full_activated','full',['candidate_ai_model_id'=>(int)$d['candidate_ai_model_id'],'routes'=>$d['route_keys']],$fresh['routing_current_hash']??null);return $fresh??[];
 }
 function data_model_deployment_advance(PDO $pdo,array $viewer,string $publicId): array {
-    data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
-    if(!$d)throw new RuntimeException('Deployment not found.');if(!in_array($d['status'],['shadow','canary','limited'],true))throw new RuntimeException('This deployment stage cannot advance.');
-    data_model_deployment_assert_stage_checkpoint($pdo,$d);if($d['status']==='limited')return data_model_deployment_full_activate($pdo,$viewer,$d);
-    $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context changed before stage advance: '.implode(', ',array_keys(array_filter($ctx['checks'],fn($v)=>!$v))));
-    $next=$d['status']==='shadow'?'canary':'limited';$traffic=$next==='canary'?max(1,min(50,(int)$d['planned_traffic_percent'])):100;
-    $pdo->beginTransaction();try{data_model_deployment_replace_overrides($pdo,$d,$next,$traffic,true);$routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);$pdo->prepare('UPDATE data_model_deployments SET status=?,revision=revision+1,current_traffic_percent=?,routing_current_json=?,routing_current_hash=?,stage_changed_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$next,$traffic,$json,hash('sha256',$json),$d['id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'stage_advanced',$next,['from'=>$d['status'],'to'=>$next,'served_candidate_traffic_percent'=>$traffic],$fresh['routing_current_hash']??null);return $fresh??[];
+    data_model_deployment_require_admin($viewer);
+    return data_model_deployment_locked($pdo,$publicId,function(array $d) use($pdo,$viewer,$publicId){
+        if(!in_array($d['status'],['shadow','canary','limited'],true))throw new RuntimeException('This deployment stage cannot advance.');
+        data_model_deployment_assert_stage_checkpoint($pdo,$d);if($d['status']==='limited')return data_model_deployment_full_activate($pdo,$viewer,$d,true);
+        $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context changed before stage advance: '.implode(', ',array_keys(array_filter($ctx['checks'],fn($v)=>!$v))));
+        $next=$d['status']==='shadow'?'canary':'limited';$traffic=$next==='canary'?max(1,min(50,(int)$d['planned_traffic_percent'])):100;
+        $pdo->beginTransaction();try{
+            data_model_deployment_replace_overrides($pdo,$d,$next,$traffic,true);$routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);
+            $q=$pdo->prepare('UPDATE data_model_deployments SET status=?,revision=revision+1,current_traffic_percent=?,routing_current_json=?,routing_current_hash=?,stage_changed_at=NOW(),updated_at=NOW() WHERE id=? AND revision=? AND status=?');
+            $q->execute([$next,$traffic,$json,hash('sha256',$json),$d['id'],$d['revision'],$d['status']]);if($q->rowCount()!==1)throw new RuntimeException('Deployment changed during stage advance; reload and retry.');
+            $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'stage_advanced',$next,['from'=>$d['status'],'to'=>$next,'served_candidate_traffic_percent'=>$traffic],$fresh['routing_current_hash']??null);$pdo->commit();return $fresh??[];
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    });
 }
 function data_model_deployment_pause(PDO $pdo,array $viewer,string $publicId): array {
-    data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
-    if(!$d||!in_array($d['status'],['shadow','canary','limited'],true))throw new RuntimeException('Only an in-progress staged rollout can be paused.');
-    $pdo->prepare('UPDATE data_model_routing_overrides SET enabled=0 WHERE deployment_id=?')->execute([$d['id']]);
-    $pdo->prepare("UPDATE data_model_deployments SET paused_stage=status,status='paused',revision=revision+1,current_traffic_percent=0,paused_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$d['id']]);
-    $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'deployment_paused','paused',['paused_stage'=>$d['status']],$fresh['routing_current_hash']??null);return $fresh??[];
+    data_model_deployment_require_admin($viewer);
+    return data_model_deployment_locked($pdo,$publicId,function(array $d) use($pdo,$viewer,$publicId){
+        if(!in_array($d['status'],['shadow','canary','limited'],true))throw new RuntimeException('Only an in-progress staged rollout can be paused.');
+        $pdo->beginTransaction();try{
+            $pdo->prepare('UPDATE data_model_routing_overrides SET enabled=0 WHERE deployment_id=?')->execute([$d['id']]);
+            $q=$pdo->prepare("UPDATE data_model_deployments SET paused_stage=status,status='paused',revision=revision+1,current_traffic_percent=0,paused_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=? AND revision=? AND status=?");
+            $q->execute([$d['id'],$d['revision'],$d['status']]);if($q->rowCount()!==1)throw new RuntimeException('Deployment changed during pause; reload and retry.');
+            $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'deployment_paused','paused',['paused_stage'=>$d['status']],$fresh['routing_current_hash']??null);$pdo->commit();return $fresh??[];
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    });
 }
 function data_model_deployment_resume(PDO $pdo,array $viewer,string $publicId): array {
-    data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
-    if(!$d||$d['status']!=='paused'||!in_array($d['paused_stage'],['shadow','canary','limited'],true))throw new RuntimeException('Deployment is not resumable.');
-    $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context changed while paused: '.implode(', ',array_keys(array_filter($ctx['checks'],fn($v)=>!$v))));
-    $stage=(string)$d['paused_stage'];$traffic=$stage==='shadow'?0:($stage==='canary'?max(1,min(50,(int)$d['planned_traffic_percent'])):100);
-    $pdo->prepare('UPDATE data_model_routing_overrides SET enabled=1 WHERE deployment_id=?')->execute([$d['id']]);
-    $pdo->prepare('UPDATE data_model_deployments SET status=?,paused_stage=NULL,revision=revision+1,current_traffic_percent=?,stage_changed_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$stage,$traffic,$d['id']]);
-    $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'deployment_resumed',$stage,['served_candidate_traffic_percent'=>$traffic],$fresh['routing_current_hash']??null);return $fresh??[];
+    data_model_deployment_require_admin($viewer);
+    return data_model_deployment_locked($pdo,$publicId,function(array $d) use($pdo,$viewer,$publicId){
+        if($d['status']!=='paused'||!in_array($d['paused_stage'],['shadow','canary','limited'],true))throw new RuntimeException('Deployment is not resumable.');
+        $ctx=data_model_deployment_runtime_context($pdo,$d);if(!$ctx['pass'])throw new RuntimeException('Deployment context changed while paused: '.implode(', ',array_keys(array_filter($ctx['checks'],fn($v)=>!$v))));
+        $stage=(string)$d['paused_stage'];$traffic=$stage==='shadow'?0:($stage==='canary'?max(1,min(50,(int)$d['planned_traffic_percent'])):100);
+        $pdo->beginTransaction();try{
+            $pdo->prepare('UPDATE data_model_routing_overrides SET enabled=1 WHERE deployment_id=?')->execute([$d['id']]);
+            $q=$pdo->prepare("UPDATE data_model_deployments SET status=?,paused_stage=NULL,revision=revision+1,current_traffic_percent=?,stage_changed_at=NOW(),updated_at=NOW() WHERE id=? AND revision=? AND status='paused'");
+            $q->execute([$stage,$traffic,$d['id'],$d['revision']]);if($q->rowCount()!==1)throw new RuntimeException('Deployment changed during resume; reload and retry.');
+            $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'deployment_resumed',$stage,['served_candidate_traffic_percent'=>$traffic],$fresh['routing_current_hash']??null);$pdo->commit();return $fresh??[];
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    });
 }
 function data_model_deployment_stop(PDO $pdo,array $viewer,string $publicId,string $note=''): array {
-    data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
-    if(!$d||!in_array($d['status'],['preflight_passed','shadow','canary','limited','paused'],true))throw new RuntimeException('This deployment cannot be stopped; use rollback after full activation.');
-    $pdo->prepare('DELETE FROM data_model_routing_overrides WHERE deployment_id=?')->execute([$d['id']]);
-    $pdo->prepare("UPDATE data_model_deployments SET status='stopped',paused_stage=NULL,revision=revision+1,current_traffic_percent=0,stopped_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$d['id']]);
-    $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'deployment_stopped','stopped',['note'=>mb_substr(trim($note),0,3000)],$fresh['routing_current_hash']??null);return $fresh??[];
+    data_model_deployment_require_admin($viewer);
+    return data_model_deployment_locked($pdo,$publicId,function(array $d) use($pdo,$viewer,$publicId,$note){
+        if(!in_array($d['status'],['preflight_passed','shadow','canary','limited','paused'],true))throw new RuntimeException('This deployment cannot be stopped; use rollback after full activation.');
+        $stopNote=mb_substr(trim($note),0,3000);
+        $pdo->beginTransaction();try{
+            $pdo->prepare('DELETE FROM data_model_routing_overrides WHERE deployment_id=?')->execute([$d['id']]);
+            $q=$pdo->prepare("UPDATE data_model_deployments SET status='stopped',paused_stage=NULL,revision=revision+1,current_traffic_percent=0,stopped_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=? AND revision=? AND status=?");
+            $q->execute([$d['id'],$d['revision'],$d['status']]);if($q->rowCount()!==1)throw new RuntimeException('Deployment changed during stop; reload and retry.');
+            $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'deployment_stopped','stopped',['note'=>$stopNote],$fresh['routing_current_hash']??null);$pdo->commit();return $fresh??[];
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    });
 }
 function data_model_deployment_rollback(PDO $pdo,array $viewer,string $publicId,string $note=''): array {
-    data_model_deployment_require_admin($viewer);$d=data_model_deployment_get($pdo,$publicId);
-    if(!$d)throw new RuntimeException('Deployment not found.');if(in_array($d['status'],['rolled_back','stopped'],true))return $d;if($d['status']==='draft')throw new RuntimeException('Draft deployment has nothing to roll back.');
-    $before=(array)$d['routing_before'];$wasFull=$d['status']==='full';
-    $pdo->beginTransaction();try{data_model_deployment_apply_routing($pdo,$viewer,$before);$pdo->prepare('DELETE FROM data_model_routing_overrides WHERE deployment_id=?')->execute([$d['id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    if($wasFull){try{data_model_rollback($pdo,$viewer,(string)$d['registry_public_id'],(string)$d['rollback_version_public_id'],'PHASE 44 ROLLBACK '.$d['public_id'].' '.trim($note));}catch(Throwable $e){data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'rollback_registry_failed','full',['error'=>mb_substr($e->getMessage(),0,1000)]);throw $e;}}
-    $routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);
-    $pdo->prepare("UPDATE data_model_deployments SET status='rolled_back',paused_stage=NULL,revision=revision+1,current_traffic_percent=0,routing_current_json=?,routing_current_hash=?,rolled_back_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$json,hash('sha256',$json),$d['id']]);
-    $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'deployment_rolled_back','rolled_back',['from'=>$d['status'],'note'=>mb_substr(trim($note),0,3000)],$fresh['routing_current_hash']??null);return $fresh??[];
+    data_model_deployment_require_admin($viewer);
+    return data_model_deployment_locked($pdo,$publicId,function(array $d) use($pdo,$viewer,$publicId,$note){
+        if(in_array($d['status'],['rolled_back','stopped'],true))return $d;if($d['status']==='draft')throw new RuntimeException('Draft deployment has nothing to roll back.');
+        $before=(array)$d['routing_before'];$wasFull=$d['status']==='full';$registryRolledBack=false;$rollbackNote=mb_substr(trim($note),0,3000);
+        try{
+            if($wasFull){data_model_rollback($pdo,$viewer,(string)$d['registry_public_id'],(string)$d['rollback_version_public_id'],'PHASE 44 ROLLBACK '.$d['public_id'].' '.$rollbackNote);$registryRolledBack=true;}
+            $pdo->beginTransaction();
+            data_model_deployment_apply_routing($pdo,$viewer,$before);$pdo->prepare('DELETE FROM data_model_routing_overrides WHERE deployment_id=?')->execute([$d['id']]);
+            $routing=data_model_deployment_routing_snapshot($pdo,$d['route_keys']);$json=data_attribution_encode($routing);
+            $q=$pdo->prepare("UPDATE data_model_deployments SET status='rolled_back',paused_stage=NULL,revision=revision+1,current_traffic_percent=0,routing_current_json=?,routing_current_hash=?,rolled_back_at=NOW(),stage_changed_at=NOW(),updated_at=NOW() WHERE id=? AND revision=? AND status=?");
+            $q->execute([$json,hash('sha256',$json),$d['id'],$d['revision'],$d['status']]);if($q->rowCount()!==1)throw new RuntimeException('Deployment changed during rollback; rollback will be compensated.');
+            $fresh=data_model_deployment_get($pdo,$publicId);data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'deployment_rolled_back','rolled_back',['from'=>$d['status'],'note'=>$rollbackNote],$fresh['routing_current_hash']??null);$pdo->commit();return $fresh??[];
+        }catch(Throwable $e){
+            if($pdo->inTransaction())$pdo->rollBack();
+            if($registryRolledBack){
+                try{data_model_rollback($pdo,$viewer,(string)$d['registry_public_id'],(string)$d['model_version_public_id'],'Phase 44 rollback compensation after routing/state failure');}
+                catch(Throwable $comp){try{data_model_deployment_event($pdo,(int)$d['id'],(int)$viewer['id'],'rollback_compensation_failed',(string)$d['status'],['error'=>mb_substr($comp->getMessage(),0,1000)]);}catch(Throwable $ignored){}throw new RuntimeException($e->getMessage().' Rollback compensation also failed: '.$comp->getMessage(),0,$e);}
+            }
+            throw $e;
+        }
+    });
 }
 function data_model_deployment_resolve_route(PDO $pdo,string $routeKey,int $baseModelId): int {
     if(!$baseModelId||!data_model_deployment_ready($pdo)||!isset(data_model_deployment_route_map()[$routeKey]))return $baseModelId;
