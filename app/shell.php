@@ -41,13 +41,25 @@ function app_shell_avatar(array $user,string $class='appAvatar'): string {
 function app_shell_badge(int $count): string {
     return $count>0?'<span class="appNavBadge">'.app_shell_h((string)min($count,99)).($count>99?'+':'').'</span>':'';
 }
+function app_shell_unread_count(PDO $pdo,array $user): int {
+    try{
+        return function_exists('notification_unread_count')?max(0,notification_unread_count($pdo,$user)):0;
+    }catch(Throwable $e){
+        return 0;
+    }
+}
+function app_shell_header_notification(int $unread): string {
+    $label='Notifications'.($unread>0?', '.$unread.' unread':'');
+    $count=$unread>0?'<span class="appHeaderNotificationBadge">'.app_shell_h((string)min($unread,99)).($unread>99?'+':'').'</span>':'';
+    $icon='<span class="appHeaderNotificationGlyph" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span>';
+    return '<a class="appHeaderIcon appHeaderNotification" href="/notifications.php" aria-label="'.app_shell_h($label).'">'.$icon.$count.'</a>';
+}
 function app_shell_link(string $href,string $label,string $icon,string $path,?string $match=null,string $badge=''): string {
     $active=$match!==null?str_starts_with($path,$match):$path===$href;
     return '<a class="appNavLink'.($active?' active':'').'" href="'.app_shell_h($href).'"><span class="appNavIcon" aria-hidden="true">'.$icon.'</span><span>'.$label.'</span>'.$badge.'</a>';
 }
-function app_shell_user_nav(PDO $pdo,array $user,string $path): string {
-    $unread=0;$teamCount=0;
-    try{if(function_exists('notification_unread_count'))$unread=notification_unread_count($pdo,$user);}catch(Throwable $e){}
+function app_shell_user_nav(PDO $pdo,array $user,string $path,?int $unread=null): string {
+    $unread=$unread??app_shell_unread_count($pdo,$user);$teamCount=0;
     try{$q=$pdo->prepare('SELECT COUNT(*) FROM team_members WHERE user_id=?');$q->execute([$user['id']]);$teamCount=(int)$q->fetchColumn();}catch(Throwable $e){}
     $links=[];
     $links[]=app_shell_link('/home.php','Home','⌂',$path);
@@ -89,8 +101,8 @@ function app_shell_admin_nav(string $path): string {
 function app_shell_search(): string {
     return '<form class="appHeaderSearch" action="/search.php" method="get"><span aria-hidden="true">⌕</span><input name="q" aria-label="Search Annotated" placeholder="Search people, sources, annotations, research"></form>';
 }
-function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode): string {
-    $links=$adminMode?app_shell_admin_nav($path):app_shell_user_nav($pdo,$user,$path);
+function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode,int $unread=0): string {
+    $links=$adminMode?app_shell_admin_nav($path):app_shell_user_nav($pdo,$user,$path,$unread);
     return '<details class="appMobileMenu"><summary aria-label="Open navigation">☰</summary><div class="appMobileMenuPanel">'.$links.'</div></details>';
 }
 function app_shell_user_menu(array $user,bool $isAdmin): string {
@@ -102,15 +114,16 @@ function app_shell_markup(PDO $pdo,array $user): array {
     $path=app_shell_request_path();
     $isAdmin=(string)($user['role']??'')==='admin';
     $adminMode=$isAdmin&&(str_starts_with($path,'/admin/')||$path==='/upgrade.php');
+    $unread=app_shell_unread_count($pdo,$user);
     $brand='<a class="appShellBrand" href="'.($adminMode?'/admin/':'/home.php').'"><span class="appShellMark">A</span><span>Annotated</span></a>';
-    $nav=$adminMode?app_shell_admin_nav($path):app_shell_user_nav($pdo,$user,$path);
+    $nav=$adminMode?app_shell_admin_nav($path):app_shell_user_nav($pdo,$user,$path,$unread);
     $roleText=$adminMode?'ADMIN WORKSPACE':'SOCIAL RESEARCH';
     $aside='<aside class="appShellSidebar">'.$brand.'<div class="appShellRole">'.app_shell_h($roleText).'</div><nav class="appShellNav" aria-label="'.($adminMode?'Admin':'Application').' navigation">'.$nav.'</nav>';
     if($adminMode){
         $aside.='<div class="appShellSidebarBottom"><a class="appShellExtension secondaryShellAction" href="/home.php">← Back to social app</a></div>';
     }
     $aside.='</aside>';
-    $header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions"><a class="appHeaderIcon" href="/notifications.php" aria-label="Notifications">♢</a>'.app_shell_user_menu($user,$isAdmin).'</div></header>';
+    $header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.app_shell_header_notification($unread).app_shell_user_menu($user,$isAdmin).'</div></header>';
     $footer='<footer class="appShellFooter"><span>Annotated · Research the web in context.</span><nav><a href="/explore.php">Explore</a><a href="/teams.php">Teams</a><a href="/chrome-extension.php">Chrome Extension</a><a href="/settings.php">Privacy & Settings</a></nav></footer>';
     return [$aside,$header,$footer];
 }
