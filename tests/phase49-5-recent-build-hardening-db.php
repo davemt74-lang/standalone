@@ -20,12 +20,30 @@ $q=$pdo->query("SELECT public_id FROM data_model_improvement_cases WHERE classif
 $title='Idempotent draft '.bin2hex(random_bytes(4));$proposal=data_model_improvement_proposal_create($pdo,$admin,$casePublic,['proposal_type'=>'evaluation_case','title'=>$title,'sanitized_input'=>'Sanitized idempotent input','sanitized_expected_output'=>'Sanitized idempotent expected behavior','sanitized_context'=>'Review fixture context','purpose_justification'=>'Verify identical draft saves are not mistaken for stale writes.','redaction_attested'=>1,'rights_attested'=>1]);
 $updated=data_model_improvement_proposal_update($pdo,$admin,$proposal['public_id'],['title'=>$proposal['title'],'sanitized_input'=>$proposal['sanitized_input'],'sanitized_expected_output'=>$proposal['sanitized_expected_output'],'sanitized_context'=>$proposal['sanitized_context'],'purpose_justification'=>$proposal['purpose_justification'],'redaction_attested'=>1,'rights_attested'=>1]);
 p495($updated['status']==='draft'&&hash_equals((string)$proposal['content_hash'],(string)$updated['content_hash']),'Phase 46 accepts an idempotent draft save without a false concurrency conflict');
+$sourceCase=data_model_improvement_case_get($pdo,$casePublic);$originalClassification=(string)$sourceCase['classification'];$originalStatus=(string)$sourceCase['status'];
+data_model_improvement_triage($pdo,$admin,$casePublic,['classification'=>'no_action','status'=>'no_action','triage_note'=>'Hardening actionability test.']);
+$approveBlocked=false;try{data_model_improvement_proposal_approve($pdo,$admin,$proposal['public_id']);}catch(RuntimeException $e){$approveBlocked=str_contains($e->getMessage(),'no longer actionable');}p495($approveBlocked,'Phase 46 cannot approve reusable evidence after human triage changes the source case to no action');
+data_model_improvement_triage($pdo,$admin,$casePublic,['classification'=>$originalClassification,'status'=>$originalStatus,'triage_note'=>'Restore hardening fixture.']);
+$proposal=data_model_improvement_proposal_approve($pdo,$admin,$proposal['public_id']);p495($proposal['status']==='approved','Phase 46 can approve the same evidence again after human triage restores an actionable classification');
+data_model_improvement_triage($pdo,$admin,$casePublic,['classification'=>'no_action','status'=>'no_action','triage_note'=>'Hardening publication test.']);
+$publishBlocked=false;try{data_model_improvement_proposal_publish($pdo,$admin,$proposal['public_id']);}catch(RuntimeException $e){$publishBlocked=str_contains($e->getMessage(),'no longer actionable');}p495($publishBlocked,'Phase 46 cannot publish approved reusable evidence after the source case becomes no action');
+data_model_improvement_triage($pdo,$admin,$casePublic,['classification'=>$originalClassification,'status'=>$originalStatus,'triage_note'=>'Restore hardening fixture.']);
 $pdo->prepare('DELETE FROM data_model_improvement_proposals WHERE public_id=?')->execute([$proposal['public_id']]);
 
 $q=$pdo->query("SELECT public_id FROM data_model_improvement_campaigns WHERE status='abandoned' AND plan_hash IS NOT NULL ORDER BY id DESC LIMIT 1");$campaignPublic=(string)($q->fetchColumn()?:'');
 if($campaignPublic!==''){
     $closed=data_model_campaign_get($pdo,$campaignPublic,false);$stale=$closed;$stale['status']='evaluation';$sync=data_model_campaign_sync_status($pdo,$stale);$fresh=data_model_campaign_get($pdo,$campaignPublic,false);
     p495($sync==='abandoned'&&$fresh['status']==='abandoned','stale automatic Phase 47 lifecycle sync cannot resurrect an abandoned human-closed campaign');
+
+    $caseLink=data_model_campaign_cases($pdo,(int)$closed['id'])[0]??null;$evalLink=null;foreach(data_model_campaign_proposals($pdo,(int)$closed['id']) as $cp)if($cp['proposal_type']==='evaluation_case'){$evalLink=$cp;break;}
+    if($caseLink&&$evalLink){
+        $guardCampaign=data_model_campaign_create($pdo,$admin,['title'=>'Hardening triage guard '.bin2hex(random_bytes(3)),'strategy'=>'evaluation_only','base_model_version_id'=>$closed['base_model_version_id'],'objective'=>'Prove locked campaign triage authority.','success_criteria'=>'Human triage cannot drift underneath a locked campaign.']);
+        data_model_campaign_add_case($pdo,$admin,$guardCampaign['public_id'],$caseLink['case_public_id']);data_model_campaign_add_proposal($pdo,$admin,$guardCampaign['public_id'],$evalLink['proposal_public_id']);data_model_campaign_create_dataset_drafts($pdo,$admin,$guardCampaign['public_id']);$guardCampaign=data_model_campaign_lock($pdo,$admin,$guardCampaign['public_id']);
+        p495(data_model_campaign_current_use($pdo,$guardCampaign)['usable'],'newly locked campaign passes current-use case governance');
+        $triageBlocked=false;try{data_model_improvement_triage($pdo,$admin,$caseLink['case_public_id'],['classification'=>'no_action','status'=>'no_action']);}catch(RuntimeException $e){$triageBlocked=str_contains($e->getMessage(),'active campaign');}p495($triageBlocked,'Phase 46 refuses to reclassify a case underneath an active locked Phase 47 campaign');
+        $pdo->prepare("UPDATE data_model_improvement_cases SET classification='expected_behavior' WHERE public_id=?")->execute([$caseLink['case_public_id']]);$drift=data_model_campaign_get($pdo,$guardCampaign['public_id'],false);p495(!data_model_campaign_current_use($pdo,$drift)['usable'],'Phase 47 current-use validation detects direct human-triage classification drift');
+        $pdo->prepare('UPDATE data_model_improvement_cases SET classification=? WHERE public_id=?')->execute([$caseLink['classification'],$caseLink['case_public_id']]);data_model_campaign_close($pdo,$admin,$guardCampaign['public_id'],'abandoned','Hardening triage guard complete.');
+    }
 }
 $sample=intelligence_release_closed_loop_sample($pdo);p495(!$sample['available']||($sample['campaign']['status']??'')!=='abandoned','Phase 48 release lineage never chooses an abandoned campaign as its representative closed-loop sample');
 
