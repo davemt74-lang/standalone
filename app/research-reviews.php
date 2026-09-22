@@ -218,13 +218,12 @@ function research_review_restart(PDO $pdo,array $viewer,string $publicId,?string
 
 function research_review_list(PDO $pdo,array $viewer,string $scope='all',int $limit=100): array {
     if(!research_reviews_ready($pdo))return [];$limit=max(1,min(300,$limit));$params=[];$where=[];
-    if(($viewer['role']??'')!=='admin'){$where[]='(rp.owner_user_id=? OR tm.user_id=?)';$params[]=$viewer['id'];$params[]=$viewer['id'];}
+    if(($viewer['role']??'')!=='admin'){$where[]='(rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?))';$params[]=$viewer['id'];$params[]=$viewer['id'];}
     if($scope==='assigned'){$where[]='EXISTS(SELECT 1 FROM research_review_assignments rra WHERE rra.review_id=rr.id AND rra.reviewer_user_id=?)';$params[]=$viewer['id'];}
     elseif($scope==='requested'){$where[]='rr.requested_by_user_id=?';$params[]=$viewer['id'];}
     elseif($scope==='completed')$where[]="rr.status='completed'";
     elseif($scope==='open')$where[]="rr.status='open'";
     $sql=$where?implode(' AND ',$where):'1=1';
-    $accessJoin='';if(($viewer['role']??'')!=='admin'){$sql=str_replace('(rp.owner_user_id=? OR tm.user_id=?)','(rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?))',$sql);}
     $q=$pdo->prepare("SELECT rr.public_id FROM research_reviews rr JOIN research_projects rp ON rp.id=rr.project_id WHERE $sql ORDER BY rr.status='open' DESC,COALESCE(rr.due_at,'9999-12-31') ASC,rr.created_at DESC,rr.id DESC LIMIT ".$limit);
     $q->execute($params);$out=[];
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$r=research_review_access($pdo,$viewer,(string)$id);if(!$r)continue;$agg=research_review_aggregate($pdo,$r);$r['aggregate']=$agg;$r['assigned_to_viewer']=research_review_is_assigned($pdo,$viewer,$r);$r['overdue']=$r['status']==='open'&&!empty($r['due_at'])&&strtotime((string)$r['due_at'])<time();$out[]=$r;}return $out;
