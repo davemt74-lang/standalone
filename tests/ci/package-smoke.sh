@@ -23,6 +23,7 @@ for path in "${required[@]}"; do [[ -f "$tmp/site/$path" ]] || { echo "Missing w
 [[ -f "$tmp/ext/manifest.json" ]] || { echo "Extension manifest missing at ZIP root." >&2; exit 1; }
 [[ ! -e "$tmp/site/config.php" ]] || { echo "Production config.php must never ship in release package." >&2; exit 1; }
 [[ ! -e "$tmp/site/.git" && ! -e "$tmp/site/.github" ]] || { echo "Repository internals must not ship." >&2; exit 1; }
+if find "$tmp/site" -type l -print -quit | grep -q .; then echo "Release package must not contain symlinks." >&2; exit 1; fi
 outer_sha="$(sha256sum "$extension" | awk '{print $1}')"
 embedded_sha="$(sha256sum "$tmp/site/downloads/Annotated-Chrome-Extension.zip" | awk '{print $1}')"
 [[ "$outer_sha" == "$embedded_sha" ]] || { echo "Embedded Chrome ZIP differs from standalone Chrome ZIP." >&2; exit 1; }
