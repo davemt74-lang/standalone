@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__.'/runtime-compat.php';
 require_once __DIR__.'/migrations.php';
 
 function installer_database_name(PDO $pdo): string {
