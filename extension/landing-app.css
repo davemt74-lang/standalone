@@ -678,3 +678,139 @@
     padding:0 14px;
   }
 }
+
+
+/* Header notification dropdown + notification page rhythm */
+.appHeaderNotificationMenu{
+  position:relative;
+  margin:0;
+}
+.appHeaderNotificationMenu>summary{
+  list-style:none;
+  cursor:pointer;
+}
+.appHeaderNotificationMenu>summary::-webkit-details-marker{display:none}
+.appHeaderNotificationMenu[open]>.appHeaderNotification{background:#f1f2f4;border-color:#cbd0d6}
+.appHeaderNotificationDropdown{
+  position:absolute;
+  top:42px;
+  right:0;
+  width:min(360px,calc(100vw - 28px));
+  overflow:hidden;
+  border:1px solid #d9dde2;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 16px 44px rgba(17,24,39,.14);
+  z-index:100;
+}
+.appHeaderNotificationHead{
+  min-height:46px;
+  padding:10px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px solid #eceef1;
+}
+.appHeaderNotificationHead strong{
+  font-size:.82rem;
+  letter-spacing:-.01em;
+}
+.appHeaderNotificationHead span{
+  color:#777d85;
+  font-size:.68rem;
+}
+.appHeaderNotificationList{
+  max-height:360px;
+  overflow:auto;
+}
+.appHeaderNotificationItem{
+  display:grid;
+  gap:3px;
+  padding:11px 12px;
+  border-bottom:1px solid #f0f1f3;
+  text-decoration:none;
+  background:#fff;
+}
+.appHeaderNotificationItem:hover{background:#f7f8f9}
+.appHeaderNotificationItemTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.appHeaderNotificationItemTop strong{
+  color:#555b63;
+  font-size:.62rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.appHeaderNotificationItemTop small{
+  flex:0 0 auto;
+  color:#8a9098;
+  font-size:.61rem;
+}
+.appHeaderNotificationItemTitle{
+  font-size:.76rem;
+  font-weight:760;
+  color:#17181a;
+}
+.appHeaderNotificationItemBody{
+  color:#666c74;
+  font-size:.7rem;
+  line-height:1.4;
+}
+.appHeaderNotificationEmpty{
+  min-height:104px;
+  display:grid;
+  place-content:center;
+  gap:4px;
+  padding:18px;
+  text-align:center;
+}
+.appHeaderNotificationEmpty strong{font-size:.78rem}
+.appHeaderNotificationEmpty span{color:#777d85;font-size:.7rem}
+.appHeaderNotificationFooter{
+  display:block;
+  padding:10px 12px;
+  border-top:1px solid #eceef1;
+  background:#fafbfc;
+  text-align:center;
+  text-decoration:none;
+  font-size:.72rem;
+  font-weight:750;
+}
+.appHeaderNotificationFooter:hover{background:#f2f3f5}
+.appShellContent>.notificationCenter{
+  margin-top:14px;
+  margin-bottom:24px;
+}
+.notificationCenter{
+  padding:22px 24px 24px;
+}
+.notificationCenter .pageTitle{
+  padding:8px 0 14px;
+}
+.notificationCenter .pageTitle h1{
+  margin:.18em 0 .22em;
+}
+.notificationCenter .pageTitle p{
+  margin:0;
+}
+.notificationCenter .notificationToolbar{
+  margin:10px 0 14px;
+}
+.notificationCenter .notificationCard{
+  margin-bottom:12px;
+}
+@media(max-width:640px){
+  .appHeaderNotificationDropdown{
+    position:fixed;
+    top:56px;
+    right:10px;
+    left:10px;
+    width:auto;
+  }
+  .appShellContent>.notificationCenter{margin-top:10px}
+  .notificationCenter{padding:18px}
+}
