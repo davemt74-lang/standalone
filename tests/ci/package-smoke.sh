@@ -12,7 +12,7 @@ unzip -q "$website" -d "$tmp/site"
 unzip -q "$extension" -d "$tmp/ext"
 required=(
   index.php install.php upgrade.php RELEASE-MANIFEST.json
-  app/release.php app/release-operations.php app/schema-health.php app/research-library.php research.php
+  app/release.php app/release-operations.php app/schema-health.php app/research-library.php research.php saved.php teams.php annotation.php
   admin/system-health.php admin/intelligence-release-audit.php admin/model-campaigns.php
   bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php
   database/schema.sql database/migrations/20260922_046_model_improvement_campaigns.sql
