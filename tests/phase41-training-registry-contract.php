@@ -7,12 +7,12 @@ $avoid=function(string $file,string $needle,string $message)use(&$fail,$root){$p
 foreach(['database/migrations/20260921_040_training_job_registry_controlled_fine_tuning.sql','app/data-training.php','admin/training.php','admin/training-export.php','bin/training-worker.php','tests/phase41-training-registry-db.php','tests/phase41-training-registry-contract.php'] as $file)if(!is_file($root.'/'.$file))$fail[]='Phase 41 file missing: '.$file;
 
 $migration=(string)file_get_contents($root.'/database/migrations/20260921_040_training_job_registry_controlled_fine_tuning.sql');
-foreach(['data_training_jobs','data_training_attempts','data_training_logs','data_training_events','use_class','dataset_manifest_hash','base_model_version_hash','rights_snapshot_hash','provider_snapshot_hash','package_hash','job_hash','completion_hash','output_model_version_id'] as $needle)if(!str_contains($migration,$needle))$fail[]='Phase 41 migration contract missing: '.$needle;
+foreach(['data_training_jobs','data_training_attempts','data_training_logs','data_training_events','use_class','dataset_manifest_hash','base_model_version_hash','base_approval_receipt_hash','rights_snapshot_hash','provider_snapshot_hash','runtime_snapshot_hash','package_hash','job_hash','completion_hash','output_model_version_id'] as $needle)if(!str_contains($migration,$needle))$fail[]='Phase 41 migration contract missing: '.$needle;
 $avoid('database/migrations/20260921_040_training_job_registry_controlled_fine_tuning.sql','DROP TABLE','Phase 41 migration must be expand-only.');
 $avoid('database/migrations/20260921_040_training_job_registry_controlled_fine_tuning.sql','TRUNCATE','Phase 41 migration must be expand-only.');
 
 $runtime=(string)file_get_contents($root.'/app/data-training.php');
-foreach(['data_training_ready','data_training_job_create','data_training_job_update_draft','data_training_preflight','data_training_package_inspect','data_training_queue','data_training_job_integrity','data_training_current_use_status','data_training_provider_submit','data_training_provider_retrieve','data_training_provider_cancel','data_training_provider_events','data_training_register_output','data_training_completion_integrity','data_training_finalize_provider_success','data_training_request_cancel','data_training_retry','data_training_manual_complete','data_training_export_package','data_training_process_next'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 41 runtime helper missing: '.$fn;
+foreach(['data_training_ready','data_training_job_create','data_training_job_update_draft','data_training_preflight','data_training_package_inspect','data_training_queue','data_training_job_integrity','data_training_current_use_status','data_training_runtime_snapshot','data_training_approval_receipt_status','data_training_provider_submit','data_training_provider_retrieve','data_training_provider_cancel','data_training_provider_events','data_training_register_output','data_training_completion_integrity','data_training_finalize_provider_success','data_training_request_cancel','data_training_retry','data_training_manual_complete','data_training_export_package','data_training_handle_worker_exception','data_training_process_next'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 41 runtime helper missing: '.$fn;
 $need('app/data-training.php','Training use class $useClass requires a frozen dataset with purpose $required.','Training jobs must enforce internal vs commercial dataset purpose separation.');
 $need('app/data-training.php',"Training base model requires an integrity-valid Phase 40 approval receipt.",'Training base must have a valid Phase 40 approval receipt.');
 $need('app/data-training.php',"Phase 41 v1 supports supervised fine-tuning only.",'Phase 41 method scope must be explicit.');
@@ -21,6 +21,10 @@ $need('app/data-training.php',"attribution_blocked_items",'Training preflight mu
 $need('app/data-training.php',"external_provider_acknowledged",'External/provider training transfer must require explicit Admin acknowledgement.');
 $need('app/data-training.php',"package_hash",'Training package identity must be frozen and hashed before execution.');
 $need('app/data-training.php',"job_hash",'Queued training decisions must have an immutable job hash.');
+$need('app/data-training.php',"base_approval_receipt_hash",'Queued training jobs must bind the exact Phase 40 approval receipt used for the base model.');
+$need('app/data-training.php',"training_runtime_version",'Queued jobs must snapshot the Phase 41/app runtime identity.');
+$need('app/data-training.php',"provider_transient_error",'Provider polling/cancellation transport errors must remain retryable operational failures.');
+$need('app/data-training.php',"output_registration_blocked",'Provider-success output registration conflicts must block handoff rather than retrain the provider job.');
 $need('app/data-training.php',"completion_integrity_failure",'Completed training artifacts must have recomputable integrity validation.');
 $need('app/data-training.php',"Current rights or integrity changed while training was active.",'Active training must stop when current training rights/integrity changes.');
 $need('app/data-training.php',"provider-model:",'Provider completion must preserve an output artifact reference.');
@@ -42,6 +46,8 @@ foreach(['CREATE JOB','PREFLIGHT','CURRENT GOVERNANCE','MANUAL COMPLETION','PROV
 $need('admin/training.php','Export exact training JSONL','Admin UI must expose the exact governed package export.');
 $need('admin/training.php','experimental','Admin UI must communicate that training outputs are experimental.');
 $need('admin/training.php','COMPLETION INTEGRITY','Admin UI must surface completed training artifact integrity.');
+$need('admin/training.php','approval receipt:','Admin UI must surface current base approval-receipt validity.');
+$need('admin/training.php','runtime <?=h(substr','Admin UI must surface the immutable runtime snapshot hash.');
 $need('admin/training.php','I acknowledge that Provider API training sends','Admin UI must disclose external/provider training transfer.');
 $need('admin/training-export.php',"\$_SERVER['REQUEST_METHOD']!=='POST'",'Training package export must be POST-only.');
 $need('admin/training-export.php','require_csrf()','Training package export must require CSRF.');
