@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS data_model_versions (
   metadata_json JSON NULL,
   gate_policy_json JSON NOT NULL,
   gate_policy_hash CHAR(64) NOT NULL,
+  version_hash CHAR(64) NOT NULL,
   created_by_user_id BIGINT UNSIGNED NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status_changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
