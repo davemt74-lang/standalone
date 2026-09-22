@@ -82,7 +82,10 @@ jobs:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
-        run: php tests/install-db.php
+        run: |
+          php tests/install-db.php
+          php tests/ci/prepare-current-schema.php
+          php tests/phase12b-agent-chat-db.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')

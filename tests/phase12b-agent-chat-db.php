@@ -32,6 +32,9 @@ p12b(agent_chat_context_item($pdo,$other,'team',$teamPublic)===null,'Agent Chat 
 $projectPublic=$pub('project');$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,title) VALUES(?,?,?)")->execute([$projectPublic,$owner['id'],'Agent Context Research']);
 $researchCtx=agent_chat_context_item($pdo,$owner,'research',$projectPublic);p12b(($researchCtx['public_id']??'')===$projectPublic,'Agent Chat can attach an authorized Research project');
 p12b(agent_chat_context_item($pdo,$other,'research',$projectPublic)===null,'Agent Chat refuses private Research context for unauthorized users');
+$contextOptions=agent_chat_context_options($pdo,$owner);
+p12b(count(array_filter($contextOptions['research']??[],fn($row)=>($row['public_id']??'')===$projectPublic))===1,'Agent context picker lists owned Research on strict MySQL-compatible ordering');
+p12b(count(array_filter($contextOptions['teams']??[],fn($row)=>($row['public_id']??'')===$teamPublic))===1,'Agent context picker lists authorized Teams');
 
 $source=ensure_source($pdo,'https://agent-context-'.$run.'.example.test/article','Agent public Annotation source');
 $pdo->prepare('INSERT INTO source_versions(source_id,version_number,final_url,title,content_hash) VALUES(?,1,?,?,?)')->execute([$source['id'],$source['canonical_url'],'Agent public Annotation source',hash('sha256',$run)]);$versionId=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=? WHERE id=?')->execute([$versionId,$source['id']]);

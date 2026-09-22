@@ -25,6 +25,7 @@
   let sending=false;
 
   const esc=s=>String(s??'');
+  function renderInlineError(container,message){container.replaceChildren();const error=document.createElement('div');error.className='error';error.textContent=String(message||'Agent Chat request failed.');container.appendChild(error);}
   async function request(action,{method='GET',data=null,params={}}={}){
     const url=new URL('/api/agent-chat.php',location.origin);url.searchParams.set('action',action);
     Object.entries(params).forEach(([k,v])=>{if(v!==null&&v!==undefined&&v!=='')url.searchParams.set(k,String(v));});
@@ -126,7 +127,7 @@
       const groups=[['annotations','Recent annotations'],['research','Research projects'],['teams','Teams']];
       groups.forEach(([key,label])=>{const rows=data[key]||[];if(!rows.length)return;const section=document.createElement('section');const h=document.createElement('h4');h.textContent=label;section.appendChild(h);rows.forEach(item=>{const b=document.createElement('button');b.type='button';b.className='agentContextOption';b.textContent=item.label;b.addEventListener('click',()=>{if(!selectedContext.some(x=>x.type===item.type&&x.public_id===item.public_id)&&selectedContext.length<6)selectedContext.push(item);renderContextTray();contextPicker.hidden=true;});section.appendChild(b);});contextOptions.appendChild(section);});
       if(!contextOptions.children.length)contextOptions.innerHTML='<div class="meta">No recent Annotated context is available yet.</div>';
-    }catch(err){contextOptions.innerHTML='<div class="error">'+esc(err.message)+'</div>';}
+    }catch(err){renderInlineError(contextOptions,err.message||'Unable to load Annotated context.');}
   }
   async function loadHistory(){
     historyList.innerHTML='<div class="meta">Loading chats…</div>';
@@ -134,13 +135,13 @@
       const data=await request('list');historyList.replaceChildren();
       (data.conversations||[]).forEach(chat=>{const b=document.createElement('button');b.type='button';b.className='agentHistoryItem';const strong=document.createElement('strong');strong.textContent=chat.title||'New chat';const small=document.createElement('small');small.textContent=chat.last_message||'';b.append(strong,small);b.addEventListener('click',()=>{historyPanel.hidden=true;openConversation(chat.public_id,chat.title);});historyList.appendChild(b);});
       if(!historyList.children.length)historyList.innerHTML='<div class="meta">No previous Agent chats yet.</div>';
-    }catch(err){historyList.innerHTML='<div class="error">'+esc(err.message)+'</div>';}
+    }catch(err){renderInlineError(historyList,err.message||'Unable to load Agent Chat history.');}
   }
   async function openConversation(publicId,chatTitle=''){
     setModeAgent();activeConversation=publicId;document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));title.textContent=chatTitle||'Agent chat';messages.innerHTML='<div class="agentChatLoading">Loading conversation…</div>';
     try{
       const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length)messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New conversation</h2><p>Ask a question or attach Annotated context.</p></div>';saveState(true);messages.scrollTop=messages.scrollHeight;
-    }catch(err){messages.innerHTML='<div class="error">'+esc(err.message)+'</div>';}
+    }catch(err){renderInlineError(messages,err.message||'Unable to load this Agent Chat.');}
   }
   function resetConversation(){
     activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'agent'}}));selectedContext=[];renderContextTray();title.textContent='New chat';messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p></div>';saveState(true);input.focus();
