@@ -43,7 +43,7 @@ $need('admin/index.php','Intelligence Release Audit','Admin Home must surface Ph
 $need('app/bootstrap.php',"require_once __DIR__ . '/intelligence-release-audit.php';",'Phase 48 audit runtime must load with the application.');
 
 $need('install.php','installer_run($pdo,$schemaFile,$migrationDir)','Fresh install must use the canonical schema + all bundled migrations.');
-$need('install.php',"count(installer_pending_migrations($pdo,$migrationDir))===0",'Fresh installer must verify no pending migrations before handing off to first-admin.');
+$need('install.php','count(installer_pending_migrations($pdo,$migrationDir))===0','Fresh installer must verify no pending migrations before handing off to first-admin.');
 $need('upgrade.php','migration_apply_pending($pdo,$dir,10)','Upgrade UI must use the canonical migration manager.');
 $need('upgrade.php','Administrator access required.','Database upgrade must remain administrator-only after users exist.');
 $need('upgrade.php','Previous migration failure recorded.','Upgrade UI must retain failed-migration recovery evidence.');
