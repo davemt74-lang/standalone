@@ -345,6 +345,14 @@ jobs:
         run: php tests/phase41-training-registry-db.php
       - name: Phase 41 Training Registry architecture and Admin UI contract suite
         run: php tests/phase41-training-registry-contract.php
+      - name: Phase 42 Post-Training Evaluation & Promotion Readiness MariaDB suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/phase42-post-training-readiness-db.php
+      - name: Phase 42 Post-Training Readiness architecture and Admin UI contract suite
+        run: php tests/phase42-post-training-readiness-contract.php
 
 
   mysql8-fresh-install:
