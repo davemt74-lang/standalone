@@ -31,6 +31,7 @@ $jobs=data_training_job_list($pdo,100);
 $job=$jobId!==''?data_training_job_get($pdo,$jobId):null;
 $preflight=$job&&$job['status']==='draft'?data_training_preflight($pdo,$job):null;
 $currentUse=$job&&$job['status']!=='draft'?data_training_current_use_status($pdo,$job):null;
+$completionIntegrity=$job&&$job['status']==='succeeded'?data_training_completion_integrity($pdo,$job):null;
 $attempts=$job?data_training_attempts($pdo,(int)$job['id']):[];
 $logs=$job?data_training_logs($pdo,(int)$job['id'],200):[];
 $events=$job?data_training_events($pdo,(int)$job['id'],100):[];
@@ -166,6 +167,7 @@ $executors=data_training_executors();
     <?php endif?>
 
     <?php if($job['status']==='succeeded'):?>
+    <div class="notice <?=$completionIntegrity&&$completionIntegrity['ok']?'success':'error'?>"><strong>COMPLETION INTEGRITY <?=$completionIntegrity&&$completionIntegrity['ok']?'VALID':'FAILED'?></strong><br><?=h(str_replace('_',' ',(string)($completionIntegrity['reason']??'unknown')))?>.</div>
     <div class="notice success"><strong>TRAINING OUTPUT REGISTERED</strong><br>Output model version: <?php if($job['output_model_version_public_id']):?><a href="/admin/model-registry.php?registry=<?=rawurlencode($job['output_registry_public_id'])?>&version=<?=rawurlencode($job['output_model_version_public_id'])?>"><?=h($job['output_model_version_label'])?></a><?php else:?>—<?php endif?>. It is experimental and still requires Phase 39 evaluation and Phase 40 approval.</div>
     <?php endif?>
     <?php if($job['last_error']):?><div class="notice error"><?=h($job['last_error'])?></div><?php endif?>
