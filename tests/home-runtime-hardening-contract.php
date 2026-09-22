@@ -27,6 +27,6 @@ assert_home_runtime(str_contains($schema,"['users','profile_image_url']"),'Schem
 assert_home_runtime(str_contains($schema,"['user_preferences','profile_visibility']"),'Schema preflight verifies Home privacy preference dependencies');
 assert_home_runtime(str_contains($schema,"['user_preferences','search_visibility']"),'Schema preflight verifies Home discovery preference dependencies');
 assert_home_runtime(!str_contains($schema,'migration_prepare_tables('),'Runtime schema preflight remains read-only');
-assert_home_runtime(str_contains($upgrade,"try{\n    migration_prepare_tables($pdo);"),'Database upgrader catches initial migration inventory failures');
+assert_home_runtime(str_contains($upgrade,'try{'."\n".'    migration_prepare_tables($pdo);'),'Database upgrader catches initial migration inventory failures');
 
 echo "Home runtime hardening contract passed.\n";
