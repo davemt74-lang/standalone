@@ -20,6 +20,7 @@ function action_center_kind_for_type(string $type): ?string {
       'source_change','research_gap','research_conflict','related_conflict','review_stale','review_changes_requested','review_objection','change_impact'=>'review',
       'model_health_incident'=>'review',
       'model_improvement_case'=>'review',
+      'model_improvement_campaign'=>'review',
       'research_task'=>'continue',
       default=>null
     };

@@ -56,6 +56,10 @@ if($version&&data_model_improvement_ready($pdo)){
     $q=$pdo->prepare("SELECT * FROM data_model_improvement_cases WHERE model_version_id=? ORDER BY FIELD(status,'new','investigating','ready_for_evaluation','ready_for_training','resolved','no_action'),updated_at DESC LIMIT 20");$q->execute([$version['id']]);$improvementRows=$q->fetchAll();
     $regressionRows=data_model_improvement_regression_cases($pdo,(int)$version['id'],20);
 }
+$campaignRows=[];
+if($version&&data_model_campaign_ready($pdo)){
+    $q=$pdo->prepare("SELECT c.*,tj.output_model_version_id FROM data_model_improvement_campaigns c LEFT JOIN data_training_jobs tj ON tj.id=c.training_job_id WHERE c.registry_id=? AND (c.base_model_version_id=? OR tj.output_model_version_id=?) ORDER BY c.id DESC LIMIT 30");$q->execute([$version['registry_id'],$version['id'],$version['id']]);$campaignRows=$q->fetchAll();
+}
 $events=$registry?data_model_events($pdo,(int)$registry['id'],100):[];
 $origins=data_model_origins();
 
@@ -88,7 +92,7 @@ if($version){
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">MODEL REGISTRY</span><h1>Candidate lifecycle & release governance</h1><p>Register model versions, attach integrity-valid Phase 39 evidence, apply explicit release gates, record approval receipts, activate governed versions, and roll back prior active versions. Registry status never silently rewrites AI task routing.</p></div>
-  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a><a class="button secondary" href="/admin/post-training.php">Post-Training Readiness</a><a class="button secondary" href="/admin/model-release.php">Release Decisions</a><a class="button secondary" href="/admin/model-deployment.php">Model Deployments</a><a class="button secondary" href="/admin/model-observability.php">Model Health</a><a class="button secondary" href="/admin/model-improvements.php">Model Improvements</a></div>
+  <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a><a class="button secondary" href="/admin/post-training.php">Post-Training Readiness</a><a class="button secondary" href="/admin/model-release.php">Release Decisions</a><a class="button secondary" href="/admin/model-deployment.php">Model Deployments</a><a class="button secondary" href="/admin/model-observability.php">Model Health</a><a class="button secondary" href="/admin/model-improvements.php">Model Improvements</a><a class="button secondary" href="/admin/model-campaigns.php">Improvement Campaigns</a></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
 
   <section class="healthGrid">
@@ -136,6 +140,13 @@ if($version){
     <?php if(!$improvementRows):?><p class="empty">No clustered production improvement cases for this model version.</p><?php else:?><div class="unifiedActivityList"><?php foreach($improvementRows as $ic):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($ic['severity'])?></span> <span class="badge"><?=h($ic['status'])?></span> <strong><a href="/admin/model-improvements.php?case=<?=rawurlencode((string)$ic['public_id'])?>"><?=h($ic['title'])?></a></strong></div><span class="meta"><?=h((string)$ic['recurrence_count'])?> recurrence(s)</span></div><p class="meta"><?=h(str_replace('_',' ',$ic['classification']))?> · route <?=h($ic['route_key'])?> · evidence <?=h((string)$ic['evidence_count'])?></p></div></article><?php endforeach?></div><?php endif?>
     <h3>Regression coverage</h3><?php if(!$regressionRows):?><p class="empty">No published Phase 46 regression cases yet.</p><?php else:?><div class="unifiedActivityList"><?php foreach($regressionRows as $rr):?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><strong><?=h($rr['label'])?></strong><p class="meta">route <?=h($rr['route_key'])?> · case <?=h(substr((string)$rr['case_hash'],0,16))?>…</p></div></article><?php endforeach?></div><?php endif?>
     <p class="meta">Phase 46 can publish human-sanitized examples into governed dataset eligibility. It cannot launch evaluation/training or change model lifecycle/routing.</p>
+  </section>
+  <?php endif?>
+
+  <?php if($version&&data_model_campaign_ready($pdo)):?>
+  <section class="card"><span class="eyebrow">PHASE 47 IMPROVEMENT CAMPAIGNS</span><h2>Closed-loop remediation lineage for <?=h($version['version_label'])?></h2><div class="inlineActions"><a class="button secondary" href="/admin/model-campaigns.php">Open Improvement Campaigns</a></div>
+    <?php if(!$campaignRows):?><p class="empty">No Phase 47 campaign currently uses this version as its governed base or output.</p><?php else:?><div class="unifiedActivityList"><?php foreach($campaignRows as $mc):$role=((int)$mc['base_model_version_id']===(int)$version['id'])?'base':'output';?><article class="unifiedActivityItem"><div class="unifiedActivityMain"><div class="unifiedActivityHead"><div><span class="badge"><?=h($mc['status'])?></span> <span class="badge"><?=h($role)?></span> <strong><a href="/admin/model-campaigns.php?campaign=<?=rawurlencode((string)$mc['public_id'])?>"><?=h($mc['title'])?></a></strong></div><span class="meta"><?=h($mc['updated_at'])?></span></div><p class="meta"><?=h(str_replace('_',' ',$mc['strategy']))?><?=!empty($mc['plan_hash'])?' · plan '.h(substr((string)$mc['plan_hash'],0,14)).'…':' · plan not locked'?></p></div></article><?php endforeach?></div><?php endif?>
+    <p class="meta">Phase 47 orchestrates governed handoffs only. Dataset freeze, evaluation execution, training queue/submission, release decisions, deployment, rollback, and AI routing remain owned by their existing phases.</p>
   </section>
   <?php endif?>
 

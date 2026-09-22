@@ -35,8 +35,12 @@ function data_dataset_policy_normalize(array $input): array {
     if(is_string($types))$types=preg_split('/[\s,]+/',$types,-1,PREG_SPLIT_NO_EMPTY)?:[];
     $types=array_values(array_unique(array_filter(array_map(fn($v)=>strtolower(trim((string)$v)),(array)$types),fn($v)=>$v!==''&&preg_match('/^[a-z0-9_\-]{2,64}$/',$v))));
     sort($types,SORT_STRING);
+    $sourceIds=$input['source_object_public_ids']??[];
+    if(is_string($sourceIds))$sourceIds=preg_split('/[\s,]+/',$sourceIds,-1,PREG_SPLIT_NO_EMPTY)?:[];
+    $sourceIds=array_values(array_unique(array_filter(array_map(fn($v)=>mb_substr(trim((string)$v),0,64),(array)$sourceIds),fn($v)=>$v!=='')));
+    sort($sourceIds,SORT_STRING);
     $max=max(1,min(10000,(int)($input['max_items']??1000)));
-    return ['purpose'=>$purpose,'corpus_types'=>$types,'max_items'=>$max,'order'=>'source_object_type,source_object_public_id,source_object_version,content_hash,id'];
+    return ['purpose'=>$purpose,'corpus_types'=>$types,'source_object_public_ids'=>$sourceIds,'max_items'=>$max,'order'=>'source_object_type,source_object_public_id,source_object_version,content_hash,id'];
 }
 function data_dataset_event(PDO $pdo,int $datasetId,?int $actorUserId,string $type,array $details=[]): void {
     $pdo->prepare('INSERT INTO data_dataset_events(dataset_id,actor_user_id,event_type,details_json) VALUES(?,?,?,?)')->execute([$datasetId,$actorUserId,$type,$details?data_attribution_encode($details):null]);
@@ -71,6 +75,7 @@ function data_dataset_candidate_sql(array $policy,bool $countOnly=false): array 
     $purpose=(string)$policy['purpose'];$purposes=data_dataset_purposes();if(!isset($purposes[$purpose]))throw new InvalidArgumentException('Invalid dataset purpose.');$column=$purposes[$purpose]['column'];
     $where=["invalidated_at IS NULL","$column=1"];$params=[];
     if(!empty($policy['corpus_types'])){$ph=implode(',',array_fill(0,count($policy['corpus_types']),'?'));$where[]="corpus_type IN ($ph)";$params=array_merge($params,$policy['corpus_types']);}
+    if(!empty($policy['source_object_public_ids'])){$ph=implode(',',array_fill(0,count($policy['source_object_public_ids']),'?'));$where[]="source_object_public_id IN ($ph)";$params=array_merge($params,$policy['source_object_public_ids']);}
     if($countOnly)$sql='SELECT COUNT(*) item_count,COALESCE(SUM(OCTET_LENGTH(normalized_text)),0) content_bytes FROM data_corpus_items WHERE '.implode(' AND ',$where);
     else $sql='SELECT * FROM data_corpus_items WHERE '.implode(' AND ',$where).' ORDER BY source_object_type,source_object_public_id,COALESCE(source_object_version,\'\'),content_hash,id LIMIT '.(int)$policy['max_items'];
     return [$sql,$params];

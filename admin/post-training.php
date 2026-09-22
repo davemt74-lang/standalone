@@ -48,6 +48,7 @@ $latestPacketIntegrity=$latestPacket?data_post_training_packet_integrity($latest
     <p>Turn successful Phase 41 training outputs into equivalent Phase 39 benchmarks, human-reviewed evidence, regression comparisons, and a tamper-evident packet for human release consideration. This workflow never promotes, approves, activates, or routes a model automatically.</p>
   </div>
   <div class="inlineActions">
+    <a class="button secondary" href="/admin/model-campaigns.php">Improvement Campaigns</a>
     <a class="button secondary" href="/admin/training.php">Training Registry</a>
     <a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a>
     <a class="button secondary" href="/admin/model-registry.php">Model Registry</a>

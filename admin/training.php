@@ -44,7 +44,7 @@ $executors=data_training_executors();
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Training Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">TRAINING REGISTRY</span><h1>Controlled fine-tuning jobs</h1><p>Train only from explicit frozen training datasets and governed Phase 40 base-model versions. Training outputs return to the Model Registry as <strong>experimental</strong> versions and must still pass Phase 39 evaluation and Phase 40 approval before activation.</p></div>
-  <div class="inlineActions"><a class="button secondary" href="/admin/datasets.php">Dataset Registry</a><a class="button secondary" href="/admin/model-registry.php">Model Registry</a><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI providers</a></div>
+  <div class="inlineActions"><a class="button secondary" href="/admin/model-campaigns.php">Improvement Campaigns</a><a class="button secondary" href="/admin/datasets.php">Dataset Registry</a><a class="button secondary" href="/admin/model-registry.php">Model Registry</a><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI providers</a></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
 
   <section class="healthGrid">
