@@ -260,8 +260,8 @@ function research_verification_context(PDO $pdo,array $viewer,string $projectPub
 
 function research_verification_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limitProjects=12): void {
     if(!research_verification_ready($pdo))return;
-    $q=$pdo->prepare("SELECT DISTINCT rp.public_id FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.updated_at DESC LIMIT ".$limitProjects);
-    $q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
+    $q=$pdo->prepare("SELECT rp.public_id FROM research_projects rp WHERE rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?) ORDER BY rp.updated_at DESC,rp.id DESC LIMIT ".$limitProjects);
+    $q->execute([$viewer['id'],$viewer['id']]);
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $projectPublic){
         $s=research_verification_project_summary($pdo,$viewer,(string)$projectPublic,100);if(empty($s['available'])||$s['needs_attention']<=0)continue;
         $high=$s['contested']>0||$s['stale']>0||$s['human_attention']>0;$priority=$high?'high':'medium';

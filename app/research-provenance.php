@@ -164,13 +164,12 @@ function provenance_project_report_integrity(PDO $pdo,array $viewer,string $proj
 
 function provenance_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limitProjects=12): void {
     if(!provenance_ready($pdo))return;
-    $q=$pdo->prepare("SELECT DISTINCT rp.public_id
+    $q=$pdo->prepare("SELECT rp.public_id
         FROM research_projects rp
-        LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
-        WHERE rp.status='active' AND (rp.owner_user_id=? OR tm.user_id=?)
-        ORDER BY rp.updated_at DESC
+        WHERE rp.status='active' AND (rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?))
+        ORDER BY rp.updated_at DESC,rp.id DESC
         LIMIT ".$limitProjects);
-    $q->execute([$viewer['id'],$viewer['id'],$viewer['id']]);
+    $q->execute([$viewer['id'],$viewer['id']]);
 
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $projectPublic){
         $projectPublic=(string)$projectPublic;
