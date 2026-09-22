@@ -19,7 +19,7 @@ function release_package_fingerprint(string $root): string {
         if(str_starts_with($relative,'storage/uploads/')||str_starts_with($relative,'storage/logs/')||str_starts_with($relative,'storage/private/'))continue;
         if(str_starts_with($relative,'uploads/')&&$relative!=='uploads/.htaccess')continue;
         if(in_array($relative,['SHA256SUMS.txt','BUILD-METADATA.txt','Annotated-Website.zip','Annotated-Chrome-Extension.zip'],true))continue;
-        $material[$relative]=hash_file('sha256',$path);
+        $hash=hash_file('sha256',$path);if($hash===false)throw new RuntimeException('Release package file could not be hashed: '.$relative);$material[$relative]=$hash;
     }
     ksort($material,SORT_STRING);return hash('sha256',json_encode($material,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
 }
