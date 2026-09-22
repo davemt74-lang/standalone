@@ -2,7 +2,25 @@
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/migrations.php';
 if(users_exist($pdo)){$upgradeUser=current_user($pdo);if(!$upgradeUser||$upgradeUser['role']!=='admin'){http_response_code(403);exit('Administrator access required.');}}
-$dir=__DIR__.'/database/migrations';migration_prepare_tables($pdo);[$pending,$runs]=migration_inventory($pdo,$dir);$error='';
-if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{$applied=migration_apply_pending($pdo,$dir,10);if(in_array('20260918_016_search_discovery',$applied,true)&&function_exists('search_rebuild_public_entities'))search_rebuild_public_entities($pdo,1000);header('Location: /upgrade.php?done=1');exit;}catch(Throwable $e){$error=$e->getMessage();}[$pending,$runs]=migration_inventory($pdo,$dir);}
+$dir=__DIR__.'/database/migrations';$pending=[];$runs=[];$error='';
+try{
+    migration_prepare_tables($pdo);
+    [$pending,$runs]=migration_inventory($pdo,$dir);
+}catch(Throwable $e){
+    $error=$e->getMessage();
+}
+if($_SERVER['REQUEST_METHOD']==='POST'){
+    require_csrf();
+    try{
+        $applied=migration_apply_pending($pdo,$dir,10);
+        if(in_array('20260918_016_search_discovery',$applied,true)&&function_exists('search_rebuild_public_entities'))search_rebuild_public_entities($pdo,1000);
+        header('Location: /upgrade.php?done=1');
+        exit;
+    }catch(Throwable $e){
+        $error=$e->getMessage();
+    }
+    try{[$pending,$runs]=migration_inventory($pdo,$dir);}
+    catch(Throwable $e){if($error==='')$error=$e->getMessage();}
+}
 $failed=array_filter($runs,fn($r)=>($r['status']??'')==='failed');
 ?><!doctype html><html><head><meta charset="utf-8"><title>Annotated Database Upgrade</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><main class="panel narrow"><h1>Database Upgrade</h1><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?><?php if(isset($_GET['done'])):?><div class="success">Database upgrade completed.</div><?php endif?><p><?=count($pending)?> migration(s) pending.</p><?php if($failed):?><div class="error"><strong>Previous migration failure recorded.</strong><p>MariaDB DDL is not transactionally rolled back. The migration file is checksum-pinned; correct the environment and retry the same immutable, retry-safe migration.</p><?php foreach($failed as $version=>$r):?><p><code><?=h($version)?></code> · attempt <?=h((string)$r['attempts'])?> · statement <?=h((string)$r['statement_index'])?>/<?=h((string)$r['statement_count'])?><br><?=h($r['error_message']??'Unknown error')?></p><?php endforeach?></div><?php endif?><?php if($pending):?><ul><?php foreach($pending as $m):?><li><?=h($m[0])?></li><?php endforeach?></ul><form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><button>Run upgrades</button></form><?php else:?><p>Database is current.</p><?php endif?><p><a href="/">Return to Annotated</a></p></main></body></html>
