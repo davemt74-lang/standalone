@@ -431,6 +431,7 @@ function cognitive_feed_items(PDO $pdo,array $viewer,?array $teamList=null,bool 
     $items=[];
     cognitive_feed_collect_pending_actions($pdo,$viewer,$items);
     if(function_exists('data_model_observability_cognitive_observations'))data_model_observability_cognitive_observations($pdo,$viewer,$items,12);
+    if(function_exists('data_model_improvement_cognitive_observations'))data_model_improvement_cognitive_observations($pdo,$viewer,$items,12);
     cognitive_feed_collect_research($pdo,$viewer,$items);
     cognitive_feed_collect_watched_source_changes($pdo,$viewer,$items);
     cognitive_feed_collect_team_activity($pdo,$viewer,$items,$teamList);
