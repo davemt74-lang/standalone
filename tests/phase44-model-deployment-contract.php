@@ -24,7 +24,7 @@ $need('admin/model-deployment-export.php','require_csrf()','Phase 44 audit expor
 $need('admin/model-deployment-export.php','data_model_release_decision_integrity','Phase 44 audit export must refuse invalid signed release provenance.');
 $need('app/ai.php','data_model_deployment_resolve_route','Existing AI routing must consult the governed Phase 44 temporary route resolver.');
 $need('app/ai.php','data_model_deployment_queue_shadow','Completed baseline AI runs must enqueue non-serving Phase 44 Shadow inference when applicable.');
-$need('app/ai.php',"$taskType==='deployment_shadow'?null",'Shadow candidate output must not enter user/cognitive response lineage.');
+$need('app/ai.php',"\$taskType==='deployment_shadow'?null",'Shadow candidate output must not enter user/cognitive response lineage.');
 $need('worker/ai-worker.php',"task_type']==='deployment_shadow'",'AI worker must recognize fixed-model Phase 44 Shadow jobs.');
 $need('worker/ai-worker.php',"'model_deployment'",'Shadow inference runs must be scoped to the deployment audit object.');
 $need('worker/ai-worker.php','shadow job {$job[\'id\']} stale; skipped','Worker must discard stale Shadow jobs after rollout revision changes.');
