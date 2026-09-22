@@ -19,8 +19,8 @@ $need('app/release.php',"const ANNOTATED_EXTENSION_VERSION = '0.36.0';",'Phase 4
 $need('app/release.php','function release_worker_specs','Release worker schedule must have one canonical definition.');
 $need('app/release.php',"'evaluation'=>['command'=>'php bin/evaluation-worker.php'",'Evaluation worker must be release-critical.');
 $need('app/release.php',"'evaluation'=>'data_evaluation_runs'",'Evaluation queue health must be visible in release operations.');
-$need('bin/evaluation-worker.php',"release_worker_heartbeat($pdo,'evaluation','starting'",'Evaluation worker must emit a starting heartbeat.');
-$need('bin/evaluation-worker.php',"release_worker_heartbeat($pdo,'evaluation',$status",'Evaluation worker must emit completion/failure heartbeat.');
+$need('bin/evaluation-worker.php','release_worker_heartbeat($pdo,\'evaluation\',\'starting\'','Evaluation worker must emit a starting heartbeat.');
+$need('bin/evaluation-worker.php','release_worker_heartbeat($pdo,\'evaluation\',$status','Evaluation worker must emit completion/failure heartbeat.');
 
 foreach(['release_manifest_data','release_package_fingerprint','release_database_target','release_backup_destination_assert','release_backup_requirements','release_backup_manifest_write','release_backup_manifest_verify','release_restore_plan','release_operational_audit'] as $fn)
     $need('app/release-operations.php','function '.$fn,'Phase 49 release operations helper missing: '.$fn);
