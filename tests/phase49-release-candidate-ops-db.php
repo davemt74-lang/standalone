@@ -33,6 +33,7 @@ try{
     $target=release_database_target($config);p49($target['database']===$dbName&&$target['user']===$dbUser,'release backup parser derives current MySQL/MariaDB target without exposing credentials');
     $insideBlocked=false;try{release_backup_destination_assert($root.'/backups',$root);}catch(RuntimeException $e){$insideBlocked=str_contains($e->getMessage(),'outside');}p49($insideBlocked,'backup destination guard rejects application/web-tree output');
     $outside=release_backup_destination_assert($backupRoot,$root);p49($outside===$backupRoot,'backup destination guard accepts a private directory outside the application tree');
+    $symlink=$backupRoot.'/web-link';$symlinkMade=@symlink($root,$symlink);if($symlinkMade){$symlinkBlocked=false;try{release_backup_destination_assert($symlink.'/backups',$root);}catch(RuntimeException $e){$symlinkBlocked=str_contains($e->getMessage(),'outside');}p49($symlinkBlocked,'backup destination guard resolves symlinked ancestors and blocks web-tree escape paths');@unlink($symlink);}
 
     file_put_contents($configRoot.'/config.php',"<?php return [];\n");chmod($configRoot.'/config.php',0640);p49(release_config_file_security($configRoot)['pass'],'release config permission audit accepts non-writable group/world config.php');chmod($configRoot.'/config.php',0666);p49(!release_config_file_security($configRoot)['pass'],'release config permission audit blocks group/world-writable config.php');chmod($configRoot.'/config.php',0640);
 
@@ -50,7 +51,7 @@ try{
     $versionsBefore=installer_table_exists($pdo,'data_model_versions')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_versions')->fetchColumn():0;
     $ops=release_operational_audit($pdo,$config,$root);
     p49(($ops['release']['version']??'')==='1.1.0-rc1'&&($ops['checks']['extension_identity']['pass']??false),'operational audit reports the canonical V1.1 RC identity and matching extension');
-    p49(isset($ops['backup']['checks']['dump'],$ops['backup']['checks']['client'],$ops['backup']['checks']['tar'],$ops['backup']['checks']['zlib']),'operational audit exposes concrete backup prerequisites without pretending missing tools are present');
+    p49(isset($ops['backup']['checks']['dump'],$ops['backup']['checks']['client'],$ops['backup']['checks']['tar'],$ops['backup']['checks']['gzip'],$ops['backup']['checks']['zlib']),'operational audit exposes concrete backup/restore prerequisites without pretending missing tools are present');
     $routingAfter=$pdo->query('SELECT admin_default_model_id,pro_default_model_id,source_monitor_model_id,moderation_model_id,research_model_id,transcript_cleanup_model_id,annotation_intelligence_model_id FROM ai_settings WHERE id=1')->fetch();
     $deploymentsAfter=installer_table_exists($pdo,'data_model_deployments')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_deployments')->fetchColumn():0;
     $versionsAfter=installer_table_exists($pdo,'data_model_versions')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_versions')->fetchColumn():0;
