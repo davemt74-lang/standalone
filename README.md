@@ -245,3 +245,35 @@ The architecture is now:
 **Production object → Contribution Ledger → Rights / Consent → Derived Corpus → Frozen Dataset → Evaluation Harness → Model Registry → future controlled training/runtime systems**
 
 See `docs/phase-40-model-registry-candidate-lifecycle.md`.
+
+
+## Phase 41 — Training Job Registry & Controlled Fine-Tuning
+
+Annotated now has a governed training layer between frozen training data and the Model Registry.
+
+Phase 41 adds:
+
+- explicit Internal vs Commercial training intent
+- frozen Training/Commercial Training dataset enforcement
+- approved Phase 40 base-model + approval-receipt enforcement
+- explicit supervised-example validation with no synthetic labeling fallback
+- attribution-compatibility blocking for weight training
+- immutable config/rights/provider/package/job hashes
+- Provider API and Manual/Self-hosted executors
+- out-of-request training worker
+- provider upload/submit/poll/cancel lifecycle
+- attempt history, provider logs, cancellation, and bounded retries
+- rights revalidation during active training
+- trained-token and configurable cost accounting
+- exact governed JSONL export
+- provider/manual output artifacts
+- automatic handoff only to a new Phase 40 **experimental** model version
+- a first-class **Admin Training Registry UI**
+
+Training success never updates `ai_settings` and never promotes, approves, or activates a model automatically.
+
+The controlled path is:
+
+**Governed data → Frozen training dataset → Training job → Experimental model → Evaluation → Human review → Phase 40 approval**
+
+See `docs/phase-41-training-job-registry-controlled-fine-tuning.md`.
