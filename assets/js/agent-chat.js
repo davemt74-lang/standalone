@@ -134,18 +134,18 @@
     historyList.innerHTML='<div class="meta">Loading chats…</div>';
     try{
       const data=await request('list');historyList.replaceChildren();
-      (data.conversations||[]).forEach(chat=>{const b=document.createElement('button');b.type='button';b.className='agentHistoryItem';const strong=document.createElement('strong');strong.textContent=chat.title||'New chat';const small=document.createElement('small');small.textContent=chat.last_message||'';b.append(strong,small);b.addEventListener('click',()=>{historyPanel.hidden=true;openConversation(chat.public_id,chat.title);});historyList.appendChild(b);});
-      if(!historyList.children.length)historyList.innerHTML='<div class="meta">No previous Agent chats yet.</div>';
+      (data.conversations||[]).forEach(chat=>{const b=document.createElement('button');b.type='button';b.className='agentHistoryItem';const strong=document.createElement('strong');strong.textContent=chat.title||'New Research';const small=document.createElement('small');small.textContent=chat.last_message||'';b.append(strong,small);b.addEventListener('click',()=>{historyPanel.hidden=true;openConversation(chat.public_id,chat.title);});historyList.appendChild(b);});
+      if(!historyList.children.length)historyList.innerHTML='<div class="meta">No previous Research sessions yet.</div>';
     }catch(err){renderInlineError(historyList,err.message||'Unable to load Agent Chat history.');}
   }
   async function openConversation(publicId,chatTitle=''){
     setModeAgent();activeConversation=publicId;document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));title.textContent=chatTitle||'Agent chat';messages.innerHTML='<div class="agentChatLoading">Loading conversation…</div>';
     try{
-      const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length)messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New conversation</h2><p>Ask a question or attach Annotated context.</p></div>';saveState(true);messages.scrollTop=messages.scrollHeight;
+      const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length)messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New Research</h2><p>Ask a question or attach Annotated context.</p></div>';saveState(true);messages.scrollTop=messages.scrollHeight;
     }catch(err){renderInlineError(messages,err.message||'Unable to load this Agent Chat.');}
   }
   function resetConversation(){
-    activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'agent'}}));selectedContext=[];renderContextTray();title.textContent='New chat';messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p></div>';saveState(true);input.focus();
+    activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'agent'}}));selectedContext=[];renderContextTray();title.textContent='New Research';messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p></div>';saveState(true);input.focus();
   }
   async function sendPrompt(prompt){
     if(sending||!prompt.trim())return;sending=true;setModeAgent();const text=prompt.trim();renderMessage({role:'user',body:text,attachments:selectedContext.map(x=>({metadata:{label:x.label},public_id:x.public_id,type:x.type}))});input.value='';sizeInput();const thinking=showThinking();
@@ -159,12 +159,12 @@
 
   form.addEventListener('submit',e=>{e.preventDefault();const prompt=input.value.trim();if(!prompt)return;if(canvas.hidden){window.ANNOTATED_PENDING_AGENT_PROMPT=prompt;try{sessionStorage.setItem('annotated.pendingAgentPrompt',prompt);}catch{}document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{prompt,source:'home_feed'},bubbles:true,cancelable:true}));}else sendPrompt(prompt);});
   document.addEventListener('annotated:agent-chat-request',e=>{const prompt=String(e.detail?.prompt||'').trim();const supplied=Array.isArray(e.detail?.context)?e.detail.context:[];if(supplied.length){selectedContext=supplied.slice(0,6).filter(x=>x&&x.type&&x.public_id).map(x=>({type:String(x.type),public_id:String(x.public_id),label:String(x.label||x.type)}));renderContextTray();}setModeAgent();if(prompt)sendPrompt(prompt);});
-  document.addEventListener('annotated:agent-chat-add-context',()=>{setModeAgent();contextPicker.hidden=false;loadContextOptions();});
+  document.addEventListener('annotated:agent-chat-add-context',()=>{setModeAgent();contextTray.hidden=true;contextPicker.hidden=false;loadContextOptions();});
   add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
   input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
   back.addEventListener('click',setModeFeed);newChat.addEventListener('click',resetConversation);
   historyToggle.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose.addEventListener('click',()=>historyPanel.hidden=true);
-  contextClose.addEventListener('click',()=>contextPicker.hidden=true);
+  contextClose.addEventListener('click',()=>{contextPicker.hidden=true;renderContextTray();});
 
   try{
     feedScroll=Number(sessionStorage.getItem('annotated.feedScroll')||0)||0;

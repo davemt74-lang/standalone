@@ -31,6 +31,14 @@ home_render_assert(str_contains($css,'.homeFeedPage.agentChatMode .appShellFoote
 home_render_assert(str_contains($css,'.homeFeedPage.agentChatMode{overflow-x:clip}'),'Agent mode clips horizontal overflow without creating another scroll container');
 home_render_assert(str_contains($js,"if(rightRail)rightRail.hidden=true"),'Agent mode explicitly hides the right rail');
 home_render_assert(str_contains($js,"if(rightRail)rightRail.hidden=false"),'Returning to Feed restores the right rail');
+home_render_assert(str_contains($home,'data-agent-new>NEW RESEARCH</button>'),'Agent header uses NEW RESEARCH terminology');
+home_render_assert(str_contains($home,'<h2 data-agent-title>New Research</h2>'),'Fresh Agent workspace is titled New Research');
+$composerPos=strpos($home,'id="homeAgentComposer"');$pickerPos=strpos($home,'data-agent-context-picker');$canvasClosePos=strpos($home,'</section><aside class="homeRightRail');
+home_render_assert($composerPos!==false&&$pickerPos!==false&&$pickerPos>$composerPos,'Agent context picker is mounted inside the chat composer');
+home_render_assert(str_contains($css,'.homeAgentDock .agentChatContextPicker{')&&str_contains($css,'bottom:calc(100% + 10px)'),'Context picker opens above the composer');
+home_render_assert(str_contains($css,'.homeAgentDock .agentChatContextTray{')&&str_contains($css,'left:50%'),'Selected context tray is centered over the chat bar');
+home_render_assert(str_contains($css,'.homeAgentDock .agentChatContextTray[hidden]{'),'Empty selected-context tray is forcibly hidden');
+home_render_assert(str_contains($js,'contextTray.hidden=!selectedContext.length'),'Selected-context tray hides when there are no selections');
 
 home_render_assert(!str_contains($agent,'SELECT DISTINCT rp.public_id,rp.title'),'Agent context picker no longer uses DISTINCT with an unselected ORDER BY column');
 home_render_assert(str_contains($agent,'EXISTS(SELECT 1 FROM team_members tm'),'Agent Research options use membership EXISTS');

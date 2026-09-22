@@ -8,9 +8,9 @@ require_once __DIR__.'/agent-actions.php';
 function agent_chat_available(PDO $pdo,array $viewer): bool {
     return user_is_pro($pdo,$viewer)||(($viewer['role']??'')==='admin');
 }
-function agent_chat_create(PDO $pdo,array $viewer,string $title='New chat'): array {
+function agent_chat_create(PDO $pdo,array $viewer,string $title='New Research'): array {
     if(!conversation_runtime_ready($pdo))throw new RuntimeException('Conversation runtime is unavailable.');
-    $public=ulid_like();$title=trim($title);if($title==='')$title='New chat';$title=mb_substr($title,0,190);
+    $public=ulid_like();$title=trim($title);if($title==='')$title='New Research';$title=mb_substr($title,0,190);
     $pdo->beginTransaction();
     try{
         $pdo->prepare("INSERT INTO conversations(public_id,conversation_type,created_by_user_id,title) VALUES(?,'agent',?,?)")->execute([$public,$viewer['id'],$title]);
