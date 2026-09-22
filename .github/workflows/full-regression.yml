@@ -89,6 +89,7 @@ jobs:
           php tests/phase16-cognitive-feed-db.php
           php tests/phase17-proactive-intelligence-db.php
           php tests/home-cognitive-mysql8-db.php
+          php tests/research-library-db.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
