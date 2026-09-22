@@ -13,7 +13,7 @@ $avoid('database/migrations/20260921_040_training_job_registry_controlled_fine_t
 
 $runtime=(string)file_get_contents($root.'/app/data-training.php');
 foreach(['data_training_ready','data_training_job_create','data_training_job_update_draft','data_training_preflight','data_training_package_inspect','data_training_queue','data_training_job_integrity','data_training_current_use_status','data_training_provider_submit','data_training_provider_retrieve','data_training_provider_cancel','data_training_provider_events','data_training_register_output','data_training_finalize_provider_success','data_training_request_cancel','data_training_retry','data_training_manual_complete','data_training_export_package','data_training_process_next'] as $fn)if(!str_contains($runtime,'function '.$fn))$fail[]='Phase 41 runtime helper missing: '.$fn;
-$need('app/data-training.php',"Training use class $useClass requires a frozen dataset with purpose $required.",'Training jobs must enforce internal vs commercial dataset purpose separation.');
+$need('app/data-training.php','Training use class $useClass requires a frozen dataset with purpose $required.','Training jobs must enforce internal vs commercial dataset purpose separation.');
 $need('app/data-training.php',"Training base model requires an integrity-valid Phase 40 approval receipt.",'Training base must have a valid Phase 40 approval receipt.');
 $need('app/data-training.php',"Phase 41 v1 supports supervised fine-tuning only.",'Phase 41 method scope must be explicit.');
 $need('app/data-training.php',"missing_or_invalid_training_example",'Ordinary corpus text must not be silently converted into supervised training labels.');
