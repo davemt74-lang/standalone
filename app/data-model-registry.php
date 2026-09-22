@@ -105,7 +105,8 @@ function data_model_evidence_snapshot(PDO $pdo,array $version): array {
     return ['version_public_id'=>$version['public_id'],'ai_model_id'=>$version['ai_model_id']!==null?(int)$version['ai_model_id']:null,'linked_runs'=>count($runs),'valid_model_runs'=>$validModelRuns,'integrity_failures'=>$integrityFailures,'human_reviews'=>$totalReviews,'human_pass'=>$humanPass,'human_fail'=>$humanFail,'human_pass_rate'=>$passRate,'regressed_metrics'=>$regressedMetrics,'regression_comparisons'=>$regressionComparisons,'suite_public_ids'=>$suites,'valid_suite_public_ids'=>$validSuites,'runs'=>$runs];
 }
 function data_model_gate_evaluate(PDO $pdo,array $version): array {
-    $policy=(array)$version['gate_policy'];$evidence=data_model_evidence_snapshot($pdo,$version);$checks=[];
+    $policy=(array)$version['gate_policy'];$evidence=data_model_evidence_snapshot($pdo,$version);$checks=[];$runtimeAvailable=false;if($version['ai_model_id']){try{ai_model_record($pdo,(int)$version['ai_model_id']);$runtimeAvailable=true;}catch(Throwable $e){$runtimeAvailable=false;}}
+    $checks['runtime_model']=['pass'=>$runtimeAvailable,'actual'=>$runtimeAvailable?'available':'unavailable','required'=>'available'];
     $checks['model_runs']=['pass'=>$evidence['valid_model_runs']>=(int)$policy['required_model_runs'],'actual'=>$evidence['valid_model_runs'],'required'=>(int)$policy['required_model_runs']];
     $checks['human_reviews']=['pass'=>$evidence['human_reviews']>=(int)$policy['required_human_reviews'],'actual'=>$evidence['human_reviews'],'required'=>(int)$policy['required_human_reviews']];
     $checks['human_pass_rate']=['pass'=>$evidence['human_pass_rate']>=(float)$policy['minimum_human_pass_rate'],'actual'=>$evidence['human_pass_rate'],'required'=>(float)$policy['minimum_human_pass_rate']];
@@ -121,10 +122,23 @@ function data_model_receipt_create(PDO $pdo,array $viewer,array $version,string 
     $pdo->prepare('INSERT INTO data_model_promotion_receipts(public_id,version_id,actor_user_id,from_status,to_status,previous_active_version_id,gate_snapshot_json,gate_snapshot_hash,evidence_snapshot_json,evidence_snapshot_hash,note,receipt_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')->execute([$public,$version['id'],$viewer['id'],$from,$to,$previousActiveId,$gateJson,$gateHash,$evidenceJson,$evidenceHash,mb_substr(trim($note),0,5000)?:null,$receiptHash]);
     return ['public_id'=>$public,'receipt_hash'=>$receiptHash,'gate_snapshot_hash'=>$gateHash,'evidence_snapshot_hash'=>$evidenceHash];
 }
+function data_model_receipt_integrity(array $receipt,array $version): array {
+    $gate=json_decode((string)$receipt['gate_snapshot_json'],true);if(!is_array($gate))$gate=[];$evidence=json_decode((string)$receipt['evidence_snapshot_json'],true);if(!is_array($evidence))$evidence=[];$gateHash=hash('sha256',data_attribution_encode($gate));$evidenceHash=hash('sha256',data_attribution_encode($evidence));
+    $core=['public_id'=>$receipt['public_id'],'version_public_id'=>$version['public_id'],'from_status'=>$receipt['from_status'],'to_status'=>$receipt['to_status'],'previous_active_version_id'=>$receipt['previous_active_version_id']!==null?(int)$receipt['previous_active_version_id']:null,'gate_snapshot_hash'=>$gateHash,'evidence_snapshot_hash'=>$evidenceHash,'actor_user_id'=>(int)$receipt['actor_user_id']];$receiptHash=data_attribution_hash($core);
+    $ok=hash_equals((string)$receipt['gate_snapshot_hash'],$gateHash)&&hash_equals((string)$receipt['evidence_snapshot_hash'],$evidenceHash)&&hash_equals((string)$receipt['receipt_hash'],$receiptHash);
+    return ['ok'=>$ok,'gate_hash_ok'=>hash_equals((string)$receipt['gate_snapshot_hash'],$gateHash),'evidence_hash_ok'=>hash_equals((string)$receipt['evidence_snapshot_hash'],$evidenceHash),'receipt_hash_ok'=>hash_equals((string)$receipt['receipt_hash'],$receiptHash),'computed_receipt_hash'=>$receiptHash];
+}
+function data_model_latest_approval_receipt(PDO $pdo,array $version): ?array {
+    $q=$pdo->prepare("SELECT * FROM data_model_promotion_receipts WHERE version_id=? AND to_status='approved' ORDER BY id DESC LIMIT 1");$q->execute([$version['id']]);$r=$q->fetch();return $r?:null;
+}
+function data_model_was_active(PDO $pdo,int $versionId): bool {
+    $q=$pdo->prepare("SELECT COUNT(*) FROM data_model_promotion_receipts WHERE version_id=? AND to_status='active'");$q->execute([$versionId]);return (int)$q->fetchColumn()>0;
+}
 function data_model_transition(PDO $pdo,array $viewer,string $versionPublicId,string $toStatus,string $note=''): array {
     data_model_require_admin($viewer);$version=data_model_version_get($pdo,$versionPublicId);if(!$version)throw new RuntimeException('Model version not found.');$from=(string)$version['status'];$allowed=['experimental'=>['candidate'],'candidate'=>['approved','retired'],'approved'=>['active','retired'],'active'=>['deprecated'],'deprecated'=>['retired'],'retired'=>[]];if(!in_array($toStatus,$allowed[$from]??[],true))throw new RuntimeException("Invalid model lifecycle transition: $from → $toStatus.");
     $gate=['pass'=>true,'policy'=>$version['gate_policy'],'policy_hash'=>$version['gate_policy_hash'],'checks'=>[],'evidence'=>data_model_evidence_snapshot($pdo,$version),'evaluated_at'=>gmdate('c')];
     if(in_array($toStatus,['approved','active'],true)){$gate=data_model_gate_evaluate($pdo,$version);if(!$gate['pass'])throw new RuntimeException('Model release gates are not satisfied.');}
+    if($toStatus==='active'){$approval=data_model_latest_approval_receipt($pdo,$version);if(!$approval)throw new RuntimeException('Activation requires a prior approval receipt.');$approvalIntegrity=data_model_receipt_integrity($approval,$version);if(!$approvalIntegrity['ok'])throw new RuntimeException('Activation is blocked because the prior approval receipt failed integrity validation.');}
     $pdo->beginTransaction();try{
         $q=$pdo->prepare('SELECT active_version_id FROM data_model_registry WHERE id=? FOR UPDATE');$q->execute([$version['registry_id']]);$previousActive=(int)($q->fetchColumn()?:0)?:null;
         if($toStatus==='active'){
@@ -140,7 +154,7 @@ function data_model_transition(PDO $pdo,array $viewer,string $versionPublicId,st
 }
 function data_model_rollback(PDO $pdo,array $viewer,string $registryPublicId,string $targetVersionPublicId,string $note=''): array {
     data_model_require_admin($viewer);$registry=data_model_registry_get($pdo,$registryPublicId);$target=data_model_version_get($pdo,$targetVersionPublicId);if(!$registry||!$target||(int)$target['registry_id']!==(int)$registry['id'])throw new RuntimeException('Rollback target does not belong to this model registry.');if(!in_array($target['status'],['approved','deprecated'],true))throw new RuntimeException('Rollback target must be an approved or deprecated prior model version.');
-    $q=$pdo->prepare("SELECT COUNT(*) FROM data_model_promotion_receipts WHERE version_id=? AND to_status='active'");$q->execute([$target['id']]);if(!(int)$q->fetchColumn())throw new RuntimeException('Rollback target must have previously been active.');
+    if(!data_model_was_active($pdo,(int)$target['id']))throw new RuntimeException('Rollback target must have previously been active.');$q=$pdo->prepare("SELECT * FROM data_model_promotion_receipts WHERE version_id=? AND to_status='active' ORDER BY id DESC LIMIT 1");$q->execute([$target['id']]);$activeReceipt=$q->fetch();if(!$activeReceipt||!data_model_receipt_integrity($activeReceipt,$target)['ok'])throw new RuntimeException('Rollback target active receipt failed integrity validation.');
     $gate=data_model_gate_evaluate($pdo,$target);if(!$gate['pass'])throw new RuntimeException('Rollback target no longer satisfies current model release gates.');
     $pdo->beginTransaction();try{
         $q=$pdo->prepare('SELECT active_version_id FROM data_model_registry WHERE id=? FOR UPDATE');$q->execute([$registry['id']]);$current=(int)($q->fetchColumn()?:0)?:null;if($current===(int)$target['id']){$pdo->commit();return $target;}
