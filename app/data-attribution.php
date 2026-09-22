@@ -184,7 +184,7 @@ function data_training_eligibility(PDO $pdo,string $objectType,string $publicId)
         $state=(array)($d['state']??[]);$approved=!empty($state['redaction_attested'])&&!empty($state['rights_attested'])&&!empty($state['approval_hash'])&&($state['status']??'')==='published';
         if(!$approved)return array_merge($base,['reason'=>'improvement_example_not_approved']);
         $evaluation=($state['proposal_type']??'')==='evaluation_case';$training=($state['proposal_type']??'')==='training_example';
-        return ['shared_retrieval'=>false,'evaluation'=>$evaluation,'training'=>$training,'commercial_training'=>false,'attribution_required'=>true,'reason'=>'human_approved_model_improvement_example'];
+        return ['shared_retrieval'=>false,'evaluation'=>$evaluation,'training'=>$training,'commercial_training'=>false,'attribution_required'=>false,'reason'=>'human_approved_model_improvement_example'];
     }
     if($d['object_type']==='source'){
         $rights=data_source_rights($pdo,$publicId);if(!$rights)return array_merge($base,['reason'=>'source_rights_unknown']);
