@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+php tests/release-contracts.php
+php tests/security-contracts.php
+php tests/app-shell-contracts.php
+php tests/concurrency-contracts.php
+php tests/rate-limit-contracts.php
+php tests/v1-rc-e2e-contract.php
+php tests/phase32-unified-continuity-actions.php
+
+while IFS= read -r test_file; do
+  php "$test_file"
+done < <(find tests -maxdepth 1 -type f -name 'phase*-contract.php' -print | sort -V)
