@@ -98,6 +98,7 @@ try{
     $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:$stats;
 }catch(Throwable $e){if($homeRuntimeIncident==='')$homeRuntimeIncident=app_schema_runtime_incident($e,'home-stats');}
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>">
+<?php if($homeRuntimeIncident!==''&&($u['role']??'')==='admin'):?><div class="panel narrow" style="margin:16px auto"><div class="error"><strong>Some Home modules were temporarily disabled.</strong><p>The core Home feed is still available. Check the PHP error log using reference <code><?=h($homeRuntimeIncident)?></code>.</p></div></div><?php endif?>
 <main class="layout"><section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
 <div class="homeFeedModeBar" data-cognitive-feed data-csrf="<?=h(csrf_token())?>">
   <nav class="homeFeedModeTabs" aria-label="Home feed view">
