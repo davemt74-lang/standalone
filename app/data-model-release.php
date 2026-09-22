@@ -108,12 +108,14 @@ function data_model_release_current_context(PDO $pdo,array $decision): array {
         'model_exists'=>$model!==null,
         'model_integrity'=>$model?data_model_version_integrity($model)['ok']:false,
         'model_hash_snapshot'=>$model&&hash_equals((string)$decision['model_version_hash'],(string)$model['version_hash']),
-        'model_pre_activation'=>$model&&in_array($model['status'],['experimental','candidate','approved'],true),
+        'model_lifecycle_acceptable'=>$model&&in_array($model['status'],in_array($decision['status'],['decision_recorded','archived'],true)?['experimental','candidate','approved','active','deprecated']:['experimental','candidate','approved'],true),
         'baseline_exists'=>$baseline!==null,
         'baseline_integrity'=>$baseline?data_model_version_integrity($baseline)['ok']:false,
         'baseline_hash_snapshot'=>$baseline&&hash_equals((string)$decision['baseline_version_hash'],(string)$baseline['version_hash']),
         'rollback_target_exists'=>$rollbackTarget!==null,
         'rollback_target_integrity'=>$rollbackTarget?data_model_version_integrity($rollbackTarget)['ok']:false,
+        'rollback_target_same_registry'=>$rollbackTarget&&$model&&(int)$rollbackTarget['registry_id']===(int)$model['registry_id'],
+        'rollback_target_governed'=>$rollbackTarget&&in_array($rollbackTarget['status'],['approved','active','deprecated'],true),
         'rollback_target_not_candidate'=>$rollbackTarget&&$model&&(int)$rollbackTarget['id']!==(int)$model['id'],
     ];
     return ['pass'=>!in_array(false,$checks,true),'checks'=>$checks,'packet'=>$packet,'packet_integrity'=>$packetIntegrity,'plan'=>$plan,'model'=>$model,'baseline'=>$baseline,'rollback_target'=>$rollbackTarget];
