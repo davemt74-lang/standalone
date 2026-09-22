@@ -7,7 +7,8 @@ $error='';$success='';$casePublic=trim((string)($_GET['case']??$_POST['case']??'
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$op=(string)($_POST['op']??'');
     try{
-        if($op==='triage'){data_model_improvement_triage($pdo,$u,$casePublic,$_POST);$success='Improvement case triage updated.';}
+        if($op==='backfill'){$r=data_model_improvement_backfill($pdo,$u,(int)($_POST['limit']??500));$success='Production feedback backfill touched '.$r['cases_touched'].' improvement case(s).';}
+        elseif($op==='triage'){data_model_improvement_triage($pdo,$u,$casePublic,$_POST);$success='Improvement case triage updated.';}
         elseif($op==='create_proposal'){$p=data_model_improvement_proposal_create($pdo,$u,$casePublic,$_POST);header('Location:/admin/model-improvements.php?case='.rawurlencode($casePublic).'&proposal='.rawurlencode((string)$p['public_id']));exit;}
         elseif($op==='update_proposal'){data_model_improvement_proposal_update($pdo,$u,$proposalPublic,$_POST);$success='Sanitized proposal updated.';}
         elseif($op==='approve_proposal'){data_model_improvement_proposal_approve($pdo,$u,$proposalPublic);$success='Sanitized proposal approved for governed reuse.';}
@@ -30,6 +31,7 @@ $regressions=data_model_improvement_regression_cases($pdo,null,100);$admins=$pdo
     <article class="card"><strong><?=h((string)$stats['training_ready'])?></strong><p class="meta">Training ready</p></article>
     <article class="card"><strong><?=h((string)$stats['regression_cases'])?></strong><p class="meta">Regression library</p></article>
   </section>
+  <section class="card"><span class="eyebrow">FEEDBACK MAINTENANCE</span><h2>Import existing Phase 45 evidence</h2><p class="meta">Backfill clusters existing incidents and negative outcome signals by governed model/route/failure signature. Existing evidence links are deduplicated.</p><form method="post" class="inlineActions"><?=csrf_field()?><input type="hidden" name="op" value="backfill"><input type="number" name="limit" min="1" max="5000" value="500"><button class="button secondary">Backfill production feedback</button></form></section>
   <section class="card"><span class="eyebrow">DATASET HANDOFF</span><h2>Create governed dataset drafts</h2><p class="meta">These actions create empty Dataset Registry drafts whose policy selects approved Phase 46 corpus examples. Freezing the dataset and running evaluation/training remain separate human actions.</p><div class="inlineActions"><form method="post"><?=csrf_field()?><input type="hidden" name="op" value="dataset_draft"><input type="hidden" name="purpose" value="evaluation"><button class="button secondary">Create evaluation dataset draft</button></form><form method="post"><?=csrf_field()?><input type="hidden" name="op" value="dataset_draft"><input type="hidden" name="purpose" value="training"><button class="button secondary">Create training dataset draft</button></form></div></section>
 
   <?php if(!$case):?>
