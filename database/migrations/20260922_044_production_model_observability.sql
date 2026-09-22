@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS data_model_monitoring_policies (
   min_samples INT UNSIGNED NOT NULL DEFAULT 5,
   max_failure_rate DECIMAL(7,6) NOT NULL DEFAULT 0.100000,
   max_p95_latency_ms INT UNSIGNED NOT NULL DEFAULT 30000,
+  max_failure_rate_delta DECIMAL(7,6) NULL DEFAULT 0.100000,
+  max_p95_latency_delta_ms INT UNSIGNED NULL DEFAULT 10000,
   max_avg_input_tokens INT UNSIGNED NULL,
   max_avg_output_tokens INT UNSIGNED NULL,
   max_avg_cost_micros BIGINT UNSIGNED NULL,
