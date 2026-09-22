@@ -46,12 +46,12 @@ function data_model_release_deployment_plan(array $input): array {
 }
 function data_model_release_rollback_plan(array $input,string $baselinePublicId): array {
     return [
-        'target_model_version_public_id'=>mb_substr(trim((string)($input['rollback_model_version_public_id']??$baselinePublicId)),0,40),
-        'trigger_conditions'=>mb_substr(trim((string)($input['rollback_trigger_conditions']??'')),0,5000),
+        'target_model_version_public_id'=>mb_substr(trim((string)($input['rollback_model_version_public_id']??$input['target_model_version_public_id']??$baselinePublicId)),0,40),
+        'trigger_conditions'=>mb_substr(trim((string)($input['rollback_trigger_conditions']??$input['trigger_conditions']??'')),0,5000),
         'rollback_steps'=>mb_substr(trim((string)($input['rollback_steps']??'')),0,5000),
         'recovery_target_minutes'=>max(1,min(10080,(int)($input['recovery_target_minutes']??30))),
         'rollback_owner'=>mb_substr(trim((string)($input['rollback_owner']??'')),0,255),
-        'validation_steps'=>mb_substr(trim((string)($input['rollback_validation_steps']??'')),0,5000),
+        'validation_steps'=>mb_substr(trim((string)($input['rollback_validation_steps']??$input['validation_steps']??'')),0,5000),
     ];
 }
 function data_model_release_default_checklist(): array {
