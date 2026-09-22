@@ -12,7 +12,7 @@ function release_latest_migration(string $root): ?string {
 function release_package_fingerprint(string $root): string {
     $root=rtrim($root,'/');if(!is_dir($root))throw new RuntimeException('Release package root is unavailable.');
     $material=[];$it=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS));
-    foreach($it as $file){if(!$file->isFile())continue;$path=str_replace('\\','/',$file->getPathname());$relative=ltrim(substr($path,strlen($root)),'/');
+    foreach($it as $file){$path=str_replace('\\','/',$file->getPathname());$relative=ltrim(substr($path,strlen($root)),'/');if($file->isLink())throw new RuntimeException('Release package contains a symlink: '.$relative);if(!$file->isFile())continue;
         if($relative===''||$relative==='RELEASE-MANIFEST.json'||$relative==='config.php'||$relative==='.DS_Store')continue;
         if(str_starts_with($relative,'.git/')||str_starts_with($relative,'.github/')||str_starts_with($relative,'tests/'))continue;
         if(str_starts_with($relative,'extension/')&&$relative!=='extension/manifest.json')continue;
