@@ -51,6 +51,8 @@ jobs:
           test -f package-website/database/migrations/20260923_048_research_agent_workspace_core.sql
           test -f package-website/database/migrations/20260923_049_research_docs_floating_stickies.sql
           test -f package-website/docs/phase-51-research-docs-floating-stickies.md
+          test -f package-website/database/migrations/20260923_050_research_agent_desktop.sql
+          test -f package-website/docs/phase-52-research-agent-desktop.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

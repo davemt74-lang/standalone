@@ -29,9 +29,9 @@ $need('app/workspace-context.php',"if(\$type==='bookmark'",'Shared workspace sta
 $need('app/object-handoff.php',"'bookmark'=>'Bookmark'",'Unified object handoff must support Research bookmarks.');
 $need('app/unified-activity.php','unified_activity_workspace_bookmarks','Bookmarks must surface in unified activity / Now.');
 $need('home.php','research_agent_workspace_bookmark_card','Bookmarks must appear in the main Latest feed.');
-$need('home.php','data-research-workspace-view="files"','Each Research Agent canvas must expose its workspace files surface.');
-$need('home.php','data-research-create-bookmark','Research Agents must support manual bookmark creation.');
-$need('assets/js/research-agent-workspace-ui.js','text/x-annotated-workspace-object','Workspace folders must support drag/drop moves.');
+$need('home.php','data-research-desktop-icons','Each Research Agent must expose workspace files as Desktop objects.');
+$need('home.php','data-research-desktop-new-bookmark','Research Agents must support manual bookmark creation from the Desktop.');
+$need('assets/js/research-agent-workspace-ui.js','function moveItem(item)','Workspace objects must retain folder move support from the Desktop.');
 $need('assets/js/research-agent-workspace-ui.js','shareBookmarkToTeam','Team Research bookmarks must support Team Chat handoff.');
 $need('extension/sidepanel.html','id="bookmarkPage"','Chrome This Page must expose website Bookmark.');
 $need('extension/sidepanel.html','id="bookmarkAgent"','Chrome bookmark flow must choose a Research Agent.');

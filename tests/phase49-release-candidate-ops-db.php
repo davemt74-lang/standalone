@@ -12,7 +12,7 @@ p49(($manifest['manifest_version']??0)===3&&($manifest['version']??'')===ANNOTAT
 
 $release=release_manifest_data($root,'phase49-ci-sha');
 p49($release['version']==='1.1.0-rc1'&&$release['phase']===49&&$release['build_sha']==='phase49-ci-sha','generated release manifest binds release identity and build SHA');
-p49($release['latest_migration']==='20260923_049_research_docs_floating_stickies.sql','release manifest identifies the current latest migration after the Research Docs upgrade');
+p49($release['latest_migration']==='20260923_050_research_agent_desktop.sql','release manifest identifies the current latest migration after the Research Agent Desktop upgrade');
 p49((bool)preg_match('/^[a-f0-9]{64}$/',(string)$release['package_fingerprint']),'release manifest has a deterministic SHA-256 package fingerprint');
 p49($release['package_fingerprint']===release_package_fingerprint($root),'package fingerprint is deterministic for the same release tree');
 p49(count(installer_pending_migrations($pdo,$root.'/database/migrations'))===0,'Phase 49 release-candidate database has zero pending migrations');

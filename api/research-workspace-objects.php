@@ -7,7 +7,7 @@ $action=(string)($_GET['action']??'list');
 $input=$_SERVER['REQUEST_METHOD']==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $viewer=in_array($action,['list','folders','document','document_revisions','stickies'],true)?require_api_user($pdo):require_api_mutation_auth($pdo);
+    $viewer=in_array($action,['list','folders','document','document_revisions','stickies','desktop'],true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_agent_workspace_ready($pdo))throw new RuntimeException('Research Agent workspace requires the latest database upgrade.');
 
     $agentPublic=trim((string)($input['agent_id']??''));
@@ -28,6 +28,20 @@ try{
           'items'=>$items
         ]]);
     }
+    if($action==='desktop'){
+        $trashed=!empty($input['trashed']);
+        $items=research_agent_workspace_desktop_items($pdo,$viewer,$project,$trashed);
+        $stickies=$trashed?[]:research_agent_workspace_stickies($pdo,$viewer,$project);
+        json_response(['ok'=>true,'data'=>[
+          'project'=>['public_id'=>$project['public_id'],'title'=>$project['title'],'access_role'=>$project['access_role']],
+          'agent'=>isset($project['research_agent'])?[
+            'public_id'=>$project['research_agent']['public_id'],
+            'name'=>$project['research_agent']['name'],
+            'conversation_public_id'=>$project['research_agent']['conversation_public_id']
+          ]:null,
+          'items'=>$items,'stickies'=>$stickies
+        ]]);
+    }
     if($action==='document'){
         $item=research_agent_workspace_object($pdo,$viewer,(string)($input['object_id']??''),false);
         if(!$item||($item['object_type']??'')!=='document')json_response(['ok'=>false,'error'=>['code'=>'DOCUMENT_NOT_FOUND','message'=>'Document not found.']],404);
@@ -40,6 +54,14 @@ try{
     if($action==='stickies'){
         $items=research_agent_workspace_stickies($pdo,$viewer,$project);
         json_response(['ok'=>true,'data'=>['items'=>$items]]);
+    }
+    if($action==='save_desktop_position'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],900,3600);
+        $item=research_agent_workspace_desktop_position_save(
+          $pdo,$viewer,$project,(string)($input['object_type']??''),(string)($input['object_id']??''),
+          (int)($input['x']??0),(int)($input['y']??0),(int)($input['z']??1)
+        );
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='create_document'){
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);

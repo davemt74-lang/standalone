@@ -37,22 +37,22 @@ $avoid('app/workspace-context.php','document_plain_text','Workspace continuity m
 $need('api/research-workspace-objects.php',"\$action==='save_document'",'Workspace API must expose document autosave.');
 $need('api/research-workspace-objects.php',"\$action==='restore_document_revision'",'Workspace API must expose revision restore.');
 $need('api/research-workspace-objects.php',"\$action==='update_sticky'",'Workspace API must persist floating sticky layout changes.');
-$need('home.php','data-research-workspace-view="docs"','Research Agent canvas must have Docs mode.');
-$need('home.php','data-research-document-workspace','Documents must open inside the Research Agent canvas.');
-$need('home.php','data-research-document-agent-pane','Open documents must retain an attached Agent pane.');
-$need('home.php','data-research-sticky-layer','Sticky notes must float over the Research Agent canvas.');
-$need('assets/js/research-agent-workspace-ui.js','documentAgentPane?.appendChild(messages)','Document mode must move the live Agent conversation beside the document.');
+$need('home.php','data-research-desktop-open','Research Agent canvas must expose its workspace through the Desktop control.');
+$need('home.php','data-research-document-window','Documents must open in a durable window inside the Research Agent Desktop.');
+$need('assets/js/research-agent-workspace-ui.js','askAgentAbout','Open documents must retain a direct Ask Agent handoff.');
+$need('home.php','data-research-desktop-stickies','Sticky notes must float on the Research Agent Desktop.');
+$need('assets/js/research-agent-workspace-ui.js','closeDesktop();document.dispatchEvent(new CustomEvent(\'annotated:agent-chat-request\'','Document selection must hand back to the owning live Agent conversation.');
 $need('assets/js/research-agent-workspace-ui.js','ResizeObserver','Floating sticky size must persist after resize.');
 $need('assets/js/research-agent-workspace-ui.js','setPointerCapture','Sticky notes must support pointer drag positioning.');
 $need('assets/js/research-agent-workspace-ui.js',"['yellow','pink','blue','green','purple','gray']", 'Sticky notes must support the approved multi-color palette.');
 $need('assets/js/research-agent-workspace-ui.js','selectedDocumentText','Document selection must be available to Ask Agent / Create sticky.');
-$need('assets/js/research-agent-workspace-ui.js',"annotated:research-document-created',()=>{primeWorkspace();}",'Agent-created documents should remain in chat until the user opens them.');
+$need('assets/js/research-agent-workspace-ui.js',"annotated:research-document-created',()=>{if(desktopOpen)loadDesktop(false);}",'Agent-created documents should refresh the Desktop without auto-opening.');
 $need('assets/js/agent-chat.js','agentDocumentCard','Agent-created Research documents must render as rich chat cards.');
 $need('assets/js/agent-chat.js',"'research.create_document':'Create research document'",'Agent action UI must describe document creation.');
-$need('assets/css/app.css','.researchDocumentWorkspace{display:grid;grid-template-columns:','Document workspace must use a two-pane document + Agent split.');
-$need('assets/css/app.css','.researchStickyLayer{position:absolute','Sticky layer must float above the canvas instead of becoming file-list layout.');
+$need('assets/css/app.css','.researchDesktopDocumentWindow{position:absolute','Research documents must render as Desktop windows.');
+$need('assets/css/app.css','.researchDesktopSticky{position:absolute','Sticky notes must remain floating draggable objects rather than file-list rows.');
 $need('home.php','agent-chat.js?v=40.0','Research Docs must ship with a fresh Agent Chat cache key.');
-$avoid('assets/js/research-agent-workspace-ui.js',"annotated:research-document-created',e=>{primeWorkspace();if", 'Agent-created documents must not auto-open and pull the user out of chat.');
+$avoid('assets/js/research-agent-workspace-ui.js',"annotated:research-document-created',e=>openDocument", 'Agent-created documents must not auto-open and pull the user out of chat.');
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
 echo "Phase 51 Research Docs + Floating Sticky Notes contract passed.\n";
