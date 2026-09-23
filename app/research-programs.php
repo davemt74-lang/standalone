@@ -360,6 +360,10 @@ function research_program_summary(PDO $pdo,array $viewer,string $agentPublic): a
     return ['agent_public_id'=>$agentPublic,'programs'=>$programs,'runs_30d'=>$runs,'active'=>(int)($programs['active']??0),'paused'=>(int)($programs['paused']??0),'failed_runs'=>(int)($runs['failed']??0),'quiet_runs'=>(int)($runs['skipped']??0),'review_tasks'=>$review,'next_run_at'=>$next?:null];
 }
 
+function research_program_run_deltas(PDO $pdo,array $viewer,string $runPublic,int $limit=100): array {
+    $run=research_program_run_row($pdo,$viewer,$runPublic);if(!$run)return [];$limit=max(1,min(300,$limit));$q=$pdo->prepare("SELECT public_id,delta_type,importance,ref_type,ref_public_id,summary,before_json,after_json,occurred_at FROM research_program_deltas WHERE run_id=? ORDER BY FIELD(importance,'high','important','info'),id LIMIT ".$limit);$q->execute([(int)$run['id']]);$out=$q->fetchAll()?:[];foreach($out as &$row){$row['before']=json_decode((string)($row['before_json']??''),true)?:[];$row['after']=json_decode((string)($row['after_json']??''),true)?:[];unset($row['before_json'],$row['after_json']);}unset($row);return $out;
+}
+
 function research_program_detail(PDO $pdo,array $viewer,string $publicId): ?array {
     $program=research_program_access($pdo,$viewer,$publicId);if(!$program)return null;$program['runs']=research_program_run_list($pdo,$viewer,$publicId,40);$program['memory']=research_program_memory($pdo,$program,12);$q=$pdo->prepare("SELECT revision_number,change_reason,edited_by_agent,created_at FROM research_program_versions WHERE program_id=? ORDER BY revision_number DESC LIMIT 20");$q->execute([(int)$program['id']]);$program['versions']=$q->fetchAll()?:[];return $program;
 }
