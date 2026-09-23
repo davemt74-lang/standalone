@@ -38,6 +38,22 @@ function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
     return $rows;
 }
 
+function research_agent_chat_feed(PDO $pdo,array $viewer,string $agentPublicId,int $limit=6): array {
+    $agent=research_agent_access($pdo,$viewer,$agentPublicId);if(!$agent)return [];
+    $limit=max(1,min(20,$limit));
+    $q=$pdo->prepare("SELECT m.public_id,m.sender_type,m.body,m.created_at,u.username,u.display_name
+      FROM conversation_messages m
+      LEFT JOIN users u ON u.id=m.user_id
+      WHERE m.conversation_id=? AND m.deleted_at IS NULL
+      ORDER BY m.id DESC LIMIT ".$limit);
+    $q->execute([(int)$agent['conversation_id']]);$rows=array_reverse($q->fetchAll()?:[]);
+    foreach($rows as &$row){
+        $row['body']=mb_substr(trim((string)$row['body']),0,420);
+        $row['speaker']=($row['sender_type']??'')==='agent'?(string)$agent['name']:(string)($row['display_name']?:$row['username']?:'You');
+    }
+    unset($row);return $rows;
+}
+
 function research_agent_access(PDO $pdo,array $viewer,string $publicId): ?array {
     $publicId=trim($publicId);if($publicId===''||!research_agent_ready($pdo))return null;
     $q=$pdo->prepare("SELECT ra.*,rp.public_id project_public_id,rp.title project_title,c.public_id conversation_public_id,
