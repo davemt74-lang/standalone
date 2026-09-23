@@ -103,10 +103,7 @@
 
   function visibleItems(){
     if(trashMode)return items;
-    return items.filter(item=>{
-      if(item.object_type==='annotation')return currentFolder==='';
-      return String(item.parent_public_id||'')===String(currentFolder||'');
-    });
+    return items.filter(item=>String(item.parent_public_id||'')===String(currentFolder||''));
   }
   function desktopObjectLabel(item){
     if(item.object_type==='annotation')return item.title||'Annotation';
@@ -118,6 +115,23 @@
     item.desktop={x,y,z};
     try{await api(workspaceUrl('save_desktop_position'),{method:'POST',data:{agent_id:agentId,object_type:item.object_type,object_id:item.public_id,x,y,z}});}
     catch(err){setStatus(err.message||'Desktop position could not be saved.',true);}
+  }
+  function clearFolderDropTarget(){desktop.querySelectorAll('.researchDesktopIcon.is-folder-drop-target').forEach(el=>el.classList.remove('is-folder-drop-target'));}
+  function folderDropTarget(clientX,clientY,sourceId=''){
+    const hit=(document.elementsFromPoint?.(clientX,clientY)||[]).find(el=>el.matches?.('.researchDesktopIcon[data-object-type="folder"]')&&String(el.dataset.objectId||'')!==String(sourceId||''));
+    return hit||null;
+  }
+  function updateFolderDropTarget(clientX,clientY,sourceId=''){
+    clearFolderDropTarget();const target=folderDropTarget(clientX,clientY,sourceId);if(target)target.classList.add('is-folder-drop-target');return target;
+  }
+  async function moveDesktopObject(item,parentId){
+    if(!canWrite()||item.system)return false;
+    const label=desktopObjectLabel(item),target=String(parentId||'');
+    try{
+      await api(workspaceUrl('move'),{method:'POST',data:{agent_id:agentId,object_type:item.object_type,object_id:item.public_id,parent_id:target}});
+      setStatus(target?label+' moved into folder.':label+' moved to Desktop.');
+      await loadDesktop(false,true);return true;
+    }catch(err){setStatus(err.message||('Unable to move '+label+'.'),true);await loadDesktop(false,true);return false;}
   }
   function makeDesktopIcon(item,index){
     const pos=item.desktop||defaultIconPosition(index);
@@ -144,11 +158,15 @@
         if(!dragging)return;const dx=e.clientX-startX,dy=e.clientY-startY;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
         const maxX=Math.max(0,(surface?.clientWidth||1200)-104),maxY=Math.max(0,(surface?.clientHeight||700)-104);
         icon.style.left=Math.max(0,Math.min(maxX,left+dx))+'px';icon.style.top=Math.max(0,Math.min(maxY,top+dy))+'px';
+        if(moved)updateFolderDropTarget(e.clientX,e.clientY,String(item.public_id||''));
       });
-      icon.addEventListener('pointerup',e=>{
+      icon.addEventListener('pointerup',async e=>{
         if(!dragging)return;dragging=false;icon.classList.remove('is-dragging');try{icon.releasePointerCapture(e.pointerId);}catch{}
-        if(moved)saveIconPosition(item,parseInt(icon.style.left,10)||0,parseInt(icon.style.top,10)||0,Number(icon.style.zIndex)||1);
+        const folder=folderDropTarget(e.clientX,e.clientY,String(item.public_id||''));clearFolderDropTarget();
+        if(moved&&folder){await moveDesktopObject(item,String(folder.dataset.objectId||''));return;}
+        if(moved)await saveIconPosition(item,parseInt(icon.style.left,10)||0,parseInt(icon.style.top,10)||0,Number(icon.style.zIndex)||1);
       });
+      icon.addEventListener('pointercancel',()=>{dragging=false;icon.classList.remove('is-dragging');clearFolderDropTarget();});
     }
     return icon;
   }
@@ -212,10 +230,10 @@
     if(['document','bookmark','upload','recording'].includes(item.object_type))add('Ask Agent',()=>askAgentAbout(item.object_type,item.public_id,desktopObjectLabel(item)));
     if(item.object_type==='upload'||item.object_type==='recording')add('Download',()=>window.open('/research-workspace-file.php?id='+encodeURIComponent(String(item.public_id))+'&download=1','_blank','noopener'));
     if(teamId&&['document','bookmark','upload','recording'].includes(item.object_type))add('Share to Team',()=>shareObjectToTeam(item.object_type,item.public_id,item.object_type==='document'?'Research document':item.object_type==='bookmark'?'Research bookmark':item.object_type==='upload'?'Research file':'Recording'));
-    if(canWrite()&&!trashMode&&item.object_type!=='annotation'){
-      add('Rename',()=>renameItem(item),item.object_type==='document');
+    if(canWrite()&&!trashMode&&!item.system){
+      if(item.object_type!=='annotation')add('Rename',()=>renameItem(item),item.object_type==='document');
       add('Move to folder…',()=>moveItem(item));
-      add('Move to Trash',()=>trashItem(item));
+      if(item.object_type!=='annotation')add('Move to Trash',()=>trashItem(item));
     }
     if(trashMode&&canWrite()&&item.object_type!=='annotation')add('Restore',()=>restoreItem(item));
     document.body.appendChild(menu);
@@ -263,7 +281,7 @@
   }
   function moveItem(item){
     if(!canWrite())return;const {d,form}=dialogBase('Move '+desktopObjectLabel(item)),parent=folderSelect(item.parent_public_id||'');labeled(form,'Move to',parent);
-    dialogActions(form,async e=>{e.preventDefault();try{await api(workspaceUrl('move'),{method:'POST',data:{agent_id:agentId,object_id:item.public_id,parent_id:parent.value}});d.close();await loadDesktop(false);}catch(err){setStatus(err.message,true);}},'Move');d.showModal();
+    dialogActions(form,async e=>{e.preventDefault();const ok=await moveDesktopObject(item,parent.value);if(ok)d.close();},'Move');d.showModal();
   }
   async function trashItem(item){
     if(!canWrite()||!confirm('Move '+desktopObjectLabel(item)+' to Trash?'))return;
@@ -282,7 +300,7 @@
   function stickySeed(){return {x:44+(stickies.length%5)*36,y:70+(stickies.length%6)*30};}
   async function createSticky(body=''){
     if(!canWrite())return;const p=stickySeed();
-    try{await api(workspaceUrl('create_sticky'),{method:'POST',data:{agent_id:agentId,body,color:'yellow',x:p.x,y:p.y,width:245,height:205}});await loadDesktop(false);}catch(err){setStatus(err.message,true);}
+    try{await api(workspaceUrl('create_sticky'),{method:'POST',data:{agent_id:agentId,body,color:'yellow',x:p.x,y:p.y,width:245,height:205,parent_id:currentFolder}});await loadDesktop(false);}catch(err){setStatus(err.message,true);}
   }
   function stickyPatch(item,patch,delay=450){
     if(!canWrite())return;const id=String(item.public_id),old=stickyTimers.get(id);if(old)clearTimeout(old);
@@ -308,8 +326,9 @@
     if(canWrite()){
       let dragging=false,startX=0,startY=0,left=0,top=0;
       handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();dragging=true;handle.setPointerCapture(e.pointerId);startX=e.clientX;startY=e.clientY;left=parseInt(note.style.left,10)||0;top=parseInt(note.style.top,10)||0;bringStickyFront(item,note);});
-      handle.addEventListener('pointermove',e=>{if(!dragging)return;const maxX=Math.max(0,(surface?.clientWidth||1200)-note.offsetWidth),maxY=Math.max(0,(surface?.clientHeight||700)-note.offsetHeight);note.style.left=Math.max(0,Math.min(maxX,left+e.clientX-startX))+'px';note.style.top=Math.max(0,Math.min(maxY,top+e.clientY-startY))+'px';});
-      handle.addEventListener('pointerup',e=>{if(!dragging)return;dragging=false;try{handle.releasePointerCapture(e.pointerId);}catch{}stickyPatch(item,{x:parseInt(note.style.left,10)||0,y:parseInt(note.style.top,10)||0,z:Number(note.style.zIndex)||1},0);});
+      handle.addEventListener('pointermove',e=>{if(!dragging)return;const maxX=Math.max(0,(surface?.clientWidth||1200)-note.offsetWidth),maxY=Math.max(0,(surface?.clientHeight||700)-note.offsetHeight);note.style.left=Math.max(0,Math.min(maxX,left+e.clientX-startX))+'px';note.style.top=Math.max(0,Math.min(maxY,top+e.clientY-startY))+'px';updateFolderDropTarget(e.clientX,e.clientY,String(item.public_id||''));});
+      handle.addEventListener('pointerup',async e=>{if(!dragging)return;dragging=false;try{handle.releasePointerCapture(e.pointerId);}catch{}const folder=folderDropTarget(e.clientX,e.clientY,String(item.public_id||''));clearFolderDropTarget();stickyPatch(item,{x:parseInt(note.style.left,10)||0,y:parseInt(note.style.top,10)||0,z:Number(note.style.zIndex)||1},0);if(folder)await moveDesktopObject({...item,object_type:'sticky'},String(folder.dataset.objectId||''));});
+      handle.addEventListener('pointercancel',()=>{dragging=false;clearFolderDropTarget();});
       if('ResizeObserver' in window){
         const ro=new ResizeObserver(()=>{if(note.dataset.ready!=='1'||!note.isConnected)return;const key=String(item.public_id),old=stickyResizeTimers.get(key);if(old)clearTimeout(old);stickyResizeTimers.set(key,setTimeout(()=>{stickyResizeTimers.delete(key);stickyPatch(item,{width:Math.round(note.offsetWidth),height:Math.round(note.offsetHeight)},0);},400));});
         ro.observe(note);requestAnimationFrame(()=>note.dataset.ready='1');
@@ -319,8 +338,8 @@
   }
   function renderStickies(){
     if(!stickyLayer)return;stickyLayer.replaceChildren();
-    if(trashMode||currentFolder!==''){stickyLayer.hidden=true;return;}stickyLayer.hidden=false;
-    stickies.forEach(item=>stickyLayer.appendChild(renderSticky(item)));
+    if(trashMode){stickyLayer.hidden=true;return;}stickyLayer.hidden=false;
+    stickies.filter(item=>String(item.parent_public_id||'')===String(currentFolder||'')).forEach(item=>stickyLayer.appendChild(renderSticky(item)));
   }
 
   function documentUrl(publicId){const u=new URL(location.href);if(publicId)u.searchParams.set('doc',publicId);else u.searchParams.delete('doc');return u.pathname+(u.searchParams.toString()?'?'+u.searchParams.toString():'')+u.hash;}
