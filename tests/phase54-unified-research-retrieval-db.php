@@ -59,6 +59,17 @@ $upload=research_agent_workspace_register_upload($pdo,$owner,$project,[
 $pdfText="Page one intro and context.\fPage two contains pricingdelta and commercial terms.";
 $pdo->prepare("UPDATE research_workspace_uploads SET processing_status='ready',extracted_text=?,page_count=2,updated_at=NOW() WHERE object_id=?")->execute([$pdfText,(int)$upload['id']]);
 
+$imageUpload=research_agent_workspace_register_upload($pdo,$owner,$project,[
+  'storage_uri'=>'private://research-upload/'.$run.'/visual.png','original_name'=>'visual.png','mime_type'=>'image/png','file_size'=>512,'checksum'=>hash('sha256','p54image'),'title'=>'Visual Evidence Omega'
+]);
+$pdo->prepare("UPDATE research_workspace_uploads SET processing_status='ready',extracted_text=NULL,updated_at=NOW() WHERE object_id=?")->execute([(int)$imageUpload['id']]);
+
+$semanticDoc=research_agent_workspace_create_document($pdo,$owner,$project,[
+  'title'=>'Semantic Concept Note','document_type'=>'note',
+  'content_html'=>'<p>semanticalpha describes the latent launch concept without using the user query words.</p>'
+],false);
+
+
 $recording=research_agent_workspace_register_recording($pdo,$owner,$project,[
   'storage_uri'=>'private://research-recording/'.$run.'/interview.webm','original_name'=>'interview.webm','mime_type'=>'audio/webm','file_size'=>4096,'checksum'=>hash('sha256','p54audio'),'title'=>'Customer Interview','parent_id'=>$folder['public_id'],'duration_seconds'=>90,'recording_source'=>'browser'
 ]);
@@ -76,6 +87,27 @@ $rebuilt=research_retrieval_rebuild_project($pdo,[],(int)$project['id'],$records
 p54(($rebuilt['documents']??0)>=7,'Project retrieval index rebuilds the complete corpus.');
 $q=$pdo->prepare("SELECT status,document_count,chunk_count,state_hash FROM research_retrieval_projects WHERE project_id=?");$q->execute([$project['id']]);$state=$q->fetch();
 p54($state&&$state['status']==='ready'&&(int)$state['document_count']>=7&&(int)$state['chunk_count']>=7,'Index state records ready document/chunk counts.');
+
+$titleOnlySearch=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'Visual Evidence Omega',['type'=>'upload'],10,true);
+p54(count(array_filter($titleOnlySearch['results'],fn($x)=>($x['public_id']??'')===$imageUpload['public_id']))===1,'Title-only Research objects remain searchable even when they have no extracted chunk text.');
+
+$embedScript=tempnam(sys_get_temp_dir(),'p54-embed-');
+if($embedScript===false)throw new RuntimeException('Unable to create semantic retrieval fixture.');
+file_put_contents($embedScript,<<<'PHP'
+<?php
+$text=(string)file_get_contents($argv[1]??'');
+$match=str_contains($text,'semanticalpha')||str_contains($text,'meaningbeta');
+file_put_contents($argv[2]??'',json_encode($match?[1.0,0.0]:[0.0,1.0]));
+PHP);
+$semanticConfig=['research_retrieval'=>[
+  'embedding_command'=>escapeshellarg(PHP_BINARY).' '.escapeshellarg($embedScript).' {input} {output}',
+  'embedding_provider'=>'fixture','embedding_model'=>'fixture-v1'
+]];
+research_retrieval_rebuild_project($pdo,$semanticConfig,(int)$project['id'],null,true);
+$semanticSearch=research_retrieval_search($pdo,$semanticConfig,$researcher,(string)$project['public_id'],'meaningbeta',[],10,true);
+p54(($semanticSearch['mode']??'')==='hybrid','Configured embeddings activate hybrid Research retrieval.');
+p54(count(array_filter($semanticSearch['results'],fn($x)=>($x['public_id']??'')===$semanticDoc['public_id']))===1,'Hybrid retrieval returns a semantic-only match with no lexical query overlap.');
+
 
 $pdfSearch=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'pricingdelta',[],10,true);
 $pdfResult=current(array_filter($pdfSearch['results'],fn($x)=>($x['object_type']??'')==='upload'));
@@ -136,4 +168,5 @@ p54throws(fn()=>research_retrieval_search($pdo,[],$outsider,(string)$project['pu
 $pdo->prepare('DELETE FROM team_members WHERE team_id=? AND user_id=?')->execute([$teamId,$researcher['id']]);
 p54throws(fn()=>research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'pricingdelta',[],10,true),'Removing a Team member immediately revokes retrieval access.');
 
+@unlink($embedScript);
 echo "Phase 54 Unified Research Knowledge & Retrieval MariaDB suite passed.\n";
