@@ -31,13 +31,13 @@ $need('app/research-retrieval.php','function research_retrieval_result_allowed',
 $need('app/research-retrieval.php','function research_retrieval_annotation_allowed','Derived retrieval must apply stricter live visibility rules to indexed Annotations.');
 $need('app/research-retrieval.php',"if((\$row['visibility']??'')==='team'",'Team annotation retrieval must require actual annotation-Team membership rather than project membership alone.');
 $need('app/research-retrieval.php',"LEFT JOIN research_retrieval_chunks c ON c.document_id=d.id",'Lexical search must retain title-only objects that have no extracted chunks.');
-$need('app/research-retrieval.php',"$semanticRows",'Hybrid retrieval must consider semantic candidates beyond lexical matches.');
+$need('app/research-retrieval.php','$semanticRows','Hybrid retrieval must consider semantic candidates beyond lexical matches.');
 $need('app/research-retrieval.php',"c.embedding_status='ready'",'Semantic candidate search must use only ready embeddings.');
 $need('app/research-retrieval.php',"(rdp.folder_object_id IS NULL OR folder.status='active')",'Annotations inside trashed folders must be excluded from the derived corpus.');
 
 $need('app/research-retrieval.php','function research_retrieval_search','Research search must use the unified index.');
-$need('app/research-retrieval.php',"$chunksChanged",'Index refreshes must preserve chunks and embeddings for unchanged evidence.');
-$need('app/research-retrieval.php',"'locator_type'=>$chunk['locator_type']??null",'Evidence fingerprints must include locator metadata so citation-only changes invalidate derived chunks.');
+$need('app/research-retrieval.php','$chunksChanged','Index refreshes must preserve chunks and embeddings for unchanged evidence.');
+$need('app/research-retrieval.php','chunkSignature','Evidence fingerprints must include locator metadata so citation-only changes invalidate derived chunks.');
 
 $need('app/research-retrieval.php','function research_retrieval_context','Agent context must come from ranked retrieval results.');
 $need('app/research-retrieval.php','function research_retrieval_related','Phase 54 must expose related evidence.');
