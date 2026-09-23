@@ -21,6 +21,10 @@ function agent_action_capabilities(): array {
         'label'=>'Create research note','description'=>'Save a concise Research note to the current project.',
         'arguments'=>['body'=>'string']
       ],
+      'research.create_document'=>[
+        'label'=>'Create research document','description'=>'Create a durable editable Research document in the current Research Agent workspace. The completed document is posted back into the Agent conversation as a document card.',
+        'arguments'=>['title'=>'string','body'=>'string','summary'=>'string optional','document_type'=>'document|research_brief|memo|report|analysis|source_summary|timeline|weekly_report']
+      ],
       'research.create_claim'=>[
         'label'=>'Create claim','description'=>'Create a new unverified Claim from the current evidence/context.',
         'arguments'=>['statement'=>'string','claim_type'=>'factual|disputed|prediction|interpretation|data_point']
@@ -85,6 +89,12 @@ function agent_action_clean_arguments(string $capability,array $args): array {
     }
     if($capability==='research.create_note'){
         $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Research note body is required.');return ['body'=>$body];
+    }
+    if($capability==='research.create_document'){
+        $title=$s($args['title']??'',240);if($title==='')throw new InvalidArgumentException('Document title is required.');
+        $body=$s($args['body']??'',60000);if($body==='')throw new InvalidArgumentException('Document body is required.');
+        $summary=$s($args['summary']??'',5000);$type=research_agent_workspace_document_type((string)($args['document_type']??'document'));
+        return ['title'=>$title,'body'=>$body,'summary'=>$summary,'document_type'=>$type];
     }
     if($capability==='research.create_claim'){
         $statement=$s($args['statement']??'',8000);if($statement==='')throw new InvalidArgumentException('Claim statement is required.');
@@ -187,6 +197,16 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         $public=ulid_like();$pdo->prepare('INSERT INTO research_notes(public_id,project_id,user_id,body) VALUES(?,?,?,?)')->execute([$public,$projectId,$userId,$args['body']]);
         return ['type'=>'note','public_id'=>$public,'label'=>'Research note','url'=>'/research-project.php?id='.rawurlencode((string)$project['public_id']).'#notes'];
     }
+    if($capability==='research.create_document'){
+        if(!function_exists('research_agent_workspace_create_document'))throw new RuntimeException('Research document workspace is unavailable.');
+        $document=research_agent_workspace_create_document($pdo,$viewer,$project,$args,true);
+        $conversation=trim((string)($document['conversation_public_id']??''));
+        return [
+          'type'=>'document','public_id'=>(string)$document['public_id'],'label'=>(string)$document['title'],
+          'url'=>$conversation!==''?'/home.php?agent='.rawurlencode($conversation).'&doc='.rawurlencode((string)$document['public_id']):'/research-project.php?id='.rawurlencode((string)$project['public_id']),
+          'revision_number'=>(int)($document['revision_number']??1),'document_type'=>(string)($document['document_type']??$args['document_type'])
+        ];
+    }
     if($capability==='research.create_claim'){
         $public=ulid_like();$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,?,?,'unverified')")
           ->execute([$public,$projectId,$userId,$args['statement'],$args['claim_type']]);
@@ -237,6 +257,9 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
         $args=json_decode((string)$proposal['arguments_json'],true);if(!is_array($args))throw new RuntimeException('Stored Agent action arguments are invalid.');
         $pdo->prepare("UPDATE agent_action_proposals SET status='confirmed',confirmed_at=NOW(),error_text=NULL WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'confirmed',(int)$viewer['id']);
         $result=agent_action_execute_capability($pdo,$viewer,$project,(string)$proposal['capability_key'],$args);
+        if(($result['type']??'')==='document'&&!empty($proposal['assistant_message_id'])&&function_exists('research_agent_workspace_attach_document_to_agent_message')){
+            research_agent_workspace_attach_document_to_agent_message($pdo,$viewer,(string)$result['public_id'],(int)$proposal['assistant_message_id']);
+        }
         $pdo->prepare("UPDATE agent_action_proposals SET status='executed',result_type=?,result_public_id=?,result_json=?,executed_at=NOW(),error_text=NULL WHERE id=?")
           ->execute([(string)($result['type']??''),(string)($result['public_id']??''),json_encode($result,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$proposal['id']]);
         agent_action_event($pdo,(int)$proposal['id'],'executed',(int)$viewer['id'],$result);
