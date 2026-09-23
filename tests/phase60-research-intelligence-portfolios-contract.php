@@ -17,7 +17,7 @@ $must('app/research-intelligence-portfolios.php',[
  'research_agent_workspace_create_document','research_publication_workflow_create'
 ],'Phase 60 runtime');
 $must('research-intelligence-portfolios.php',[
- 'PHASE 60 · ORGANIZATION INTELLIGENCE','Research Intelligence Portfolios','Cross-program trends & tensions','AGENT INTERPRETATION',
+ 'Research Intelligence Portfolios','Cross-program trends & tensions','AGENT INTERPRETATION',
  'Create frozen snapshot','Create Executive Briefing','Send to Phase 59 review','Project Portfolio'
 ],'Phase 60 dashboard');
 $must('api/research-intelligence-portfolios.php',['dashboard','add_program','snapshot','create_briefing','prepare_publication','add_inference'],'Phase 60 API');
