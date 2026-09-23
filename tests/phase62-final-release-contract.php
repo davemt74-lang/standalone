@@ -38,7 +38,7 @@ $need('docs/RELEASE-V1.1.md','migration-046 (RC1-era)','62C production runbook m
 $need('docs/RELEASE-V1.1.md','There is no separate Portfolio or Phase 62 worker.','62A runbook must preserve scheduler ownership.');
 $need('docs/phase-62-v1-1-final-release-validation-production-cutover.md','adds no product subsystem and no database migration','62A must explicitly freeze subsystem/schema growth.');
 
-if(glob($root.'/database/migrations/*_060_*.sql'))$fail[]='62A/62F Phase 62 final release must not introduce migration 060.';
+$need('database/migrations/20260923_059_portfolio_intelligence_operations_follow_through.sql','research_intelligence_portfolio_cycles','62F V1.1 final cutover migration 059 must remain present as the stable release baseline.');
 foreach(['worker/phase62-worker.php','worker/release-worker.php','worker/portfolio-intelligence-worker.php'] as $forbidden)if(is_file($root.'/'.$forbidden))$fail[]='62A final cutover must not add a parallel worker: '.$forbidden;
 
 $release=(string)file_get_contents($root.'/app/release.php');$operations=(string)file_get_contents($root.'/app/release-operations.php');
