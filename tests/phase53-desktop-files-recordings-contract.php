@@ -20,6 +20,8 @@ foreach([
 $migration=(string)file_get_contents($root.'/database/migrations/20260923_051_research_desktop_uploads_recordings.sql');
 foreach(['research_workspace_uploads','research_workspace_recordings','research_workspace_recording_transcripts','research_file_jobs','research_transcription_jobs'] as $table)
     if(!str_contains($migration,'CREATE TABLE IF NOT EXISTS '.$table))$fail[]='Phase 53 table missing: '.$table;
+$need('database/migrations/20260923_051_research_desktop_uploads_recordings.sql','folder_object_id BIGINT UNSIGNED','Linked/non-file Desktop objects must have durable folder placement.');
+
 
 $need('home.php','data-research-desktop-upload','Research Desktop must expose + Upload.');
 $need('home.php','data-research-desktop-recording','Research Desktop must expose + Recording.');
@@ -29,6 +31,14 @@ $need('home.php','Save &amp; Transcribe','Recording flow must clearly save and t
 $need('assets/js/research-agent-workspace-ui.js','new MediaRecorder','Browser recording must use MediaRecorder.');
 $need('assets/js/research-agent-workspace-ui.js','getUserMedia({audio:true})','Recording must request microphone audio only.');
 $need('assets/js/research-agent-workspace-ui.js',"surface?.addEventListener('drop'",'Desktop must accept OS drag/drop uploads.');
+$need('assets/js/research-agent-workspace-ui.js','folderDropTarget','Internal Desktop drags must resolve folder drop targets.');
+$need('assets/js/research-agent-workspace-ui.js','moveDesktopObject','Documents, bookmarks, uploads, recordings, folders, annotations, and stickies must share one folder-move path.');
+$need('assets/js/research-agent-workspace-ui.js',"item.object_type==='annotation'",'Linked annotations must remain first-class movable Desktop objects.');
+$need('assets/js/research-agent-workspace-ui.js',"object_type:'sticky'",'Sticky notes must support drag-to-folder.');
+$need('assets/js/research-agent-workspace-ui.js',"stickies.filter(item=>String(item.parent_public_id||'')===String(currentFolder||''))",'Folder views must render contained sticky notes.');
+$need('assets/css/app.css','.researchDesktopIcon[data-object-type="folder"].is-folder-drop-target','Folders must visibly highlight as drop targets.');
+$need('app/research-agent-workspace.php','function research_agent_workspace_desktop_move','Server runtime must authorize and persist every Desktop folder move.');
+
 $need('assets/js/research-agent-workspace-ui.js','dropFolderId','Dropping files on a folder must target that folder.');
 $need('assets/js/research-agent-workspace-ui.js','/api/research-workspace-upload.php','Desktop files and recordings must use the governed upload endpoint.');
 $need('assets/js/research-agent-workspace-ui.js','Save & Transcribe','Desktop recording runtime must preserve the transcription workflow language.');
