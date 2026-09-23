@@ -79,13 +79,14 @@
     return chip;
   }
   function capabilityLabel(key){
-    return ({'research.create_task':'Create research task','research.create_note':'Create research note','research.create_document':'Create research document','research.create_claim':'Create claim','research.attach_annotation_evidence':'Attach annotation evidence','research.create_finding':'Create finding','research.link_claims':'Link claims'})[key]||String(key||'Research action');
+    return ({'research.create_task':'Create research task','research.create_note':'Create research note','research.create_document':'Create research document','research.create_sticky':'Create sticky note','research.create_claim':'Create claim','research.attach_annotation_evidence':'Attach annotation evidence','research.create_finding':'Create finding','research.link_claims':'Link claims'})[key]||String(key||'Research action');
   }
   function proposalSummary(p){
     const a=p.arguments||{},key=p.capability_key||'';
     if(key==='research.create_task')return a.title||'New research task';
     if(key==='research.create_note')return String(a.body||'').slice(0,180);
     if(key==='research.create_document')return a.title||'New research document';
+    if(key==='research.create_sticky')return String(a.body||'New sticky note').slice(0,180);
     if(key==='research.create_claim')return String(a.statement||'').slice(0,180);
     if(key==='research.attach_annotation_evidence')return (a.relationship||'supports')+' · '+(a.annotation_id||'annotation')+' → '+(a.claim_id||'claim');
     if(key==='research.create_finding')return a.title||'New finding';
