@@ -439,7 +439,7 @@
   window.addEventListener('beforeunload',()=>{if(activeDocument&&documentDirty&&navigator.sendBeacon){/* autosave intentionally remains same-origin fetch; unload warning handled by browser */}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});});
   document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||e.detail?.document_id||'')));
-  document.addEventListener('annotated:research-action-executed',e=>{if(e.detail?.result?.type==='document'){primeWorkspace();}});
+  document.addEventListener('annotated:research-action-executed',e=>{const type=e.detail?.result?.type;if(type==='document')primeWorkspace();if(type==='sticky')loadStickies();});
   document.addEventListener('annotated:research-document-created',()=>{primeWorkspace();});
   document.addEventListener('annotated:agent-chat-feed-restored',()=>{if(activeDocument)closeDocument(true);});
   document.addEventListener('click',e=>{
