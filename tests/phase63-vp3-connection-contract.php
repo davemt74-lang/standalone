@@ -7,7 +7,7 @@ $must('app/vp3-connector.php',[
  'aes-256-gcm','vp3_connector_begin','vp3_connector_callback','transcriptions.read','transcriptions.intelligence.read','vp3_connector_attach','vp3_connector_refresh','vp3_connector_disconnect',
  'An Annotated account already uses this email. Sign in to Annotated first','This VP3 account is already connected to another Annotated account.',
  'vp3_connector_import_payload',"['meeting','transcription']",'ensure_source','target_content_hash','project_sources','research_agent_workspace_create_document','research_agent_workspace_save_document',
- "'origin'=>'vp3'","'ai_generated'=>true",'vp3_connector_reconcile_imports','source_unavailable','update_available'
+ "'origin'=>'vp3'","'ai_generated'=>true",'vp3_connector_absolute_source_url','parse_url','vp3_connector_reconcile_imports','source_unavailable','update_available'
 ],'Phase 63 runtime');
 $must('login.php',['Continue with VP3','/vp3/connect.php?mode=login'],'Phase 63 login');
 $must('settings.php',['VP3 Account','Connect VP3 Account','Imported Research snapshots were preserved','vp3_disconnect'],'Phase 63 settings');
@@ -21,7 +21,7 @@ $must('docs/phase-63-vp3-account-connection-research-ingestion.md',['63A — VP3
 $runtime=(string)file_get_contents($root.'/app/vp3-connector.php');
 foreach(['UPDATE research_claims','UPDATE research_findings','agent_action_confirm_execute(','agent_action_execute_capability('] as $forbidden)if(str_contains($runtime,$forbidden))$fail[]="Phase 63 connector must not mutate Research conclusions or execute Agent actions: $forbidden";
 if(str_contains($runtime,'WHERE email=?')&&!str_contains($runtime,'Sign in to Annotated first'))$fail[]='Phase 63 must not silently merge VP3 identity by email.';
-if(!str_contains($runtime,"$contentHash=hash('sha256',$extracted)")||!str_contains($runtime,'target_content_hash'))$fail[]='Phase 63 must preserve local evidence content-hash semantics separately from the VP3 version hash.';
+if(!str_contains($runtime,"\$contentHash=hash('sha256',\$extracted)")||!str_contains($runtime,'target_content_hash'))$fail[]='Phase 63 must preserve local evidence content-hash semantics separately from the VP3 version hash.';
 
 $css=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');
 if(!hash_equals(hash('sha256',$css),hash('sha256',$ext)))$fail[]='Website and extension landing CSS must remain byte-identical.';
