@@ -108,6 +108,17 @@ $semanticSearch=research_retrieval_search($pdo,$semanticConfig,$researcher,(stri
 p54(($semanticSearch['mode']??'')==='hybrid','Configured embeddings activate hybrid Research retrieval.');
 p54(count(array_filter($semanticSearch['results'],fn($x)=>($x['public_id']??'')===$semanticDoc['public_id']))===1,'Hybrid retrieval returns a semantic-only match with no lexical query overlap.');
 
+$q=$pdo->prepare("SELECT c.embedding_status,c.embedding_json FROM research_retrieval_documents d JOIN research_retrieval_chunks c ON c.document_id=d.id WHERE d.project_id=? AND d.object_type='document' AND d.object_public_id=? LIMIT 1");
+$q->execute([$project['id'],$semanticDoc['public_id']]);$semanticBeforeMove=$q->fetch();
+p54($semanticBeforeMove&&$semanticBeforeMove['embedding_status']==='ready'&&!empty($semanticBeforeMove['embedding_json']),'Semantic fixture document has a ready embedding before a folder move.');
+research_agent_workspace_move($pdo,$owner,(string)$semanticDoc['public_id'],(string)$folder['public_id']);
+$semanticAfterMove=research_retrieval_search($pdo,$semanticConfig,$researcher,(string)$project['public_id'],'meaningbeta',['folder_id'=>(string)$folder['public_id']],10,true);
+p54(($semanticAfterMove['mode']??'')==='hybrid'&&count(array_filter($semanticAfterMove['results'],fn($x)=>($x['public_id']??'')===$semanticDoc['public_id']))===1,'Folder moves refresh retrieval scope without dropping hybrid semantic results.');
+$q=$pdo->prepare("SELECT c.embedding_status,c.embedding_json,d.folder_public_id FROM research_retrieval_documents d JOIN research_retrieval_chunks c ON c.document_id=d.id WHERE d.project_id=? AND d.object_type='document' AND d.object_public_id=? LIMIT 1");
+$q->execute([$project['id'],$semanticDoc['public_id']]);$semanticMoved=$q->fetch();
+p54($semanticMoved&&$semanticMoved['embedding_status']==='ready'&&!empty($semanticMoved['embedding_json'])&&$semanticMoved['folder_public_id']===$folder['public_id'],'Incremental rebuild preserves unchanged chunk embeddings while updating folder metadata.');
+
+
 
 $pdfSearch=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'pricingdelta',[],10,true);
 $pdfResult=current(array_filter($pdfSearch['results'],fn($x)=>($x['object_type']??'')==='upload'));
@@ -116,6 +127,17 @@ p54($pdfResult&&($pdfResult['locator_label']??'')==='Page 2','PDF retrieval retu
 $recordingSearch=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'decisionomega',[],10,true);
 $recordingResult=current(array_filter($recordingSearch['results'],fn($x)=>($x['object_type']??'')==='recording'));
 p54($recordingResult&&($recordingResult['locator_label']??'')==='00:42–00:49','Recording retrieval returns timestamp evidence locators.');
+
+$segmentsShifted=[
+ ['start'=>5.0,'end'=>11.0,'text'=>'Initial context for the interview.'],
+ ['start'=>44.0,'end'=>50.0,'text'=>'decisionomega customer approved the pilot direction.']
+];
+$pdo->prepare("UPDATE research_workspace_recording_transcripts SET segments_json=?,updated_at=NOW() WHERE object_id=?")
+  ->execute([json_encode($segmentsShifted),(int)$recording['id']]);
+$recordingLocatorRefresh=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'decisionomega',[],10,true);
+$recordingLocatorResult=current(array_filter($recordingLocatorRefresh['results'],fn($x)=>($x['object_type']??'')==='recording'));
+p54($recordingLocatorResult&&($recordingLocatorResult['locator_label']??'')==='00:44–00:50','Locator-only transcript changes invalidate derived chunks and refresh citation timestamps.');
+
 
 $annotationSearch=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'publicannotationbeta',[],10,true);
 $annotationResult=current(array_filter($annotationSearch['results'],fn($x)=>($x['object_type']??'')==='annotation'));
