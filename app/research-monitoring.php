@@ -370,7 +370,8 @@ function research_monitor_run(PDO $pdo,array $config,array $watch,string $trigge
         if($promotedAfter>0&&function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$watch['project_id']);
         $summary="Monitoring completed: $discovered candidate(s), $promotedAfter promoted source(s), $events derived change/claim event(s).";
         $pdo->prepare("UPDATE research_monitor_runs SET status='completed',discovered_count=?,promoted_count=?,event_count=?,output_hash=?,summary=?,completed_at=NOW() WHERE id=?")->execute([$discovered,$promotedAfter,$events,$outHash,$summary,$runId]);
-        return ['public_id'=>$runPublic,'status'=>'completed','discovered'=>$discovered,'promoted'=>$promotedAfter,'events'=>$events,'notifications'=>$notifications,'summary'=>$summary];
+        $tasksCreated=function_exists('research_task_sync_agent_signals')?research_task_sync_agent_signals($pdo,(int)$watch['research_agent_id']):0;
+        return ['public_id'=>$runPublic,'status'=>'completed','discovered'=>$discovered,'promoted'=>$promotedAfter,'events'=>$events,'notifications'=>$notifications,'tasks_created'=>$tasksCreated,'summary'=>$summary];
     }catch(Throwable $e){
         $pdo->prepare("UPDATE research_monitor_runs SET status='failed',last_error=?,completed_at=NOW() WHERE id=?")->execute([mb_substr($e->getMessage(),0,1000),$runId]);
         $pdo->prepare("UPDATE research_monitor_watches SET last_error=?,next_check_at=DATE_ADD(NOW(),INTERVAL 1 HOUR),updated_at=NOW() WHERE id=?")->execute([mb_substr($e->getMessage(),0,1000),(int)$watch['id']]);

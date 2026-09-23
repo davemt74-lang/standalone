@@ -71,6 +71,7 @@ db_tests=(
   tests/phase54-unified-research-retrieval-db.php
   tests/phase55-autonomous-research-workspace-db.php
   tests/phase56-continuous-research-monitoring-db.php
+  tests/phase57-research-tasks-plans-deliverables-db.php
 )
 
 for test_file in "${db_tests[@]}"; do

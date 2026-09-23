@@ -423,6 +423,7 @@ function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): 
     if(function_exists('provenance_ready')&&provenance_ready($pdo))provenance_cognitive_observations($pdo,$viewer,$items,12);
     if(function_exists('research_verification_ready')&&research_verification_ready($pdo))research_verification_cognitive_observations($pdo,$viewer,$items,12);
     if(function_exists('research_evidence_packs_ready')&&research_evidence_packs_ready($pdo))research_evidence_pack_cognitive_observations($pdo,$viewer,$items,10);
+    if(function_exists('research_tasks_ready')&&research_tasks_ready($pdo))research_task_cognitive_observations($pdo,$viewer,$items,24);
 }
 
 

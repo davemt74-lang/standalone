@@ -12,6 +12,9 @@ foreach($researchAgents as &$agent){
     $agent['chat_feed']=function_exists('research_agent_chat_feed')
         ?research_agent_chat_feed($pdo,$u,(string)$agent['public_id'],6)
         :[];
+    $agent['task_summary']=function_exists('research_tasks_ready')&&research_tasks_ready($pdo)
+        ?research_task_summary($pdo,$u,(string)$agent['public_id'])
+        :['active'=>0,'waiting'=>0,'review'=>0,'complete'=>0];
 }
 unset($agent);
 ?>
@@ -21,7 +24,7 @@ unset($agent);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css?v=56.0">
+<link rel="stylesheet" href="/assets/css/app.css?v=57.0">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research">
 <main class="researchLibraryCanvas">
@@ -29,6 +32,7 @@ unset($agent);
     <nav class="researchLibraryTabs researchPrimaryActions">
       <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a>
       <a href="/research-monitoring.php">Monitoring</a>
+      <a href="/research-tasks.php">Tasks</a>
       <a href="/research-portfolio.php">Portfolio</a>
       <a href="/research-publications.php">Living Research</a>
       <a href="/research-reviews.php">Review Center</a>
@@ -70,6 +74,11 @@ unset($agent);
           <span><strong><?=h(ucfirst((string)$agent['monitoring_cadence']))?></strong><small>Monitoring</small></span>
           <span><strong><?=h($agent['last_message']!==''?'Active':'Ready')?></strong><small>Agent state</small></span>
         </div>
+        <div class="researchAgentTaskSummary">
+          <span><strong><?=h((string)($agent['task_summary']['active']??0))?></strong> active</span>
+          <span><strong><?=h((string)($agent['task_summary']['waiting']??0))?></strong> waiting</span>
+          <span><strong><?=h((string)($agent['task_summary']['review']??0))?></strong> review</span>
+        </div>
         <div class="researchAgentLibraryChatFeed" aria-label="<?=h($agent['name'])?> chat feed">
           <?php if(empty($agent['chat_feed'])):?><div class="researchAgentLibraryChatEmpty">No conversation yet. Open the Agent to start researching.</div>
           <?php else:?><?php foreach((array)$agent['chat_feed'] as $message):?>
@@ -82,6 +91,7 @@ unset($agent);
         <footer>
           <a class="researchAgentLibraryOpen" href="/home.php?agent=<?=h(rawurlencode((string)$agent['conversation_public_id']))?>">Open Agent Chat</a>
           <a href="/research-project.php?id=<?=h(rawurlencode((string)$agent['project_public_id']))?>">Workspace</a>
+          <a href="/research-tasks.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Tasks</a>
         </footer>
       </article>
       <?php endforeach?>

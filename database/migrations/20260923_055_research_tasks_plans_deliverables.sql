@@ -1,0 +1,207 @@
+-- Annotated Phase 57 — Research Tasks, Plans & Deliverables
+
+CREATE TABLE IF NOT EXISTS research_task_plans (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  research_agent_id BIGINT UNSIGNED NOT NULL,
+  project_id BIGINT UNSIGNED NOT NULL,
+  created_by_user_id BIGINT UNSIGNED NOT NULL,
+  created_by_agent TINYINT(1) NOT NULL DEFAULT 0,
+  title VARCHAR(255) NOT NULL,
+  objective TEXT NOT NULL,
+  status ENUM('draft','active','paused','completed','archived') NOT NULL DEFAULT 'draft',
+  priority ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium',
+  due_at DATETIME NULL,
+  deliverable_type ENUM('research_brief','competitive_analysis','due_diligence','source_digest','timeline','comparison','weekly_report','report','analysis','document') NOT NULL DEFAULT 'research_brief',
+  deliverable_title VARCHAR(255) NULL,
+  current_revision INT UNSIGNED NOT NULL DEFAULT 1,
+  plan_hash CHAR(64) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
+  INDEX idx_research_task_plan_agent(research_agent_id,status,updated_at),
+  INDEX idx_research_task_plan_project(project_id,status,due_at),
+  CONSTRAINT fk_research_task_plan_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_plan_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_plan_user FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS research_task_plan_versions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  plan_id BIGINT UNSIGNED NOT NULL,
+  revision_number INT UNSIGNED NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  objective TEXT NOT NULL,
+  structure_json JSON NOT NULL,
+  change_reason VARCHAR(1000) NULL,
+  edited_by_user_id BIGINT UNSIGNED NULL,
+  edited_by_agent TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_research_task_plan_revision(plan_id,revision_number),
+  INDEX idx_research_task_plan_version(plan_id,created_at),
+  CONSTRAINT fk_research_task_plan_version_plan FOREIGN KEY(plan_id) REFERENCES research_task_plans(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_plan_version_user FOREIGN KEY(edited_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE research_tasks
+  MODIFY COLUMN task_type ENUM('general','find_source','verify_claim','review_source_change','compare_sources','synthesize','draft_deliverable','follow_up') NOT NULL DEFAULT 'general',
+  MODIFY COLUMN status ENUM('open','in_progress','done','archived','queued','ready','researching','waiting','review','complete','failed') NOT NULL DEFAULT 'open',
+  ADD COLUMN research_agent_id BIGINT UNSIGNED NULL AFTER project_id,
+  ADD COLUMN plan_id BIGINT UNSIGNED NULL AFTER research_agent_id,
+  ADD COLUMN priority ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium' AFTER task_type,
+  ADD COLUMN source_type VARCHAR(64) NULL AFTER priority,
+  ADD COLUMN source_public_id VARCHAR(64) NULL AFTER source_type,
+  ADD COLUMN source_fingerprint CHAR(64) NULL AFTER source_public_id,
+  ADD COLUMN created_by_agent TINYINT(1) NOT NULL DEFAULT 0 AFTER source_fingerprint,
+  ADD COLUMN position INT UNSIGNED NOT NULL DEFAULT 0 AFTER created_by_agent,
+  ADD COLUMN blocking_reason VARCHAR(1000) NULL AFTER due_at,
+  ADD COLUMN execution_summary MEDIUMTEXT NULL AFTER blocking_reason,
+  ADD COLUMN execution_refs_json JSON NULL AFTER execution_summary,
+  ADD COLUMN completion_evaluation_json JSON NULL AFTER execution_refs_json,
+  ADD COLUMN human_reviewed_at DATETIME NULL AFTER completion_evaluation_json,
+  ADD COLUMN human_reviewed_by_user_id BIGINT UNSIGNED NULL AFTER human_reviewed_at,
+  ADD COLUMN started_at DATETIME NULL AFTER human_reviewed_by_user_id,
+  ADD COLUMN completed_at DATETIME NULL AFTER started_at,
+  ADD UNIQUE KEY uq_research_task_signal(project_id,source_fingerprint),
+  ADD INDEX idx_research_task_agent(research_agent_id,status,priority,updated_at),
+  ADD INDEX idx_research_task_plan(plan_id,status,position),
+  ADD CONSTRAINT fk_research_task_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE SET NULL,
+  ADD CONSTRAINT fk_research_task_plan FOREIGN KEY(plan_id) REFERENCES research_task_plans(id) ON DELETE SET NULL,
+  ADD CONSTRAINT fk_research_task_reviewer FOREIGN KEY(human_reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS research_task_dependencies (
+  task_id BIGINT UNSIGNED NOT NULL,
+  depends_on_task_id BIGINT UNSIGNED NOT NULL,
+  dependency_type ENUM('finish_to_start','blocking') NOT NULL DEFAULT 'finish_to_start',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(task_id,depends_on_task_id),
+  INDEX idx_research_task_dependency_parent(depends_on_task_id,task_id),
+  CONSTRAINT fk_research_task_dependency_task FOREIGN KEY(task_id) REFERENCES research_tasks(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_dependency_parent FOREIGN KEY(depends_on_task_id) REFERENCES research_tasks(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS research_task_completion_gates (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  task_id BIGINT UNSIGNED NOT NULL,
+  gate_type ENUM('min_sources','primary_source','no_open_contradictions','fresh_evidence','citations','human_review') NOT NULL,
+  required_json JSON NOT NULL,
+  status ENUM('pending','passed','failed','waived') NOT NULL DEFAULT 'pending',
+  detail VARCHAR(1000) NULL,
+  evaluated_at DATETIME NULL,
+  waived_by_user_id BIGINT UNSIGNED NULL,
+  waived_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_research_task_gate(task_id,gate_type),
+  INDEX idx_research_task_gate_status(task_id,status),
+  CONSTRAINT fk_research_task_gate_task FOREIGN KEY(task_id) REFERENCES research_tasks(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_gate_waiver FOREIGN KEY(waived_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS research_task_evidence_refs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  task_id BIGINT UNSIGNED NOT NULL,
+  ref_type VARCHAR(32) NOT NULL,
+  ref_public_id VARCHAR(64) NOT NULL,
+  locator VARCHAR(500) NULL,
+  relationship ENUM('supports','contradicts','context','primary') NOT NULL DEFAULT 'context',
+  added_by ENUM('user','agent','system') NOT NULL DEFAULT 'agent',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_research_task_evidence(task_id,ref_type,ref_public_id,relationship),
+  INDEX idx_research_task_evidence_ref(ref_type,ref_public_id),
+  CONSTRAINT fk_research_task_evidence_task FOREIGN KEY(task_id) REFERENCES research_tasks(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS research_task_jobs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  task_id BIGINT UNSIGNED NOT NULL UNIQUE,
+  plan_id BIGINT UNSIGNED NULL,
+  research_agent_id BIGINT UNSIGNED NOT NULL,
+  project_id BIGINT UNSIGNED NOT NULL,
+  requested_by_user_id BIGINT UNSIGNED NULL,
+  trigger_type ENUM('manual','dependency_ready','signal','recovery','replan') NOT NULL DEFAULT 'dependency_ready',
+  status ENUM('queued','processing','done','failed') NOT NULL DEFAULT 'queued',
+  attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  claim_token CHAR(32) NULL,
+  lease_expires_at DATETIME NULL,
+  available_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_error VARCHAR(1000) NULL,
+  rerun_requested TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  started_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  INDEX idx_research_task_job_claim(status,available_at,lease_expires_at,created_at),
+  INDEX idx_research_task_job_project(project_id,status),
+  CONSTRAINT fk_research_task_job_task FOREIGN KEY(task_id) REFERENCES research_tasks(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_job_plan FOREIGN KEY(plan_id) REFERENCES research_task_plans(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_job_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_job_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_job_user FOREIGN KEY(requested_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS research_task_runs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  task_id BIGINT UNSIGNED NOT NULL,
+  plan_id BIGINT UNSIGNED NULL,
+  research_agent_id BIGINT UNSIGNED NOT NULL,
+  project_id BIGINT UNSIGNED NOT NULL,
+  trigger_type ENUM('manual','dependency_ready','signal','recovery','replan') NOT NULL,
+  status ENUM('processing','queued_ai','completed','waiting','failed','stale') NOT NULL DEFAULT 'processing',
+  input_hash CHAR(64) NOT NULL,
+  ai_run_public_id VARCHAR(40) NULL,
+  summary MEDIUMTEXT NULL,
+  refs_json JSON NULL,
+  gate_evaluation_json JSON NULL,
+  last_error VARCHAR(1000) NULL,
+  started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_research_task_run_task(task_id,created_at),
+  INDEX idx_research_task_run_plan(plan_id,created_at),
+  CONSTRAINT fk_research_task_run_task FOREIGN KEY(task_id) REFERENCES research_tasks(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_run_plan FOREIGN KEY(plan_id) REFERENCES research_task_plans(id) ON DELETE SET NULL,
+  CONSTRAINT fk_research_task_run_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_run_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS research_task_deliverables (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  plan_id BIGINT UNSIGNED NOT NULL UNIQUE,
+  research_agent_id BIGINT UNSIGNED NOT NULL,
+  project_id BIGINT UNSIGNED NOT NULL,
+  workspace_object_id BIGINT UNSIGNED NOT NULL UNIQUE,
+  deliverable_type VARCHAR(64) NOT NULL,
+  status ENUM('active','needs_review','finalized') NOT NULL DEFAULT 'active',
+  managed_revision_number INT UNSIGNED NOT NULL DEFAULT 1,
+  last_task_state_hash CHAR(64) NULL,
+  finalized_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_research_task_deliverable_plan FOREIGN KEY(plan_id) REFERENCES research_task_plans(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_deliverable_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_deliverable_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_deliverable_object FOREIGN KEY(workspace_object_id) REFERENCES research_workspace_objects(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS research_task_events (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  plan_id BIGINT UNSIGNED NULL,
+  task_id BIGINT UNSIGNED NULL,
+  project_id BIGINT UNSIGNED NOT NULL,
+  event_type VARCHAR(64) NOT NULL,
+  actor_type ENUM('user','agent','system') NOT NULL DEFAULT 'system',
+  actor_user_id BIGINT UNSIGNED NULL,
+  payload_json JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_research_task_event_plan(plan_id,created_at),
+  INDEX idx_research_task_event_task(task_id,created_at),
+  INDEX idx_research_task_event_project(project_id,created_at),
+  CONSTRAINT fk_research_task_event_plan FOREIGN KEY(plan_id) REFERENCES research_task_plans(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_event_task FOREIGN KEY(task_id) REFERENCES research_tasks(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_event_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_task_event_actor FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

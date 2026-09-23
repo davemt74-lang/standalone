@@ -203,6 +203,7 @@ function research_autonomy_run(PDO $pdo,array $config,array $agent,?int $request
         $summary='Autonomous Research workspace refreshed with '.(int)$metrics['evidence_gaps'].' evidence gap(s) and '.(int)$metrics['contradictions'].' contradiction(s).';
         $pdo->prepare("UPDATE research_autonomy_runs SET status='completed',output_state_hash=?,summary=?,metrics_json=?,completed_at=NOW() WHERE id=?")
           ->execute([$state['hash'],$summary,json_encode($metrics,JSON_UNESCAPED_SLASHES),$runId]);
+        if(function_exists('research_task_sync_agent_signals'))$metrics['tasks_created']=research_task_sync_agent_signals($pdo,(int)$agent['id']);
         return ['run_id'=>$runId,'public_id'=>$runPublic,'status'=>'completed','changed'=>true,'metrics'=>$metrics,'summary'=>$summary];
     }catch(Throwable $e){
         $pdo->prepare("UPDATE research_autonomy_runs SET status='failed',last_error=?,completed_at=NOW() WHERE id=?")->execute([mb_substr($e->getMessage(),0,1000),$runId]);throw $e;
