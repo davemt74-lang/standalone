@@ -43,7 +43,7 @@ $need('app/release.php',"'research_retrieval'=>",'Production health must monitor
 $need('app/release.php',"'research_retrieval'=>'research_retrieval_jobs'",'Production health must expose the retrieval queue.');
 
 $need('worker/research-file-worker.php','page_count=COALESCE','PDF extraction must persist page count for provenance.');
-$need('worker/research-transcription-worker.php',"$decoded['segments']", 'Recording transcription must accept timestamped structured segments.');
+$need('worker/research-transcription-worker.php',"\$decoded['segments']", 'Recording transcription must accept timestamped structured segments.');
 $need('config.example.php',"'research_retrieval' => [",'Optional semantic retrieval configuration must be documented.');
 $need('config.example.php',"'embedding_command' => ''",'Lexical retrieval must remain the zero-configuration default.');
 
