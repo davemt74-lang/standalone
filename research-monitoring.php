@@ -51,11 +51,11 @@ $csrf=csrf_token();
     <aside class="researchMonitoringCreate card">
       <span class="eyebrow">NEW WATCH</span><h2>Monitor something</h2>
       <form data-monitor-create>
-        <label>Type<select name="watch_type"><option value="url">URL</option><option value="domain">Domain</option><option value="topic">Topic</option><option value="entity">Entity</option><option value="claim">Claim ID</option><option value="query">Search query</option></select></label>
+        <label>Type<select name="watch_type" data-monitor-watch-type><option value="url">URL</option><option value="domain">Domain</option><option value="topic">Topic</option><option value="entity">Entity</option><option value="claim">Claim ID</option><option value="query">Search query</option></select></label>
         <label>Target<input name="target" required maxlength="1000" placeholder="URL, domain, topic, entity, claim ID, or query"></label>
         <label>Cadence<select name="cadence"><option value="hourly">Hourly</option><option value="daily" selected>Daily</option><option value="weekly">Weekly</option><option value="manual">Manual only</option></select></label>
         <label>Alerts<select name="alert_level"><option value="important" selected>Important changes</option><option value="all">All changes</option></select></label>
-        <label class="researchMonitoringCheck"><input type="checkbox" name="auto_promote"> Automatically add high-relevance discoveries to Research</label>
+        <label class="researchMonitoringCheck"><input type="checkbox" name="auto_promote" data-monitor-auto-promote> Automatically add high-relevance discoveries to Research <small>Exact URL watches are always added to Sources so they can be monitored.</small></label>
         <button type="submit" class="button">Create watch</button>
         <p class="meta"><?= $providerConfigured?'External discovery provider configured.':'URL monitoring and domain sitemap discovery are available now. Topic/entity/query discovery becomes active when an external discovery command is configured.'?></p>
       </form>
@@ -104,9 +104,12 @@ $csrf=csrf_token();
 (()=>{
  const csrf=<?=json_encode($csrf,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;
  const agent=<?=json_encode($selectedId,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;
+ const createForm=document.querySelector('[data-monitor-create]'),watchType=createForm?.querySelector('[data-monitor-watch-type]'),autoPromote=createForm?.querySelector('[data-monitor-auto-promote]');
+ function syncAutoPromote(){if(!watchType||!autoPromote)return;const exact=watchType.value==='url';autoPromote.checked=exact?true:autoPromote.checked;autoPromote.disabled=exact;}
+ watchType?.addEventListener('change',syncAutoPromote);syncAutoPromote();
  async function post(action,data={}){const r=await fetch('/api/research-monitoring.php?action='+encodeURIComponent(action),{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(data)});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j?.error?.message||'Monitoring request failed.');return j.data;}
  document.querySelector('[data-monitor-agent]')?.addEventListener('change',e=>{location.href='/research-monitoring.php?agent='+encodeURIComponent(e.target.value);});
- document.querySelector('[data-monitor-create]')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await post('create',{agent_id:agent,watch_type:f.get('watch_type'),target:f.get('target'),cadence:f.get('cadence'),alert_level:f.get('alert_level'),auto_promote:f.get('auto_promote')==='on'});location.reload();}catch(err){alert(err.message);}});
+ document.querySelector('[data-monitor-create]')?.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await post('create',{agent_id:agent,watch_type:f.get('watch_type'),target:f.get('target'),cadence:f.get('cadence'),alert_level:f.get('alert_level'),auto_promote:f.get('watch_type')==='url'||f.get('auto_promote')==='on'});location.reload();}catch(err){alert(err.message);}});
  document.querySelectorAll('[data-watch-id]').forEach(card=>card.querySelectorAll('[data-monitor-action]').forEach(btn=>btn.addEventListener('click',async()=>{try{await post(btn.dataset.monitorAction,{watch_id:card.dataset.watchId});location.reload();}catch(err){alert(err.message);}})));
  document.querySelectorAll('[data-candidate-id]').forEach(card=>card.querySelectorAll('[data-candidate-action]').forEach(btn=>btn.addEventListener('click',async()=>{try{await post(btn.dataset.candidateAction,{candidate_id:card.dataset.candidateId});location.reload();}catch(err){alert(err.message);}})));
 })();
