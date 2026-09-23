@@ -52,6 +52,30 @@ function research_agent_access(PDO $pdo,array $viewer,string $publicId): ?array 
     return $q->fetch()?:null;
 }
 
+function research_agent_by_conversation(PDO $pdo,array $viewer,string $conversationPublicId): ?array {
+    if(!research_agent_ready($pdo))return null;
+    $conversationPublicId=trim($conversationPublicId);if($conversationPublicId==='')return null;
+    $q=$pdo->prepare("SELECT ra.public_id FROM research_agents ra
+      JOIN conversations c ON c.id=ra.conversation_id
+      LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
+      WHERE c.public_id=? AND ra.status<>'archived' AND (ra.owner_user_id=? OR tm.user_id=?) LIMIT 1");
+    $q->execute([(int)$viewer['id'],$conversationPublicId,(int)$viewer['id'],(int)$viewer['id']]);
+    $public=(string)($q->fetchColumn()?:'');
+    return $public!==''?research_agent_access($pdo,$viewer,$public):null;
+}
+
+function research_agent_attach_context(PDO $pdo,array $viewer,array $agent,array $context): void {
+    $projectId=(int)($agent['project_id']??0);if($projectId<=0)return;
+    foreach($context as $item){
+        if((string)($item['type']??'')!=='annotation')continue;
+        $public=trim((string)($item['public_id']??''));if($public==='')continue;
+        $q=$pdo->prepare("SELECT id FROM annotations WHERE public_id=? LIMIT 1");$q->execute([$public]);
+        $annotationId=(int)($q->fetchColumn()?:0);if($annotationId<=0)continue;
+        $pdo->prepare("INSERT IGNORE INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)")
+            ->execute([$projectId,$annotationId,(int)$viewer['id']]);
+    }
+}
+
 function research_agent_team(PDO $pdo,array $viewer,string $teamPublicId): ?array {
     $teamPublicId=trim($teamPublicId);if($teamPublicId==='')return null;
     $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,tm.role FROM teams t
@@ -76,6 +100,7 @@ function research_agent_create(PDO $pdo,array $viewer,array $input,bool $isDefau
     $team=research_agent_team($pdo,$viewer,(string)($input['team_id']??''));
     if(trim((string)($input['team_id']??''))!==''&&!$team)throw new RuntimeException('You do not have permission to create a Research Agent in that Team.');
     if($cadence!=='manual'&&!research_automation_ready($pdo))throw new RuntimeException('Research monitoring requires the latest database upgrade.');
+    if($cadence!=='manual'&&research_automation_active_count($pdo,(int)$viewer['id'])>=25)throw new RuntimeException('You can keep up to 25 active or paused Research Automations.');
 
     $projectPublic=ulid_like();$conversationPublic=ulid_like();$agentPublic=ulid_like();$automationPublic=$cadence!=='manual'?ulid_like():null;
     $projectId=0;$conversationId=0;$automationId=null;
