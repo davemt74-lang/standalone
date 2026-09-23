@@ -7,9 +7,9 @@ $css=(string)file_get_contents($root.'/assets/css/app.css');
 $fail=[];
 
 foreach([
-  '/assets/css/app.css?v=55.2'=>'Home must force-refresh the Phase 55.2 stylesheet.',
+  '/assets/css/app.css?v=55.3'=>'Home must force-refresh the Phase 55.3 stylesheet.',
   '/assets/js/agent-chat.js?v=55.1'=>'Home must force-refresh the Phase 55.1 Agent Chat runtime.',
-  '/assets/js/research-agent-workspace-ui.js?v=55.2'=>'Home must force-refresh the Phase 55.2 Research workspace runtime.',
+  '/assets/js/research-agent-workspace-ui.js?v=55.3'=>'Home must force-refresh the Phase 55.2 Research workspace runtime.',
 ] as $needle=>$message)if(!str_contains($home,$needle))$fail[]=$message;
 foreach([
   '/assets/css/app.css?v=52.2',
