@@ -31,8 +31,8 @@ SITE="$tmp/site" EXT="$tmp/ext" php -r '
 $site=getenv("SITE");$ext=getenv("EXT");
 $r=json_decode(file_get_contents($site."/RELEASE-MANIFEST.json"),true,512,JSON_THROW_ON_ERROR);
 $m=json_decode(file_get_contents($ext."/manifest.json"),true,512,JSON_THROW_ON_ERROR);
-if(($r["version"]??"")!=="1.1.0-rc1")throw new RuntimeException("Unexpected application release version.");
-if((int)($r["phase"]??0)!==49)throw new RuntimeException("Unexpected release phase.");
+if(($r["version"]??"")!=="1.1.0")throw new RuntimeException("Unexpected application release version.");
+if((int)($r["phase"]??0)!==62)throw new RuntimeException("Unexpected release phase.");
 if(($r["extension_version"]??"")!=="0.36.0"||($m["version"]??"")!=="0.36.0")throw new RuntimeException("Extension/release version mismatch.");
 if(($m["manifest_version"]??0)!==3)throw new RuntimeException("Extension must remain Manifest V3.");
 if(($r["latest_migration"]??"")!=="20260923_059_portfolio_intelligence_operations_follow_through.sql")throw new RuntimeException("Release manifest does not identify latest migration.");
@@ -43,7 +43,7 @@ $status=release_installed_manifest_status($site);if(!$status["pass"])throw new R
 '
 for file in home.php research.php research-monitoring.php research-tasks.php research-programs.php research-reviews.php research-publications.php research-intelligence-portfolios.php research-intelligence-command-center.php profile.php research-workspace-file.php app/research-library.php app/research-agents.php app/research-agent-workspace.php app/research-agent-workspace-ui.php api/research-agents.php api/research-workspace-objects.php api/research-workspace-upload.php api/research-retrieval.php api/research-autonomy.php api/research-monitoring.php api/research-tasks.php api/research-programs.php api/research-publications.php worker/research-file-worker.php worker/research-transcription-worker.php worker/research-retrieval-worker.php worker/research-autonomy-worker.php worker/research-monitor-worker.php worker/research-task-worker.php worker/research-program-worker.php app/research-retrieval.php app/research-autonomy.php app/research-monitoring.php app/research-tasks.php app/research-programs.php app/research-reviews.php app/research-publishing.php app/research-intelligence-portfolios.php app/research-intelligence-operations.php api/research-intelligence-portfolios.php app/bootstrap.php app/runtime-compat.php app/schema-health.php app/release.php app/release-operations.php admin/system-health.php bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php; do php -l "$tmp/site/$file" >/dev/null; done
 php -n "$tmp/site/tests/runtime-compat-contract.php" >/dev/null
-echo "Phase 49 release package smoke test passed."
+echo "Phase 62 V1.1 final release package smoke test passed."
 echo "Phase 55 autonomous Research package extensions passed."
 echo "Phase 56 Continuous Research Monitoring package extensions passed."
 echo "Phase 57 Research Tasks, Plans & Deliverables package extensions passed."
