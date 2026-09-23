@@ -305,7 +305,7 @@ function research_agent_workspace_create_document(PDO $pdo,array $viewer,array $
         $raw=implode('',array_map(fn($p)=>'<p>'.nl2br(htmlspecialchars($p,ENT_QUOTES|ENT_HTML5,'UTF-8')).'</p>',$parts));
     }
     $html=research_agent_workspace_clean_html($raw);$plain=research_agent_workspace_plain_text($html);
-    $summary=mb_substr(trim((string)($input['summary']??'')),0,5000);$hash=hash('sha256',$title."\n".$html);
+    $summary=mb_substr(trim((string)($input['summary']??'')),0,5000);$hash=hash('sha256',$title."\n".$summary."\n".$html);
     $public=ulid_like();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
     try{
         $pdo->prepare("INSERT INTO research_workspace_objects(public_id,project_id,parent_id,created_by_user_id,object_type,title) VALUES(?,?,?,?, 'document',?)")
@@ -333,7 +333,7 @@ function research_agent_workspace_save_document(PDO $pdo,array $viewer,string $p
         if($base>0&&$base!==$current)throw new RuntimeException('This document changed in another session. Reload it before saving.');
         $title=mb_substr(trim((string)($input['title']??$locked['title'])),0,240);if($title==='')$title='Untitled document';
         $html=research_agent_workspace_clean_html((string)($input['content_html']??$locked['content_html']??''));$plain=research_agent_workspace_plain_text($html);
-        $summary=mb_substr(trim((string)($input['summary']??$locked['summary']??'')),0,5000);$hash=hash('sha256',$title."\n".$html);
+        $summary=mb_substr(trim((string)($input['summary']??$locked['summary']??'')),0,5000);$hash=hash('sha256',$title."\n".$summary."\n".$html);
         if(hash_equals((string)($locked['content_hash']??''),$hash)&&$title===(string)$locked['title']){
             if($ownsTransaction)$pdo->commit();
             return research_agent_workspace_object($pdo,$viewer,$publicId,false)??$obj;
