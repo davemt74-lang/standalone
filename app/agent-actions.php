@@ -33,6 +33,10 @@ function agent_action_capabilities(): array {
         'label'=>'Publish approved Research document','description'=>'Publish an already-approved Phase 59 workflow as an immutable Research report version. All review and approval gates must already be satisfied and the user must confirm this action.',
         'arguments'=>['workflow_id'=>'Research publication workflow public ID']
       ],
+      'research.record_portfolio_inference'=>[
+        'label'=>'Record Portfolio inference','description'=>'Record an explicitly labeled Agent interpretation in a Phase 60 Intelligence Portfolio. The user must confirm it, and every inference must cite provenance already present in the Agent evidence set.',
+        'arguments'=>['portfolio_id'=>'Intelligence Portfolio public ID','title'=>'string','body'=>'string','category'=>'trend|risk|opportunity|contradiction|decision|freshness|dependency|other','severity'=>'info|watch|high optional','confidence'=>'0..1 optional','provenance_refs'=>'array of {type,id,label optional}']
+      ],
       'research.create_note'=>[
         'label'=>'Create research note','description'=>'Save a concise Research note to the current project.',
         'arguments'=>['body'=>'string']
@@ -159,6 +163,16 @@ function agent_action_clean_arguments(string $capability,array $args): array {
     if($capability==='research.publish_approved_document'){
         $workflow=$s($args['workflow_id']??'',64);if($workflow==='')throw new InvalidArgumentException('Publication workflow ID is required.');return ['workflow_id'=>$workflow];
     }
+    if($capability==='research.record_portfolio_inference'){
+        $portfolio=$s($args['portfolio_id']??'',64);$title=$s($args['title']??'',255);$body=$s($args['body']??'',12000);
+        if($portfolio===''||$title===''||$body==='')throw new InvalidArgumentException('Portfolio, inference title, and explanation are required.');
+        $category=(string)($args['category']??'other');if(!in_array($category,['trend','risk','opportunity','contradiction','decision','freshness','dependency','other'],true))$category='other';
+        $severity=(string)($args['severity']??'info');if(!in_array($severity,['info','watch','high'],true))$severity='info';
+        $confidence=array_key_exists('confidence',$args)?max(0,min(1,(float)$args['confidence'])):null;$refs=[];
+        foreach(array_slice((array)($args['provenance_refs']??[]),0,60) as $ref){if(!is_array($ref))continue;$type=$s(strtolower((string)($ref['type']??'')),40);$id=$s($ref['id']??'',80);if($type===''||$id==='')continue;$refs[]=['type'=>$type,'id'=>$id,'label'=>$s($ref['label']??'',255)];}
+        if(!$refs)throw new InvalidArgumentException('Portfolio inference requires explicit provenance references.');
+        return ['portfolio_id'=>$portfolio,'title'=>$title,'body'=>$body,'category'=>$category,'severity'=>$severity,'confidence'=>$confidence,'provenance_refs'=>$refs];
+    }
     if($capability==='research.create_note'){
         $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Research note body is required.');return ['body'=>$body];
     }
@@ -176,16 +190,6 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $statement=$s($args['statement']??'',8000);if($statement==='')throw new InvalidArgumentException('Claim statement is required.');
         $type=(string)($args['claim_type']??'factual');if(!in_array($type,['factual','disputed','prediction','interpretation','data_point'],true))$type='factual';
         return ['statement'=>$statement,'claim_type'=>$type];
-    }
-    if($capability==='research.prepare_publication_review'){
-        if(!isset($seen['document:'.$args['document_id']]))return false;
-        if(!function_exists('research_agent_workspace_object'))return false;$doc=research_agent_workspace_object($pdo,$viewer,(string)$args['document_id'],false);if(!$doc||(int)$doc['project_id']!==$projectId||($doc['object_type']??'')!=='document')return false;
-        $eligible=[];foreach(research_review_eligible_reviewers($pdo,$viewer,(string)$project['public_id']) as $person)$eligible[(string)$person['public_id']]=true;
-        foreach(array_merge((array)$args['reviewer_ids'],(array)$args['approver_ids']) as $public)if(!isset($eligible[(string)$public]))return false;
-        return true;
-    }
-    if($capability==='research.publish_approved_document'){
-        if(!function_exists('research_publication_workflow_access'))return false;$w=research_publication_workflow_access($pdo,$viewer,(string)$args['workflow_id']);return $w&&(int)$w['project_id']===$projectId;
     }
     if($capability==='research.attach_annotation_evidence'){
         $claim=$s($args['claim_id']??'',64);$annotation=$s($args['annotation_id']??'',64);if($claim===''||$annotation==='')throw new InvalidArgumentException('Claim and Annotation IDs are required.');
@@ -242,6 +246,21 @@ function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $p
     if($capability==='research.link_claims'){
         if(!isset($seen['claim:'.$args['source_claim_id']],$seen['claim:'.$args['target_claim_id']]))return false;
         return agent_action_claim_row($pdo,$projectId,(string)$args['source_claim_id'])!==null&&agent_action_claim_row($pdo,$projectId,(string)$args['target_claim_id'])!==null;
+    }
+    if($capability==='research.prepare_publication_review'){
+        if(!isset($seen['document:'.$args['document_id']]))return false;
+        if(!function_exists('research_agent_workspace_object'))return false;$doc=research_agent_workspace_object($pdo,$viewer,(string)$args['document_id'],false);if(!$doc||(int)$doc['project_id']!==$projectId||($doc['object_type']??'')!=='document')return false;
+        $eligible=[];foreach(research_review_eligible_reviewers($pdo,$viewer,(string)$project['public_id']) as $person)$eligible[(string)$person['public_id']]=true;
+        foreach(array_merge((array)$args['reviewer_ids'],(array)$args['approver_ids']) as $public)if(!isset($eligible[(string)$public]))return false;
+        return true;
+    }
+    if($capability==='research.publish_approved_document'){
+        if(!function_exists('research_publication_workflow_access'))return false;$w=research_publication_workflow_access($pdo,$viewer,(string)$args['workflow_id']);return $w&&(int)$w['project_id']===$projectId;
+    }
+    if($capability==='research.record_portfolio_inference'){
+        if(!function_exists('research_intelligence_portfolio_contains_project')||!research_intelligence_portfolio_contains_project($pdo,$viewer,(string)$args['portfolio_id'],$projectId))return false;
+        foreach((array)$args['provenance_refs'] as $ref)if(!isset($seen[(string)$ref['type'].':'.(string)$ref['id']]))return false;
+        return true;
     }
     return true;
 }
@@ -308,6 +327,11 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
     if($capability==='research.publish_approved_document'){
         if(!function_exists('research_publication_publish'))throw new RuntimeException('Collaborative Publishing is unavailable.');$result=research_publication_publish($pdo,$viewer,(string)$args['workflow_id']);
         return ['type'=>'research_report','public_id'=>(string)$result['public_id'],'label'=>'Published Research version '.(int)$result['version_number'],'url'=>'/research-report.php?id='.rawurlencode((string)$result['public_id']).'&v='.(int)$result['version_number']];
+    }
+    if($capability==='research.record_portfolio_inference'){
+        if(!function_exists('research_intelligence_portfolio_add_inference'))throw new RuntimeException('Research Intelligence Portfolios require the latest database upgrade.');
+        $insight=research_intelligence_portfolio_add_inference($pdo,$viewer,(string)$args['portfolio_id'],$args,true);
+        return ['type'=>'portfolio_inference','public_id'=>(string)$insight['public_id'],'label'=>(string)$insight['title'],'url'=>'/research-intelligence-portfolios.php?portfolio='.rawurlencode((string)$args['portfolio_id'])];
     }
     if($capability==='research.create_note'){
         $public=ulid_like();$pdo->prepare('INSERT INTO research_notes(public_id,project_id,user_id,body) VALUES(?,?,?,?)')->execute([$public,$projectId,$userId,$args['body']]);

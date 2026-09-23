@@ -51,6 +51,13 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: bash tests/ci/run-full-regression.sh
+      - name: Upgrade rehearsal from migration 056 through 057 and 058
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE60_RESET_DB: '1'
+        run: php tests/ci/phase60-upgrade-from-056.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -90,6 +97,14 @@ jobs:
           php tests/phase17-proactive-intelligence-db.php
           php tests/home-cognitive-mysql8-db.php
           php tests/research-library-db.php
+          php tests/phase60-research-intelligence-portfolios-db.php
+      - name: MySQL 8 upgrade rehearsal from migration 056 through 057 and 058
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE60_RESET_DB: '1'
+        run: php tests/ci/phase60-upgrade-from-056.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
