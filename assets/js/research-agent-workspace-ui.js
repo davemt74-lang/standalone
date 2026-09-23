@@ -720,6 +720,7 @@
   desktop.querySelector('[data-research-desktop-upload]')?.addEventListener('click',()=>fileInput?.click());
   fileInput?.addEventListener('change',()=>uploadFiles(fileInput.files||[],54,86,currentFolder));
   desktop.querySelector('[data-research-desktop-recording]')?.addEventListener('click',openRecordingWindow);
+  desktop.querySelector('[data-research-desktop-library]')?.addEventListener('click',openLibrary);
   desktop.querySelector('[data-research-recording-close]')?.addEventListener('click',closeRecordingWindow);
   desktop.querySelector('[data-research-record-start]')?.addEventListener('click',startRecording);
   desktop.querySelector('[data-research-record-pause]')?.addEventListener('click',pauseRecording);
