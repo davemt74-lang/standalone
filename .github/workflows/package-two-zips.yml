@@ -125,6 +125,13 @@ jobs:
           test -f package-website/tests/phase63-vp3-connection-contract.php
           test -f package-website/tests/phase63-vp3-connection-db.php
           test -f package-website/tests/ci/phase63-upgrade-from-059.php
+          test -f package-website/database/migrations/20260923_061_profile_public_identity_showcase.sql
+          test -f package-website/app/profile-showcase.php
+          test -f package-website/profile-connections.php
+          test -f package-website/tests/profile-phase2-showcase-contract.php
+          test -f package-website/tests/profile-phase2-showcase-db.php
+          test -f package-website/tests/ci/profile-phase2-upgrade-from-060.php
+          test -f package-website/docs/profile-phase-2-public-identity-research-showcase.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
