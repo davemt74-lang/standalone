@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
 $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-require_once $root.'/app/installer.php';require_once $root.'/app/storage.php';require_once $root.'/app/functions.php';require_once $root.'/app/shell.php';require_once $root.'/app/access.php';require_once $root.'/app/notifications.php';require_once $root.'/app/rate-limit.php';require_once $root.'/app/conversations.php';require_once $root.'/app/agent-chat.php';require_once $root.'/app/research-automation.php';require_once $root.'/app/research-agents.php';
+require_once $root.'/app/installer.php';require_once $root.'/app/storage.php';require_once $root.'/app/functions.php';require_once $root.'/app/shell.php';require_once $root.'/app/access.php';require_once $root.'/app/notifications.php';require_once $root.'/app/rate-limit.php';require_once $root.'/app/conversations.php';require_once $root.'/app/agent-chat.php';require_once $root.'/app/research-automation.php';require_once $root.'/app/research-agents.php';require_once $root.'/app/research-library.php';
 function p12b(bool $v,string $m): void {if(!$v)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
 function p12bthrows(callable $fn,string $m): void {try{$fn();}catch(Throwable $e){echo "PASS: $m\n";return;}throw new RuntimeException('FAIL: '.$m);}
 $run='p12b'.substr(bin2hex(random_bytes(6)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
@@ -16,15 +16,31 @@ p12b(agent_chat_access($pdo,$other,$c['public_id'])===null,'another user cannot 
 $list=agent_chat_list($pdo,$owner);p12b(count(array_filter($list,fn($r)=>$r['public_id']===$c['public_id']))===1,'Agent conversation appears in owner history');
 p12b(count(array_filter(agent_chat_list($pdo,$other),fn($r)=>$r['public_id']===$c['public_id']))===0,'Agent history is isolated per user');
 $otherAgent=agent_chat_create($pdo,$other,'Other User Agent Chat');
+$defaultAgent=research_agent_ensure_default($pdo,$owner);
+p12b(is_array($defaultAgent)&&!empty($defaultAgent['public_id']),'eligible user receives one default Research Agent');
+p12b(($defaultAgent['status']??'')==='active'&&(int)($defaultAgent['is_default']??0)===1,'default Research Agent is explicitly marked active');
+$defaultAgain=research_agent_ensure_default($pdo,$owner);
+p12b(($defaultAgain['public_id']??'')===($defaultAgent['public_id']??''),'default Research Agent provisioning is idempotent');
+$q=$pdo->prepare('SELECT COUNT(*) FROM research_agents WHERE owner_user_id=? AND is_default=1');$q->execute([$owner['id']]);
+p12b((int)$q->fetchColumn()===1,'user has exactly one default Research Agent');
+
 $shellAgents=app_shell_research_agent_rows($pdo,$owner,30);
 p12b(count(array_filter($shellAgents,fn($r)=>($r['conversation_public_id']??'')===$c['public_id']))===0,'ordinary Agent chats never appear as Research Agents');
 p12b(count(array_filter($shellAgents,fn($r)=>($r['conversation_public_id']??'')===$otherAgent['public_id']))===0,'another user\'s Agent chat never leaks into Research Agents');
+p12b(count(array_filter($shellAgents,fn($r)=>($r['public_id']??'')===$defaultAgent['public_id']))===1,'default Research Agent appears in the sidebar');
 
 $explicitAgent=research_agent_create($pdo,$owner,['name'=>'Explicit Research Agent','description'=>'Track evidence changes for this project.','cadence'=>'daily','timezone_name'=>'UTC']);
 p12b(!empty($explicitAgent['public_id'])&&!empty($explicitAgent['project_public_id'])&&!empty($explicitAgent['conversation_public_id']),'user-created Research Agent owns an explicit project and Agent conversation');
 p12b(!empty($explicitAgent['automation_id']),'scheduled Research Agent owns a monitoring automation');
 $shellAgents=app_shell_research_agent_rows($pdo,$owner,30);
-p12b(count(array_filter($shellAgents,fn($r)=>($r['conversation_public_id']??'')===$explicitAgent['conversation_public_id']))===1,'only explicitly created Research Agents appear in the sidebar');
+p12b(count(array_filter($shellAgents,fn($r)=>($r['conversation_public_id']??'')===$explicitAgent['conversation_public_id']))===1,'explicitly created Research Agents appear beside the default Agent');
+p12b(count($shellAgents)===2,'ordinary Agent chats stay out while default plus explicit Research Agents remain visible');
+
+$visibleProjects=app_shell_research_project_rows($pdo,$owner,50);
+p12b(count(array_filter($visibleProjects,fn($r)=>($r['public_id']??'')===$defaultAgent['project_public_id']))===0,'default Research Agent backing workspace does not masquerade as a Research project');
+p12b(count(array_filter($visibleProjects,fn($r)=>($r['public_id']??'')===$explicitAgent['project_public_id']))===0,'explicit Research Agent backing workspace stays out of Research project folders');
+$libraryProjects=research_library_projects($pdo,$owner,100);
+p12b(count(array_filter($libraryProjects,fn($r)=>($r['public_id']??'')===$defaultAgent['project_public_id']))===0,'Research canvas excludes Research Agent backing workspaces');
 
 $userMessage=conversation_message_create($pdo,$owner,$c['public_id'],'What changed?',null,'agent-client-'.$run);
 $agentMessage=agent_chat_insert_agent_message($pdo,$c,'Here is the current summary.',(int)$userMessage['id']);
