@@ -96,7 +96,14 @@
     const status=String(p.status||'pending');card.dataset.status=status;card.querySelector('[data-proposal-status]').textContent=status.replace(/_/g,' ');
     const actions=card.querySelector('[data-proposal-actions]');if(actions)actions.hidden=status!=='pending';
     const result=card.querySelector('[data-proposal-result]');
-    if(result){result.replaceChildren();if(status==='executed'&&p.result?.url){const a=document.createElement('a');a.href=p.result.url;a.textContent='Open '+(p.result.label||p.result.type||'result');result.appendChild(a);}else if(p.error_text){result.textContent=p.error_text;}}
+    if(result){
+      result.replaceChildren();
+      if(status==='executed'&&p.result?.type==='document'){
+        result.appendChild(renderAttachment({...p.result,type:'document',title:p.result.label||'Research document',created_by_agent:true}));
+      }else if(status==='executed'&&p.result?.url){
+        const a=document.createElement('a');a.href=p.result.url;a.textContent='Open '+(p.result.label||p.result.type||'result');result.appendChild(a);
+      }else if(p.error_text)result.textContent=p.error_text;
+    }
   }
   function renderProposal(p){
     const card=document.createElement('section');card.className='agentActionProposal';card.dataset.proposal=p.public_id||'';
