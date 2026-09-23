@@ -103,6 +103,11 @@ function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publ
 function object_handoff_can_share_to_conversation(PDO $pdo,array $viewer,array $conversation,string $type,string $publicId): bool {
     $object=object_handoff_resolve($pdo,$viewer,$type,$publicId);if(!$object)return false;
     if(($conversation['conversation_type']??'')!=='team'||empty($conversation['team_id']))return false;
+    $conversationTeamPublic=trim($conversationTeamPublic);
+    if($conversationTeamPublic===''){
+        $tq=$pdo->prepare('SELECT public_id FROM teams WHERE id=? LIMIT 1');$tq->execute([(int)$conversation['team_id']]);
+        $conversationTeamPublic=trim((string)($tq->fetchColumn()?:''));
+    }
     if($object['type']==='annotation'){
         if($object['visibility']==='public')return true;
         if($object['visibility']==='team'&&!empty($object['team_id'])&&(int)$object['team_id']===(int)$conversation['team_id'])return true;
@@ -110,15 +115,15 @@ function object_handoff_can_share_to_conversation(PDO $pdo,array $viewer,array $
     }
     if($object['type']==='bookmark'){
         return !empty($object['team_public_id'])
-            &&hash_equals((string)$object['team_public_id'],(string)($conversation['team_public_id']??''));
+            &&hash_equals((string)$object['team_public_id'],$conversationTeamPublic);
     }
     if($object['type']==='document'){
         return !empty($object['team_public_id'])
-            &&hash_equals((string)$object['team_public_id'],(string)($conversation['team_public_id']??''));
+            &&hash_equals((string)$object['team_public_id'],$conversationTeamPublic);
     }
     if(in_array($object['type'],['upload','recording'],true)){
         return !empty($object['team_public_id'])
-            &&hash_equals((string)$object['team_public_id'],(string)($conversation['team_public_id']??''));
+            &&hash_equals((string)$object['team_public_id'],$conversationTeamPublic);
     }
     return false;
 }
