@@ -30,7 +30,7 @@ $need('home.php','data-research-library-drawer','Research Agent must include the
 $need('home.php','data-research-library-filter="transcript"','Research Library must expose ready transcripts as a first-class filter.');
 $avoid('home.php','researchAgentCanvasHeader researchAgentChatHeader','Legacy Research Agent header markup must be removed.');
 $need('assets/js/research-agent-workspace-ui.js','function openLibrary()','Research Library must load live Research objects.');
-$need('assets/js/research-agent-workspace-ui.js','function renderLibrary()','Research Library must render searchable object rows.');
+$need('assets/js/research-agent-workspace-ui.js','function renderLibrary(','Research Library must render searchable object rows.');
 $need('home.php','data-research-library-filter="transcript"','Research Library transcript filter must remain available after the unified retrieval upgrade.');
 $need('assets/js/research-agent-workspace-ui.js','/api/research-retrieval.php','Research Library must use the Phase 54 server-backed retrieval layer.');
 $need('assets/css/app.css','.researchLibraryDrawer{','Research Library must have a dedicated drawer surface.');
