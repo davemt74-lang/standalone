@@ -26,7 +26,7 @@ $must('app/cognitive-feed.php',['research_intelligence_portfolio_cognitive_obser
 $must('app/agent-actions.php',["'research.record_portfolio_inference'","research_intelligence_portfolio_contains_project","research_intelligence_portfolio_add_inference"],'Phase 60 governed Agent inference');
 $agent=(string)file_get_contents($root.'/app/agent-actions.php');
 $start=strpos($agent,'function agent_action_clean_arguments');$end=strpos($agent,'function agent_action_event',$start);$clean=$start!==false&&$end!==false?substr($agent,$start,$end-$start):'';
-if(str_contains($clean,"$seen[")||str_contains($clean,'research_publication_workflow_access($pdo'))$fail[]='Phase 60 stabilization: project/access validation must not remain inside argument cleaning.';
+if(str_contains($clean,'$seen[')||str_contains($clean,'research_publication_workflow_access($pdo'))$fail[]='Phase 60 stabilization: project/access validation must not remain inside argument cleaning.';
 $validateStart=strpos($agent,'function agent_action_validate_project_arguments');$validateEnd=strpos($agent,'function agent_action_create_proposals',$validateStart);$validate=$validateStart!==false&&$validateEnd!==false?substr($agent,$validateStart,$validateEnd-$validateStart):'';
 foreach(['research.prepare_publication_review','research.publish_approved_document','research.record_portfolio_inference'] as $needle)if(!str_contains($validate,$needle))$fail[]="Phase 60 stabilization: governed validation missing for $needle.";
 $css=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');
