@@ -92,9 +92,9 @@ $need('worker/research-transcription-worker.php',"\$config['transcription']", 'R
 $need('app/jobs.php',"'research_file_jobs'",'Research file jobs must participate in generic lease recovery.');
 $need('app/jobs.php',"'research_transcription_jobs'",'Research transcription jobs must participate in generic lease recovery.');
 
-$need('home.php','/assets/css/app.css?v=54.0','Phase 54 stylesheet must have a fresh cache key.');
-$need('home.php','research-agent-workspace-ui.js?v=54.0','Phase 54 Desktop runtime must have a fresh cache key.');
-$need('home.php','agent-chat.js?v=42.0','Phase 53 Agent Chat media cards must have a fresh cache key.');
+$need('home.php','/assets/css/app.css?v=55.1','Phase 54 stylesheet must have a fresh cache key.');
+$need('home.php','research-agent-workspace-ui.js?v=55.1','Phase 54 Desktop runtime must have a fresh cache key.');
+$need('home.php','agent-chat.js?v=55.1','Phase 53 Agent Chat media cards must have a fresh cache key.');
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
 echo "Phase 53 Desktop Files, Uploads & Recordings contract passed.\n";

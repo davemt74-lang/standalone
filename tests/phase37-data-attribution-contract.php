@@ -30,7 +30,7 @@ $need('app/agent-chat.php','data_response_try_bind_message','Agent Chat must bin
 $need('app/agent-chat.php','data_response_attribution_map','Agent Chat history must expose bounded attribution summaries.');
 $need('assets/js/agent-chat.js',"lineage.className='agentChatMessageContext'",'Agent Chat must visibly render response attribution with the existing shared UI system.');
 $need('assets/js/agent-chat.js','/data-attribution.php?run_id=','Agent Chat attribution must link to the permission-checked lineage view.');
-$need('home.php','agent-chat.js?v=42.0','Phase 37+ Agent Chat client must retain a fresh cache key after the Home feed/Research Agent split.');
+$need('home.php','agent-chat.js?v=55.1','Phase 37+ Agent Chat client must retain a fresh cache key after the Home feed/Research Agent split.');
 $need('data-attribution.php','RESPONSE LINEAGE','Contributor dashboard must render permission-checked response lineage.');
 $need('api/publish-annotation.php','data_attribution_try_capture_object','Website Annotation publishing must enter the contribution ledger.');
 $need('api/extension-publish.php','data_attribution_try_capture_object','Chrome Annotation publishing must enter the contribution ledger.');
