@@ -200,6 +200,8 @@ function research_monitor_candidate_promote(PDO $pdo,array $watch,array $candida
 
 function research_monitor_discovery_command(array $config,array $watch): array {
     $command=trim((string)($config['research_monitoring']['discovery_command']??''));if($command==='')return [];
+    if(!function_exists('exec'))throw new RuntimeException('External Research discovery is configured but PHP exec is unavailable.');
+    if(!str_contains($command,'{input}')||!str_contains($command,'{output}'))throw new RuntimeException('External Research discovery command must contain {input} and {output} placeholders.');
     $input=tempnam(sys_get_temp_dir(),'annmon-in-');$output=tempnam(sys_get_temp_dir(),'annmon-out-');if(!$input||!$output)throw new RuntimeException('Unable to allocate discovery files.');
     try{
         $payload=['watch_type'=>$watch['watch_type'],'target'=>$watch['target'],'query'=>$watch['query_text']?:$watch['target'],'limit'=>30];
@@ -236,7 +238,7 @@ function research_monitor_queue_claim_assessments(PDO $pdo,int $projectId,int $s
 
 function research_monitor_claim_assessment_context(PDO $pdo,string $publicId): ?array {
     $q=$pdo->prepare("SELECT rmca.*,rmw.public_id watch_public_id,rmw.research_agent_id,rc.public_id claim_public_id,rc.statement,rc.status claim_status,
-      sv.extracted_text,sv.title source_title,sv.final_url,s.public_id source_public_id
+      sv.extracted_text,sv.title source_title,sv.final_url,s.id source_id,s.public_id source_public_id
       FROM research_monitor_claim_assessments rmca
       JOIN research_monitor_watches rmw ON rmw.id=rmca.watch_id
       JOIN research_claims rc ON rc.id=rmca.claim_id
@@ -336,7 +338,7 @@ function research_monitor_run(PDO $pdo,array $config,array $watch,string $trigge
         if((string)$watch['watch_type']==='url')$candidates[]=['url'=>(string)$watch['canonical_url'],'title'=>'','excerpt'=>''];
         elseif((string)$watch['watch_type']==='domain')$candidates=research_monitor_domain_sitemap($watch);
         if(!in_array((string)$watch['watch_type'],['url'],true))$candidates=array_merge($candidates,research_monitor_discovery_command($config,$watch));
-        $seen=[];$discovered=0;$promotedBefore=0;$promotedAfter=0;
+        $seen=[];$discovered=0;$promotedAfter=0;
         foreach($candidates as $candidate){$row=research_monitor_candidate_ingest($pdo,$watch,$candidate);if(!$row)continue;$seen[]=$row['payload_hash'];$discovered++;if((string)$row['status']==='promoted')$promotedAfter++;}
         $events=research_monitor_sync_source_changes($pdo,$watch)+research_monitor_sync_claim($pdo,$watch);
         $outHash=hash('sha256',json_encode([$seen,$events,$promotedAfter],JSON_UNESCAPED_SLASHES));
