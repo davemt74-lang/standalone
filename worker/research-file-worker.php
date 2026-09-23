@@ -48,6 +48,7 @@ try{
     $pdo->prepare("UPDATE research_workspace_uploads SET processing_status='ready',extracted_text=?,page_count=COALESCE(?,page_count),last_error=NULL,updated_at=NOW() WHERE object_id=?")->execute([$text!==''?$text:null,$pageCount,(int)$job['object_id']]);
     job_claim_complete($pdo,'research_file_jobs',$id,$token);$pdo->commit();
     if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$job['project_id']);
+    if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$job['project_id'],(int)$job['created_by_user_id'],'research_change','Uploaded Research file extraction completed.');
     notify_user($pdo,(int)$job['created_by_user_id'],null,'research_upload_ready','upload',(string)$job['public_id'],'Your Research file is ready: '.mb_substr((string)$job['original_name'],0,180));
     release_worker_heartbeat($pdo,'research_files','success','Research file processed.',1);echo "Research file ready.\n";
 }catch(LostJobClaim $e){
