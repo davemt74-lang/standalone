@@ -42,8 +42,8 @@ $need('app/shell.php','appShellSectionTitle">Research Agents','User sidebar must
 $need('app/shell.php','data-research-agent-add','Research Agents section must expose a + create button.');
 $need('app/shell.php','New Research Agent','Sidebar + control must open the New Research Agent modal.');
 $need('assets/js/research-agent-shell.js','/api/research-agents.php?action=create','New Research Agent modal must create an explicit Research Agent through the API.');
-$avoid('profile.php',"$GLOBALS['annotated_shell_mode']='header_only'",'Signed-in Profile must use the full Annotated shell.');
-$need('profile.php',"if(!$viewer):?><header class=\"topbar\"", 'Profile legacy header must be restricted to logged-out public visitors.');
+$avoid('profile.php','annotated_shell_mode','Signed-in Profile must use the full Annotated shell.');
+$need('profile.php','if(!$viewer):?><header class="topbar"','Profile legacy header must be restricted to logged-out public visitors.');
 $need('assets/css/app.css','/* Profile shell repair */','Profile must have a dedicated shell layout repair.');
 $avoid('annotation.php','<header class="topbar">','Annotation detail pages must not render a second legacy header inside the shared app shell.');
 $need('app/shell.php','/home.php?agent=','Research Agent sidebar items must deep-link to existing Agent chats.');
