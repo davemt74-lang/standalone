@@ -16,7 +16,7 @@ required=(
   admin/system-health.php admin/intelligence-release-audit.php admin/model-campaigns.php
   bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php
   database/schema.sql database/migrations/20260922_046_model_improvement_campaigns.sql database/migrations/20260922_047_research_agents.sql database/migrations/20260923_048_research_agent_workspace_core.sql database/migrations/20260923_049_research_docs_floating_stickies.sql database/migrations/20260923_050_research_agent_desktop.sql database/migrations/20260923_051_research_desktop_uploads_recordings.sql database/migrations/20260923_052_unified_research_retrieval.sql database/migrations/20260923_053_autonomous_research_workspace.sql database/migrations/20260923_054_continuous_research_monitoring.sql database/migrations/20260923_055_research_tasks_plans_deliverables.sql database/migrations/20260923_056_research_programs_recurring_intelligence.sql database/migrations/20260923_057_collaborative_review_approval_publishing.sql database/migrations/20260923_058_research_intelligence_portfolios_executive_briefing.sql database/migrations/20260923_059_portfolio_intelligence_operations_follow_through.sql
-  docs/RELEASE-V1.1-RC1.md docs/phase-49-release-candidate-operational-hardening.md docs/phase-51-research-docs-floating-stickies.md docs/phase-52-research-agent-desktop.md docs/phase-53-desktop-files-recordings.md docs/phase-54-unified-research-retrieval.md docs/phase-55-autonomous-research-workspace.md docs/phase-56-continuous-research-monitoring.md docs/phase-57-research-tasks-plans-deliverables.md docs/phase-58-research-programs-recurring-intelligence.md docs/phase-59-collaborative-review-approval-publishing.md docs/phase-60-research-intelligence-portfolios-executive-briefing.md docs/phase-61-portfolio-intelligence-operations-follow-through.md
+  docs/RELEASE-V1.1-RC1.md docs/RELEASE-V1.1.md docs/phase-49-release-candidate-operational-hardening.md docs/phase-51-research-docs-floating-stickies.md docs/phase-52-research-agent-desktop.md docs/phase-53-desktop-files-recordings.md docs/phase-54-unified-research-retrieval.md docs/phase-55-autonomous-research-workspace.md docs/phase-56-continuous-research-monitoring.md docs/phase-57-research-tasks-plans-deliverables.md docs/phase-58-research-programs-recurring-intelligence.md docs/phase-59-collaborative-review-approval-publishing.md docs/phase-60-research-intelligence-portfolios-executive-briefing.md docs/phase-61-portfolio-intelligence-operations-follow-through.md docs/phase-62-v1-1-final-release-validation-production-cutover.md tests/phase62-final-release-contract.php tests/phase62-v1-1-final-release-db.php tests/phase62-v1-1-soak-db.php tests/ci/phase62-upgrade-supported-baselines.php
   extension/manifest.json downloads/Annotated-Chrome-Extension.zip
 )
 for path in "${required[@]}"; do [[ -f "$tmp/site/$path" ]] || { echo "Missing website package file: $path" >&2; exit 1; }; done
@@ -33,6 +33,7 @@ $r=json_decode(file_get_contents($site."/RELEASE-MANIFEST.json"),true,512,JSON_T
 $m=json_decode(file_get_contents($ext."/manifest.json"),true,512,JSON_THROW_ON_ERROR);
 if(($r["version"]??"")!=="1.1.0")throw new RuntimeException("Unexpected application release version.");
 if((int)($r["phase"]??0)!==62)throw new RuntimeException("Unexpected release phase.");
+if(($r["channel"]??"")!=="stable")throw new RuntimeException("Unexpected release channel.");
 if(($r["extension_version"]??"")!=="0.36.0"||($m["version"]??"")!=="0.36.0")throw new RuntimeException("Extension/release version mismatch.");
 if(($m["manifest_version"]??0)!==3)throw new RuntimeException("Extension must remain Manifest V3.");
 if(($r["latest_migration"]??"")!=="20260923_059_portfolio_intelligence_operations_follow_through.sql")throw new RuntimeException("Release manifest does not identify latest migration.");
@@ -55,3 +56,5 @@ echo "Phase 59 Collaborative Review, Approval & Publishing package extensions pa
 echo "Phase 60 Research Intelligence Portfolios & Executive Briefing package extensions passed."
 
 echo "Phase 61 Portfolio Intelligence Operations & Executive Follow-Through package extensions passed."
+
+echo "Phase 62 V1.1 stable production package extensions passed."
