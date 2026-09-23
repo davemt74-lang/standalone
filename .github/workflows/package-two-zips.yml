@@ -95,6 +95,14 @@ jobs:
           test -f package-website/research-reviews.php
           test -f package-website/tests/phase59-collaborative-review-approval-publishing-contract.php
           test -f package-website/tests/phase59-collaborative-review-approval-publishing-db.php
+          test -f package-website/database/migrations/20260923_058_research_intelligence_portfolios_executive_briefing.sql
+          test -f package-website/docs/phase-60-research-intelligence-portfolios-executive-briefing.md
+          test -f package-website/app/research-intelligence-portfolios.php
+          test -f package-website/api/research-intelligence-portfolios.php
+          test -f package-website/research-intelligence-portfolios.php
+          test -f package-website/tests/phase60-research-intelligence-portfolios-contract.php
+          test -f package-website/tests/phase60-research-intelligence-portfolios-db.php
+          test -f package-website/tests/ci/phase60-upgrade-from-056.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
