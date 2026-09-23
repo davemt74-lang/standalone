@@ -25,6 +25,21 @@ $need('database/migrations/20260923_051_research_desktop_uploads_recordings.sql'
 
 $need('home.php','data-research-desktop-upload','Research Desktop must expose + Upload.');
 $need('home.php','data-research-desktop-recording','Research Desktop must expose + Recording.');
+$need('home.php','data-research-library-open','Research Agent canvas must expose the Library drawer control.');
+$need('home.php','data-research-library-drawer','Research Agent must include the slide-out Research Library.');
+$need('home.php','data-research-library-filter="transcript"','Research Library must expose ready transcripts as a first-class filter.');
+$avoid('home.php','researchAgentCanvasHeader researchAgentChatHeader','Legacy Research Agent header markup must be removed.');
+$need('assets/js/research-agent-workspace-ui.js','function openLibrary()','Research Library must load live Research objects.');
+$need('assets/js/research-agent-workspace-ui.js','function renderLibrary()','Research Library must render searchable object rows.');
+$need('assets/js/research-agent-workspace-ui.js',"libraryFilter==='transcript'",'Research Library transcript filter must resolve ready recording transcripts without duplicating objects.');
+$need('assets/css/app.css','.researchLibraryDrawer{','Research Library must have a dedicated drawer surface.');
+$need('assets/css/app.css','position:fixed!important;','Research Library must overlay the app rather than live inside the Agent canvas flow.');
+$need('assets/css/app.css','top:0!important;','Research Library must begin above the global header at the top of the viewport.');
+$need('assets/css/app.css','bottom:0!important;','Research Library must span the full viewport height.');
+$need('assets/css/app.css','z-index:30000!important;','Research Library must render above the global app header.');
+$need('assets/css/app.css','.researchAgentCanvasTopActions{','Research Agent controls must use one sticky top-right cluster.');
+$need('assets/css/app.css','position:sticky!important;','Research Agent Library/Desktop/close controls must stay sticky while using the Agent canvas.');
+
 $need('home.php','data-research-recording-window','Desktop must provide a recording window.');
 $need('home.php','data-research-transcript-window','Desktop must provide a transcript window.');
 $need('home.php','Save &amp; Transcribe','Recording flow must clearly save and transcribe.');
@@ -76,8 +91,8 @@ $need('worker/research-transcription-worker.php',"\$config['transcription']", 'R
 $need('app/jobs.php',"'research_file_jobs'",'Research file jobs must participate in generic lease recovery.');
 $need('app/jobs.php',"'research_transcription_jobs'",'Research transcription jobs must participate in generic lease recovery.');
 
-$need('home.php','/assets/css/app.css?v=53.0','Phase 53 stylesheet must have a fresh cache key.');
-$need('home.php','research-agent-workspace-ui.js?v=53.0','Phase 53 Desktop runtime must have a fresh cache key.');
+$need('home.php','/assets/css/app.css?v=53.1','Phase 53 stylesheet must have a fresh cache key.');
+$need('home.php','research-agent-workspace-ui.js?v=53.1','Phase 53 Desktop runtime must have a fresh cache key.');
 $need('home.php','agent-chat.js?v=42.0','Phase 53 Agent Chat media cards must have a fresh cache key.');
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
