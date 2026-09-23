@@ -28,7 +28,7 @@ foreach([
  'research_monitor_create','research_monitor_queue_due','research_monitor_candidate_ingest',
  'research_monitor_candidate_promote','research_monitor_sync_source_changes','research_monitor_sync_claim',
  'research_monitor_queue_claim_assessments','research_monitor_claim_assessment_apply',
- 'research_monitor_chat_updates','research_monitor_run','research_monitor_summary',
+ 'research_monitor_chat_updates','research_monitor_run','research_monitor_summary','auto_promote_limit_per_run',
  "PHP exec is unavailable","{input} and {output} placeholders"
 ] as $needle)$must(str_contains($runtime,$needle),'Phase 56 runtime contract missing: '.$needle);
 $must(!str_contains($runtime,"UPDATE research_claims SET status="),'Phase 56 claim intelligence must not silently rewrite saved claim status.');
@@ -43,7 +43,7 @@ $aiWorker=(string)file_get_contents($root.'/worker/ai-worker.php');
 foreach(['research_monitor_claim_assessment','research_monitor_claim_assessment_apply','supports|weakens|contradicts|unrelated'] as $needle)$must(str_contains($aiWorker,$needle),'Phase 56 AI claim-intelligence contract missing: '.$needle);
 
 $config=(string)file_get_contents($root.'/config.example.php');
-foreach(["'research_monitoring'","'discovery_command'","{input}","{output}"] as $needle)$must(str_contains($config,$needle),'Phase 56 discovery-provider contract missing: '.$needle);
+foreach(["'research_monitoring'","'discovery_command'","'auto_promote_limit_per_run'","{input}","{output}"] as $needle)$must(str_contains($config,$needle),'Phase 56 discovery-provider contract missing: '.$needle);
 
 $home=(string)file_get_contents($root.'/home.php');
 foreach(['data-research-library-filter="monitoring"','/assets/css/app.css?v=56.0','/assets/js/research-agent-workspace-ui.js?v=56.0'] as $needle)$must(str_contains($home,$needle),'Phase 56 Home/Library UI contract missing: '.$needle);
