@@ -352,16 +352,36 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
           WHERE ".implode(' AND ',$where)." ORDER BY COALESCE(d.source_updated_at,d.updated_at) DESC,d.id DESC LIMIT ".($limit*3);
         $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll()?:[];
     }else{
-        $mode='lexical';$like='%'.$query.'%';$searchWhere=$where;$searchWhere[]="(MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE)>0 OR c.content LIKE ? OR c.heading LIKE ? OR d.title LIKE ?)";
+        $mode='lexical';$like='%'.$query.'%';$searchWhere=$where;
+        $searchWhere[]="(COALESCE(MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE),0)>0 OR c.content LIKE ? OR c.heading LIKE ? OR d.title LIKE ?)";
         $searchParams=array_merge($params,[$query,$like,$like,$like]);
         $sql="SELECT d.*,c.id chunk_id,c.chunk_index,c.locator_type,c.locator_label,c.locator_json,c.heading,c.content,
-          (MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE)+(CASE WHEN d.title LIKE ? THEN 4 ELSE 0 END)+(CASE WHEN c.content LIKE ? THEN 1.5 ELSE 0 END)) lexical_score,c.embedding_json
-          FROM research_retrieval_documents d JOIN research_retrieval_chunks c ON c.document_id=d.id
+          (COALESCE(MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE),0)+(CASE WHEN d.title LIKE ? THEN 4 ELSE 0 END)+(CASE WHEN c.content LIKE ? THEN 1.5 ELSE 0 END)) lexical_score,c.embedding_json
+          FROM research_retrieval_documents d LEFT JOIN research_retrieval_chunks c ON c.document_id=d.id
           WHERE ".implode(' AND ',$searchWhere)." ORDER BY lexical_score DESC,COALESCE(d.source_updated_at,d.updated_at) DESC LIMIT ".($limit*8);
         $q=$pdo->prepare($sql);$q->execute(array_merge([$query,$like,$like],$searchParams));$rows=$q->fetchAll()?:[];
     }
 
-    $queryVector=null;if($query!==''&&research_retrieval_embed_command($config)!==''){try{$queryVector=research_retrieval_embed_text($config,$query);if($queryVector)$mode='hybrid';}catch(Throwable $e){}}
+    $queryVector=null;$semanticRows=[];
+    if($query!==''&&research_retrieval_embed_command($config)!==''){
+        try{
+            $queryVector=research_retrieval_embed_text($config,$query);
+            if($queryVector){
+                $semanticLimit=max(300,min(2000,$limit*30));
+                $semanticWhere=$where;$semanticWhere[]="c.embedding_status='ready'";$semanticWhere[]='c.embedding_json IS NOT NULL';
+                $sql="SELECT d.*,c.id chunk_id,c.chunk_index,c.locator_type,c.locator_label,c.locator_json,c.heading,c.content,0 lexical_score,c.embedding_json
+                  FROM research_retrieval_documents d JOIN research_retrieval_chunks c ON c.document_id=d.id
+                  WHERE ".implode(' AND ',$semanticWhere)." ORDER BY COALESCE(d.source_updated_at,d.updated_at) DESC,c.id DESC LIMIT ".$semanticLimit;
+                $q=$pdo->prepare($sql);$q->execute($params);$semanticRows=$q->fetchAll()?:[];
+                if($semanticRows)$mode='hybrid';
+            }
+        }catch(Throwable $e){$queryVector=null;$semanticRows=[];}
+    }
+    if($semanticRows){
+        $seenChunks=[];foreach($rows as $row)if(!empty($row['chunk_id']))$seenChunks[(string)$row['chunk_id']]=true;
+        foreach($semanticRows as $row){$key=(string)($row['chunk_id']??'');if($key!==''&&isset($seenChunks[$key]))continue;$rows[]=$row;if($key!=='')$seenChunks[$key]=true;}
+    }
+
     $best=[];foreach($rows as $row){
         if(!research_retrieval_result_allowed($pdo,$viewer,$row))continue;
         $metadata=json_decode((string)($row['metadata_json']??''),true)?:[];
