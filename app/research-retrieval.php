@@ -127,8 +127,9 @@ function research_retrieval_collect_records(PDO $pdo,int $projectId): array {
       JOIN sources s ON s.id=a.source_id JOIN users u ON u.id=a.user_id
       LEFT JOIN annotation_transcripts at ON at.annotation_id=a.id
       LEFT JOIN research_workspace_desktop_positions rdp ON rdp.project_id=pa.project_id AND rdp.object_type='annotation' AND rdp.object_public_id=a.public_id
-      LEFT JOIN research_workspace_objects folder ON folder.id=rdp.folder_object_id AND folder.status='active'
-      WHERE pa.project_id=? AND a.status NOT IN ('removed') ORDER BY pa.created_at,a.id");
+      LEFT JOIN research_workspace_objects folder ON folder.id=rdp.folder_object_id
+      WHERE pa.project_id=? AND a.status NOT IN ('removed') AND (rdp.folder_object_id IS NULL OR folder.status='active')
+      ORDER BY pa.created_at,a.id");
     $q->execute([$projectId]);
     foreach($q->fetchAll()?:[] as $row){
         $parts=[];if(trim((string)$row['text_commentary'])!=='')$parts[]="Commentary: ".trim((string)$row['text_commentary']);
