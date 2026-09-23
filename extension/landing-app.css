@@ -2218,3 +2218,69 @@
   .researchDesktopDocumentWindow{left:2%!important;top:2%!important;width:96%!important;height:96%!important;min-width:0;min-height:0;resize:none}.researchDesktopDocumentWindow .researchDocumentEditor{padding:25px 18px}.researchDesktopWindowControls button[data-research-document-move]{display:none!important}
   .researchDesktopSticky{max-width:70vw;max-height:55vh}
 }
+
+
+/* Phase 52.1 — Desktop full-column layout + control cleanup */
+.homeFeedPage.agentChatMode.researchDesktopMode .homeWorkspaceLayout{
+  width:100%!important;
+  max-width:none!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  justify-content:stretch!important;
+  margin:0!important;
+  padding:0!important;
+}
+.homeFeedPage.agentChatMode.researchDesktopMode .homeAgentCanvas{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  margin:0!important;
+  border-radius:0!important;
+}
+.homeFeedPage.agentChatMode.researchDesktopMode .agentChatCanvas{
+  min-height:calc(100vh - 58px)!important;
+}
+.homeAgentCanvas.researchDesktopOpen>.researchAgentCanvasTopActions{
+  display:none!important;
+}
+.homeAgentCanvas.researchDesktopOpen>.researchAgentChatHeader{
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+.homeAgentCanvas.researchDesktopOpen .researchDesktop{
+  width:100%!important;
+  max-width:none!important;
+}
+.researchDesktopBar{
+  background:transparent!important;
+  border-bottom:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+.researchDesktopBrand,
+.researchDesktopBreadcrumbs,
+.researchDesktopActions{
+  position:relative;
+  z-index:2;
+}
+.researchDesktopActions{
+  min-width:0;
+  flex-wrap:nowrap;
+}
+.researchDesktopActions button{
+  flex:0 0 auto!important;
+  margin:0!important;
+  line-height:1!important;
+  font-family:inherit!important;
+  white-space:nowrap!important;
+}
+.researchDesktopActions .researchDesktopClose{
+  margin-left:3px!important;
+}
+.researchDesktopSurface{
+  border-top:0!important;
+}
+@media(max-width:900px){
+  .homeFeedPage.agentChatMode.researchDesktopMode .homeWorkspaceLayout{
+    padding:0!important;
+  }
+}

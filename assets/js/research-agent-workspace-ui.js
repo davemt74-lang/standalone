@@ -153,12 +153,12 @@
     }catch(err){setStatus(err.message||'Unable to load Research Desktop.',true);}
   }
   async function openDesktop(){
-    desktopOpen=true;desktop.hidden=false;canvas.classList.add('researchDesktopOpen');
+    desktopOpen=true;desktop.hidden=false;canvas.classList.add('researchDesktopOpen');document.body.classList.add('researchDesktopMode');
     await loadDesktop(false);
   }
   async function closeDesktop(){
     if(activeDocument&&documentDirty){try{await saveDocument(true);}catch{}}
-    desktopOpen=false;desktop.hidden=true;canvas.classList.remove('researchDesktopOpen');
+    desktopOpen=false;desktop.hidden=true;canvas.classList.remove('researchDesktopOpen');document.body.classList.remove('researchDesktopMode');
   }
 
   function openDesktopItem(item){
