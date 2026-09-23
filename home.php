@@ -20,6 +20,7 @@ $preferredTeam=trim((string)($_GET['team']??''));
 $workspaceResearchCandidate=trim((string)($_GET['project']??''));
 $workspaceAgentContext=trim((string)($_GET['agent']??''));
 $requestedResearchAgent=null;
+$requestedResearchDocument=null;
 $requestedFeedMode=strtolower(trim((string)($_GET['view']??'')));
 
 $conversationReady=false;$chatTeams=[];$preferredTeamContext='';$chatStatus=['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
@@ -60,6 +61,20 @@ try{
 }catch(Throwable $e){
     $recordHomeIncident('research-agent-context',$e);
     $requestedResearchAgent=null;
+}
+
+try{
+    $requestedDocumentPublic=trim((string)($_GET['doc']??''));
+    if($requestedResearchAgent&&$requestedDocumentPublic!==''&&function_exists('research_agent_workspace_object')){
+        $candidateDocument=research_agent_workspace_object($pdo,$u,$requestedDocumentPublic,false);
+        if($candidateDocument&&($candidateDocument['object_type']??'')==='document'
+          &&hash_equals((string)$requestedResearchAgent['project_public_id'],(string)$candidateDocument['project_public_id'])){
+            $requestedResearchDocument=$candidateDocument;
+        }
+    }
+}catch(Throwable $e){
+    $recordHomeIncident('research-agent-document',$e);
+    $requestedResearchDocument=null;
 }
 
 try{
@@ -176,25 +191,49 @@ try{
   <?php endforeach?>
 <?php endif?>
 </section>
-<section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>" hidden>
+<section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>" data-research-document="<?=h((string)($requestedResearchDocument['public_id']??''))?>" hidden>
   <button type="button" class="agentChatPanelClose" data-agent-panel-close aria-label="Close Agent Chat">×</button>
   <?php if($requestedResearchAgent):?><header class="researchAgentCanvasHeader" data-research-workspace-header>
     <div class="researchAgentCanvasIdentity"><span class="eyebrow">RESEARCH AGENT</span><strong><?=h((string)$requestedResearchAgent['name'])?></strong><?php if(!empty($requestedResearchAgent['team_name'])):?><small>Team · <?=h((string)$requestedResearchAgent['team_name'])?></small><?php endif?></div>
-    <nav class="researchAgentCanvasNav" aria-label="Research Agent workspace">
-      <button type="button" class="active" data-research-workspace-view="chat">Chat</button>
-      <button type="button" data-research-workspace-view="files">Files</button>
-      <button type="button" data-research-workspace-view="trash">Trash</button>
-    </nav>
+    <div class="researchAgentCanvasControls">
+      <button type="button" class="researchStickyCreate" data-research-create-sticky>+ Sticky</button>
+      <nav class="researchAgentCanvasNav" aria-label="Research Agent workspace">
+        <button type="button" class="active" data-research-workspace-view="chat">Chat</button>
+        <button type="button" data-research-workspace-view="docs">Docs</button>
+        <button type="button" data-research-workspace-view="files">Files</button>
+        <button type="button" data-research-workspace-view="trash">Trash</button>
+      </nav>
+    </div>
   </header>
   <section class="researchAgentWorkspacePanel" data-research-workspace-panel hidden>
     <div class="researchWorkspaceToolbar">
       <div><strong data-research-workspace-title>Workspace</strong><small data-research-workspace-path>All files</small></div>
-      <div class="researchWorkspaceToolbarActions"><button type="button" data-research-create-folder>New folder</button><button type="button" class="primary" data-research-create-bookmark>Add bookmark</button></div>
+      <div class="researchWorkspaceToolbarActions"><button type="button" data-research-create-folder>New folder</button><button type="button" data-research-create-document>New doc</button><button type="button" class="primary" data-research-create-bookmark>Add bookmark</button></div>
     </div>
     <div class="researchWorkspaceBreadcrumbs" data-research-workspace-breadcrumbs></div>
     <div class="researchWorkspaceStatus" data-research-workspace-status role="status" aria-live="polite"></div>
     <div class="researchWorkspaceGrid" data-research-workspace-grid></div>
-  </section><?php endif?>
+  </section>
+  <section class="researchDocumentWorkspace" data-research-document-workspace hidden>
+    <div class="researchDocumentPane">
+      <header class="researchDocumentHeader">
+        <button type="button" data-research-document-close>← Back to chat</button>
+        <div class="researchDocumentTitleWrap"><input type="text" maxlength="240" data-research-document-title aria-label="Document title"><span data-research-document-save-state>Saved</span></div>
+        <div class="researchDocumentHeaderActions"><button type="button" data-research-document-history>History</button><button type="button" data-research-document-move>Move</button></div>
+      </header>
+      <div class="researchDocumentToolbar" role="toolbar" aria-label="Document formatting">
+        <select data-doc-block aria-label="Text style"><option value="p">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option><option value="blockquote">Quote</option><option value="pre">Code block</option></select>
+        <button type="button" data-doc-command="bold"><strong>B</strong></button><button type="button" data-doc-command="italic"><em>I</em></button><button type="button" data-doc-command="underline"><u>U</u></button>
+        <button type="button" data-doc-command="insertUnorderedList">• List</button><button type="button" data-doc-command="insertOrderedList">1. List</button>
+        <button type="button" data-doc-link>Link</button><button type="button" data-doc-table>Table</button><button type="button" data-doc-command="undo">Undo</button><button type="button" data-doc-command="redo">Redo</button>
+        <span class="researchDocumentToolbarSpacer"></span><button type="button" data-doc-ask-selection>Ask Agent</button><button type="button" data-doc-sticky-selection>Create sticky</button>
+      </div>
+      <div class="researchDocumentEditor" data-research-document-editor contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"></div>
+      <aside class="researchDocumentHistory" data-research-document-history-panel hidden><header><strong>Version history</strong><button type="button" data-research-document-history-close>×</button></header><div data-research-document-history-list></div></aside>
+    </div>
+    <aside class="researchDocumentAgentPane" data-research-document-agent-pane><header><span class="eyebrow">RESEARCH AGENT</span><strong>Work with this document</strong><small>Select text and use Ask Agent, or keep chatting below.</small></header></aside>
+  </section>
+  <div class="researchStickyLayer" data-research-sticky-layer aria-label="Research sticky notes"></div><?php endif?>
   <div class="agentChatHistoryPanel" data-agent-history hidden><div class="agentChatHistoryHead"><strong>Recent chats</strong><button type="button" data-agent-history-close aria-label="Close chat history">×</button></div><div data-agent-history-list></div></div>
   <div class="agentChatMessages" data-agent-messages role="log" aria-live="polite"><div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p><?php if(($proactiveBriefing['count']??0)>0):?><section class="agentProactiveBriefing"><div class="eyebrow">RESEARCH BRIEFING</div><h3><?=h((string)$proactiveBriefing['count'])?> things worth reviewing</h3><?php foreach((array)$proactiveBriefing['items'] as $brief):?><article><strong><?=h((string)($brief['title']??'Research update'))?></strong><p><?=h((string)($brief['why']??''))?></p><?php if(!empty($brief['primary_url'])):?><a href="<?=h((string)$brief['primary_url'])?>">Open context</a><?php endif?></article><?php endforeach?></section><?php endif?></div></div>
 </section><aside class="homeRightRail <?=$chatTeams?'teamChatRightRail':''?>">
@@ -226,7 +265,7 @@ try{
 </form>
 <script src="/assets/js/workspace-state.js?v=36.0"></script>
 <script src="/assets/js/agent-chat.js?v=39.0"></script>
-<script src="/assets/js/research-agent-workspace-ui.js?v=50.0"></script>
+<script src="/assets/js/research-agent-workspace-ui.js?v=51.0"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=36.0"></script><?php endif?>
 <?php if($proactiveAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$proactiveAgentHandoff['prompt'],'context'=>$proactiveAgentHandoff['context'],'source'=>'proactive_notification'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
