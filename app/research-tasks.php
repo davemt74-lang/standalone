@@ -101,7 +101,7 @@ function research_task_default_gates(string $type): array {
       'verify_claim'=>[['type'=>'min_sources','required'=>['count'=>2]],['type'=>'citations','required'=>['count'=>1]],['type'=>'no_open_contradictions','required'=>['value'=>true]]],
       'review_source_change'=>[['type'=>'min_sources','required'=>['count'=>1]],['type'=>'citations','required'=>['count'=>1]]],
       'compare_sources','synthesize'=>[['type'=>'min_sources','required'=>['count'=>2]],['type'=>'citations','required'=>['count'=>1]]],
-      'draft_deliverable'=>[['type'=>'citations','required'=>['count'=>1]]],
+      'draft_deliverable'=>[['type'=>'citations','required'=>['count'=>1]],['type'=>'human_review','required'=>['value'=>true]]],
       default=>[]
     };
 }
@@ -186,7 +186,7 @@ function research_task_queue(PDO $pdo,int $taskId,?int $requestedByUserId=null,s
 }
 
 function research_task_queue_ready(PDO $pdo,int $planId,?int $requestedByUserId=null,string $trigger='dependency_ready'): int {
-    $q=$pdo->prepare("SELECT id FROM research_tasks WHERE plan_id=? AND status IN ('queued','open','ready','waiting','failed') ORDER BY position,id");$q->execute([$planId]);$count=0;
+    $q=$pdo->prepare("SELECT id FROM research_tasks WHERE plan_id=? AND status IN ('queued','open','ready') ORDER BY position,id");$q->execute([$planId]);$count=0;
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $taskId)if(research_task_dependencies_complete($pdo,(int)$taskId)){research_task_queue($pdo,(int)$taskId,$requestedByUserId,$trigger);$count++;}return $count;
 }
 
@@ -236,24 +236,43 @@ function research_task_store_refs(PDO $pdo,int $taskId,int $projectId,array $ref
     }return $stored;
 }
 
+function research_task_independent_sources(PDO $pdo,int $projectId,array $refs): array {
+    $sources=[];
+    foreach($refs as $ref){
+        $type=(string)$ref['ref_type'];$public=(string)$ref['ref_public_id'];
+        if($type==='source'){$sources[$public]=true;continue;}
+        if($type==='annotation'){$q=$pdo->prepare("SELECT s.public_id FROM annotations a JOIN sources s ON s.id=a.source_id WHERE a.public_id=? LIMIT 1");$q->execute([$public]);$source=(string)($q->fetchColumn()?:'');if($source!=='')$sources[$source]=true;}
+    }
+    return array_keys($sources);
+}
+
+function research_task_ref_fresh_timestamp(PDO $pdo,string $type,string $public): int {
+    if($type==='source'){$q=$pdo->prepare("SELECT COALESCE(sv.captured_at,s.last_checked_at,s.created_at) FROM sources s LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE s.public_id=? LIMIT 1");$q->execute([$public]);return strtotime((string)($q->fetchColumn()?:''))?:0;}
+    if($type==='annotation'){$q=$pdo->prepare("SELECT COALESCE(sv.captured_at,a.updated_at,a.created_at) FROM annotations a LEFT JOIN source_versions sv ON sv.id=a.source_version_id WHERE a.public_id=? LIMIT 1");$q->execute([$public]);return strtotime((string)($q->fetchColumn()?:''))?:0;}
+    if(in_array($type,['document','upload','recording','bookmark','sticky'],true)){$q=$pdo->prepare("SELECT updated_at FROM research_workspace_objects WHERE public_id=? LIMIT 1");$q->execute([$public]);return strtotime((string)($q->fetchColumn()?:''))?:0;}
+    if($type==='claim'){$q=$pdo->prepare("SELECT updated_at FROM research_claims WHERE public_id=? LIMIT 1");$q->execute([$public]);return strtotime((string)($q->fetchColumn()?:''))?:0;}
+    return 0;
+}
+
 function research_task_gate_evaluate(PDO $pdo,array $task): array {
     $q=$pdo->prepare("SELECT * FROM research_task_completion_gates WHERE task_id=? ORDER BY id");$q->execute([(int)$task['id']]);$gates=$q->fetchAll()?:[];
-    $q=$pdo->prepare("SELECT * FROM research_task_evidence_refs WHERE task_id=?");$q->execute([(int)$task['id']]);$refs=$q->fetchAll()?:[];
-    $openContradictions=0;if(installer_table_exists($pdo,'research_autonomy_observations')){$q=$pdo->prepare("SELECT COUNT(*) FROM research_autonomy_observations WHERE project_id=? AND status='open' AND observation_type='contradiction'");$q->execute([(int)$task['project_id']]);$openContradictions=(int)$q->fetchColumn();}
+    $q=$pdo->prepare("SELECT * FROM research_task_evidence_refs WHERE task_id=?");$q->execute([(int)$task['id']]);$refs=$q->fetchAll()?:[];$independentSources=research_task_independent_sources($pdo,(int)$task['project_id'],$refs);
+    $claimRefs=array_values(array_unique(array_map(fn($r)=>(string)$r['ref_public_id'],array_filter($refs,fn($r)=>$r['ref_type']==='claim'))));$openContradictions=0;
+    if($claimRefs&&installer_table_exists($pdo,'research_autonomy_observations')){$ph=implode(',',array_fill(0,count($claimRefs),'?'));$params=array_merge([(int)$task['project_id']],$claimRefs);$q=$pdo->prepare("SELECT COUNT(*) FROM research_autonomy_observations WHERE project_id=? AND status='open' AND observation_type='contradiction' AND subject_public_id IN ($ph)");$q->execute($params);$openContradictions=(int)$q->fetchColumn();}
     $results=[];$all=true;
     foreach($gates as $gate){$required=json_decode((string)$gate['required_json'],true)?:[];$passed=false;$detail='';
       switch($gate['gate_type']){
-        case 'min_sources':$need=max(1,(int)($required['count']??1));$count=count(array_unique(array_column($refs,'ref_public_id')));$passed=$count>=$need;$detail="$count/$need evidence reference(s)";break;
+        case 'min_sources':$need=max(1,(int)($required['count']??1));$count=count($independentSources);$passed=$count>=$need;$detail="$count/$need independent source(s)";break;
         case 'primary_source':$count=count(array_filter($refs,fn($r)=>$r['relationship']==='primary'));$passed=$count>0;$detail=$passed?'Primary evidence attached.':'Primary evidence required.';break;
-        case 'no_open_contradictions':$passed=$openContradictions===0;$detail=$passed?'No open structured contradictions.':$openContradictions.' open contradiction(s).';break;
-        case 'fresh_evidence':$days=max(1,(int)($required['days']??30));$cut=time()-($days*86400);$fresh=count(array_filter($refs,fn($r)=>(strtotime((string)$r['created_at'])?:0)>=$cut));$passed=$fresh>0;$detail=$passed?'Fresh evidence is attached.':'Evidence newer than '.$days.' days is required.';break;
+        case 'no_open_contradictions':$passed=!$claimRefs?false:$openContradictions===0;$detail=!$claimRefs?'A cited Claim is required for contradiction checking.':($passed?'No open contradiction for cited Claims.':$openContradictions.' open contradiction(s) for cited Claims.');break;
+        case 'fresh_evidence':$days=max(1,(int)($required['days']??30));$cut=time()-($days*86400);$fresh=0;foreach($refs as $r)if(research_task_ref_fresh_timestamp($pdo,(string)$r['ref_type'],(string)$r['ref_public_id'])>=$cut)$fresh++;$passed=$fresh>0;$detail=$passed?'Fresh evidence is attached.':'Evidence newer than '.$days.' days is required.';break;
         case 'citations':$need=max(1,(int)($required['count']??1));$count=count($refs);$passed=$count>=$need;$detail="$count/$need citation(s)";break;
         case 'human_review':$passed=!empty($task['human_reviewed_at']);$detail=$passed?'Human review completed.':'Human review required.';break;
       }
       if((string)$gate['status']==='waived'){$passed=true;$detail='Gate waived by user.';}
       $status=$passed?'passed':'failed';$pdo->prepare("UPDATE research_task_completion_gates SET status=?,detail=?,evaluated_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$status,$detail,(int)$gate['id']]);$results[]=['type'=>$gate['gate_type'],'status'=>$status,'detail'=>$detail,'required'=>$required];if(!$passed)$all=false;
     }
-    return ['pass'=>$all,'gates'=>$results,'evidence_count'=>count($refs),'open_contradictions'=>$openContradictions];
+    return ['pass'=>$all,'gates'=>$results,'evidence_count'=>count($refs),'independent_sources'=>count($independentSources),'open_contradictions'=>$openContradictions];
 }
 
 function research_task_apply_ai_output(PDO $pdo,string $taskPublic,string $output,string $aiRunPublic): array {
@@ -318,11 +337,11 @@ function research_task_refresh_deliverable(PDO $pdo,array $viewer,string $planPu
         if($d['status']==='finalized'||hash_equals((string)($d['last_task_state_hash']??''),(string)$body['state_hash']))return $d;
         if((int)$d['revision_number']!==(int)$d['managed_revision_number']){$pdo->prepare("UPDATE research_task_deliverables SET status='needs_review',updated_at=NOW() WHERE id=?")->execute([(int)$d['id']]);return $d;}
         $doc=research_agent_workspace_save_document($pdo,$viewer,(string)$d['object_public_id'],['title'=>(string)($plan['deliverable_title']?:$plan['title']),'content_html'=>$body['html'],'summary'=>'Living deliverable for '.$plan['title'],'base_revision'=>(int)$d['revision_number']]);
-        $pdo->prepare("UPDATE research_task_deliverables SET status='active',managed_revision_number=?,last_task_state_hash=?,updated_at=NOW() WHERE id=?")->execute([(int)$doc['revision_number'],$body['state_hash'],(int)$d['id']]);research_task_event($pdo,(int)$plan['project_id'],(int)$plan['id'],null,'deliverable_updated','agent',null,['document_public_id'=>$doc['public_id'],'revision'=>(int)$doc['revision_number']]);return $doc;
+        $pdo->prepare("UPDATE research_task_deliverables SET status='active',managed_revision_number=?,last_task_state_hash=?,updated_at=NOW() WHERE id=?")->execute([(int)$doc['revision_number'],$body['state_hash'],(int)$d['id']]);research_task_event($pdo,(int)$plan['project_id'],(int)$plan['id'],null,'deliverable_updated','agent',null,['document_public_id'=>$doc['public_id'],'revision'=>(int)$doc['revision_number']]);if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$plan['project_id']);return $doc;
     }
     $doc=research_agent_workspace_create_document($pdo,$viewer,$project,['title'=>(string)($plan['deliverable_title']?:$plan['title']),'document_type'=>research_task_deliverable_document_type((string)$plan['deliverable_type']),'content_html'=>$body['html'],'summary'=>'Living deliverable for '.$plan['title']],true);
     $obj=research_agent_workspace_object($pdo,$viewer,(string)$doc['public_id'],false);$public=ulid_like();$pdo->prepare("INSERT INTO research_task_deliverables(public_id,plan_id,research_agent_id,project_id,workspace_object_id,deliverable_type,status,managed_revision_number,last_task_state_hash) VALUES(?,?,?,?,?,?,'active',?,?)")
-      ->execute([$public,(int)$plan['id'],(int)$plan['research_agent_id'],(int)$plan['project_id'],(int)$obj['id'],(string)$plan['deliverable_type'],(int)$doc['revision_number'],$body['state_hash']]);research_task_event($pdo,(int)$plan['project_id'],(int)$plan['id'],null,'deliverable_created','agent',null,['document_public_id'=>$doc['public_id']]);return $doc;
+      ->execute([$public,(int)$plan['id'],(int)$plan['research_agent_id'],(int)$plan['project_id'],(int)$obj['id'],(string)$plan['deliverable_type'],(int)$doc['revision_number'],$body['state_hash']]);research_task_event($pdo,(int)$plan['project_id'],(int)$plan['id'],null,'deliverable_created','agent',null,['document_public_id'=>$doc['public_id']]);if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$plan['project_id']);return $doc;
 }
 
 function research_task_refresh_deliverable_by_plan_id(PDO $pdo,int $planId): void {
