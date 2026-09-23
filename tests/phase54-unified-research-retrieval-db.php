@@ -128,6 +128,23 @@ $folderSearch=research_retrieval_search($pdo,[],$researcher,(string)$project['pu
 p54(count($folderSearch['results'])>=1&&count(array_filter($folderSearch['results'],fn($x)=>($x['object_type']??'')==='sticky'))===0,'Folder-scoped retrieval excludes matching evidence outside the selected folder.');
 p54(count(array_filter($folderSearch['results'],fn($x)=>($x['object_type']??'')==='document'))===1,'Folder-scoped retrieval keeps matching evidence inside the folder.');
 
+$trashFolder=research_agent_workspace_create_folder($pdo,$owner,$project,'Temporary Evidence Folder');
+$trashCapture=$pub('cap');$pdo->prepare("INSERT INTO captures(public_id,source_id,source_version_id,user_id,capture_type,selected_text) VALUES(?,?,?,?, 'text',?)")
+  ->execute([$trashCapture,$source['id'],$sourceVersion,$owner['id'],'trashedfolderzeta evidence']);$trashCaptureId=(int)$pdo->lastInsertId();
+$trashAnn=$pub('ann');$pdo->prepare("INSERT INTO annotations(public_id,user_id,source_id,source_version_id,capture_id,text_commentary,visibility,status) VALUES(?,?,?,?,?,?,'public','published')")
+  ->execute([$trashAnn,$owner['id'],$source['id'],$sourceVersion,$trashCaptureId,'trashedfolderzeta commentary']);$trashAnnId=(int)$pdo->lastInsertId();
+$pdo->prepare('INSERT INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$project['id'],$trashAnnId,$owner['id']]);
+research_agent_workspace_desktop_move($pdo,$owner,$project,'annotation',$trashAnn,(string)$trashFolder['public_id']);
+$trashActive=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'trashedfolderzeta',[],10,true);
+p54(count(array_filter($trashActive['results'],fn($x)=>($x['public_id']??'')===$trashAnn))===1,'Annotation in an active folder participates in unified retrieval.');
+research_agent_workspace_trash($pdo,$owner,(string)$trashFolder['public_id']);
+$trashHidden=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'trashedfolderzeta',[],10,true);
+p54(count(array_filter($trashHidden['results'],fn($x)=>($x['public_id']??'')===$trashAnn))===0,'Trashing a folder removes linked annotation evidence from unified retrieval instead of leaking it to root.');
+research_agent_workspace_restore($pdo,$owner,(string)$trashFolder['public_id']);
+$trashRestored=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'trashedfolderzeta',[],10,true);
+p54(count(array_filter($trashRestored['results'],fn($x)=>($x['public_id']??'')===$trashAnn))===1,'Restoring a folder restores its linked annotation evidence to retrieval.');
+
+
 $privateOwner=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'secretprivategamma',[],10,true);
 p54(count(array_filter($privateOwner['results'],fn($x)=>($x['public_id']??'')===$privateAnn))===1,'Private annotation remains retrievable to its owner.');
 $privateResearcher=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'secretprivategamma',[],10,true);
