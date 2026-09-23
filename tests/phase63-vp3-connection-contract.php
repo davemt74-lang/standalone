@@ -4,9 +4,9 @@ $root=dirname(__DIR__);$fail=[];
 $must=function(string $file,array $needles,string $label)use($root,&$fail){$path=$root.'/'.$file;if(!is_file($path)){$fail[]="$label missing: $file";return;}$body=(string)file_get_contents($path);foreach($needles as $needle)if(!str_contains($body,$needle))$fail[]="$label contract missing in $file: $needle";};
 $must('database/migrations/20260923_060_vp3_account_connection_research_ingestion.sql',['vp3_connections','vp3_imports','access_token_cipher','refresh_token_cipher','remote_version_hash','source_version_id','transcript_document_object_id','summary_document_object_id','update_available','source_unavailable'],'Phase 63 migration');
 $must('app/vp3-connector.php',[
- 'aes-256-gcm','vp3_connector_begin','vp3_connector_callback','vp3_connector_attach','vp3_connector_refresh','vp3_connector_disconnect',
+ 'aes-256-gcm','vp3_connector_begin','vp3_connector_callback','transcriptions.read','transcriptions.intelligence.read','vp3_connector_attach','vp3_connector_refresh','vp3_connector_disconnect',
  'An Annotated account already uses this email. Sign in to Annotated first','This VP3 account is already connected to another Annotated account.',
- 'vp3_connector_import_payload','ensure_source','target_content_hash','project_sources','research_agent_workspace_create_document','research_agent_workspace_save_document',
+ 'vp3_connector_import_payload',"['meeting','transcription']",'ensure_source','target_content_hash','project_sources','research_agent_workspace_create_document','research_agent_workspace_save_document',
  "'origin'=>'vp3'","'ai_generated'=>true",'vp3_connector_reconcile_imports','source_unavailable','update_available'
 ],'Phase 63 runtime');
 $must('login.php',['Continue with VP3','/vp3/connect.php?mode=login'],'Phase 63 login');
