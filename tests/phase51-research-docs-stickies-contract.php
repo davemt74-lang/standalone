@@ -51,7 +51,7 @@ $need('assets/js/agent-chat.js','agentDocumentCard','Agent-created Research docu
 $need('assets/js/agent-chat.js',"'research.create_document':'Create research document'",'Agent action UI must describe document creation.');
 $need('assets/css/app.css','.researchDesktopDocumentWindow{position:absolute','Research documents must render as Desktop windows.');
 $need('assets/css/app.css','.researchDesktopSticky{position:absolute','Sticky notes must remain floating draggable objects rather than file-list rows.');
-$need('home.php','agent-chat.js?v=41.0','Research Docs must ship with a fresh Agent Chat cache key.');
+$need('home.php','agent-chat.js?v=42.0','Research Docs must ship with a fresh Agent Chat cache key.');
 $avoid('assets/js/research-agent-workspace-ui.js',"annotated:research-document-created',e=>openDocument", 'Agent-created documents must not auto-open and pull the user out of chat.');
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
