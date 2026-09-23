@@ -75,6 +75,12 @@ jobs:
           test -f package-website/api/research-monitoring.php
           test -f package-website/worker/research-monitor-worker.php
           test -f package-website/research-monitoring.php
+          test -f package-website/database/migrations/20260923_055_research_tasks_plans_deliverables.sql
+          test -f package-website/docs/phase-57-research-tasks-plans-deliverables.md
+          test -f package-website/app/research-tasks.php
+          test -f package-website/api/research-tasks.php
+          test -f package-website/worker/research-task-worker.php
+          test -f package-website/research-tasks.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
