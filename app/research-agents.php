@@ -28,7 +28,7 @@ function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
       JOIN conversations c ON c.id=ra.conversation_id AND c.conversation_type='agent'
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      WHERE ra.status<>'archived' AND (ra.owner_user_id=? OR tm.user_id=?)
+      WHERE ra.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))
       ORDER BY COALESCE(c.last_message_at,ra.updated_at,ra.created_at) DESC,ra.id DESC
       LIMIT ".$limit);
     $q->execute([(int)$viewer['id'],(int)$viewer['id'],(int)$viewer['id']]);
@@ -63,7 +63,7 @@ function research_agent_access(PDO $pdo,array $viewer,string $publicId): ?array 
       JOIN conversations c ON c.id=ra.conversation_id
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      WHERE ra.public_id=? AND (ra.owner_user_id=? OR tm.user_id=?) LIMIT 1");
+      WHERE ra.public_id=? AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?)) LIMIT 1");
     $q->execute([(int)$viewer['id'],$publicId,(int)$viewer['id'],(int)$viewer['id']]);
     return $q->fetch()?:null;
 }
@@ -74,7 +74,7 @@ function research_agent_by_conversation(PDO $pdo,array $viewer,string $conversat
     $q=$pdo->prepare("SELECT ra.public_id FROM research_agents ra
       JOIN conversations c ON c.id=ra.conversation_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      WHERE c.public_id=? AND ra.status<>'archived' AND (ra.owner_user_id=? OR tm.user_id=?) LIMIT 1");
+      WHERE c.public_id=? AND ra.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?)) LIMIT 1");
     $q->execute([(int)$viewer['id'],$conversationPublicId,(int)$viewer['id'],(int)$viewer['id']]);
     $public=(string)($q->fetchColumn()?:'');
     return $public!==''?research_agent_access($pdo,$viewer,$public):null;
