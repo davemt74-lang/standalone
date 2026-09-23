@@ -64,6 +64,18 @@
     return ({annotation:'/annotation.php?id=',research:'/research-project.php?id=',research_project:'/research-project.php?id=',source:'/source.php?id=',team:'/team.php?id=',claim:'/research-claim.php?id=',finding:'/research-finding.php?id='})[String(a?.type||'')]?.concat(id)||'';
   }
   function renderAttachment(a){
+    if(['upload','recording'].includes(String(a?.type||''))&&a?.available!==false){
+      const type=String(a.type),card=document.createElement('section');card.className='agentResearchMediaCard '+(type==='recording'?'is-recording':'is-upload');card.dataset.objectId=String(a.public_id||'');
+      const meta=document.createElement('div');meta.className='agentResearchMediaMeta';meta.textContent=type==='recording'?('RECORDING · '+String(a.transcript_status||'queued').toUpperCase()):('RESEARCH FILE · '+String(a.processing_status||'ready').toUpperCase());
+      const titleEl=document.createElement('strong');titleEl.textContent=a.title||(type==='recording'?'Recording':'Research file');
+      const preview=document.createElement('p');preview.textContent=String(a.preview||'').slice(0,420);
+      const actions=document.createElement('div');actions.className='agentResearchMediaActions';
+      const open=document.createElement('button');open.type='button';open.textContent=type==='recording'?'Open recording':'Open file';
+      if(type==='recording')open.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:research-recording-open',{detail:{public_id:String(a.public_id||'')},bubbles:true})));
+      else open.addEventListener('click',()=>window.open('/research-workspace-file.php?id='+encodeURIComponent(String(a.public_id||'')),'_blank','noopener'));
+      const ask=document.createElement('button');ask.type='button';ask.textContent='Ask Agent';ask.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{prompt:type==='recording'?'Review this recording transcript and identify the most useful evidence, decisions, tasks, and next steps.':'Review this uploaded Research file and identify the most useful evidence, gaps, and next steps.',context:[{type,public_id:String(a.public_id||''),label:a.title||(type==='recording'?'Recording':'Research file')}],research_agent:true,conversation:requestedResearchAgentConversation},bubbles:true,cancelable:true})));
+      actions.append(open,ask);card.append(meta,titleEl,preview,actions);return card;
+    }
     if(String(a?.type||'')==='document'&&a?.available!==false){
       const card=document.createElement('section');card.className='agentDocumentCard';card.dataset.documentId=String(a.public_id||'');
       const meta=document.createElement('div');meta.className='agentDocumentCardMeta';meta.textContent=(a.created_by_agent?'AGENT DOCUMENT':'RESEARCH DOCUMENT')+' · v'+String(a.revision_number||1);
