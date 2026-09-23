@@ -21,7 +21,7 @@ if (PHP_SAPI !== 'cli') {
     session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$secure,'httponly'=>true,'samesite'=>'Lax']);
     if (session_status() !== PHP_SESSION_ACTIVE) session_start();
     $now=time();if(!empty($_SESSION['user_id'])){if(!empty($_SESSION['last_activity'])&&(int)$_SESSION['last_activity']<$now-43200){$_SESSION=[];session_regenerate_id(true);}elseif(empty($_SESSION['rotated_at'])||(int)$_SESSION['rotated_at']<$now-1800){session_regenerate_id(true);$_SESSION['rotated_at']=$now;}$_SESSION['last_activity']=$now;}
-    $contentLength=(int)($_SERVER['CONTENT_LENGTH']??0);if($contentLength>50*1024*1024){http_response_code(413);exit('Request is too large.');}
+    $contentLength=(int)($_SERVER['CONTENT_LENGTH']??0);$requestPath=(string)(parse_url((string)($_SERVER['REQUEST_URI']??''),PHP_URL_PATH)?:'');$requestLimit=$requestPath==='/api/research-workspace-upload.php'?210*1024*1024:50*1024*1024;if($contentLength>$requestLimit){http_response_code(413);exit('Request is too large.');}
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('X-Frame-Options: DENY');

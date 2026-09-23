@@ -87,6 +87,12 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
     if($type==='document'&&function_exists('research_agent_workspace_document_context')){
         return research_agent_workspace_document_context($pdo,$viewer,$publicId);
     }
+    if($type==='upload'&&function_exists('research_agent_workspace_upload_context')){
+        return research_agent_workspace_upload_context($pdo,$viewer,$publicId);
+    }
+    if($type==='recording'&&function_exists('research_agent_workspace_recording_context')){
+        return research_agent_workspace_recording_context($pdo,$viewer,$publicId);
+    }
     if($type==='source'){
         $s=source_access($pdo,$publicId,$viewer);if(!$s)return null;
         $q=$pdo->prepare("SELECT s.public_id,s.title,s.canonical_url,s.domain,sv.extracted_text FROM sources s LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE s.id=?");$q->execute([$s['id']]);$r=$q->fetch();if(!$r)return null;
@@ -96,6 +102,7 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;$ctx=ai_research_context($pdo,(int)$p['id']);$workspace=research_workspace_ready($pdo)?research_workspace_context($pdo,(int)$p['id']):null;$workspaceRefs=[];
         if($workspace){$snap=$workspace['snapshot']??[];foreach((array)($snap['claims']??[]) as $x)if(!empty($x['public_id']))$workspaceRefs[]=['type'=>'claim','id'=>$x['public_id']];foreach((array)($snap['entities']??[]) as $x)if(!empty($x['public_id']))$workspaceRefs[]=['type'=>'entity','id'=>$x['public_id']];foreach((array)($snap['source_risks']??[]) as $x)if(!empty($x['source_public_id']))$workspaceRefs[]=['type'=>'source','id'=>$x['source_public_id']];foreach((array)($snap['annotation_links']??[]) as $x){if(!empty($x['source_annotation_id']))$workspaceRefs[]=['type'=>'annotation','id'=>$x['source_annotation_id']];if(!empty($x['target_annotation_id']))$workspaceRefs[]=['type'=>'annotation','id'=>$x['target_annotation_id']];}}
         $text="[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'];if($workspace)$text.="\n\n".$workspace['text'];$refs=array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'],$workspaceRefs);
+        if(function_exists('research_agent_workspace_project_context')){$desktopCtx=research_agent_workspace_project_context($pdo,$viewer,$publicId,10);if(!empty($desktopCtx['text']))$text.="\n\n".$desktopCtx['text'];$refs=array_merge($refs,(array)($desktopCtx['refs']??[]));}
         if(function_exists('cross_research_ready')&&cross_research_ready($pdo)){$cross=cross_research_context($pdo,$viewer,$publicId,10);if(!empty($cross['text']))$text.="\n\n".$cross['text'];$refs=array_merge($refs,(array)($cross['refs']??[]));}
         if(function_exists('research_reviews_ready')&&research_reviews_ready($pdo)){$reviews=research_review_context($pdo,$viewer,$publicId,10);if(!empty($reviews['text']))$text.="\n\n".$reviews['text'];$refs=array_merge($refs,(array)($reviews['refs']??[]));}
         if(function_exists('change_impact_ready')&&change_impact_ready($pdo)){$impact=change_impact_context($pdo,$viewer,$publicId,8);if(!empty($impact['text']))$text.="\n\n".$impact['text'];$refs=array_merge($refs,(array)($impact['refs']??[]));}
@@ -151,6 +158,10 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
         $q=$pdo->prepare("SELECT id,public_id,body FROM conversation_messages WHERE conversation_id=? AND parent_message_id=? AND sender_type='agent' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");$q->execute([$conversation['id'],$userMessageId]);if($existing=$q->fetch()){$assistant=['id'=>(int)$existing['id'],'public_id'=>$existing['public_id'],'body'=>$existing['body'],'sender_type'=>'agent','role'=>'assistant','action_proposals'=>agent_actions_ready($pdo)?agent_action_message_proposals($pdo,$viewer,(int)$existing['id']):[]];if(function_exists('data_response_attribution_map')){$map=data_response_attribution_map($pdo,[(int)$existing['id']]);$assistant['attribution']=$map[(int)$existing['id']]??null;}return ['conversation'=>['public_id'=>$conversation['public_id'],'title'=>$conversation['title']],'user_message'=>$userMessage,'assistant_message'=>$assistant,'deduplicated'=>true];}
     }
     if($userMessage['created'])foreach($context as $item)$pdo->prepare('INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,?,?,?)')->execute([$userMessageId,$item['type'],$item['public_id'],json_encode(['label'=>$item['label']],JSON_UNESCAPED_SLASHES)]);
+    if(function_exists('object_handoff_message_attachments')){
+        $attachmentMap=object_handoff_message_attachments($pdo,$viewer,[$userMessageId]);
+        $userMessage['attachments']=array_values(array_filter((array)($attachmentMap[$userMessageId]??[]),fn($a)=>($a['available']??false)===true));
+    }
     $isAdmin=($viewer['role']??'')==='admin';$quota=rate_limit_consume($pdo,$isAdmin?'agent-chat-admin':'agent-chat-pro','user:'.$viewer['id'],$isAdmin?300:60,3600);if(!$quota['allowed'])throw new RuntimeException('Agent Chat request limit reached. Try again in about '.max(1,(int)ceil($quota['retry_after']/60)).' minute(s).');
     $model=$isAdmin?ai_setting_model_id($pdo,'admin',false):ai_setting_model_id($pdo,'pro',true);if(!$model)$model=ai_setting_model_id($pdo,'research',true);if(!$model)throw new RuntimeException('No Agent Chat model is configured.');ai_interactive_model_record($pdo,$viewer,$model);
     $history=agent_chat_history_text($pdo,(int)$conversation['id'],16);$contextText=implode("\n\n",array_map(fn($x)=>$x['text'],$context));$refs=[];foreach($context as $item)foreach($item['refs'] as $ref)$refs[]=$ref;

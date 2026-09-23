@@ -53,6 +53,12 @@ jobs:
           test -f package-website/docs/phase-51-research-docs-floating-stickies.md
           test -f package-website/database/migrations/20260923_050_research_agent_desktop.sql
           test -f package-website/docs/phase-52-research-agent-desktop.md
+          test -f package-website/database/migrations/20260923_051_research_desktop_uploads_recordings.sql
+          test -f package-website/docs/phase-53-desktop-files-recordings.md
+          test -f package-website/api/research-workspace-upload.php
+          test -f package-website/research-workspace-file.php
+          test -f package-website/worker/research-file-worker.php
+          test -f package-website/worker/research-transcription-worker.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

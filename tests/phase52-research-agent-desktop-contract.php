@@ -30,8 +30,8 @@ $need('database/migrations/20260923_050_research_agent_desktop.sql','research_wo
 $need('app/research-agent-workspace.php','function research_agent_workspace_desktop_items','Desktop must resolve workspace objects and linked annotations.');
 $need('app/research-agent-workspace.php','function research_agent_workspace_desktop_position_save','Desktop positions must be permission-checked server-side.');
 $need('app/research-agent-workspace.php',"'annotation'","Linked annotations must be first-class Desktop icons.");
-$need('api/research-workspace-objects.php',"$action==='desktop'",'Desktop must have a read endpoint.');
-$need('api/research-workspace-objects.php',"$action==='save_desktop_position'",'Desktop drag positions must have a mutation endpoint.');
+$need('api/research-workspace-objects.php',"\$action==='desktop'",'Desktop must have a read endpoint.');
+$need('api/research-workspace-objects.php',"\$action==='save_desktop_position'",'Desktop drag positions must have a mutation endpoint.');
 
 $need('assets/js/research-agent-workspace-ui.js',"icon.addEventListener('dblclick'",'Desktop icons must open on double-click.');
 $need('assets/js/research-agent-workspace-ui.js',"icon.setPointerCapture",'Desktop icons must support pointer drag arrangement.');
@@ -50,7 +50,7 @@ $need('assets/css/app.css','.researchDesktop{position:absolute;inset:0','Desktop
 $need('assets/css/app.css','.researchDesktopIcon{appearance:none!important;position:absolute!important','Desktop objects must render as draggable Windows-style icons.');
 $need('assets/css/app.css','.researchDesktopSticky-yellow{background:#fff29a','Traditional yellow digital sticky styling must be explicit.');
 $need('assets/css/app.css','.researchDesktopDocumentWindow{position:absolute','Research Docs must render in a movable desktop window.');
-$need('home.php','research-agent-workspace-ui.js?v=52.1','Desktop runtime must ship with a fresh browser cache key.');
+$need('home.php','research-agent-workspace-ui.js?v=53.1','Desktop runtime must ship with a fresh browser cache key.');
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
 echo "Phase 52 Research Agent Desktop contract passed.\n";
