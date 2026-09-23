@@ -15,8 +15,8 @@ required=(
   app/release.php app/release-operations.php app/schema-health.php app/research-library.php app/research-agents.php app/research-agent-workspace.php app/research-agent-workspace-ui.php api/research-agents.php api/research-workspace-objects.php assets/js/research-agent-shell.js assets/js/research-agent-workspace-ui.js research.php saved.php teams.php annotation.php profile.php
   admin/system-health.php admin/intelligence-release-audit.php admin/model-campaigns.php
   bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php
-  database/schema.sql database/migrations/20260922_046_model_improvement_campaigns.sql database/migrations/20260922_047_research_agents.sql database/migrations/20260923_048_research_agent_workspace_core.sql database/migrations/20260923_049_research_docs_floating_stickies.sql
-  docs/RELEASE-V1.1-RC1.md docs/phase-49-release-candidate-operational-hardening.md
+  database/schema.sql database/migrations/20260922_046_model_improvement_campaigns.sql database/migrations/20260922_047_research_agents.sql database/migrations/20260923_048_research_agent_workspace_core.sql database/migrations/20260923_049_research_docs_floating_stickies.sql database/migrations/20260923_049_research_docs_floating_stickies.sql
+  docs/RELEASE-V1.1-RC1.md docs/phase-49-release-candidate-operational-hardening.md docs/phase-51-research-docs-floating-stickies.md
   extension/manifest.json downloads/Annotated-Chrome-Extension.zip
 )
 for path in "${required[@]}"; do [[ -f "$tmp/site/$path" ]] || { echo "Missing website package file: $path" >&2; exit 1; }; done
