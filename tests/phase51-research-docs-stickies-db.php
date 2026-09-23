@@ -80,6 +80,14 @@ p51(count($agentDocMessages)===1,'Agent-created Research document is posted once
 $attachment=$agentDocMessages[0]['attachments'][0]??[];
 p51(($attachment['title']??'')==='Agent Brief'&&($attachment['created_by_agent']??false)===true,'Agent chat resolves the document attachment into a live rich-card object.');
 
+$pdo->beginTransaction();
+try{
+  $agentSticky=agent_action_execute_capability($pdo,$researcher,$project,'research.create_sticky',['body'=>'Pin the unresolved source gap.','color'=>'purple']);
+  $pdo->commit();
+}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+$agentStickyRow=research_agent_workspace_object($pdo,$researcher,(string)$agentSticky['public_id'],false);
+p51(($agentSticky['type']??'')==='sticky'&&($agentStickyRow['sticky_color']??'')==='purple'&&str_contains((string)$agentStickyRow['sticky_body'],'unresolved source gap'),'Governed Research Agent action can create a confirmed floating sticky note inside the existing action transaction.');
+
 $pdo->prepare('DELETE FROM team_members WHERE team_id=? AND user_id=?')->execute([$teamId,$researcher['id']]);
 p51(research_agent_workspace_object($pdo,$researcher,(string)$doc['public_id'],false)===null,'Removed Team member immediately loses Research document access.');
 p51(research_agent_workspace_object($pdo,$researcher,(string)$sticky['public_id'],false)===null,'Removed Team member immediately loses sticky-note access.');
