@@ -14,8 +14,12 @@ function agent_actions_ready(PDO $pdo): bool {
 function agent_action_capabilities(): array {
     return [
       'research.create_task'=>[
-        'label'=>'Create research task','description'=>'Create a bounded follow-up task inside the current Research project.',
-        'arguments'=>['title'=>'string','description'=>'string optional','task_type'=>'general|find_source|verify_claim|review_source_change']
+        'label'=>'Create research task','description'=>'Create a bounded durable task inside the current Research Agent task system.',
+        'arguments'=>['title'=>'string','description'=>'string optional','task_type'=>'general|find_source|verify_claim|review_source_change|compare_sources|synthesize|draft_deliverable|follow_up','priority'=>'low|medium|high|urgent optional','due_at'=>'date/time optional']
+      ],
+      'research.create_plan'=>[
+        'label'=>'Create research plan','description'=>'Create a versioned Research plan with dependent tasks and a living deliverable. The user must confirm the plan before it is created.',
+        'arguments'=>['title'=>'string','objective'=>'string','priority'=>'low|medium|high|urgent optional','due_at'=>'date/time optional','deliverable_type'=>'research_brief|competitive_analysis|due_diligence|source_digest|timeline|comparison|weekly_report|report|analysis|document','deliverable_title'=>'string optional','tasks'=>'array of task objects with title,description,task_type,priority,depends_on index array optional']
       ],
       'research.create_note'=>[
         'label'=>'Create research note','description'=>'Save a concise Research note to the current project.',
@@ -88,8 +92,17 @@ function agent_action_clean_arguments(string $capability,array $args): array {
     $s=fn($v,$max)=>mb_substr(trim((string)$v),0,$max);
     if($capability==='research.create_task'){
         $title=$s($args['title']??'',255);if($title==='')throw new InvalidArgumentException('Task title is required.');
-        $type=(string)($args['task_type']??'general');if(!in_array($type,['general','find_source','verify_claim','review_source_change'],true))$type='general';
-        return ['title'=>$title,'description'=>$s($args['description']??'',5000),'task_type'=>$type];
+        $type=(string)($args['task_type']??'general');if(!isset(research_task_types()[$type]))$type='general';
+        $priority=(string)($args['priority']??'medium');if(!isset(research_task_priorities()[$priority]))$priority='medium';
+        return ['title'=>$title,'description'=>$s($args['description']??'',12000),'task_type'=>$type,'priority'=>$priority,'due_at'=>$s($args['due_at']??'',80)];
+    }
+    if($capability==='research.create_plan'){
+        $title=$s($args['title']??'',255);$objective=$s($args['objective']??'',16000);if($title===''||$objective==='')throw new InvalidArgumentException('Plan title and objective are required.');
+        $priority=(string)($args['priority']??'medium');if(!isset(research_task_priorities()[$priority]))$priority='medium';
+        $deliverable=(string)($args['deliverable_type']??'research_brief');if(!isset(research_task_deliverable_types()[$deliverable]))$deliverable='research_brief';
+        $tasks=[];foreach(array_slice(is_array($args['tasks']??null)?$args['tasks']:[],0,20) as $raw){if(!is_array($raw))continue;$taskTitle=$s($raw['title']??'',255);if($taskTitle==='')continue;$type=(string)($raw['task_type']??'general');if(!isset(research_task_types()[$type]))$type='general';$p=(string)($raw['priority']??$priority);if(!isset(research_task_priorities()[$p]))$p=$priority;$deps=[];foreach(array_slice((array)($raw['depends_on']??[]),0,12) as $d)$deps[]=max(0,(int)$d);$tasks[]=['title'=>$taskTitle,'description'=>$s($raw['description']??'',12000),'task_type'=>$type,'priority'=>$p,'depends_on'=>array_values(array_unique($deps))];}
+        if(!$tasks)throw new InvalidArgumentException('A Research plan needs at least one task.');
+        return ['title'=>$title,'objective'=>$objective,'priority'=>$priority,'due_at'=>$s($args['due_at']??'',80),'deliverable_type'=>$deliverable,'deliverable_title'=>$s($args['deliverable_title']??'',255),'tasks'=>$tasks];
     }
     if($capability==='research.create_note'){
         $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Research note body is required.');return ['body'=>$body];
@@ -197,9 +210,19 @@ function agent_action_claim_row(PDO $pdo,int $projectId,string $publicId): ?arra
 function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,string $capability,array $args): array {
     $projectId=(int)$project['id'];$userId=(int)$viewer['id'];
     if($capability==='research.create_task'){
+        if(function_exists('research_tasks_ready')&&research_tasks_ready($pdo)){
+            $task=research_task_create_for_project($pdo,$viewer,$project,$args,true);
+            return ['type'=>'task','public_id'=>(string)$task['public_id'],'label'=>(string)$task['title'],'url'=>'/research-tasks.php?agent='.rawurlencode((string)$task['agent_public_id']).'&task='.rawurlencode((string)$task['public_id'])];
+        }
         $public=ulid_like();$pdo->prepare("INSERT INTO research_tasks(public_id,project_id,created_by_user_id,title,description,task_type,status) VALUES(?,?,?,?,?,?,'open')")
           ->execute([$public,$projectId,$userId,$args['title'],$args['description']!==''?$args['description']:null,$args['task_type']]);
         return ['type'=>'task','public_id'=>$public,'label'=>$args['title'],'url'=>'/research-project.php?id='.rawurlencode((string)$project['public_id']).'#tasks'];
+    }
+    if($capability==='research.create_plan'){
+        if(!function_exists('research_tasks_ready')||!research_tasks_ready($pdo))throw new RuntimeException('Research Plans require the latest database upgrade.');
+        $agent=research_task_agent_for_project($pdo,$viewer,(string)$project['public_id']);if(!$agent)throw new RuntimeException('This project has no active Research Agent.');
+        $args['agent_id']=$agent['public_id'];$plan=research_task_plan_create($pdo,$viewer,$args,true);
+        return ['type'=>'research_plan','public_id'=>(string)$plan['public_id'],'label'=>(string)$plan['title'],'url'=>'/research-tasks.php?agent='.rawurlencode((string)$agent['public_id']).'&plan='.rawurlencode((string)$plan['public_id'])];
     }
     if($capability==='research.create_note'){
         $public=ulid_like();$pdo->prepare('INSERT INTO research_notes(public_id,project_id,user_id,body) VALUES(?,?,?,?)')->execute([$public,$projectId,$userId,$args['body']]);
