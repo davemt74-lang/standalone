@@ -87,6 +87,12 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
     if($type==='document'&&function_exists('research_agent_workspace_document_context')){
         return research_agent_workspace_document_context($pdo,$viewer,$publicId);
     }
+    if($type==='upload'&&function_exists('research_agent_workspace_upload_context')){
+        return research_agent_workspace_upload_context($pdo,$viewer,$publicId);
+    }
+    if($type==='recording'&&function_exists('research_agent_workspace_recording_context')){
+        return research_agent_workspace_recording_context($pdo,$viewer,$publicId);
+    }
     if($type==='source'){
         $s=source_access($pdo,$publicId,$viewer);if(!$s)return null;
         $q=$pdo->prepare("SELECT s.public_id,s.title,s.canonical_url,s.domain,sv.extracted_text FROM sources s LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE s.id=?");$q->execute([$s['id']]);$r=$q->fetch();if(!$r)return null;
@@ -96,6 +102,7 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;$ctx=ai_research_context($pdo,(int)$p['id']);$workspace=research_workspace_ready($pdo)?research_workspace_context($pdo,(int)$p['id']):null;$workspaceRefs=[];
         if($workspace){$snap=$workspace['snapshot']??[];foreach((array)($snap['claims']??[]) as $x)if(!empty($x['public_id']))$workspaceRefs[]=['type'=>'claim','id'=>$x['public_id']];foreach((array)($snap['entities']??[]) as $x)if(!empty($x['public_id']))$workspaceRefs[]=['type'=>'entity','id'=>$x['public_id']];foreach((array)($snap['source_risks']??[]) as $x)if(!empty($x['source_public_id']))$workspaceRefs[]=['type'=>'source','id'=>$x['source_public_id']];foreach((array)($snap['annotation_links']??[]) as $x){if(!empty($x['source_annotation_id']))$workspaceRefs[]=['type'=>'annotation','id'=>$x['source_annotation_id']];if(!empty($x['target_annotation_id']))$workspaceRefs[]=['type'=>'annotation','id'=>$x['target_annotation_id']];}}
         $text="[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'];if($workspace)$text.="\n\n".$workspace['text'];$refs=array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'],$workspaceRefs);
+        if(function_exists('research_agent_workspace_project_context')){$desktopCtx=research_agent_workspace_project_context($pdo,$viewer,$publicId,10);if(!empty($desktopCtx['text']))$text.="\n\n".$desktopCtx['text'];$refs=array_merge($refs,(array)($desktopCtx['refs']??[]));}
         if(function_exists('cross_research_ready')&&cross_research_ready($pdo)){$cross=cross_research_context($pdo,$viewer,$publicId,10);if(!empty($cross['text']))$text.="\n\n".$cross['text'];$refs=array_merge($refs,(array)($cross['refs']??[]));}
         if(function_exists('research_reviews_ready')&&research_reviews_ready($pdo)){$reviews=research_review_context($pdo,$viewer,$publicId,10);if(!empty($reviews['text']))$text.="\n\n".$reviews['text'];$refs=array_merge($refs,(array)($reviews['refs']??[]));}
         if(function_exists('change_impact_ready')&&change_impact_ready($pdo)){$impact=change_impact_context($pdo,$viewer,$publicId,8);if(!empty($impact['text']))$text.="\n\n".$impact['text'];$refs=array_merge($refs,(array)($impact['refs']??[]));}
