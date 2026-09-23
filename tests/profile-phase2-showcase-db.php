@@ -32,7 +32,7 @@ profile_showcase_pin_set($pdo,$owner,'annotation',$a1['public_id'],true);profile
 $q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===3,'Profile Phase 2 enforces three durable public showcase pins.');
 pp2throws(fn()=>profile_showcase_pin_set($pdo,$owner,'annotation',$a2['public_id'],true),'Profile Phase 2 rejects a fourth live public pin.');
 
-$pdo->prepare("UPDATE collections SET visibility='private' WHERE public_id=?")->execute([$collectionId]);profile_showcase_pin_set($pdo,$owner,'annotation',$a2['public_id'],true);$q->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===3,'Profile Phase 2 prunes stale/private pins before applying the three-item limit.');
+$pdo->prepare("UPDATE collections SET visibility='private' WHERE public_id=?")->execute([$collectionId]);profile_showcase_pin_set($pdo,$owner,'annotation',$a2['public_id'],true);$q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===3,'Profile Phase 2 prunes stale/private pins before applying the three-item limit.');
 $q=$pdo->prepare("SELECT COUNT(*) FROM profile_pins WHERE user_id=? AND object_type='collection'");$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===0,'A collection removed from public visibility can no longer remain pinned.');
 
 $pdo->prepare('INSERT INTO follows(follower_user_id,followed_user_id) VALUES(?,?),(?,?)')->execute([(int)$publicPerson['id'],(int)$owner['id'],(int)$privatePerson['id'],(int)$owner['id']]);
