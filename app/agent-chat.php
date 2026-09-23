@@ -75,6 +75,9 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
     if($type==='bookmark'&&function_exists('research_agent_workspace_bookmark_context')){
         return research_agent_workspace_bookmark_context($pdo,$viewer,$publicId);
     }
+    if($type==='document'&&function_exists('research_agent_workspace_document_context')){
+        return research_agent_workspace_document_context($pdo,$viewer,$publicId);
+    }
     if($type==='source'){
         $s=source_access($pdo,$publicId,$viewer);if(!$s)return null;
         $q=$pdo->prepare("SELECT s.public_id,s.title,s.canonical_url,s.domain,sv.extracted_text FROM sources s LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE s.id=?");$q->execute([$s['id']]);$r=$q->fetch();if(!$r)return null;
