@@ -17,7 +17,7 @@ $need('assets/css/app.css','background:transparent!important;','Desktop toolbar/
 $need('assets/css/app.css','border-bottom:0!important;','Desktop toolbar/header must not render the old boxed divider.');
 $need('assets/css/app.css','box-shadow:none!important;','Desktop toolbar/header must not render the old card shadow.');
 $need('home.php','agent-chat.js?v=55.1','Research Agent close behavior must ship with a fresh cache key.');
-$need('home.php','research-agent-workspace-ui.js?v=58.0','Desktop layout behavior must ship with a fresh cache key.');
+$need('home.php','research-agent-workspace-ui.js?v=59.0','Desktop layout behavior must ship with a fresh cache key.');
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
 echo "Phase 52.1 Desktop layout regression contract passed.\n";
