@@ -33,8 +33,13 @@ $avoid('app/shell.php',"'SOCIAL RESEARCH'",'User sidebar must not render the Soc
 $avoid('app/shell.php',"app_shell_link('/notifications.php','Notifications'",'User sidebar must not include Notifications; the shared header owns notifications.');
 $avoid('app/shell.php',"app_shell_link('/data-attribution.php','Data & Attribution'",'User sidebar must not include Data & Attribution.');
 $need('app/shell.php','<a href="/data-attribution.php">Data & Attribution</a>','Data & Attribution must live in the user dropdown.');
-$need('app/shell.php','app_shell_research_agent_rows','Sidebar Research Agents must come from permission-scoped Agent conversations.');
+$need('app/shell.php','research_agent_list','Sidebar Research Agents must come from the explicit Research Agent registry.');
 $need('app/shell.php','appShellSectionTitle">Research Agents','User sidebar must expose a Research Agents section.');
+$need('app/shell.php','data-research-agent-add','Research Agents section must expose a + create button.');
+$need('app/shell.php','New Research Agent','Sidebar + control must open the New Research Agent modal.');
+$need('assets/js/research-agent-shell.js','/api/research-agents.php?action=create','New Research Agent modal must create an explicit Research Agent through the API.');
+$avoid('profile.php',"$GLOBALS['annotated_shell_mode']='header_only'",'Signed-in Profile must use the full Annotated shell.');
+$need('assets/css/app.css','/* Profile shell repair */','Profile must have a dedicated shell layout repair.');
 $avoid('annotation.php','<header class="topbar">','Annotation detail pages must not render a second legacy header inside the shared app shell.');
 $need('app/shell.php','/home.php?agent=','Research Agent sidebar items must deep-link to existing Agent chats.');
 $need('app/shell.php','app_shell_research_project_rows','Sidebar Research Projects must come from permission-scoped project records.');
