@@ -10,6 +10,10 @@ $need('app/release.php','const ANNOTATED_RELEASE_PHASE = 62;','62F release phase
 $need('app/release.php',"const ANNOTATED_RELEASE_CHANNEL = 'stable';",'62F release channel must be stable.');
 $need('app/release.php',"const ANNOTATED_EXTENSION_VERSION = '0.36.0';",'62D Chrome component identity remains explicit.');
 $need('app/release-operations.php',"ANNOTATED_RELEASE_CHANNEL",'62F release manifest must derive the stable channel from canonical release identity.');
+$need('app/release-operations.php',"'release label mismatch'",'62F installed-package validation must reject a mismatched release label.');
+$need('app/release-operations.php',"'release channel mismatch'",'62F installed-package validation must reject a mismatched release channel.');
+$need('.github/workflows/package-two-zips.yml','release_channel=','62F archived build metadata must preserve the release channel.');
+$need('.github/workflows/package-two-zips.yml','latest_migration=','62C archived build metadata must preserve the latest migration.');
 $need('extension/manifest.json','"version": "0.36.0"','62D Chrome package must retain its component version.');
 $avoid('extension/manifest.json','release candidate','62F stable Chrome description must not call itself a release candidate.');
 
