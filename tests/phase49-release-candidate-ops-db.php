@@ -50,7 +50,7 @@ try{
     $deploymentsBefore=installer_table_exists($pdo,'data_model_deployments')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_deployments')->fetchColumn():0;
     $versionsBefore=installer_table_exists($pdo,'data_model_versions')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_versions')->fetchColumn():0;
     $ops=release_operational_audit($pdo,$config,$root);
-    p49(($ops['release']['version']??'')==='1.1.0-rc1'&&($ops['checks']['extension_identity']['pass']??false),'operational audit reports the canonical V1.1 RC identity and matching extension');
+    p49(in_array(($ops['release']['version']??''),['1.1.0-rc1','1.1.0'],true)&&($ops['checks']['extension_identity']['pass']??false),'operational audit reports the canonical V1.1 release identity and matching extension');
     p49(isset($ops['backup']['checks']['dump'],$ops['backup']['checks']['client'],$ops['backup']['checks']['tar'],$ops['backup']['checks']['gzip'],$ops['backup']['checks']['zlib']),'operational audit exposes concrete backup/restore prerequisites without pretending missing tools are present');
     $routingAfter=$pdo->query('SELECT admin_default_model_id,pro_default_model_id,source_monitor_model_id,moderation_model_id,research_model_id,transcript_cleanup_model_id,annotation_intelligence_model_id FROM ai_settings WHERE id=1')->fetch();
     $deploymentsAfter=installer_table_exists($pdo,'data_model_deployments')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_deployments')->fetchColumn():0;
