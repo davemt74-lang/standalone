@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function research_monitor_ready(PDO $pdo): bool {
     try{
-        foreach(['research_monitor_watches','research_monitor_jobs','research_monitor_runs','research_monitor_candidates','research_monitor_events','research_monitor_claim_states'] as $table)if(!installer_table_exists($pdo,$table))return false;
+        foreach(['research_monitor_watches','research_monitor_jobs','research_monitor_runs','research_monitor_candidates','research_monitor_events','research_monitor_claim_states','research_monitor_claim_assessments'] as $table)if(!installer_table_exists($pdo,$table))return false;
         return true;
     }catch(Throwable $e){return false;}
 }
@@ -219,6 +219,60 @@ function research_monitor_domain_sitemap(array $watch): array {
     }catch(Throwable $e){return [];}
 }
 
+function research_monitor_queue_claim_assessments(PDO $pdo,int $projectId,int $sourceVersionId): int {
+    if(!function_exists('ai_setting_model_id')||!function_exists('ai_queue_job'))return 0;
+    try{$model=ai_setting_model_id($pdo,'research');}catch(Throwable $e){return 0;}if(!$model)return 0;
+    $q=$pdo->prepare("SELECT rmw.id watch_id,rmw.public_id watch_public_id,rc.id claim_id
+      FROM research_monitor_watches rmw JOIN research_claims rc ON rc.project_id=rmw.project_id AND rc.public_id=rmw.target
+      WHERE rmw.project_id=? AND rmw.watch_type='claim' AND rmw.status='active'");$q->execute([$projectId]);$count=0;
+    foreach($q->fetchAll() as $row){
+        $public=ulid_like();
+        $ins=$pdo->prepare("INSERT IGNORE INTO research_monitor_claim_assessments(public_id,watch_id,project_id,claim_id,source_version_id,status) VALUES(?,?,?,?,?,'queued')");
+        $ins->execute([$public,(int)$row['watch_id'],$projectId,(int)$row['claim_id'],$sourceVersionId]);
+        if($ins->rowCount()!==1)continue;
+        ai_queue_job($pdo,null,'research_monitor_claim_assessment',$model,'research_monitor_claim_assessment',$public,['watch_public_id'=>$row['watch_public_id']],3);$count++;
+    }return $count;
+}
+
+function research_monitor_claim_assessment_context(PDO $pdo,string $publicId): ?array {
+    $q=$pdo->prepare("SELECT rmca.*,rmw.public_id watch_public_id,rmw.research_agent_id,rc.public_id claim_public_id,rc.statement,rc.status claim_status,
+      sv.extracted_text,sv.title source_title,sv.final_url,s.public_id source_public_id
+      FROM research_monitor_claim_assessments rmca
+      JOIN research_monitor_watches rmw ON rmw.id=rmca.watch_id
+      JOIN research_claims rc ON rc.id=rmca.claim_id
+      JOIN source_versions sv ON sv.id=rmca.source_version_id
+      JOIN sources s ON s.id=sv.source_id
+      WHERE rmca.public_id=? LIMIT 1");$q->execute([trim($publicId)]);return $q->fetch()?:null;
+}
+
+function research_monitor_claim_assessment_mark_processing(PDO $pdo,string $publicId): void {
+    $pdo->prepare("UPDATE research_monitor_claim_assessments SET status='processing',last_error=NULL WHERE public_id=? AND status='queued'")->execute([trim($publicId)]);
+}
+
+function research_monitor_claim_assessment_apply(PDO $pdo,string $publicId,string $output,string $aiRunPublic): array {
+    $row=research_monitor_claim_assessment_context($pdo,$publicId);if(!$row)throw new RuntimeException('Monitoring claim assessment is unavailable.');
+    $json=json_decode(trim($output),true);if(!is_array($json))throw new RuntimeException('Monitoring claim assessment returned invalid JSON.');
+    $assessment=strtolower(trim((string)($json['assessment']??'')));if(!in_array($assessment,['supports','weakens','contradicts','unrelated'],true))throw new RuntimeException('Monitoring claim assessment returned an invalid assessment.');
+    $confidence=max(0,min(1,(float)($json['confidence']??0)));$rationale=mb_substr(trim((string)($json['rationale']??'')),0,10000);if($rationale==='')$rationale='No rationale supplied.';
+    $pdo->prepare("UPDATE research_monitor_claim_assessments SET status='completed',assessment=?,confidence=?,rationale=?,ai_run_public_id=?,last_error=NULL,completed_at=NOW() WHERE id=?")
+      ->execute([$assessment,$confidence,$rationale,$aiRunPublic,(int)$row['id']]);
+    if($assessment!=='unrelated'){
+        $watchQ=$pdo->prepare("SELECT * FROM research_monitor_watches WHERE id=?");$watchQ->execute([(int)$row['watch_id']]);$watch=$watchQ->fetch();
+        if($watch){
+            $eventType=match($assessment){'supports'=>'claim_supported','weakens'=>'claim_weakened','contradicts'=>'claim_contradicted',default=>'claim_supported'};
+            $importance=in_array($assessment,['weakens','contradicts'],true)?'high':'important';
+            $summary='New monitored source '.$assessment.' claim: '.mb_substr((string)$row['statement'],0,420);
+            research_monitor_event($pdo,$watch,$eventType,'claim-ai|'.$row['id'].'|'.$assessment.'|'.$aiRunPublic,$summary,$importance,(int)$row['source_id'],null,(int)$row['claim_id'],['claim_public_id'=>$row['claim_public_id'],'source_public_id'=>$row['source_public_id'],'assessment'=>$assessment,'confidence'=>$confidence,'rationale'=>$rationale,'ai_run_public_id'=>$aiRunPublic]);
+            research_monitor_queue($pdo,(int)$watch['id'],null,'source_change');
+        }
+    }
+    return ['assessment'=>$assessment,'confidence'=>$confidence,'rationale'=>$rationale];
+}
+
+function research_monitor_claim_assessment_fail(PDO $pdo,string $publicId,string $message): void {
+    $pdo->prepare("UPDATE research_monitor_claim_assessments SET status='failed',last_error=?,completed_at=NOW() WHERE public_id=?")->execute([mb_substr($message,0,1000),trim($publicId)]);
+}
+
 function research_monitor_sync_source_changes(PDO $pdo,array $watch): int {
     $since=(string)($watch['last_checked_at']?:$watch['created_at']);$params=[(int)$watch['project_id'],$since];$filter='';
     if($watch['watch_type']==='url'){$filter=' AND s.canonical_url_hash=?';$params[]=hash('sha256',canonicalize_url((string)$watch['canonical_url']));}
@@ -228,6 +282,7 @@ function research_monitor_sync_source_changes(PDO $pdo,array $watch): int {
         $type=match((string)$e['change_type']){'unavailable'=>'source_unavailable','restored'=>'source_restored',default=>'source_changed'};
         $importance=(int)$e['target_changed']===1?'high':'important';$summary=trim((string)($e['diff_summary']??''));if($summary==='')$summary='Monitored source changed: '.($e['title']?:$e['canonical_url']);
         if(research_monitor_event($pdo,$watch,$type,'source-change|'.$e['id'],$summary,$importance,(int)$e['source_id'],(int)$e['id'],null,['source_public_id'=>$e['source_public_id'],'change_type'=>$e['change_type'],'target_changed'=>(int)$e['target_changed']]))$count++;
+        research_monitor_queue_claim_assessments($pdo,(int)$watch['project_id'],(int)$e['new_version_id']);
     }return $count;
 }
 
