@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
 $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-require_once $root.'/app/installer.php';require_once $root.'/app/storage.php';require_once $root.'/app/functions.php';require_once $root.'/app/shell.php';require_once $root.'/app/access.php';require_once $root.'/app/notifications.php';require_once $root.'/app/rate-limit.php';require_once $root.'/app/conversations.php';require_once $root.'/app/agent-chat.php';
+require_once $root.'/app/installer.php';require_once $root.'/app/storage.php';require_once $root.'/app/functions.php';require_once $root.'/app/shell.php';require_once $root.'/app/access.php';require_once $root.'/app/notifications.php';require_once $root.'/app/rate-limit.php';require_once $root.'/app/conversations.php';require_once $root.'/app/agent-chat.php';require_once $root.'/app/research-automation.php';require_once $root.'/app/research-agents.php';
 function p12b(bool $v,string $m): void {if(!$v)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
 function p12bthrows(callable $fn,string $m): void {try{$fn();}catch(Throwable $e){echo "PASS: $m\n";return;}throw new RuntimeException('FAIL: '.$m);}
 $run='p12b'.substr(bin2hex(random_bytes(6)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
@@ -15,10 +15,16 @@ p12b(agent_chat_access($pdo,$owner,$c['public_id'])!==null,'Agent conversation o
 p12b(agent_chat_access($pdo,$other,$c['public_id'])===null,'another user cannot guess or open someone else\'s Agent conversation');
 $list=agent_chat_list($pdo,$owner);p12b(count(array_filter($list,fn($r)=>$r['public_id']===$c['public_id']))===1,'Agent conversation appears in owner history');
 p12b(count(array_filter(agent_chat_list($pdo,$other),fn($r)=>$r['public_id']===$c['public_id']))===0,'Agent history is isolated per user');
-$otherAgent=agent_chat_create($pdo,$other,'Other User Research Agent');
+$otherAgent=agent_chat_create($pdo,$other,'Other User Agent Chat');
 $shellAgents=app_shell_research_agent_rows($pdo,$owner,30);
-p12b(count(array_filter($shellAgents,fn($r)=>$r['public_id']===$c['public_id']))===1,'Research Agents sidebar lists the owner\'s Agent chat');
-p12b(count(array_filter($shellAgents,fn($r)=>$r['public_id']===$otherAgent['public_id']))===0,'Research Agents sidebar never leaks another user\'s Agent chat');
+p12b(count(array_filter($shellAgents,fn($r)=>($r['conversation_public_id']??'')===$c['public_id']))===0,'ordinary Agent chats never appear as Research Agents');
+p12b(count(array_filter($shellAgents,fn($r)=>($r['conversation_public_id']??'')===$otherAgent['public_id']))===0,'another user\'s Agent chat never leaks into Research Agents');
+
+$explicitAgent=research_agent_create($pdo,$owner,['name'=>'Explicit Research Agent','description'=>'Track evidence changes for this project.','cadence'=>'daily','timezone_name'=>'UTC']);
+p12b(!empty($explicitAgent['public_id'])&&!empty($explicitAgent['project_public_id'])&&!empty($explicitAgent['conversation_public_id']),'user-created Research Agent owns an explicit project and Agent conversation');
+p12b(!empty($explicitAgent['automation_id']),'scheduled Research Agent owns a monitoring automation');
+$shellAgents=app_shell_research_agent_rows($pdo,$owner,30);
+p12b(count(array_filter($shellAgents,fn($r)=>($r['conversation_public_id']??'')===$explicitAgent['conversation_public_id']))===1,'only explicitly created Research Agents appear in the sidebar');
 
 $userMessage=conversation_message_create($pdo,$owner,$c['public_id'],'What changed?',null,'agent-client-'.$run);
 $agentMessage=agent_chat_insert_agent_message($pdo,$c,'Here is the current summary.',(int)$userMessage['id']);
