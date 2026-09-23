@@ -65,7 +65,6 @@ db_tests=(
   tests/phase49-release-candidate-ops-db.php
   tests/phase49-5-recent-build-hardening-db.php
   tests/phase50-research-agent-workspace-db.php
-  tests/phase51-research-docs-floating-stickies-db.php
   tests/phase51-research-docs-stickies-db.php
 )
 
