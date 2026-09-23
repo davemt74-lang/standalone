@@ -75,6 +75,7 @@ require_once __DIR__ . '/research-portfolio.php';
 require_once __DIR__ . '/living-research.php';
 require_once __DIR__ . '/research-publishing.php';
 require_once __DIR__ . '/research-intelligence-portfolios.php';
+require_once __DIR__ . '/research-intelligence-operations.php';
 require_once __DIR__ . '/research-network.php';
 require_once __DIR__ . '/research-provenance.php';
 require_once __DIR__ . '/data-attribution.php';
