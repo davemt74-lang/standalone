@@ -236,6 +236,33 @@
     const u=new URL('/api/research-tasks.php',location.origin);u.searchParams.set('action',action);u.searchParams.set('agent_id',agentId);
     Object.entries(extra).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)u.searchParams.set(k,String(v));});return u;
   }
+  function researchProgramUrl(action='list',extra={}){
+    const u=new URL('/api/research-programs.php',location.origin);u.searchParams.set('action',action);u.searchParams.set('agent_id',agentId);
+    Object.entries(extra).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)u.searchParams.set(k,String(v));});return u;
+  }
+  function renderLibraryPrograms(data){
+    if(!libraryList)return;libraryList.replaceChildren();libraryDrawer?.classList.add('is-programs');
+    const programs=Array.isArray(data.programs)?data.programs:[],summary=data.summary||{};
+    if(libraryCount)libraryCount.textContent=programs.length+' program'+(programs.length===1?'':'s');
+    if(libraryIndexState)libraryIndexState.textContent='PROGRAMS · '+String(summary.active||0)+' active · '+String(summary.review_tasks||0)+' review · '+String(summary.failed_runs||0)+' failed';
+    const head=document.createElement('div');head.className='researchLibraryProgramHead';
+    const copy=document.createElement('div'),strong=document.createElement('strong'),small=document.createElement('small');strong.textContent='Recurring Research Programs';small.textContent=summary.next_run_at?('Next run '+summary.next_run_at):'No scheduled run';copy.append(strong,small);
+    const link=document.createElement('a');link.href='/research-programs.php?agent='+encodeURIComponent(agentId);link.textContent='Manage';head.append(copy,link);libraryList.appendChild(head);
+    if(!programs.length){const empty=document.createElement('div');empty.className='researchLibraryEmpty';empty.textContent='No recurring Programs yet. Open Programs to create one or ask the Agent to propose one.';libraryList.appendChild(empty);}
+    for(const program of programs){
+      const row=document.createElement('article');row.className='researchLibraryProgram is-'+String(program.status||'active');
+      const body=document.createElement('a');body.href='/research-programs.php?agent='+encodeURIComponent(agentId)+'&program='+encodeURIComponent(String(program.public_id));body.className='researchLibraryProgramBody';
+      const title=document.createElement('strong');title.textContent=String(program.title||'Research Program');
+      const meta=document.createElement('small');meta.textContent=[String(program.status||'active').toUpperCase(),String(program.cadence||'weekly'),String(program.completed_runs||0)+' completed',String(program.quiet_runs||0)+' quiet',String(program.failed_runs||0)+' failed'].join(' · ');
+      body.append(title,meta);
+      const badge=document.createElement('span');badge.className='researchLibraryProgramStatus';badge.textContent=String(program.priority||'medium').toUpperCase();row.append(body,badge);libraryList.appendChild(row);
+    }
+    updateLibraryAskState();
+  }
+  async function loadLibraryPrograms(serial){
+    try{const [list,summary]=await Promise.all([api(researchProgramUrl('list')),api(researchProgramUrl('summary'))]);if(serial!==libraryRequestSerial)return;renderLibraryPrograms({programs:list.programs||[],summary});}
+    catch(err){if(serial!==libraryRequestSerial)return;libraryResults=[];renderLibrary();setStatus(err.message||'Research Programs failed to load.',true);}
+  }
   function renderLibraryTasks(data){
     if(!libraryList)return;libraryList.replaceChildren();libraryDrawer?.classList.add('is-tasks');
     const plans=Array.isArray(data.plans)?data.plans:[],summary=data.summary||{};
@@ -417,10 +444,11 @@
   }
   async function loadLibraryResults(){
     if(!projectId)return;const serial=++libraryRequestSerial;
-    if(libraryList)libraryList.innerHTML='<div class="researchLibraryEmpty">'+(libraryFilter==='monitoring'?'Loading monitoring…':libraryFilter==='tasks'?'Loading tasks…':'Searching Research…')+'</div>';
-    libraryDrawer?.classList.toggle('is-monitoring',libraryFilter==='monitoring');libraryDrawer?.classList.toggle('is-tasks',libraryFilter==='tasks');
+    if(libraryList)libraryList.innerHTML='<div class="researchLibraryEmpty">'+(libraryFilter==='monitoring'?'Loading monitoring…':libraryFilter==='tasks'?'Loading tasks…':libraryFilter==='programs'?'Loading Programs…':'Searching Research…')+'</div>';
+    libraryDrawer?.classList.toggle('is-monitoring',libraryFilter==='monitoring');libraryDrawer?.classList.toggle('is-tasks',libraryFilter==='tasks');libraryDrawer?.classList.toggle('is-programs',libraryFilter==='programs');
     if(libraryFilter==='monitoring'){await loadLibraryMonitoring(serial);return;}
     if(libraryFilter==='tasks'){await loadLibraryTasks(serial);return;}
+    if(libraryFilter==='programs'){await loadLibraryPrograms(serial);return;}
     try{
       const data=await api(librarySearchUrl('search',{
         q:String(librarySearch?.value||'').trim(),type:libraryFilter,folder_id:String(libraryFolder?.value||''),
@@ -781,7 +809,7 @@
     button.addEventListener('click',()=>{if(!canWrite()||!libraryDocContent)return;libraryDocContent.focus();try{document.execCommand(String(button.dataset.researchLibraryDocCommand||''),false,null);}catch{}libraryDocDirty=true;setLibraryDocState('Unsaved');});
   });
   librarySearch?.addEventListener('input',scheduleLibrarySearch);
-  canvas.querySelectorAll('[data-research-library-filter]').forEach(button=>button.addEventListener('click',()=>{libraryFilter=String(button.dataset.researchLibraryFilter||'all');canvas.querySelectorAll('[data-research-library-filter]').forEach(b=>b.classList.toggle('is-active',b===button));if(librarySearch)librarySearch.disabled=['monitoring','tasks'].includes(libraryFilter);loadLibraryResults();}));
+  canvas.querySelectorAll('[data-research-library-filter]').forEach(button=>button.addEventListener('click',()=>{libraryFilter=String(button.dataset.researchLibraryFilter||'all');canvas.querySelectorAll('[data-research-library-filter]').forEach(b=>b.classList.toggle('is-active',b===button));if(librarySearch)librarySearch.disabled=['monitoring','tasks','programs'].includes(libraryFilter);loadLibraryResults();}));
   [libraryFolder,libraryStatus,libraryDateFrom,libraryDateTo].forEach(control=>control?.addEventListener('change',loadLibraryResults));
   libraryAskButton?.addEventListener('click',askAgentAboutLibrarySelection);
   libraryDesktopButton?.addEventListener('click',async()=>{closeLibrary();await openDesktop();});
