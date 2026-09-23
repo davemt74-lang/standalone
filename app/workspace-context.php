@@ -47,6 +47,15 @@ function workspace_context_object(PDO $pdo,array $viewer,string $type,string $pu
         if(!empty($bookmark['team_public_id']))$out['team']=['public_id'=>(string)$bookmark['team_public_id'],'label'=>(string)$bookmark['team_name'],'url'=>'/team.php?id='.rawurlencode((string)$bookmark['team_public_id'])];
         return $out;
     }
+    if($type==='document'&&function_exists('research_agent_workspace_object')){
+        $document=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$document||($document['object_type']??'')!=='document')return null;
+        $conversation=trim((string)($document['conversation_public_id']??''));
+        $out=['type'=>'document','public_id'=>$publicId,'label'=>'Research document',
+          'url'=>$conversation!==''?'/home.php?agent='.rawurlencode($conversation).'&doc='.rawurlencode($publicId):'/research-project.php?id='.rawurlencode((string)$document['project_public_id']),
+          'research'=>['public_id'=>(string)$document['project_public_id'],'label'=>(string)$document['project_title'],'url'=>'/research-project.php?id='.rawurlencode((string)$document['project_public_id'])]];
+        if(!empty($document['team_public_id']))$out['team']=['public_id'=>(string)$document['team_public_id'],'label'=>(string)$document['team_name'],'url'=>'/team.php?id='.rawurlencode((string)$document['team_public_id'])];
+        return $out;
+    }
     if($type==='source'){
         $source=source_access($pdo,$publicId,$viewer);if(!$source)return null;
         return ['type'=>'source','public_id'=>$publicId,'label'=>'Source','url'=>'/source.php?id='.rawurlencode($publicId)];
