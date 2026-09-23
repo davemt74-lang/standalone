@@ -264,6 +264,10 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
         if(strtotime((string)$proposal['expires_at'])<time()){$pdo->prepare("UPDATE agent_action_proposals SET status='stale',error_text='Proposal expired before confirmation.' WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'stale',(int)$viewer['id'],['reason'=>'expired']);$pdo->commit();throw new AgentActionStale('This Agent action proposal expired. Ask the Agent to propose it again.');}
         $project=project_access($pdo,(int)$viewer['id'],(string)(function()use($pdo,$proposal){$q=$pdo->prepare('SELECT public_id FROM research_projects WHERE id=?');$q->execute([$proposal['project_id']]);return $q->fetchColumn()?:'';})());
         if(!$project||!project_can_write($project))throw new AgentActionForbidden('You no longer have permission to change this Research project.');
+        if(!empty($project['team_id'])&&function_exists('research_agent_access')&&installer_table_exists($pdo,'research_agents')){
+            $aq=$pdo->prepare("SELECT public_id FROM research_agents WHERE project_id=? AND status<>'archived' ORDER BY id LIMIT 1");$aq->execute([(int)$project['id']]);$agentPublic=(string)($aq->fetchColumn()?:'');
+            if($agentPublic!==''&&!research_agent_access($pdo,$viewer,$agentPublic))throw new AgentActionForbidden('You are no longer a member of the Team that owns this Research Agent.');
+        }
         $currentHash=research_workspace_input_hash($pdo,(int)$project['id']);if(!hash_equals((string)$proposal['project_state_hash'],$currentHash)){
             $pdo->prepare("UPDATE agent_action_proposals SET status='stale',error_text='Research project changed after proposal.' WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'stale',(int)$viewer['id'],['reason'=>'project_state_changed']);$pdo->commit();throw new AgentActionStale('The Research project changed after this proposal. Ask the Agent to review the current state and propose the action again.');
         }
