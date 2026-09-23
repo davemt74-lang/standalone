@@ -25,7 +25,7 @@ $must(!str_contains($rt,"UPDATE research_claims SET"),'Phase 57 execution must n
 $must(str_contains($rt,"status='needs_review'"),'Phase 57 must stop Agent deliverable updates after user document edits.');
 
 $worker=(string)file_get_contents($root.'/worker/research-task-worker.php');
-foreach(["release_worker_heartbeat($pdo,'research_tasks'","job_claim($pdo,'research_task_jobs'","research_task_dependencies_complete","ai_queue_job","research_task_execution"] as $needle)
+foreach(["release_worker_heartbeat(\$pdo,'research_tasks'","job_claim(\$pdo,'research_task_jobs'","research_task_dependencies_complete","ai_queue_job","research_task_execution"] as $needle)
   $must(str_contains($worker,$needle),'Phase 57 task worker contract missing: '.$needle);
 
 $ai=(string)file_get_contents($root.'/worker/ai-worker.php');
