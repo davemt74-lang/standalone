@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Annotated",
   "version": "0.36.0",
-  "description": "Annotated v0.36 Chrome sidebar release candidate with end-to-end workspace journey hardening, Unified Action Center & Attention Routing, Contextual Navigation & Workspace State, Unified Activity & Context Awareness, Unified Continuity Actions & Object Cards, Unified Object Handoff & Continuity, and Research V1.",
+  "description": "Annotated v0.36 Chrome sidebar for Annotated V1.1 with end-to-end Research workspace, governance, Portfolio intelligence, executive briefing, and follow-through.",
   "permissions": [
     "sidePanel",
     "activeTab",
