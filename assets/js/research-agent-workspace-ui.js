@@ -199,7 +199,11 @@
       stickies.map(item=>({...item,object_type:'sticky',title:item.title||'Sticky note'}))
     );
     const q=String(librarySearch?.value||'').trim().toLowerCase();
-    return rows.filter(item=>(libraryFilter==='all'||String(item.object_type)===libraryFilter)&&(!q||libraryObjectText(item).includes(q)));
+    return rows.filter(item=>{
+      const type=String(item.object_type||'');
+      const matchesType=libraryFilter==='all'||type===libraryFilter||(libraryFilter==='transcript'&&type==='recording'&&String(item.transcript_status||'')==='ready');
+      return matchesType&&(!q||libraryObjectText(item).includes(q));
+    });
   }
   function libraryMeta(item){
     const type=String(item.object_type||'');
