@@ -3,10 +3,11 @@ declare(strict_types=1);
 
 require_once __DIR__.'/migrations.php';
 
-const ANNOTATED_RELEASE = 'V1.1 RC1';
-const ANNOTATED_RELEASE_VERSION = '1.1.0-rc1';
-const ANNOTATED_RELEASE_PHASE = 49;
+const ANNOTATED_RELEASE = 'V1.1';
+const ANNOTATED_RELEASE_VERSION = '1.1.0';
+const ANNOTATED_RELEASE_PHASE = 62;
 const ANNOTATED_EXTENSION_VERSION = '0.36.0';
+const ANNOTATED_RELEASE_CHANNEL = 'stable';
 
 function onboarding_ensure(PDO $pdo,int $userId): void {
     try{$pdo->prepare('INSERT IGNORE INTO user_onboarding(user_id) VALUES(?)')->execute([$userId]);}catch(PDOException $e){}

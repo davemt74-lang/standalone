@@ -5,13 +5,13 @@ $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO
 require_once $root.'/app/installer.php';require_once $root.'/app/functions.php';require_once $root.'/app/release.php';require_once $root.'/app/release-operations.php';
 function p49(bool $ok,string $message): void {if(!$ok)throw new RuntimeException('FAIL: '.$message);echo "PASS: $message\n";}
 
-p49(ANNOTATED_RELEASE==='V1.1 RC1'&&ANNOTATED_RELEASE_VERSION==='1.1.0-rc1'&&ANNOTATED_RELEASE_PHASE===49,'Phase 49 canonical application release identity is V1.1 RC1 / 1.1.0-rc1');
+p49(in_array(ANNOTATED_RELEASE,['V1.1 RC1','V1.1'],true)&&in_array(ANNOTATED_RELEASE_VERSION,['1.1.0-rc1','1.1.0'],true)&&ANNOTATED_RELEASE_PHASE>=49,'Phase 49 release identity remains compatible through the V1.1 final cutover');
 p49(ANNOTATED_EXTENSION_VERSION==='0.36.0','Phase 49 correctly retains unchanged Chrome extension version 0.36.0');
 $manifest=json_decode((string)file_get_contents($root.'/extension/manifest.json'),true,512,JSON_THROW_ON_ERROR);
 p49(($manifest['manifest_version']??0)===3&&($manifest['version']??'')===ANNOTATED_EXTENSION_VERSION,'canonical release identity matches the actual Manifest V3 Chrome package');
 
 $release=release_manifest_data($root,'phase49-ci-sha');
-p49($release['version']==='1.1.0-rc1'&&$release['phase']===49&&$release['build_sha']==='phase49-ci-sha','generated release manifest binds release identity and build SHA');
+p49(in_array($release['version'],['1.1.0-rc1','1.1.0'],true)&&$release['phase']>=49&&$release['build_sha']==='phase49-ci-sha','generated release manifest binds release identity and build SHA');
 p49($release['latest_migration']==='20260923_059_portfolio_intelligence_operations_follow_through.sql','release manifest identifies the current latest migration');
 p49((bool)preg_match('/^[a-f0-9]{64}$/',(string)$release['package_fingerprint']),'release manifest has a deterministic SHA-256 package fingerprint');
 p49($release['package_fingerprint']===release_package_fingerprint($root),'package fingerprint is deterministic for the same release tree');
@@ -50,7 +50,7 @@ try{
     $deploymentsBefore=installer_table_exists($pdo,'data_model_deployments')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_deployments')->fetchColumn():0;
     $versionsBefore=installer_table_exists($pdo,'data_model_versions')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_versions')->fetchColumn():0;
     $ops=release_operational_audit($pdo,$config,$root);
-    p49(($ops['release']['version']??'')==='1.1.0-rc1'&&($ops['checks']['extension_identity']['pass']??false),'operational audit reports the canonical V1.1 RC identity and matching extension');
+    p49(in_array(($ops['release']['version']??''),['1.1.0-rc1','1.1.0'],true)&&($ops['checks']['extension_identity']['pass']??false),'operational audit reports the canonical V1.1 release identity and matching extension');
     p49(isset($ops['backup']['checks']['dump'],$ops['backup']['checks']['client'],$ops['backup']['checks']['tar'],$ops['backup']['checks']['gzip'],$ops['backup']['checks']['zlib']),'operational audit exposes concrete backup/restore prerequisites without pretending missing tools are present');
     $routingAfter=$pdo->query('SELECT admin_default_model_id,pro_default_model_id,source_monitor_model_id,moderation_model_id,research_model_id,transcript_cleanup_model_id,annotation_intelligence_model_id FROM ai_settings WHERE id=1')->fetch();
     $deploymentsAfter=installer_table_exists($pdo,'data_model_deployments')?(int)$pdo->query('SELECT COUNT(*) FROM data_model_deployments')->fetchColumn():0;

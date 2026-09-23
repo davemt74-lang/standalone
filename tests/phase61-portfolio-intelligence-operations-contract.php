@@ -17,8 +17,8 @@ foreach(['ai_run(','agent_action_confirm_execute(','agent_action_execute_capabil
 $must('app/research-intelligence-portfolios.php',['New since last briefing','snapshot_public_id','research_intelligence_portfolio_publication_recipient_ids'],'Phase 61 briefing continuity');
 $must('bin/research-automations.php',['research_intelligence_portfolio_process_due','portfolio_cycles','portfolio_briefings'],'Phase 61 existing scheduler reuse');
 $must('app/research-publishing.php',['research_intelligence_portfolio_publication_distributed'],'Phase 61 Phase 59 distribution bridge');
-$must('app/research-outcomes.php',["$type==='portfolio'","$type==='portfolio_insight'","$type==='executive_briefing'"],'Phase 61 Decision Memory provenance');
-$must('app/notifications.php',["$type==='research_intelligence_portfolio'","research-intelligence-portfolios.php?portfolio="],'Phase 61 notification access');
+$must('app/research-outcomes.php',["\$type==='portfolio'","\$type==='portfolio_insight'","\$type==='executive_briefing'"],'Phase 61 Decision Memory provenance');
+$must('app/notifications.php',["\$type==='research_intelligence_portfolio'","research-intelligence-portfolios.php?portfolio="],'Phase 61 notification access');
 $must('api/research-intelligence-portfolios.php',['command_center','subscription_set','acknowledge','record_decision','feedback_set'],'Phase 61 API');
 $must('research-intelligence-portfolios.php',['PHASE 61 · PORTFOLIO INTELLIGENCE OPERATIONS','61A · SCHEDULED INTELLIGENCE','61C · EXECUTIVE SUBSCRIPTION','61D · DECISIONS & FOLLOW-THROUGH','61E · EXPLICIT LEARNING','Acknowledge'],'Phase 61 Portfolio UI');
 $must('research-intelligence-command-center.php',['PHASE 61 · ORGANIZATION COMMAND CENTER','NEEDS ATTENTION','NEW SINCE LAST BRIEFING','DECISIONS AWAITING FOLLOW-THROUGH','EMERGING OPPORTUNITIES','CROSS-PORTFOLIO THEMES','BRIEFINGS AWAITING REVIEW'],'Phase 61 command center');
