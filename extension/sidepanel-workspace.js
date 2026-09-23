@@ -13,7 +13,7 @@ async function phase34WorkspaceRead(){
       version:1,user_public_id:user,
       team_public_id:phase34WorkspaceRef(stored.team_public_id),
       research_public_id:phase34WorkspaceRef(stored.research_public_id),
-      object_type:['annotation','source','claim','finding'].includes(String(stored.object_type||''))?String(stored.object_type):'',
+      object_type:['annotation','source','claim','finding','bookmark'].includes(String(stored.object_type||''))?String(stored.object_type):'',
       object_public_id:phase34WorkspaceRef(stored.object_public_id),
       agent_conversation_public_id:phase34WorkspaceRef(stored.agent_conversation_public_id),
       surface:String(stored.surface||'browser').slice(0,32),updated_at:Number(stored.updated_at)||Date.now()
@@ -26,7 +26,7 @@ async function phase34WorkspaceWrite(state){
     version:1,user_public_id:phase34WorkspaceUser(),
     team_public_id:phase34WorkspaceRef(state.team_public_id),
     research_public_id:phase34WorkspaceRef(state.research_public_id),
-    object_type:['annotation','source','claim','finding'].includes(String(state.object_type||''))?String(state.object_type):'',
+    object_type:['annotation','source','claim','finding','bookmark'].includes(String(state.object_type||''))?String(state.object_type):'',
     object_public_id:phase34WorkspaceRef(state.object_public_id),
     agent_conversation_public_id:phase34WorkspaceRef(state.agent_conversation_public_id),
     surface:String(state.surface||'browser').slice(0,32),updated_at:Date.now()
@@ -47,7 +47,7 @@ function phase34WorkspaceMerge(state,patch={}){
     next.research_public_id=research;
   }
   if(Object.prototype.hasOwnProperty.call(patch,'object_public_id')){
-    next.object_public_id=phase34WorkspaceRef(patch.object_public_id);next.object_type=next.object_public_id&&['annotation','source','claim','finding'].includes(String(patch.object_type||''))?String(patch.object_type):'';
+    next.object_public_id=phase34WorkspaceRef(patch.object_public_id);next.object_type=next.object_public_id&&['annotation','source','claim','finding','bookmark'].includes(String(patch.object_type||''))?String(patch.object_type):'';
   }
   if(Object.prototype.hasOwnProperty.call(patch,'agent_conversation_public_id'))next.agent_conversation_public_id=phase34WorkspaceRef(patch.agent_conversation_public_id);
   if(patch.clear_object){next.object_type='';next.object_public_id='';}
