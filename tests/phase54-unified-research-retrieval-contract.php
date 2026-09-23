@@ -31,6 +31,8 @@ $need('app/research-retrieval.php','function research_retrieval_result_allowed',
 $need('app/research-retrieval.php','function research_retrieval_search','Research search must use the unified index.');
 $need('app/research-retrieval.php','function research_retrieval_context','Agent context must come from ranked retrieval results.');
 $need('app/research-retrieval.php','function research_retrieval_related','Phase 54 must expose related evidence.');
+$need('app/research-retrieval.php',"research_retrieval_result_allowed(\$pdo,\$viewer,['object_type'=>\$type,'object_public_id'=>\$publicId])",'Related evidence must authorize the seed object before reading derived index content.');
+
 $need('app/research-retrieval.php','function research_retrieval_embed_text','Embeddings must remain provider-neutral and optional.');
 $need('app/research-retrieval.php',"research_retrieval_embed_command(\$config)!==''",'Hybrid retrieval must activate only when embeddings are configured.');
 $need('app/research-retrieval.php','research_retrieval_queries','Search provenance must be auditable.');
