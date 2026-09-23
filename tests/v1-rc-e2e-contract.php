@@ -233,7 +233,8 @@ $need('assets/css/app.css','--annotation-highlight','Annotation quotes must use 
 $need('app/public-discovery.php','COALESCE(at.edited_text,at.raw_text) transcript_text','Profile annotation cards must receive transcript text when available.');
 $need('profile.php','profileContent','Profile annotations must render in the dedicated single-column activity area.');
 $avoid('profile.php','profileColumns','Profile page must not restore the old two-column sidebar layout.');
-$avoid('profile.php','PUBLISHED RESEARCH','Profile page must not render the old Research sidebar.');
+$avoid('profile.php','profileColumns','Profile page must not restore the old Research/sidebar column layout.');
+$need('profile.php','profileResearchCard','Published Research may appear only through the new standalone profile showcase card surface.');
 $need('.htaccess','profile.php?u=$1','Clean single-segment username routes must resolve to public profiles.');
 $need('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile pages must opt out of the universal application shell.');
 $avoid('profile.php','<header class="topbar"','Profile pages must not render the legacy lightweight public header.');
