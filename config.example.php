@@ -48,6 +48,13 @@ return [
         // Safety cap for automatic candidate promotion in one monitoring run.
         'auto_promote_limit_per_run' => 5,
     ],
+    'vp3' => [
+        // Optional connection to the user's VP3 account. Configure the matching client secret in VP3.
+        'base_url' => 'https://vp3.me',
+        'client_id' => 'annotated',
+        'client_secret' => '',
+        'redirect_uri' => 'https://annotated.example.com/vp3/callback.php',
+    ],
     'oauth' => [
         'google' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],
         'x' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],

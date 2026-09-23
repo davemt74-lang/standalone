@@ -116,6 +116,15 @@ jobs:
           test -f package-website/tests/phase62-v1-1-final-release-db.php
           test -f package-website/tests/phase62-v1-1-soak-db.php
           test -f package-website/tests/ci/phase62-upgrade-supported-baselines.php
+          test -f package-website/database/migrations/20260923_060_vp3_account_connection_research_ingestion.sql
+          test -f package-website/docs/phase-63-vp3-account-connection-research-ingestion.md
+          test -f package-website/app/vp3-connector.php
+          test -f package-website/vp3/connect.php
+          test -f package-website/vp3/callback.php
+          test -f package-website/vp3-library.php
+          test -f package-website/tests/phase63-vp3-connection-contract.php
+          test -f package-website/tests/phase63-vp3-connection-db.php
+          test -f package-website/tests/ci/phase63-upgrade-from-059.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

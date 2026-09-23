@@ -7,7 +7,7 @@ function p62(bool $ok,string $m): void {if(!$ok)throw new RuntimeException('FAIL
 function p62throws(callable $fn,string $m): void {try{$fn();}catch(Throwable $e){echo "PASS: $m\n";return;}throw new RuntimeException('FAIL: '.$m);}
 
 p62(ANNOTATED_RELEASE==='V1.1'&&ANNOTATED_RELEASE_VERSION==='1.1.0'&&ANNOTATED_RELEASE_PHASE===62&&ANNOTATED_RELEASE_CHANNEL==='stable','62F canonical application release identity is stable V1.1 / 1.1.0 / Phase 62.');
-p62(release_latest_migration($root)==='20260923_059_portfolio_intelligence_operations_follow_through.sql','62C/62F V1.1 final release deliberately introduces no migration after 059.');
+p62(strcmp(release_latest_migration($root),'20260923_059_portfolio_intelligence_operations_follow_through.sql')>=0,'62C/62F V1.1 final release baseline remains at migration 059 or later.');
 
 $run='p62'.substr(bin2hex(random_bytes(6)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
 $makeUser=function(string $name)use($pdo,$run,$pub): array{$username=substr(strtolower($name).'_'.$run,0,48);$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,email_verified_at,status,role,plan_tier,live_presence_mode) VALUES(?,?,?,?,NOW(),'active','user','pro','cloaked')")->execute([$pub('u'),$username,$name,$username.'@example.test']);$id=(int)$pdo->lastInsertId();$pdo->prepare('INSERT IGNORE INTO user_preferences(user_id) VALUES(?)')->execute([$id]);$q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$id]);return $q->fetch();};

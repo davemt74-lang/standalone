@@ -33,7 +33,7 @@ unset($agent);
 <main class="researchLibraryCanvas">
   <section class="researchLibraryToolbar" aria-label="Research workspace tools">
     <nav class="researchLibraryTabs researchPrimaryActions">
-      <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a>
+      <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a><a href="/vp3-library.php">VP3 Library</a>
       <a href="/research-monitoring.php">Monitoring</a>
       <a href="/research-tasks.php">Tasks</a>
       <a href="/research-programs.php">Programs</a>

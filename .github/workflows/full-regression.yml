@@ -72,6 +72,13 @@ jobs:
           DB_PASS: root
           PHASE62_RESET_DBS: '1'
         run: php tests/ci/phase62-upgrade-supported-baselines.php
+      - name: Phase 63 upgrade rehearsal from migration 059 through 060
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase63_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE63_RESET_DB: '1'
+        run: php tests/ci/phase63-upgrade-from-059.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -115,6 +122,7 @@ jobs:
           php tests/phase61-portfolio-intelligence-operations-db.php
           php tests/phase62-v1-1-final-release-db.php
           php tests/phase62-v1-1-soak-db.php
+          php tests/phase63-vp3-connection-db.php
       - name: MySQL 8 upgrade rehearsal from migration 056 through 059
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
@@ -136,6 +144,13 @@ jobs:
           DB_PASS: root
           PHASE62_RESET_DBS: '1'
         run: php tests/ci/phase62-upgrade-supported-baselines.php
+      - name: MySQL 8 Phase 63 upgrade rehearsal from migration 059 through 060
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase63_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE63_RESET_DB: '1'
+        run: php tests/ci/phase63-upgrade-from-059.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
