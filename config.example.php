@@ -38,6 +38,14 @@ return [
         'embedding_provider' => 'local',
         'embedding_model' => '',
     ],
+    'research_monitoring' => [
+        // Optional provider-neutral external discovery command. It receives JSON at {input}
+        // with watch_type, target, query and limit, and writes either a JSON array or
+        // {"results":[{"url":"https://...","title":"...","excerpt":"...","published_at":"..."}]}
+        // to {output}. URL watches and domain sitemap monitoring work without this command.
+        'discovery_command' => '',
+        'discovery_provider' => 'local',
+    ],
     'oauth' => [
         'google' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],
         'x' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],
