@@ -7,7 +7,7 @@ $action=(string)($_GET['action']??'list');
 $input=$_SERVER['REQUEST_METHOD']==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $viewer=in_array($action,['list','folders'],true)?require_api_user($pdo):require_api_mutation_auth($pdo);
+    $viewer=in_array($action,['list','folders','document','document_revisions','stickies'],true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_agent_workspace_ready($pdo))throw new RuntimeException('Research Agent workspace requires the latest database upgrade.');
 
     $agentPublic=trim((string)($input['agent_id']??''));
@@ -27,6 +27,44 @@ try{
           ]:null,
           'items'=>$items
         ]]);
+    }
+    if($action==='document'){
+        $item=research_agent_workspace_object($pdo,$viewer,(string)($input['object_id']??''),false);
+        if(!$item||($item['object_type']??'')!=='document')json_response(['ok'=>false,'error'=>['code'=>'DOCUMENT_NOT_FOUND','message'=>'Document not found.']],404);
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
+    }
+    if($action==='document_revisions'){
+        $items=research_agent_workspace_document_revisions($pdo,$viewer,(string)($input['object_id']??''),50);
+        json_response(['ok'=>true,'data'=>['revisions'=>$items]]);
+    }
+    if($action==='stickies'){
+        $items=research_agent_workspace_stickies($pdo,$viewer,$project);
+        json_response(['ok'=>true,'data'=>['items'=>$items]]);
+    }
+    if($action==='create_document'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
+        $item=research_agent_workspace_create_document($pdo,$viewer,$project,is_array($input)?$input:[]);
+        json_response(['ok'=>true,'data'=>['item'=>$item]],201);
+    }
+    if($action==='save_document'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],240,3600);
+        $item=research_agent_workspace_save_document($pdo,$viewer,(string)($input['object_id']??''),is_array($input)?$input:[]);
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
+    }
+    if($action==='restore_document_revision'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],120,3600);
+        $item=research_agent_workspace_restore_document_revision($pdo,$viewer,(string)($input['object_id']??''),(string)($input['revision_id']??''),(int)($input['base_revision']??0));
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
+    }
+    if($action==='create_sticky'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],240,3600);
+        $item=research_agent_workspace_create_sticky($pdo,$viewer,$project,is_array($input)?$input:[]);
+        json_response(['ok'=>true,'data'=>['item'=>$item]],201);
+    }
+    if($action==='update_sticky'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],600,3600);
+        $item=research_agent_workspace_update_sticky($pdo,$viewer,(string)($input['object_id']??''),is_array($input)?$input:[]);
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='create_folder'){
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
