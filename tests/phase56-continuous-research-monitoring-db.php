@@ -125,8 +125,8 @@ $pdo->prepare("INSERT INTO research_monitor_claim_assessments(public_id,watch_id
   ->execute([$stalePublic,$claimWatch['id'],$project['id'],$claimId,$oldVersion,$claimStatement]);
 $pdo->prepare("UPDATE research_claims SET statement='The launch target is October 20.' WHERE id=?")->execute([$claimId]);
 $stale=research_monitor_claim_assessment_apply($pdo,$stalePublic,json_encode(['assessment'=>'supports','confidence'=>0.95,'rationale'=>'Stale result fixture.']),'ai-stale-'.$run);
-$q=$pdo->prepare("SELECT status FROM research_monitor_claim_assessments WHERE public_id=?");$q->execute([$stalePublic]);$staleStatus=(string)$q->fetchColumn();
-p56(!empty($stale['stale'])&&$staleStatus==='failed','56.4 AI output for an edited claim is discarded instead of being attached to new wording.');
+$q=$pdo->prepare("SELECT status,assessment,ai_run_public_id FROM research_monitor_claim_assessments WHERE public_id=?");$q->execute([$stalePublic]);$staleRow=$q->fetch();
+p56(!empty($stale['stale'])&&$staleRow&&in_array((string)$staleRow['status'],['queued','failed'],true)&&$staleRow['assessment']===null&&$staleRow['ai_run_public_id']===null,'56.4 AI output for an edited claim is discarded and is either safely requeued or explicitly failed.');
 $pdo->prepare("UPDATE research_claims SET statement=? WHERE id=?")->execute([$claimStatement,$claimId]);
 
 $messagesBeforeQ=$pdo->prepare("SELECT COUNT(*) FROM conversation_messages WHERE conversation_id=? AND sender_type='agent' AND body LIKE 'Research monitoring update for %'");$messagesBeforeQ->execute([$agent['conversation_id']]);$messagesBefore=(int)$messagesBeforeQ->fetchColumn();
