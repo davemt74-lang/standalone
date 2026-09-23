@@ -45,6 +45,8 @@ return [
         // to {output}. URL watches and domain sitemap monitoring work without this command.
         'discovery_command' => '',
         'discovery_provider' => 'local',
+        // Safety cap for automatic candidate promotion in one monitoring run.
+        'auto_promote_limit_per_run' => 5,
     ],
     'oauth' => [
         'google' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],
