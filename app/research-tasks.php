@@ -340,8 +340,9 @@ function research_task_refresh_deliverable(PDO $pdo,array $viewer,string $planPu
     $plan=research_task_plan_access($pdo,$viewer,$planPublic);if(!$plan)return null;$agent=research_task_agent($pdo,$viewer,(string)$plan['agent_public_id']);$project=research_task_project($pdo,$viewer,$agent);$body=research_task_deliverable_html($pdo,$plan);
     $q=$pdo->prepare("SELECT rtd.*,rwo.public_id object_public_id,rwd.revision_number FROM research_task_deliverables rtd JOIN research_workspace_objects rwo ON rwo.id=rtd.workspace_object_id JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id WHERE rtd.plan_id=? LIMIT 1");$q->execute([(int)$plan['id']]);$d=$q->fetch();
     if($d){
-        if($d['status']==='finalized'||hash_equals((string)($d['last_task_state_hash']??''),(string)$body['state_hash']))return $d;
-        if((int)$d['revision_number']!==(int)$d['managed_revision_number']){$pdo->prepare("UPDATE research_task_deliverables SET status='needs_review',updated_at=NOW() WHERE id=?")->execute([(int)$d['id']]);return $d;}
+        if($d['status']==='finalized')return $d;
+        if((int)$d['revision_number']!==(int)$d['managed_revision_number']){$pdo->prepare("UPDATE research_task_deliverables SET status='needs_review',updated_at=NOW() WHERE id=?")->execute([(int)$d['id']]);$d['status']='needs_review';return $d;}
+        if(hash_equals((string)($d['last_task_state_hash']??''),(string)$body['state_hash']))return $d;
         $doc=research_agent_workspace_save_document($pdo,$viewer,(string)$d['object_public_id'],['title'=>(string)($plan['deliverable_title']?:$plan['title']),'content_html'=>$body['html'],'summary'=>'Living deliverable for '.$plan['title'],'base_revision'=>(int)$d['revision_number']]);
         $pdo->prepare("UPDATE research_task_deliverables SET status='active',managed_revision_number=?,last_task_state_hash=?,updated_at=NOW() WHERE id=?")->execute([(int)$doc['revision_number'],$body['state_hash'],(int)$d['id']]);research_task_event($pdo,(int)$plan['project_id'],(int)$plan['id'],null,'deliverable_updated','agent',null,['document_public_id'=>$doc['public_id'],'revision'=>(int)$doc['revision_number']]);if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$plan['project_id']);return $doc;
     }
