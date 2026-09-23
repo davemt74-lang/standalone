@@ -36,7 +36,7 @@ function research_agent_workspace_object(PDO $pdo,array $viewer,string $publicId
     if(!research_agent_workspace_ready($pdo))return null;
     $publicId=trim($publicId);if($publicId==='')return null;
     $q=$pdo->prepare("SELECT rwo.*,rp.public_id project_public_id,rp.title project_title,
-      ra.public_id research_agent_public_id,ra.name research_agent_name,
+      ra.public_id research_agent_public_id,ra.name research_agent_name,ac.public_id conversation_public_id,
       t.public_id team_public_id,t.name team_name,
       u.public_id creator_public_id,u.username creator_username,u.display_name creator_name,
       parent.public_id parent_public_id,parent.title parent_title,
@@ -193,6 +193,7 @@ function research_agent_workspace_bookmark_feed(PDO $pdo,array $viewer,int $limi
       JOIN research_workspace_bookmarks rwb ON rwb.object_id=rwo.id
       JOIN research_projects rp ON rp.id=rwo.project_id
       LEFT JOIN research_agents ra ON ra.project_id=rp.id AND ra.status<>'archived'
+      LEFT JOIN conversations ac ON ac.id=ra.conversation_id
       LEFT JOIN teams t ON t.id=rp.team_id
       JOIN users u ON u.id=rwo.created_by_user_id
       LEFT JOIN research_workspace_objects parent ON parent.id=rwo.parent_id
