@@ -47,8 +47,11 @@ $collections=!empty($prefs['profile_show_collections'])||$ownerControls?profile_
 $showResearch=!empty($prefs['profile_show_research'])||$ownerControls;
 $showCollections=!empty($prefs['profile_show_collections'])||$ownerControls;
 $showAbout=!empty($prefs['profile_show_about'])||$ownerControls;
-$activity=profile_showcase_activity($p,$showCollections?$collections:[]);
+$activityProfile=$p;if(!$showResearch)$activityProfile['reports']=[];
+$activity=profile_showcase_activity($activityProfile,$showCollections?$collections:[]);
 $pins=profile_showcase_pins($pdo,$p,$viewer);
+if(!$showResearch)$pins=array_values(array_filter($pins,static fn($pin)=>$pin['type']!=='research_report'));
+if(!$showCollections)$pins=array_values(array_filter($pins,static fn($pin)=>$pin['type']!=='collection'));
 $pinMap=[];foreach($pins as $pin)$pinMap[$pin['type'].'|'.$pin['public_id']]=true;
 
 $tabs=['activity'=>'Activity','annotations'=>'Annotations'];
