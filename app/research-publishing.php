@@ -46,13 +46,16 @@ function research_publication_document_revision(PDO $pdo,array $viewer,string $d
 
 function research_publication_workflow_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!research_publications_ready($pdo))return null;
-    $q=$pdo->prepare("SELECT rpw.*,rp.public_id project_public_id,rp.title project_title,rp.owner_user_id,rp.team_id,rwo.public_id document_public_id,rwo.title document_title,ra.public_id agent_public_id,ra.name agent_name,rr.public_id review_public_id,
-      rtr.public_id plan_public_id,rpr.public_id program_run_public_id
+    $q=$pdo->prepare("SELECT rpw.*,rp.public_id project_public_id,rp.title project_title,rp.owner_user_id,rp.team_id,rwo.public_id document_public_id,rwo.title document_title,ra.public_id agent_public_id,ra.name agent_name,ac.public_id conversation_public_id,rr.public_id review_public_id,
+      rtr.public_id plan_public_id,rpr.public_id program_run_public_id,rep.public_id published_report_public_id,rv.public_id published_version_public_id,rv.version_number published_version_number
       FROM research_publication_workflows rpw
       JOIN research_projects rp ON rp.id=rpw.project_id
       JOIN research_workspace_objects rwo ON rwo.id=rpw.document_object_id
       LEFT JOIN research_agents ra ON ra.id=rpw.research_agent_id
+      LEFT JOIN conversations ac ON ac.id=ra.conversation_id
       LEFT JOIN research_reviews rr ON rr.id=rpw.current_review_id
+      LEFT JOIN research_reports rep ON rep.id=rpw.published_report_id
+      LEFT JOIN research_report_versions rv ON rv.id=rpw.published_version_id
       LEFT JOIN research_task_plans rtr ON rtr.id=rpw.source_plan_id
       LEFT JOIN research_program_runs rpr ON rpr.id=rpw.source_program_run_id
       WHERE rpw.public_id=? LIMIT 1");
