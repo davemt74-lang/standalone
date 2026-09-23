@@ -34,7 +34,7 @@ foreach([
 $must(!str_contains($runtime,"UPDATE research_claims SET status="),'Phase 56 claim intelligence must not silently rewrite saved claim status.');
 
 $worker=(string)file_get_contents($root.'/worker/research-monitor-worker.php');
-foreach(["release_worker_heartbeat($pdo,'research_monitor'","job_claim($pdo,'research_monitor_jobs'","rerun_requested","research_monitor_run"] as $needle)$must(str_contains($worker,$needle),'Phase 56 worker contract missing: '.$needle);
+foreach(['release_worker_heartbeat($pdo,\'research_monitor\'','job_claim($pdo,\'research_monitor_jobs\'','rerun_requested','research_monitor_run'] as $needle)$must(str_contains($worker,$needle),'Phase 56 worker contract missing: '.$needle);
 
 $sourceWorker=(string)file_get_contents($root.'/worker/source-monitor-worker.php');
 $must(str_contains($sourceWorker,'research_monitor_queue_for_source'),'Existing Source Monitor must hand source changes into Phase 56 monitoring.');
