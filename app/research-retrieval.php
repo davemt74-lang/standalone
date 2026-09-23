@@ -390,7 +390,9 @@ function research_retrieval_context(PDO $pdo,array $config,array $viewer,string 
 }
 
 function research_retrieval_related(PDO $pdo,array $config,array $viewer,string $projectPublicId,string $type,string $publicId,int $limit=8): array {
-    $current=research_retrieval_ensure_current($pdo,$config,$viewer,$projectPublicId);$q=$pdo->prepare("SELECT d.title,c.content FROM research_retrieval_documents d LEFT JOIN research_retrieval_chunks c ON c.document_id=d.id WHERE d.project_id=? AND d.object_type=? AND d.object_public_id=? ORDER BY c.chunk_index LIMIT 2");$q->execute([(int)$current['project']['id'],$type,$publicId]);$rows=$q->fetchAll()?:[];
+    $current=research_retrieval_ensure_current($pdo,$config,$viewer,$projectPublicId);
+    if(!research_retrieval_result_allowed($pdo,$viewer,['object_type'=>$type,'object_public_id'=>$publicId]))return [];
+    $q=$pdo->prepare("SELECT d.title,c.content FROM research_retrieval_documents d LEFT JOIN research_retrieval_chunks c ON c.document_id=d.id WHERE d.project_id=? AND d.object_type=? AND d.object_public_id=? ORDER BY c.chunk_index LIMIT 2");$q->execute([(int)$current['project']['id'],$type,$publicId]);$rows=$q->fetchAll()?:[];
     if(!$rows)return [];$seed=trim(implode(' ',array_map(fn($r)=>(string)$r['title'].' '.mb_substr((string)$r['content'],0,600),$rows)));
     $terms=preg_split('/[^\pL\pN]+/u',mb_strtolower($seed))?:[];$stop=array_flip(['the','and','that','this','with','from','have','for','you','are','was','were','but','not','into','about','your','research']);
     $freq=[];foreach($terms as $term)if(mb_strlen($term)>=4&&!isset($stop[$term]))$freq[$term]=($freq[$term]??0)+1;arsort($freq);$query=implode(' ',array_slice(array_keys($freq),0,6));if($query==='')$query=(string)$rows[0]['title'];
