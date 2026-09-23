@@ -44,7 +44,7 @@ function research_agent_workspace_object(PDO $pdo,array $viewer,string $publicId
       u.public_id creator_public_id,u.username creator_username,u.display_name creator_name,
       parent.public_id parent_public_id,parent.title parent_title,
       rwb.source_id,rwb.canonical_url,rwb.domain,rwb.description,rwb.favicon_url,rwb.preview_image_url,
-      rwd.document_type,rwd.content_html,rwd.plain_text document_plain_text,rwd.summary document_summary,rwd.revision_number,rwd.created_by_agent,rwd.last_edited_at,
+      rwd.document_type,rwd.content_html,rwd.plain_text document_plain_text,rwd.summary document_summary,rwd.revision_number,rwd.content_hash,rwd.created_by_agent,rwd.last_edited_at,
       rws.body sticky_body,rws.color sticky_color,rws.position_x sticky_x,rws.position_y sticky_y,rws.width_px sticky_width,rws.height_px sticky_height,rws.z_index sticky_z,
       s.public_id source_public_id,s.title source_title
       FROM research_workspace_objects rwo
