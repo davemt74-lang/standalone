@@ -24,8 +24,8 @@ $need('app/research-agent-workspace.php','research_agent_workspace_create_bookma
 $need('app/research-agent-workspace.php','research_agent_workspace_subtree_ids','Folder trash/restore must cover nested descendants.');
 $need('app/research-agent-workspace.php',"['owner','admin','researcher']",'Workspace writes must respect Team write roles.');
 $need('app/research-agent-workspace.php','research_agent_workspace_bookmark_context','Bookmarks must resolve into Agent context with provenance.');
-$need('app/agent-chat.php',"if($type==='bookmark'",'Primary Agent Chat must accept bookmark context.');
-$need('app/workspace-context.php',"if($type==='bookmark'",'Shared workspace state must resolve bookmark objects.');
+$need('app/agent-chat.php',"if(\$type==='bookmark'",'Primary Agent Chat must accept bookmark context.');
+$need('app/workspace-context.php',"if(\$type==='bookmark'",'Shared workspace state must resolve bookmark objects.');
 $need('app/object-handoff.php',"'bookmark'=>'Bookmark'",'Unified object handoff must support Research bookmarks.');
 $need('app/unified-activity.php','unified_activity_workspace_bookmarks','Bookmarks must surface in unified activity / Now.');
 $need('home.php','research_agent_workspace_bookmark_card','Bookmarks must appear in the main Latest feed.');
