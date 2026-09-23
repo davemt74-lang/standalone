@@ -100,8 +100,8 @@ function research_publication_set_targets(PDO $pdo,array $viewer,array $workflow
     if(!research_publication_can_manage($viewer,$workflow))throw new RuntimeException('You cannot change this publication distribution.');
     $pdo->prepare("DELETE FROM research_publication_distribution_targets WHERE workflow_id=?")->execute([(int)$workflow['id']]);
     $ins=$pdo->prepare("INSERT INTO research_publication_distribution_targets(workflow_id,target_type,target_user_id,target_team_id,notify_in_app,created_by_user_id) VALUES(?,?,?,?,?,?)");
-    $seen=[];
-    foreach(array_slice((array)($input['recipient_user_ids']??[]),0,100) as $id){$id=(int)$id;if($id<1||isset($seen['u'.$id]))continue;$q=$pdo->prepare("SELECT id FROM users WHERE id=? AND status='active'");$q->execute([$id]);if(!$q->fetchColumn())continue;$seen['u'.$id]=true;$ins->execute([(int)$workflow['id'],'user',$id,null,1,(int)$viewer['id']]);}
+    $seen=[];$eligible=[];foreach(research_review_eligible_reviewers($pdo,$viewer,(string)$workflow['project_public_id']) as $person)$eligible[(int)$person['id']]=true;
+    foreach(array_slice((array)($input['recipient_user_ids']??[]),0,100) as $id){$id=(int)$id;if($id<1||isset($seen['u'.$id])||!isset($eligible[$id]))continue;$seen['u'.$id]=true;$ins->execute([(int)$workflow['id'],'user',$id,null,1,(int)$viewer['id']]);}
     if(!empty($input['notify_team'])&&!empty($workflow['team_id']))$ins->execute([(int)$workflow['id'],'team',null,(int)$workflow['team_id'],1,(int)$viewer['id']]);
     if(!array_key_exists('notify_subscribers',$input)||(bool)$input['notify_subscribers'])$ins->execute([(int)$workflow['id'],'subscribers',null,null,1,(int)$viewer['id']]);
 }
