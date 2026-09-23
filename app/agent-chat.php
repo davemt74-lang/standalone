@@ -46,9 +46,7 @@ function agent_chat_list(PDO $pdo,array $viewer,int $limit=30): array {
 function agent_chat_message_rows(PDO $pdo,array $viewer,string $conversationPublicId,?int $beforeId=null,int $limit=60): ?array {
     $c=agent_chat_access($pdo,$viewer,$conversationPublicId);if(!$c)return null;
     $data=conversation_message_rows($pdo,$viewer,$conversationPublicId,$beforeId,$limit);if(!$data)return null;
-    $q=$pdo->prepare('SELECT message_id,attachment_type,object_public_id,metadata_json FROM conversation_message_attachments WHERE message_id IN (SELECT id FROM conversation_messages WHERE conversation_id=?) ORDER BY id');
-    $q->execute([$c['id']]);$by=[];foreach($q->fetchAll() as $a){$meta=json_decode((string)($a['metadata_json']??''),true);$by[(int)$a['message_id']][]=['type'=>$a['attachment_type'],'public_id'=>$a['object_public_id'],'metadata'=>is_array($meta)?$meta:[]];}
-    foreach($data['messages'] as &$m){$m['attachments']=$by[(int)$m['id']]??[];$m['role']=($m['sender_type']??'user')==='agent'?'assistant':'user';$m['action_proposals']=($m['role']==='assistant'&&agent_actions_ready($pdo))?agent_action_message_proposals($pdo,$viewer,(int)$m['id']):[];}unset($m);
+    foreach($data['messages'] as &$m){$m['role']=($m['sender_type']??'user')==='agent'?'assistant':'user';$m['action_proposals']=($m['role']==='assistant'&&agent_actions_ready($pdo))?agent_action_message_proposals($pdo,$viewer,(int)$m['id']):[];}unset($m);
     if(function_exists('data_response_attribution_map')){$messageIds=array_map(fn($m)=>(int)$m['id'],$data['messages']);$lineage=data_response_attribution_map($pdo,$messageIds);foreach($data['messages'] as &$m)if(isset($lineage[(int)$m['id']]))$m['attribution']=$lineage[(int)$m['id']];unset($m);}
     return $data;
 }
