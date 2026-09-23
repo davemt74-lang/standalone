@@ -195,6 +195,7 @@ function research_monitor_candidate_ingest(PDO $pdo,array $watch,array $candidat
 
 function research_monitor_candidate_promote(PDO $pdo,array $watch,array $candidate): array {
     if((string)$candidate['status']==='ignored')return $candidate;
+    if(!public_http_url_allowed((string)$candidate['canonical_url']))throw new InvalidArgumentException('Discovery candidate is not a permitted public HTTP(S) destination.');
     $source=ensure_source($pdo,(string)$candidate['canonical_url'],(string)($candidate['title']??''));
     $pdo->prepare('INSERT IGNORE INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([(int)$watch['project_id'],(int)$source['id'],(int)$watch['created_by_user_id']]);
     $pdo->prepare("UPDATE sources SET monitoring_enabled=1,next_check_at=NOW() WHERE id=?")->execute([(int)$source['id']]);
