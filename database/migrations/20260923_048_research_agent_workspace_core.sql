@@ -15,10 +15,10 @@ CREATE TABLE IF NOT EXISTS research_workspace_objects (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_research_workspace_project(project_id,status,parent_id,sort_order,id),
   INDEX idx_research_workspace_type(project_id,object_type,status,updated_at),
-  CONSTRAINT fk_research_workspace_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
-  CONSTRAINT fk_research_workspace_parent FOREIGN KEY(parent_id) REFERENCES research_workspace_objects(id) ON DELETE SET NULL,
-  CONSTRAINT fk_research_workspace_creator FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
-  CONSTRAINT fk_research_workspace_trashed_by FOREIGN KEY(trashed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+  CONSTRAINT fk_research_workspace_object_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_workspace_object_parent FOREIGN KEY(parent_id) REFERENCES research_workspace_objects(id) ON DELETE SET NULL,
+  CONSTRAINT fk_research_workspace_object_creator FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_workspace_object_trashed_by FOREIGN KEY(trashed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS research_workspace_bookmarks (
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS research_workspace_bookmarks (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_research_workspace_bookmark(project_id,url_hash),
   INDEX idx_research_workspace_bookmark_source(source_id),
-  CONSTRAINT fk_research_workspace_bookmark_object FOREIGN KEY(object_id) REFERENCES research_workspace_objects(id) ON DELETE CASCADE,
-  CONSTRAINT fk_research_workspace_bookmark_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
-  CONSTRAINT fk_research_workspace_bookmark_source FOREIGN KEY(source_id) REFERENCES sources(id) ON DELETE SET NULL
+  CONSTRAINT fk_research_workspace_bm_object FOREIGN KEY(object_id) REFERENCES research_workspace_objects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_workspace_bm_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_workspace_bm_source FOREIGN KEY(source_id) REFERENCES sources(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
