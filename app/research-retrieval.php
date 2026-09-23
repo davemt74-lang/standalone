@@ -101,7 +101,11 @@ function research_retrieval_record(string $type,string $publicId,string $title,s
     if(!$chunks)$chunks=research_retrieval_chunk_text($content);
     foreach($chunks as &$chunk){$chunk['content']=research_retrieval_normalize((string)($chunk['content']??''),100000);}$chunks=array_values(array_filter($chunks,fn($x)=>($x['content']??'')!==''));
     unset($chunk);
-    $hash=hash('sha256',$type."\0".$publicId."\0".$title."\0".$content."\0".json_encode($metadata,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+    $chunkSignature=array_map(fn($chunk)=>[
+      'locator_type'=>$chunk['locator_type']??null,'locator_label'=>$chunk['locator_label']??null,
+      'locator'=>$chunk['locator']??[],'heading'=>$chunk['heading']??null,'content'=>$chunk['content']??''
+    ],$chunks);
+    $hash=hash('sha256',$type."\0".$publicId."\0".$title."\0".$content."\0".json_encode($metadata,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)."\0".json_encode($chunkSignature,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
     return ['object_type'=>$type,'object_public_id'=>$publicId,'title'=>$title,'content'=>$content,'folder_public_id'=>$folderPublicId?:null,'source_updated_at'=>$updatedAt,'metadata'=>$metadata,'source_status'=>$sourceStatus,'content_hash'=>$hash,'chunks'=>$chunks];
 }
 
@@ -235,13 +239,19 @@ function research_retrieval_rebuild_project(PDO $pdo,array $config,int $projectI
     $seen=[];$pdo->beginTransaction();
     try{
         foreach($records as $record){
+            $existingQ=$pdo->prepare("SELECT id,content_hash FROM research_retrieval_documents WHERE project_id=? AND object_type=? AND object_public_id=? LIMIT 1");
+            $existingQ->execute([$projectId,$record['object_type'],$record['object_public_id']]);$existing=$existingQ->fetch()?:null;
+            $chunksChanged=!$existing||!hash_equals((string)($existing['content_hash']??''),(string)$record['content_hash']);
             $pdo->prepare("INSERT INTO research_retrieval_documents(project_id,object_type,object_public_id,folder_public_id,title,source_status,content_hash,source_updated_at,metadata_json,indexed_at)
               VALUES(?,?,?,?,?,?,?,?,?,NOW())
               ON DUPLICATE KEY UPDATE folder_public_id=VALUES(folder_public_id),title=VALUES(title),source_status=VALUES(source_status),content_hash=VALUES(content_hash),source_updated_at=VALUES(source_updated_at),metadata_json=VALUES(metadata_json),indexed_at=NOW()")
               ->execute([$projectId,$record['object_type'],$record['object_public_id'],$record['folder_public_id'],$record['title'],$record['source_status'],$record['content_hash'],$record['source_updated_at']?:null,json_encode($record['metadata'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)]);
-            $q=$pdo->prepare("SELECT id FROM research_retrieval_documents WHERE project_id=? AND object_type=? AND object_public_id=? LIMIT 1");$q->execute([$projectId,$record['object_type'],$record['object_public_id']]);$documentId=(int)$q->fetchColumn();$seen[]=$documentId;
+            if($existing)$documentId=(int)$existing['id'];
+            else{$q=$pdo->prepare("SELECT id FROM research_retrieval_documents WHERE project_id=? AND object_type=? AND object_public_id=? LIMIT 1");$q->execute([$projectId,$record['object_type'],$record['object_public_id']]);$documentId=(int)$q->fetchColumn();}
+            $seen[]=$documentId;
+            if(!$chunksChanged)continue;
             $pdo->prepare('DELETE FROM research_retrieval_chunks WHERE document_id=?')->execute([$documentId]);$idx=0;
-            foreach($record['chunks'] as $chunk){$idx++;$content=(string)$chunk['content'];$hash=hash('sha256',$content);
+            foreach($record['chunks'] as $chunk){$idx++;$content=(string)$chunk['content'];$hash=hash('sha256',$content."\0".json_encode([$chunk['locator_type']??null,$chunk['locator_label']??null,$chunk['locator']??[],$chunk['heading']??null],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
                 $pdo->prepare("INSERT INTO research_retrieval_chunks(document_id,chunk_index,locator_type,locator_label,locator_json,heading,content,content_hash,token_estimate,embedding_status)
                   VALUES(?,?,?,?,?,?,?,?,?,'none')")
                   ->execute([$documentId,$idx,(string)($chunk['locator_type']??'section'),mb_substr((string)($chunk['locator_label']??('Section '.$idx)),0,190),json_encode((array)($chunk['locator']??[]),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),isset($chunk['heading'])?mb_substr((string)$chunk['heading'],0,255):null,$content,$hash,max(1,(int)ceil(mb_strlen($content)/4))]);
