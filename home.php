@@ -264,7 +264,7 @@ try{
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
 <script src="/assets/js/workspace-state.js?v=36.0"></script>
-<script src="/assets/js/agent-chat.js?v=39.0"></script>
+<script src="/assets/js/agent-chat.js?v=40.0"></script>
 <script src="/assets/js/research-agent-workspace-ui.js?v=51.0"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=36.0"></script><?php endif?>
