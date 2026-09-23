@@ -12,7 +12,7 @@ The editor supports headings, paragraphs, emphasis, lists, quotes, code blocks, 
 
 ## Agent-created documents
 
-The existing governed Agent Action runtime exposes `research.create_document`. The user must confirm the proposed Research change. Execution creates the durable document, then attaches that document to the originating assistant message. Conversation reloads resolve the attachment again, so the rich document card is persistent rather than a client-only effect.
+The existing governed Agent Action runtime exposes `research.create_document`. The user must confirm the proposed Research change. Execution creates the durable document, then posts a new Agent-authored message into the owning Research Agent conversation with the live document attached as a rich card. The proposal message remains an audit record of the confirmed action; the new delivery message becomes part of the Agent's work timeline. Conversation reloads resolve the document object again, so the card is persistent rather than a client-only effect.
 
 ## Floating sticky notes
 
