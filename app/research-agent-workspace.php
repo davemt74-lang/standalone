@@ -306,7 +306,7 @@ function research_agent_workspace_create_document(PDO $pdo,array $viewer,array $
     }
     $html=research_agent_workspace_clean_html($raw);$plain=research_agent_workspace_plain_text($html);
     $summary=mb_substr(trim((string)($input['summary']??'')),0,5000);$hash=hash('sha256',$title."\n".$html);
-    $public=ulid_like();$pdo->beginTransaction();
+    $public=ulid_like();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
     try{
         $pdo->prepare("INSERT INTO research_workspace_objects(public_id,project_id,parent_id,created_by_user_id,object_type,title) VALUES(?,?,?,?, 'document',?)")
           ->execute([$public,(int)$project['id'],$parent['id']??null,(int)$viewer['id'],$title]);
@@ -314,8 +314,8 @@ function research_agent_workspace_create_document(PDO $pdo,array $viewer,array $
         $pdo->prepare("INSERT INTO research_workspace_documents(object_id,project_id,document_type,content_html,plain_text,summary,revision_number,content_hash,created_by_agent,last_edited_by_user_id,last_edited_at) VALUES(?,?,?,?,?,?,1,?,?,?,NOW())")
           ->execute([$objectId,(int)$project['id'],$type,$html!==''?$html:null,$plain!==''?$plain:null,$summary!==''?$summary:null,$hash,$createdByAgent?1:0,(int)$viewer['id']]);
         research_agent_workspace_document_snapshot($pdo,$objectId,$title,$html,$plain,$summary!==''?$summary:null,(int)$viewer['id'],1);
-        $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return research_agent_workspace_object($pdo,$viewer,$public,false)??['public_id'=>$public,'object_type'=>'document','title'=>$title];
 }
 
@@ -420,4 +420,25 @@ function research_agent_workspace_attach_document_to_agent_message(PDO $pdo,arra
     $q->execute([$messageId,$documentPublicId]);if((int)$q->fetchColumn()>0)return;
     $pdo->prepare("INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,'document',?,NULL)")
       ->execute([$messageId,$documentPublicId]);
+}
+
+
+function research_agent_workspace_post_document_to_chat(PDO $pdo,array $viewer,string $documentPublicId,?int $parentMessageId=null): ?array {
+    $obj=research_agent_workspace_object($pdo,$viewer,$documentPublicId,false);
+    if(!$obj||($obj['object_type']??'')!=='document'||empty($obj['research_agent_public_id']))return null;
+    $agent=research_agent_access($pdo,$viewer,(string)$obj['research_agent_public_id']);if(!$agent)return null;
+    $conversationId=(int)($agent['conversation_id']??0);if($conversationId<1)return null;
+    if($parentMessageId){
+        $q=$pdo->prepare('SELECT id FROM conversation_messages WHERE id=? AND conversation_id=? LIMIT 1');
+        $q->execute([$parentMessageId,$conversationId]);if(!$q->fetchColumn())$parentMessageId=null;
+    }
+    $public=ulid_like();$body='I created a research document: '.(string)$obj['title'];
+    $pdo->prepare("INSERT INTO conversation_messages(public_id,conversation_id,user_id,sender_type,parent_message_id,body) VALUES(?,?,NULL,'agent',?,?)")
+      ->execute([$public,$conversationId,$parentMessageId,$body]);
+    $messageId=(int)$pdo->lastInsertId();
+    research_agent_workspace_attach_document_to_agent_message($pdo,$viewer,$documentPublicId,$messageId);
+    $pdo->prepare('UPDATE conversations SET last_message_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$conversationId]);
+    $pdo->prepare("INSERT INTO conversation_events(conversation_id,event_type,message_id,payload_json) VALUES(?,'agent_document_created',?,?)")
+      ->execute([$conversationId,$messageId,json_encode(['document_public_id'=>$documentPublicId],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);
+    return ['id'=>$messageId,'public_id'=>$public,'role'=>'assistant','sender_type'=>'agent','body'=>$body,'attachments'=>[['type'=>'document','public_id'=>$documentPublicId]]];
 }
