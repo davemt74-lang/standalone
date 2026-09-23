@@ -12,7 +12,7 @@ $run='p63'.substr(bin2hex(random_bytes(5)),0,10);$pub=fn(string $p)=>$p.'-'.$run
 $makeUser=function(string $name)use($pdo,$run,$pub): array{$username=substr(strtolower($name).'_'.$run,0,48);$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,email_verified_at,status,role,plan_tier,live_presence_mode) VALUES(?,?,?,?,NOW(),'active','user','pro','cloaked')")->execute([$pub('u'),$username,$name,$username.'@example.test']);$id=(int)$pdo->lastInsertId();$pdo->prepare('INSERT IGNORE INTO user_preferences(user_id) VALUES(?)')->execute([$id]);$q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$id]);return $q->fetch();};
 $owner=$makeUser('VP3ImportOwner');$other=$makeUser('VP3ImportOther');
 
-$tokens=['access_token'=>str_repeat('a',64),'refresh_token'=>str_repeat('b',80),'expires_in'=>3600,'refresh_expires_in'=>7776000,'scope'=>'account.identity.read meetings.transcripts.read meetings.intelligence.read'];
+$tokens=['access_token'=>str_repeat('a',64),'refresh_token'=>str_repeat('b',80),'expires_in'=>3600,'refresh_expires_in'=>7776000,'scope'=>'account.identity.read transcriptions.read transcriptions.intelligence.read'];
 $identity=['id'=>'vp3-'.$run,'display_name'=>'VP3 Research User','email'=>'vp3-'.$run.'@example.test'];
 $conn=vp3_connector_attach($pdo,$cfg,(int)$owner['id'],$identity,$tokens);
 p63(($conn['status']??'')==='active'&&vp3_connector_decrypt($cfg,(string)$conn['access_token_cipher'])===$tokens['access_token'],'63A credentials are encrypted at rest and decrypt only through the Annotated application key.');
@@ -21,8 +21,8 @@ p63throws(fn()=>vp3_connector_attach($pdo,$cfg,(int)$other['id'],$identity,$toke
 
 $agent=research_agent_create($pdo,$owner,['name'=>'VP3 Evidence Agent','description'=>'Validate VP3 meeting material.','cadence'=>'manual','timezone_name'=>'UTC']);
 $project=research_agent_workspace_project($pdo,$owner,(string)$agent['public_id']);p63($project!==null,'63D import target is a normal Research Agent workspace.');
-$remoteId=bin2hex(random_bytes(16));$hash1=hash('sha256','vp3-version-one-'.$run);
-$payload1=['artifact'=>['id'=>$remoteId,'type'=>'meeting','title'=>'VP3 Strategy Meeting','status'=>'processed','start_at_utc'=>'2026-09-23 10:00:00','updated_at'=>'2026-09-23 11:00:00','original_url'=>'/meeting.php?meeting='.$remoteId.'&review=1','version_hash'=>$hash1],
+$remoteId='transcription-'.substr(hash('sha256',$run),0,32);$hash1=hash('sha256','vp3-version-one-'.$run);
+$payload1=['artifact'=>['id'=>$remoteId,'type'=>'transcription','title'=>'VP3 Strategy Transcription','status'=>'processed','start_at_utc'=>'2026-09-23 10:00:00','updated_at'=>'2026-09-23 11:00:00','original_url'=>'/artist-listening.php?session_id=42','version_hash'=>$hash1],
  'transcript'=>['text'=>"Dave: Initial market signal.\nAlex: Validate it against customer evidence.",'segment_count'=>2,'source_hash'=>hash('sha256','transcript-one')],
  'ai_summary'=>['summary'=>'Initial VP3 meeting summary.','key_points'=>[['text'=>'Validate the market signal.']],'decisions'=>[['decision'=>'Research before acting.']],'actions'=>[['action'=>'Check evidence.']],'questions'=>[],'risks'=>[],'topics'=>[['text'=>'Market validation']],'source_hash'=>hash('sha256','summary-one'),'generated_at'=>'2026-09-23 11:01:00']];
 $imp1=vp3_connector_import_payload($pdo,$cfg,$owner,(string)$agent['public_id'],$remoteId,['transcript','summary'],$payload1);
