@@ -132,7 +132,27 @@ function conversation_message_rows(PDO $pdo,array $viewer,string $conversationPu
       LEFT JOIN users pu ON pu.id=p.user_id
       WHERE $where ORDER BY m.id DESC LIMIT ".($limit+1);
     $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll();$more=count($rows)>$limit;if($more)array_pop($rows);$rows=array_reverse($rows);
-    $attachmentMap=function_exists('object_handoff_message_attachments')?object_handoff_message_attachments($pdo,$viewer,array_column($rows,'id')):[];
+    $messageIds=array_values(array_filter(array_map('intval',array_column($rows,'id')),fn($id)=>$id>0));
+    if(function_exists('object_handoff_message_attachments')){
+        $attachmentMap=object_handoff_message_attachments($pdo,$viewer,$messageIds);
+    }else{
+        $attachmentMap=[];
+        if($messageIds){
+            $marks=implode(',',array_fill(0,count($messageIds),'?'));
+            $aq=$pdo->prepare("SELECT message_id,attachment_type,object_public_id,metadata_json FROM conversation_message_attachments WHERE message_id IN ($marks) ORDER BY id");
+            $aq->execute($messageIds);
+            foreach($aq->fetchAll() as $attachment){
+                $meta=json_decode((string)($attachment['metadata_json']??''),true);if(!is_array($meta))$meta=[];
+                $attachmentMap[(int)$attachment['message_id']][]=[
+                  'type'=>(string)$attachment['attachment_type'],
+                  'public_id'=>(string)$attachment['object_public_id'],
+                  'metadata'=>$meta,
+                  'available'=>true,
+                  'label'=>(string)($meta['label']??$attachment['attachment_type'])
+                ];
+            }
+        }
+    }
     foreach($rows as &$row){$row['id']=(int)$row['id'];$row['is_self']=(int)($row['user_id']??0)===(int)$viewer['id'];$row['body']=$row['deleted_at']!==null?'Message removed.':(string)$row['body'];$row['attachments']=$row['deleted_at']!==null?[]:($attachmentMap[$row['id']]??[]);unset($row['user_id']);}unset($row);
     $next=$more&&$rows?(int)$rows[0]['id']:null;$presence=conversation_presence_rows($pdo,$viewer,$conversation);$onlineCount=count(array_filter($presence,fn($p)=>($p['effective_status']??'offline')!=='offline'));
     return ['conversation'=>['public_id'=>$conversation['public_id'],'type'=>$conversation['conversation_type'],'team_public_id'=>$conversation['team_public_id']??null,'team_name'=>$conversation['team_name']??$conversation['title'],'member_count'=>(int)($conversation['member_count']??0),'online_count'=>$onlineCount],'messages'=>$rows,'presence'=>$presence,'next_before'=>$next];
