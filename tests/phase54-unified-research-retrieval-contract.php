@@ -36,6 +36,9 @@ $need('app/research-retrieval.php',"c.embedding_status='ready'",'Semantic candid
 $need('app/research-retrieval.php',"(rdp.folder_object_id IS NULL OR folder.status='active')",'Annotations inside trashed folders must be excluded from the derived corpus.');
 
 $need('app/research-retrieval.php','function research_retrieval_search','Research search must use the unified index.');
+$need('app/research-retrieval.php',"$chunksChanged",'Index refreshes must preserve chunks and embeddings for unchanged evidence.');
+$need('app/research-retrieval.php',"'locator_type'=>$chunk['locator_type']??null",'Evidence fingerprints must include locator metadata so citation-only changes invalidate derived chunks.');
+
 $need('app/research-retrieval.php','function research_retrieval_context','Agent context must come from ranked retrieval results.');
 $need('app/research-retrieval.php','function research_retrieval_related','Phase 54 must expose related evidence.');
 $need('app/research-retrieval.php',"research_retrieval_result_allowed(\$pdo,\$viewer,['object_type'=>\$type,'object_public_id'=>\$publicId])",'Related evidence must authorize the seed object before reading derived index content.');
