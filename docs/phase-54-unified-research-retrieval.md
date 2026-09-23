@@ -14,7 +14,7 @@ The project-scoped retrieval layer indexes:
 - uploaded document text
 - Recording transcripts
 
-Folder membership is preserved so retrieval can be scoped to a folder and its descendants.
+Folder membership is preserved so retrieval can be scoped to a folder and its descendants. Linked annotations inside a trashed folder are excluded from the derived corpus and return to retrieval only when that folder is restored.
 
 ## Provenance-aware chunks
 
@@ -38,11 +38,11 @@ The underlying object remains authoritative; retrieval chunks are derived indexe
 
 `api/research-retrieval.php` provides project-scoped search and related-evidence discovery.
 
-Search is lexical/full-text by default and works without any external AI provider. An optional provider-neutral embedding command can be configured to enable hybrid reranking. The command receives `{input}` and `{output}`, reads UTF-8 query/chunk text from the input file, and writes a JSON numeric array or `{"embedding":[...]}` to the output file.
+Search is lexical/full-text by default and works without any external AI provider. Title matches remain searchable even for objects with no extracted text or chunk rows. An optional provider-neutral embedding command can be configured to enable true hybrid retrieval: semantic candidates are considered even when they share no lexical terms with the query. The command receives `{input}` and `{output}`, reads UTF-8 query/chunk text from the input file, and writes a JSON numeric array or `{"embedding":[...]}` to the output file.
 
 Filters include object type, folder scope, processing status, date range, and creator identity.
 
-Every result is permission-checked again against the live authoritative object before it is returned. Removing a Team member or restricting an Annotation therefore takes effect immediately even when derived chunks remain in the index.
+Every result is permission-checked again against the live authoritative object before it is returned. Indexed Annotations use stricter retrieval visibility: private annotations are owner/admin only, and team annotations require membership in the Annotation's actual Team; project membership alone never exposes private indexed text. Removing a Team member or restricting an Annotation therefore takes effect immediately even when derived chunks remain in the index.
 
 ## Research Library
 
