@@ -56,6 +56,9 @@
   }
   function applyWriteState(){
     [createFolderButton,createBookmarkButton,createDocumentButton,createStickyButton].forEach(b=>{if(b)b.hidden=!canWrite();});
+    if(documentTitle)documentTitle.disabled=!canWrite();
+    if(documentEditor){documentEditor.contentEditable=canWrite()?'true':'false';documentEditor.setAttribute('aria-readonly',canWrite()?'false':'true');}
+    canvas.querySelectorAll('.researchDocumentToolbar button,.researchDocumentToolbar select').forEach(control=>{if(!control.matches('[data-doc-ask-selection]'))control.disabled=!canWrite();});
   }
   function folderMap(){
     const map=new Map();for(const item of items)if(item.object_type==='folder')map.set(String(item.public_id),item);return map;
@@ -137,7 +140,7 @@
         if(teamId){const share=actionButton('Team','team');share.addEventListener('click',()=>shareObjectToTeam('document',item.public_id,'Research document'));actions.appendChild(share);}
       }
       if(canWrite()&&item.object_type!=='sticky'){
-        const rename=actionButton('Rename','rename');rename.addEventListener('click',()=>renameItem(item));actions.appendChild(rename);
+        if(item.object_type!=='document'){const rename=actionButton('Rename','rename');rename.addEventListener('click',()=>renameItem(item));actions.appendChild(rename);}
         const move=actionButton('Move','move');move.addEventListener('click',()=>moveItem(item));actions.appendChild(move);
         const trash=actionButton('Trash','trash');trash.addEventListener('click',()=>mutateItem('trash',item));actions.appendChild(trash);
       }
@@ -195,10 +198,11 @@
     }catch(err){setStatus(err.message||'Unable to load Research workspace.',true);}
     finally{loading=false;}
   }
-  function setView(view){
-    if(activeDocument){closeDocument(false);}
-    currentView=view;for(const b of viewButtons)b.classList.toggle('active',b.dataset.researchWorkspaceView===view);
+  async function setView(view){
+    if(activeDocument&&view!=='document')await closeDocument(true);
+    currentView=view;for(const b of viewButtons)b.classList.toggle('active',b.dataset.researchWorkspaceView===view||(view==='document'&&b.dataset.researchWorkspaceView==='docs'));
     if(view==='chat'){if(panel)panel.hidden=true;if(documentWorkspace)documentWorkspace.hidden=true;if(messages)messages.hidden=false;return;}
+    if(view==='document'){if(panel)panel.hidden=true;if(documentWorkspace)documentWorkspace.hidden=false;if(messages)messages.hidden=false;return;}
     if(messages)messages.hidden=true;if(documentWorkspace)documentWorkspace.hidden=true;if(panel)panel.hidden=false;currentFolder='';loadWorkspace(view==='trash');
   }
   async function mutateItem(action,item,extra={}){
@@ -429,9 +433,10 @@
   canvas.querySelector('[data-doc-sticky-selection]')?.addEventListener('click',()=>{const selection=selectedDocumentText();if(selection)createSticky(selection).catch(err=>setStatus(err.message,true));});
   window.addEventListener('beforeunload',()=>{if(activeDocument&&documentDirty&&navigator.sendBeacon){/* autosave intentionally remains same-origin fetch; unload warning handled by browser */}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});});
-  document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||'')));
+  document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||e.detail?.document_id||'')));
   document.addEventListener('annotated:research-action-executed',e=>{if(e.detail?.result?.type==='document'){primeWorkspace();}});
-  document.addEventListener('annotated:agent-chat-feed-restored',()=>{if(activeDocument)closeDocument(false);});
+  document.addEventListener('annotated:research-document-created',e=>{primeWorkspace();if(e.detail?.public_id)openDocument(String(e.detail.public_id));});
+  document.addEventListener('annotated:agent-chat-feed-restored',()=>{if(activeDocument)closeDocument(true);});
   document.addEventListener('click',e=>{
     const share=e.target.closest('[data-bookmark-share-team]');if(!share)return;
     const card=share.closest('[data-bookmark-id]');if(!card)return;
