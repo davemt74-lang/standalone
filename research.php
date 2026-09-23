@@ -21,13 +21,14 @@ unset($agent);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/app.css?v=56.0">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research">
 <main class="researchLibraryCanvas">
   <section class="researchLibraryToolbar" aria-label="Research workspace tools">
     <nav class="researchLibraryTabs researchPrimaryActions">
       <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a>
+      <a href="/research-monitoring.php">Monitoring</a>
       <a href="/research-portfolio.php">Portfolio</a>
       <a href="/research-publications.php">Living Research</a>
       <a href="/research-reviews.php">Review Center</a>

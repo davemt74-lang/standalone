@@ -228,6 +228,47 @@
     const u=new URL('/api/research-retrieval.php',location.origin);u.searchParams.set('action',action);u.searchParams.set('project_id',projectId);
     Object.entries(extra).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)u.searchParams.set(k,String(v));});return u;
   }
+  function researchMonitorUrl(action='list',extra={}){
+    const u=new URL('/api/research-monitoring.php',location.origin);u.searchParams.set('action',action);u.searchParams.set('agent_id',agentId);
+    Object.entries(extra).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)u.searchParams.set(k,String(v));});return u;
+  }
+  function renderLibraryMonitoring(data){
+    if(!libraryList)return;libraryList.replaceChildren();libraryDrawer?.classList.add('is-monitoring');
+    const watches=Array.isArray(data.watches)?data.watches:[],events=Array.isArray(data.events)?data.events:[],summary=data.summary||{};
+    if(libraryCount)libraryCount.textContent=watches.length+' watch'+(watches.length===1?'':'es');
+    if(libraryIndexState)libraryIndexState.textContent='MONITORING · '+String(summary.candidates?.candidate||0)+' candidates · '+String((summary.events_30d?.important||0)+(summary.events_30d?.high||0))+' meaningful changes';
+    const head=document.createElement('div');head.className='researchLibraryMonitoringHead';
+    const copy=document.createElement('div');const strong=document.createElement('strong');strong.textContent='Continuous Research Monitoring';const small=document.createElement('small');small.textContent=summary.last_checked_at?'Last checked '+summary.last_checked_at:'No checks completed yet';copy.append(strong,small);
+    const link=document.createElement('a');link.href='/research-monitoring.php?agent='+encodeURIComponent(agentId);link.textContent='Manage';head.append(copy,link);libraryList.appendChild(head);
+    if(!watches.length){const empty=document.createElement('div');empty.className='researchLibraryEmpty';empty.textContent='No monitoring watches yet. Open Monitoring to add a URL, domain, topic, entity, claim, or query.';libraryList.appendChild(empty);}
+    for(const watch of watches){
+      const row=document.createElement('article');row.className='researchLibraryMonitorWatch';
+      const badge=document.createElement('span');badge.textContent=String(watch.watch_type||'watch').toUpperCase();
+      const body=document.createElement('div');const title=document.createElement('strong');title.textContent=String(watch.target||'Monitoring watch');
+      const meta=document.createElement('small');meta.textContent=[String(watch.status||'active').toUpperCase(),String(watch.cadence||'daily'),watch.last_checked_at?('checked '+watch.last_checked_at):'not checked'].join(' · ');
+      body.append(title,meta);row.append(badge,body);libraryList.appendChild(row);
+    }
+    if(events.length){
+      const label=document.createElement('div');label.className='researchLibraryMonitoringLabel';label.textContent='Recent changes';libraryList.appendChild(label);
+      for(const event of events.slice(0,8)){
+        const row=document.createElement('article');row.className='researchLibraryMonitorEvent is-'+String(event.importance||'info');
+        const title=document.createElement('strong');title.textContent=String(event.event_type||'change').replaceAll('_',' ');
+        const p=document.createElement('p');p.textContent=String(event.summary||'');const small=document.createElement('small');small.textContent=String(event.occurred_at||'');
+        row.append(title,p,small);libraryList.appendChild(row);
+      }
+    }
+    updateLibraryAskState();
+  }
+  async function loadLibraryMonitoring(serial){
+    try{
+      const [list,events,summary]=await Promise.all([
+        api(researchMonitorUrl('list')),
+        api(researchMonitorUrl('events',{limit:20})),
+        api(researchMonitorUrl('summary'))
+      ]);
+      if(serial!==libraryRequestSerial)return;renderLibraryMonitoring({watches:list.watches||[],events:events.events||[],summary});
+    }catch(err){if(serial!==libraryRequestSerial)return;libraryResults=[];renderLibrary();setStatus(err.message||'Research Monitoring failed to load.',true);}
+  }
   function updateLibraryAskState(){
     if(!libraryAskButton)return;const n=librarySelected.size;libraryAskButton.disabled=n===0;libraryAskButton.textContent=n?'Ask Agent ('+n+')':'Ask Agent';
   }
@@ -348,7 +389,9 @@
   }
   async function loadLibraryResults(){
     if(!projectId)return;const serial=++libraryRequestSerial;
-    if(libraryList)libraryList.innerHTML='<div class="researchLibraryEmpty">Searching Research…</div>';
+    if(libraryList)libraryList.innerHTML='<div class="researchLibraryEmpty">'+(libraryFilter==='monitoring'?'Loading monitoring…':'Searching Research…')+'</div>';
+    libraryDrawer?.classList.toggle('is-monitoring',libraryFilter==='monitoring');
+    if(libraryFilter==='monitoring'){await loadLibraryMonitoring(serial);return;}
     try{
       const data=await api(librarySearchUrl('search',{
         q:String(librarySearch?.value||'').trim(),type:libraryFilter,folder_id:String(libraryFolder?.value||''),
@@ -709,7 +752,7 @@
     button.addEventListener('click',()=>{if(!canWrite()||!libraryDocContent)return;libraryDocContent.focus();try{document.execCommand(String(button.dataset.researchLibraryDocCommand||''),false,null);}catch{}libraryDocDirty=true;setLibraryDocState('Unsaved');});
   });
   librarySearch?.addEventListener('input',scheduleLibrarySearch);
-  canvas.querySelectorAll('[data-research-library-filter]').forEach(button=>button.addEventListener('click',()=>{libraryFilter=String(button.dataset.researchLibraryFilter||'all');canvas.querySelectorAll('[data-research-library-filter]').forEach(b=>b.classList.toggle('is-active',b===button));loadLibraryResults();}));
+  canvas.querySelectorAll('[data-research-library-filter]').forEach(button=>button.addEventListener('click',()=>{libraryFilter=String(button.dataset.researchLibraryFilter||'all');canvas.querySelectorAll('[data-research-library-filter]').forEach(b=>b.classList.toggle('is-active',b===button));if(librarySearch)librarySearch.disabled=libraryFilter==='monitoring';loadLibraryResults();}));
   [libraryFolder,libraryStatus,libraryDateFrom,libraryDateTo].forEach(control=>control?.addEventListener('change',loadLibraryResults));
   libraryAskButton?.addEventListener('click',askAgentAboutLibrarySelection);
   libraryDesktopButton?.addEventListener('click',async()=>{closeLibrary();await openDesktop();});
