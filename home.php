@@ -138,6 +138,10 @@ try{
 }catch(Throwable $e){$recordHomeIncident('stats',$e);}
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout"><section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
+<section class="homeInlineAgentThread" data-home-inline-agent hidden aria-label="Agent Chat">
+  <div class="homeInlineAgentMessages" data-inline-agent-messages role="log" aria-live="polite"></div>
+  <button type="button" class="homeInlineAgentClose" data-inline-agent-close>Close chat</button>
+</section>
 <?php if($homeRuntimeIncidents&&($u['role']??'')==='admin'):?><div class="homeRuntimeNotice homeFeedRuntimeNotice" role="status"><strong>Home is running in reduced mode.</strong><span><?=h(implode(', ',array_keys($homeRuntimeIncidents)))?> unavailable.</span><details><summary>Diagnostics</summary><?php foreach($homeRuntimeIncidents as $component=>$reference):?><div><code><?=h($component)?></code> · <code><?=h($reference)?></code></div><?php endforeach?></details></div><?php endif?>
 <div class="homeFeedModeBar" data-cognitive-feed data-csrf="<?=h(csrf_token())?>">
   <nav class="homeFeedModeTabs" aria-label="Home feed view">
