@@ -18,7 +18,7 @@ function research_agent_ready(PDO $pdo): bool {
 function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
     if(!research_agent_ready($pdo))return [];
     $limit=max(1,min(50,$limit));
-    $q=$pdo->prepare("SELECT ra.public_id,ra.name,ra.description,ra.status,ra.monitoring_cadence,ra.updated_at,
+    $q=$pdo->prepare("SELECT ra.public_id,ra.name,ra.description,ra.status,ra.monitoring_cadence,ra.is_default,ra.updated_at,
       rp.public_id project_public_id,rp.title project_title,
       c.public_id conversation_public_id,COALESCE(c.last_message_at,c.updated_at,c.created_at) activity_at,
       (SELECT m.body FROM conversation_messages m WHERE m.conversation_id=c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) last_message,
@@ -61,7 +61,7 @@ function research_agent_team(PDO $pdo,array $viewer,string $teamPublicId): ?arra
     return $q->fetch()?:null;
 }
 
-function research_agent_create(PDO $pdo,array $viewer,array $input): array {
+function research_agent_create(PDO $pdo,array $viewer,array $input,bool $isDefault=false): array {
     if(!research_agent_ready($pdo))throw new RuntimeException('Research Agents require the latest database upgrade.');
     if(!agent_chat_available($pdo,$viewer))throw new RuntimeException('Research Agents require Agent access.');
 
@@ -110,9 +110,9 @@ function research_agent_create(PDO $pdo,array $viewer,array $input): array {
             $automationId=(int)$pdo->lastInsertId();
         }
 
-        $pdo->prepare("INSERT INTO research_agents(public_id,owner_user_id,team_id,project_id,conversation_id,automation_id,name,description,status,monitoring_cadence)
-          VALUES(?,?,?,?,?,?,?,?, 'active',?)")
-          ->execute([$agentPublic,(int)$viewer['id'],$team['id']??null,$projectId,$conversationId,$automationId,$name,$description!==''?$description:null,$cadence]);
+        $pdo->prepare("INSERT INTO research_agents(public_id,owner_user_id,team_id,project_id,conversation_id,automation_id,name,description,status,monitoring_cadence,is_default)
+          VALUES(?,?,?,?,?,?,?,?, 'active',?,?)")
+          ->execute([$agentPublic,(int)$viewer['id'],$team['id']??null,$projectId,$conversationId,$automationId,$name,$description!==''?$description:null,$cadence,$isDefault?1:null]);
 
         $pdo->commit();
     }catch(Throwable $e){
@@ -122,6 +122,31 @@ function research_agent_create(PDO $pdo,array $viewer,array $input): array {
     return research_agent_access($pdo,$viewer,$agentPublic)??[
       'public_id'=>$agentPublic,'name'=>$name,'project_public_id'=>$projectPublic,'conversation_public_id'=>$conversationPublic,'monitoring_cadence'=>$cadence
     ];
+}
+
+function research_agent_default(PDO $pdo,array $viewer): ?array {
+    if(!research_agent_ready($pdo))return null;
+    $q=$pdo->prepare("SELECT public_id FROM research_agents WHERE owner_user_id=? AND is_default=1 AND status<>'archived' ORDER BY id ASC LIMIT 1");
+    $q->execute([(int)$viewer['id']]);
+    $public=(string)($q->fetchColumn()?:'');
+    return $public!==''?research_agent_access($pdo,$viewer,$public):null;
+}
+
+function research_agent_ensure_default(PDO $pdo,array $viewer): ?array {
+    if(!research_agent_ready($pdo)||!agent_chat_available($pdo,$viewer))return null;
+    if($existing=research_agent_default($pdo,$viewer))return $existing;
+    try{
+        return research_agent_create($pdo,$viewer,[
+            'name'=>'Research Agent',
+            'description'=>'Your default Annotated Research Agent. Add annotations, sources, and Research context here for ongoing evidence review, monitoring, and follow-up.',
+            'cadence'=>'daily',
+            'timezone_name'=>'UTC',
+            'run_time_local'=>'09:00',
+        ],true);
+    }catch(PDOException $e){
+        if((string)$e->getCode()!=='23000')throw $e;
+        return research_agent_default($pdo,$viewer);
+    }
 }
 
 function research_agent_workspace_options(PDO $pdo,array $viewer): array {
