@@ -81,6 +81,12 @@ jobs:
           test -f package-website/api/research-tasks.php
           test -f package-website/worker/research-task-worker.php
           test -f package-website/research-tasks.php
+          test -f package-website/database/migrations/20260923_056_research_programs_recurring_intelligence.sql
+          test -f package-website/docs/phase-58-research-programs-recurring-intelligence.md
+          test -f package-website/app/research-programs.php
+          test -f package-website/api/research-programs.php
+          test -f package-website/worker/research-program-worker.php
+          test -f package-website/research-programs.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

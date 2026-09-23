@@ -139,7 +139,10 @@ function research_task_plan_create(PDO $pdo,array $viewer,array $input,bool $cre
     $hash=research_task_plan_hash($title,$objective,$priority,$due,$deliverable,$deliverableTitle);$public=ulid_like();$tasks=is_array($input['tasks']??null)?array_slice($input['tasks'],0,30):[];
     $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
     try{
-        $pdo->prepare("INSERT INTO research_task_plans(public_id,research_agent_id,project_id,created_by_user_id,created_by_agent,title,objective,status,priority,due_at,deliverable_type,deliverable_title,current_revision,plan_hash)
+        $programRunId=max(0,(int)($input['program_run_id']??0));
+        if($programRunId>0)$pdo->prepare("INSERT INTO research_task_plans(public_id,research_agent_id,project_id,program_run_id,created_by_user_id,created_by_agent,title,objective,status,priority,due_at,deliverable_type,deliverable_title,current_revision,plan_hash)
+          VALUES(?,?,?,?,?,?,?,?,'active',?,?,?,?,1,?)")->execute([$public,(int)$agent['id'],(int)$project['id'],$programRunId,(int)$viewer['id'],$createdByAgent?1:0,$title,$objective,$priority,$due,$deliverable,$deliverableTitle,$hash]);
+        else $pdo->prepare("INSERT INTO research_task_plans(public_id,research_agent_id,project_id,created_by_user_id,created_by_agent,title,objective,status,priority,due_at,deliverable_type,deliverable_title,current_revision,plan_hash)
           VALUES(?,?,?,?,?,?,?,'active',?,?,?,?,1,?)")->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],$createdByAgent?1:0,$title,$objective,$priority,$due,$deliverable,$deliverableTitle,$hash]);
         $planId=(int)$pdo->lastInsertId();$created=[];$position=0;
         foreach($tasks as $raw){if(!is_array($raw))continue;$raw['position']=$position++;$created[]=research_task_create($pdo,$viewer,$agent,$project,$raw,$planId,$createdByAgent);}

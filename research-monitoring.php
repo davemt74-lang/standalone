@@ -19,7 +19,7 @@ $csrf=csrf_token();
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research Monitoring · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css?v=56.0">
+<link rel="stylesheet" href="/assets/css/app.css?v=58.0">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-monitoring">
 <main class="researchLibraryCanvas researchMonitoringCanvas">
@@ -27,6 +27,8 @@ $csrf=csrf_token();
     <nav class="researchLibraryTabs researchPrimaryActions">
       <a href="/research.php">Research Agents</a>
       <a class="active" href="/research-monitoring.php">Monitoring</a>
+      <a href="/research-tasks.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Tasks</a>
+      <a href="/research-programs.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Programs</a>
       <a href="/research-portfolio.php">Portfolio</a>
       <a href="/research-publications.php">Living Research</a>
       <a href="/research-reviews.php">Review Center</a>

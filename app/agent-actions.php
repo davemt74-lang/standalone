@@ -21,6 +21,10 @@ function agent_action_capabilities(): array {
         'label'=>'Create research plan','description'=>'Create a versioned Research plan with dependent tasks and a living deliverable. The user must confirm the plan before it is created.',
         'arguments'=>['title'=>'string','objective'=>'string','priority'=>'low|medium|high|urgent optional','due_at'=>'date/time optional','deliverable_type'=>'research_brief|competitive_analysis|due_diligence|source_digest|timeline|comparison|weekly_report|report|analysis|document','deliverable_title'=>'string optional','tasks'=>'array of task objects with title,description,task_type,priority,depends_on index array optional']
       ],
+      'research.create_program'=>[
+        'label'=>'Create recurring Research Program','description'=>'Create a governed recurring intelligence Program that generates fresh Research plans and deliverables on a schedule. The user must confirm the Program before it is scheduled.',
+        'arguments'=>['title'=>'string','objective'=>'string','cadence'=>'hourly|daily|weekly|monthly|manual','timezone_name'=>'IANA timezone optional','run_time_local'=>'HH:MM optional','weekday'=>'0-6 optional','day_of_month'=>'1-28 optional','priority'=>'low|medium|high|urgent optional','deliverable_type'=>'research_brief|competitive_analysis|due_diligence|source_digest|timeline|comparison|weekly_report|report|analysis|document','quiet_mode'=>'material_only|always optional','materiality_threshold'=>'any|important|high optional','catch_up_mode'=>'latest|skip optional','topics'=>'array optional','token_budget_per_run'=>'integer optional','monthly_run_limit'=>'integer optional']
+      ],
       'research.create_note'=>[
         'label'=>'Create research note','description'=>'Save a concise Research note to the current project.',
         'arguments'=>['body'=>'string']
@@ -97,6 +101,18 @@ function agent_action_task_priorities(): array {
 function agent_action_deliverable_types(): array {
     return function_exists('research_task_deliverable_types')?research_task_deliverable_types():['research_brief'=>'Research Brief','competitive_analysis'=>'Competitive Analysis','due_diligence'=>'Due-Diligence Report','source_digest'=>'Source Digest','timeline'=>'Timeline','comparison'=>'Comparison','weekly_report'=>'Weekly Report','report'=>'Report','analysis'=>'Analysis','document'=>'Document'];
 }
+function agent_action_program_cadences(): array {
+    return function_exists('research_program_cadences')?research_program_cadences():['hourly'=>'Hourly','daily'=>'Daily','weekly'=>'Weekly','monthly'=>'Monthly','manual'=>'Manual only'];
+}
+function agent_action_program_quiet_modes(): array {
+    return function_exists('research_program_quiet_modes')?research_program_quiet_modes():['material_only'=>'Material changes only','always'=>'Every run'];
+}
+function agent_action_program_materiality(): array {
+    return function_exists('research_program_materiality_levels')?research_program_materiality_levels():['any'=>'Any','important'=>'Important','high'=>'High'];
+}
+function agent_action_program_catchup(): array {
+    return function_exists('research_program_catch_up_modes')?research_program_catch_up_modes():['latest'=>'Latest missed cycle','skip'=>'Skip stale cycles'];
+}
 
 function agent_action_clean_arguments(string $capability,array $args): array {
     $s=fn($v,$max)=>mb_substr(trim((string)$v),0,$max);
@@ -113,6 +129,17 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $tasks=[];foreach(array_slice(is_array($args['tasks']??null)?$args['tasks']:[],0,20) as $raw){if(!is_array($raw))continue;$taskTitle=$s($raw['title']??'',255);if($taskTitle==='')continue;$type=(string)($raw['task_type']??'general');if(!isset(agent_action_task_types()[$type]))$type='general';$p=(string)($raw['priority']??$priority);if(!isset(agent_action_task_priorities()[$p]))$p=$priority;$deps=[];foreach(array_slice((array)($raw['depends_on']??[]),0,12) as $d)$deps[]=max(0,(int)$d);$tasks[]=['title'=>$taskTitle,'description'=>$s($raw['description']??'',12000),'task_type'=>$type,'priority'=>$p,'depends_on'=>array_values(array_unique($deps))];}
         if(!$tasks)throw new InvalidArgumentException('A Research plan needs at least one task.');
         return ['title'=>$title,'objective'=>$objective,'priority'=>$priority,'due_at'=>$s($args['due_at']??'',80),'deliverable_type'=>$deliverable,'deliverable_title'=>$s($args['deliverable_title']??'',255),'tasks'=>$tasks];
+    }
+    if($capability==='research.create_program'){
+        $title=$s($args['title']??'',255);$objective=$s($args['objective']??'',16000);if($title===''||$objective==='')throw new InvalidArgumentException('Program title and objective are required.');
+        $cadence=(string)($args['cadence']??'weekly');if(!isset(agent_action_program_cadences()[$cadence]))$cadence='weekly';
+        $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';
+        $deliverable=(string)($args['deliverable_type']??'weekly_report');if(!isset(agent_action_deliverable_types()[$deliverable]))$deliverable='weekly_report';
+        $quiet=(string)($args['quiet_mode']??'material_only');if(!isset(agent_action_program_quiet_modes()[$quiet]))$quiet='material_only';
+        $materiality=(string)($args['materiality_threshold']??'important');if(!isset(agent_action_program_materiality()[$materiality]))$materiality='important';
+        $catch=(string)($args['catch_up_mode']??'latest');if(!isset(agent_action_program_catchup()[$catch]))$catch='latest';
+        $topics=[];foreach(array_slice((array)($args['topics']??[]),0,30) as $topic){$topic=$s($topic,160);if($topic!==''&&!in_array($topic,$topics,true))$topics[]=$topic;}
+        return ['title'=>$title,'objective'=>$objective,'cadence'=>$cadence,'timezone_name'=>$s($args['timezone_name']??'UTC',64),'run_time_local'=>$s($args['run_time_local']??'09:00',8),'weekday'=>max(0,min(6,(int)($args['weekday']??1))),'day_of_month'=>max(1,min(28,(int)($args['day_of_month']??1))),'priority'=>$priority,'deliverable_type'=>$deliverable,'quiet_mode'=>$quiet,'materiality_threshold'=>$materiality,'catch_up_mode'=>$catch,'scope'=>['topics'=>$topics,'include_annotations'=>true,'include_workspace'=>true],'token_budget_per_run'=>max(1000,min(2000000,(int)($args['token_budget_per_run']??60000))),'monthly_run_limit'=>max(1,min(1000,(int)($args['monthly_run_limit']??31)))];
     }
     if($capability==='research.create_note'){
         $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Research note body is required.');return ['body'=>$body];
@@ -233,6 +260,12 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         $agent=research_task_agent_for_project($pdo,$viewer,(string)$project['public_id']);if(!$agent)throw new RuntimeException('This project has no active Research Agent.');
         $args['agent_id']=$agent['public_id'];$plan=research_task_plan_create($pdo,$viewer,$args,true);
         return ['type'=>'research_plan','public_id'=>(string)$plan['public_id'],'label'=>(string)$plan['title'],'url'=>'/research-tasks.php?agent='.rawurlencode((string)$agent['public_id']).'&plan='.rawurlencode((string)$plan['public_id'])];
+    }
+    if($capability==='research.create_program'){
+        if(!function_exists('research_programs_ready')||!research_programs_ready($pdo))throw new RuntimeException('Research Programs require the latest database upgrade.');
+        $agent=research_task_agent_for_project($pdo,$viewer,(string)$project['public_id']);if(!$agent)throw new RuntimeException('This project has no active Research Agent.');
+        $args['agent_id']=$agent['public_id'];$program=research_program_create($pdo,$viewer,$args,true);
+        return ['type'=>'research_program','public_id'=>(string)$program['public_id'],'label'=>(string)$program['title'],'url'=>'/research-programs.php?agent='.rawurlencode((string)$agent['public_id']).'&program='.rawurlencode((string)$program['public_id'])];
     }
     if($capability==='research.create_note'){
         $public=ulid_like();$pdo->prepare('INSERT INTO research_notes(public_id,project_id,user_id,body) VALUES(?,?,?,?)')->execute([$public,$projectId,$userId,$args['body']]);

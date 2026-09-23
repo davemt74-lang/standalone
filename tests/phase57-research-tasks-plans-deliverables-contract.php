@@ -37,7 +37,7 @@ foreach(["'research.create_plan'","'research.create_task'","research_task_plan_c
   $must(str_contains($actions,$needle),'Phase 57 Agent action contract missing: '.$needle);
 
 $home=(string)file_get_contents($root.'/home.php');
-foreach(['data-research-library-filter="tasks"','app.css?v=57.0','research-agent-workspace-ui.js?v=57.0'] as $needle)
+foreach(['data-research-library-filter="tasks"','app.css?v=58.0','research-agent-workspace-ui.js?v=58.0'] as $needle)
   $must(str_contains($home,$needle),'Phase 57 Home/Library contract missing: '.$needle);
 foreach(['app.css?v=56.0','research-agent-workspace-ui.js?v=56.0'] as $stale)
   $must(!str_contains($home,$stale),'Phase 57 Home retains stale UI cache key: '.$stale);

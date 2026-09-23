@@ -12,7 +12,7 @@ for($n=0;$n<$limit;$n++){
       WHERE j.status='queued' AND j.available_at<=NOW() ORDER BY FIELD(rt.priority,'urgent','high','medium','low'),j.available_at,j.created_at LIMIT 1",[],1800);
     if(!$job)break;$id=(int)$job['job_id'];$token=(string)$job['claim_token'];
     try{
-        $q=$pdo->prepare("SELECT rt.*,rtp.status plan_status FROM research_tasks rt LEFT JOIN research_task_plans rtp ON rtp.id=rt.plan_id WHERE rt.id=? LIMIT 1");$q->execute([(int)$job['task_id']]);$task=$q->fetch();
+        $q=$pdo->prepare("SELECT rt.*,rtp.status plan_status,rtp.program_run_id FROM research_tasks rt LEFT JOIN research_task_plans rtp ON rtp.id=rt.plan_id WHERE rt.id=? LIMIT 1");$q->execute([(int)$job['task_id']]);$task=$q->fetch();
         if(!$task||in_array((string)$task['status'],['complete','done','archived'],true)||($task['plan_id']&&$task['plan_status']!=='active')){
             job_claim_complete($pdo,'research_task_jobs',$id,$token);$processed++;continue;
         }
@@ -26,6 +26,15 @@ for($n=0;$n<$limit;$n++){
             $pdo->prepare("UPDATE research_tasks SET status='waiting',blocking_reason='No Research AI model is configured.',updated_at=NOW() WHERE id=?")->execute([(int)$task['id']]);
             research_task_event($pdo,(int)$task['project_id'],$task['plan_id']?(int)$task['plan_id']:null,(int)$task['id'],'waiting','system',null,['reason'=>'no_research_model']);
             job_claim_complete($pdo,'research_task_jobs',$id,$token);$processed++;continue;
+        }
+        if(!empty($task['program_run_id'])&&function_exists('research_program_task_budget')){
+            $budget=research_program_task_budget($pdo,(int)$task['program_run_id'],$model);
+            if(empty($budget['allowed'])){
+                $reason='Research Program token budget reached ('.(int)$budget['used'].' used of '.(int)$budget['budget'].'; next task reserve '.(int)$budget['reserve'].').';
+                $pdo->prepare("UPDATE research_tasks SET status='waiting',blocking_reason=?,updated_at=NOW() WHERE id=?")->execute([$reason,(int)$task['id']]);
+                research_task_event($pdo,(int)$task['project_id'],$task['plan_id']?(int)$task['plan_id']:null,(int)$task['id'],'waiting','system',null,['reason'=>'program_token_budget','budget'=>$budget]);
+                job_claim_complete($pdo,'research_task_jobs',$id,$token);$processed++;continue;
+            }
         }
         $ctx=research_task_execution_context($pdo,(string)$task['public_id']);if(!$ctx)throw new RuntimeException('Research task context is unavailable.');$runPublic=ulid_like();
         $pdo->prepare("INSERT INTO research_task_runs(public_id,task_id,plan_id,research_agent_id,project_id,trigger_type,status,input_hash) VALUES(?,?,?,?,?,?,'processing',?)")

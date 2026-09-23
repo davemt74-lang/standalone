@@ -16,6 +16,7 @@ function job_table_meta(string $table): array {
         'research_autonomy_jobs' => ['schedule'=>'available_at','terminal'=>['done','failed']],
         'research_monitor_jobs' => ['schedule'=>'available_at','terminal'=>['done','failed']],
         'research_task_jobs' => ['schedule'=>'available_at','terminal'=>['done','failed']],
+        'research_program_runs' => ['schedule'=>'available_at','terminal'=>['completed','failed','skipped']],
         default => throw new InvalidArgumentException('Unsupported job table.'),
     };
 }
