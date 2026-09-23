@@ -6,7 +6,7 @@ $home=(string)file_get_contents($root.'/home.php');
 $css=(string)file_get_contents($root.'/assets/css/app.css');
 $fail=[];
 
-if(!str_contains($home,'/assets/css/app.css?v=53.0'))$fail[]='Home must force-refresh the Phase 53 stylesheet.';
+if(!str_contains($home,'/assets/css/app.css?v=53.1'))$fail[]='Home must force-refresh the Phase 53 stylesheet.';
 if(str_contains($home,'href="/assets/css/app.css"'))$fail[]='Home must not ship an unversioned app.css reference.';
 if(!str_contains($css,'.homeFeedPage.agentChatMode.researchDesktopMode .homeWorkspaceLayout'))$fail[]='Desktop full-column override must remain present.';
 if(!str_contains($css,'.homeAgentCanvas.researchDesktopOpen>.researchAgentCanvasTopActions'))$fail[]='Desktop must continue hiding underlying Agent controls.';
