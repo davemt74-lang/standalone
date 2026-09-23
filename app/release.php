@@ -24,7 +24,8 @@ function onboarding_status(PDO $pdo,array $user,bool $persistCompletion=true): a
     $q=$pdo->prepare('SELECT COUNT(*) FROM extension_sessions WHERE user_id=? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW())');$q->execute([$uid]);$extensionCount=(int)$q->fetchColumn();
     $q=$pdo->prepare("SELECT COUNT(*) FROM annotations WHERE user_id=? AND status IN ('published','restricted')");$q->execute([$uid]);$annotationCount=(int)$q->fetchColumn();
     $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE follower_user_id=?)+(SELECT COUNT(*) FROM source_watches WHERE user_id=?)');$q->execute([$uid,$uid]);$followCount=(int)$q->fetchColumn();
-    $q=$pdo->prepare('SELECT COUNT(DISTINCT rp.id) FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id IS NOT NULL');$q->execute([$uid,$uid]);$projectCount=(int)$q->fetchColumn();
+    $agentProjectFilter='';try{$pdo->query('SELECT 1 FROM research_agents LIMIT 0');$agentProjectFilter=' AND NOT EXISTS(SELECT 1 FROM research_agents rag WHERE rag.project_id=rp.id)';}catch(PDOException $e){}
+    $q=$pdo->prepare('SELECT COUNT(DISTINCT rp.id) FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE (rp.owner_user_id=? OR tm.user_id IS NOT NULL)'.$agentProjectFilter);$q->execute([$uid,$uid]);$projectCount=(int)$q->fetchColumn();
     try{$q=$pdo->prepare('SELECT * FROM user_onboarding WHERE user_id=?');$q->execute([$uid]);$row=$q->fetch()?:[];}catch(PDOException $e){$row=[];}
     $steps=[
         'account'=>['complete'=>$hasPassword||$identityCount>0,'label'=>'Secure your account','detail'=>$hasPassword?'Native password ready':($identityCount?'Connected login ready':'Add a password or OAuth login method'),'url'=>'/connected-accounts.php'],

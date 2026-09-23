@@ -12,6 +12,8 @@ $researchAgent=(string)file_get_contents($root.'/assets/js/research-agent.js');
 $html=(string)file_get_contents($root.'/extension/sidepanel.html');
 
 p34c(str_contains($web,'sessionStorage.setItem(KEY')&&!str_contains($web,'localStorage.setItem(KEY'),'website workspace state is sessionStorage-only');
+p34c(!str_contains($web,'workspaceContextStrip')&&!str_contains($web,'Working in')&&!str_contains($web,'Clear context'),'website workspace context remains state-only and renders no extra top strip');
+p34c(!str_contains((string)file_get_contents($root.'/assets/css/app.css'),'workspaceContextStrip'),'removed website context strip has no remaining CSS surface');
 p34c(str_contains($chrome,'chrome.storage.session.set')&&!str_contains($chrome,'chrome.storage.local.set({[PHASE34_WORKSPACE_KEY]')&&!str_contains($chrome,'chrome.storage.sync.set({[PHASE34_WORKSPACE_KEY]'),'Chrome workspace state is storage.session-only');
 foreach(['team_public_id','research_public_id','object_type','object_public_id','agent_conversation_public_id','surface','updated_at'] as $needle)p34c(str_contains($web,$needle)&&str_contains($chrome,$needle),"both workspace runtimes retain ref-only field: $needle");
 foreach(['selected_text','text_commentary','page_title','page_text','prompt_text','response_text'] as $forbidden)p34c(!str_contains($web,$forbidden)&&!str_contains($chrome,$forbidden),"workspace state does not persist content field: $forbidden");

@@ -97,33 +97,8 @@
     }catch{return null;}
   }
 
-  function strip(){
-    let node=document.querySelector('[data-workspace-context-strip]');
-    if(node)return node;
-    node=document.createElement('aside');node.className='workspaceContextStrip';node.dataset.workspaceContextStrip='1';node.hidden=true;
-    const anchor=document.querySelector('.topbar');if(anchor?.parentNode)anchor.insertAdjacentElement('afterend',node);else body.prepend(node);
-    return node;
-  }
-
   function render(resolved){
-    const node=strip();if(!resolved){node.hidden=true;node.replaceChildren();return;}
-    const entries=[
-      resolved.team&&{kind:'Team',...resolved.team},
-      resolved.research&&{kind:'Research',...resolved.research},
-      resolved.object&&{kind:resolved.object.label||'Object',...resolved.object},
-      resolved.agent&&{kind:'Agent',...resolved.agent},
-    ].filter(Boolean);
-    node.replaceChildren();
-    if(!entries.length){node.hidden=true;return;}
-    const lead=document.createElement('span');lead.className='workspaceContextLead';lead.textContent='Working in';node.appendChild(lead);
-    for(const item of entries){
-      const a=document.createElement('a');a.className='workspaceContextChip';a.href=item.url||'#';
-      const kind=document.createElement('small');kind.textContent=item.kind;
-      const label=document.createElement('strong');label.textContent=item.label||item.kind;
-      a.append(kind,label);node.appendChild(a);
-    }
-    const clear=document.createElement('button');clear.type='button';clear.className='workspaceContextClear';clear.textContent='Clear context';clear.addEventListener('click',()=>{const state=merge(read(),{clear_all:true,surface:body.dataset.workspaceSurface||''});render({});document.dispatchEvent(new CustomEvent('annotated:workspace-context-cleared',{detail:state}));});node.appendChild(clear);
-    node.hidden=false;
+    document.dispatchEvent(new CustomEvent('annotated:workspace-context-resolved',{detail:resolved||{}}));
   }
 
   function normalizedFromResolved(state,resolved){

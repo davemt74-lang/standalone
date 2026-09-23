@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 function research_library_projects(PDO $pdo,array $viewer,int $limit=100): array {
     $limit=max(1,min(200,$limit));
+    $agentExclusion=(function_exists('research_agent_ready')&&research_agent_ready($pdo))?" AND NOT EXISTS(SELECT 1 FROM research_agents rag WHERE rag.project_id=rp.id)":"";
     $sql="SELECT
       rp.id,rp.public_id,rp.title,rp.description,rp.status,rp.created_at,rp.updated_at,
       t.name team_name,
@@ -28,7 +29,7 @@ function research_library_projects(PDO $pdo,array $viewer,int $limit=100): array
         rp.owner_user_id=? OR EXISTS(
           SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?
         )
-      )
+      )".$agentExclusion."
       ORDER BY recent_at DESC,rp.id DESC
       LIMIT ".$limit;
     $q=$pdo->prepare($sql);

@@ -29,6 +29,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 }
 
+$researchAgents=[];
+try{
+    if(function_exists('research_agent_ensure_default'))research_agent_ensure_default($pdo,$u);
+    if(function_exists('research_agent_list'))$researchAgents=research_agent_list($pdo,$u,30);
+}catch(Throwable $e){}
 $projects=research_library_projects($pdo,$u,100);
 $q=$pdo->prepare("SELECT t.public_id,t.name FROM teams t JOIN team_members tm ON tm.team_id=t.id WHERE tm.user_id=? AND tm.role IN ('owner','admin','researcher') ORDER BY t.name");
 $q->execute([$u['id']]);
@@ -43,7 +48,6 @@ $teams=$q->fetchAll();
 <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research">
-<header class="topbar"><a class="brand" href="/home.php">Annotated</a></header>
 <main class="researchLibraryCanvas">
   <section class="researchLibraryHero">
     <div class="researchLibraryIntro">
@@ -92,6 +96,37 @@ $teams=$q->fetchAll();
         <a href="/research-automations.php">Automations</a>
       </div>
     </details>
+  </section>
+
+  <section class="researchAgentLibrarySection" aria-label="Research Agents">
+    <header class="researchAgentLibraryHead">
+      <div><span class="eyebrow">RESEARCH AGENTS</span><h2>Your active agents</h2></div>
+      <button type="button" class="button secondary researchAgentLibraryAdd" data-research-agent-add>+ NEW RESEARCH AGENT</button>
+    </header>
+    <div class="researchAgentLibraryGrid">
+      <?php foreach($researchAgents as $agent):?>
+      <article class="researchAgentLibraryCard">
+        <header>
+          <div class="researchAgentLibraryIcon" aria-hidden="true">✦</div>
+          <div class="researchAgentLibraryIdentity">
+            <span><?=!empty($agent['is_default'])?'Default Agent':h($agent['team_name']?:'Research Agent')?></span>
+            <h3><?=h($agent['name'])?></h3>
+          </div>
+          <span class="researchAgentLibraryStatus"><?=h(ucfirst((string)$agent['status']))?></span>
+        </header>
+        <?php if(trim((string)($agent['description']??''))!==''):?><p><?=h($agent['description'])?></p><?php endif?>
+        <div class="researchAgentLibraryMeta">
+          <span><strong><?=h(ucfirst((string)$agent['monitoring_cadence']))?></strong><small>Monitoring</small></span>
+          <span><strong><?=h($agent['last_message']!==''?'Active':'Ready')?></strong><small>Agent state</small></span>
+        </div>
+        <?php if(trim((string)($agent['last_message']??''))!==''):?><div class="researchAgentLibraryRecent"><span>Latest</span><?=h($agent['last_message'])?></div><?php endif?>
+        <footer>
+          <a class="researchAgentLibraryOpen" href="/home.php?agent=<?=h(rawurlencode((string)$agent['conversation_public_id']))?>">Open Agent</a>
+          <a href="/research-project.php?id=<?=h(rawurlencode((string)$agent['project_public_id']))?>">Research workspace</a>
+        </footer>
+      </article>
+      <?php endforeach?>
+    </div>
   </section>
 
   <?php if(!$projects):?>

@@ -104,6 +104,19 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     $conversation=$conversationPublicId?agent_chat_access($pdo,$viewer,$conversationPublicId):null;if($conversationPublicId&& !$conversation)throw new RuntimeException('Agent conversation not found.');
     if(!$conversation)$conversation=agent_chat_create($pdo,$viewer,mb_substr(preg_replace('/\s+/u',' ',$prompt),0,80));
     $context=agent_chat_context_normalize($pdo,$viewer,$contextItems);
+    if(function_exists('research_agent_by_conversation')){
+        try{
+            $researchAgent=research_agent_by_conversation($pdo,$viewer,(string)$conversation['public_id']);
+            if($researchAgent){
+                $hasProject=false;foreach($context as $item)if(in_array((string)($item['type']??''),['research','research_project'],true)&&($item['public_id']??'')===$researchAgent['project_public_id']){$hasProject=true;break;}
+                if(!$hasProject){
+                    $projectContext=agent_chat_context_item($pdo,$viewer,'research',(string)$researchAgent['project_public_id']);
+                    if($projectContext)$context[]=$projectContext;
+                }
+                if(function_exists('research_agent_attach_context'))research_agent_attach_context($pdo,$viewer,$researchAgent,$context);
+            }
+        }catch(Throwable $e){}
+    }
     $userMessage=conversation_message_create($pdo,$viewer,$conversation['public_id'],$prompt,null,$clientMessageId);
     $userMessageId=(int)$userMessage['id'];
     if(!$userMessage['created']){

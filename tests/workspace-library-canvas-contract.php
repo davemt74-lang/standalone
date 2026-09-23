@@ -16,6 +16,10 @@ function library_ui_assert(bool $ok,string $message): void {
 library_ui_assert(str_contains($research,'researchLibraryCanvas'),'Research uses full-width library canvas');
 library_ui_assert(str_contains($research,'ADD RESEARCH'),'Research creation is collapsed behind ADD RESEARCH');
 library_ui_assert(str_contains($research,'researchFolderGrid'),'Research uses folder cards');
+library_ui_assert(str_contains($research,'researchAgentLibrarySection'),'Research canvas exposes the user\'s Research Agents');
+library_ui_assert(str_contains($research,'research_agent_ensure_default'),'Research canvas ensures the default Research Agent exists');
+library_ui_assert(str_contains($research,'data-research-agent-add'),'Research canvas can open the New Research Agent modal');
+library_ui_assert(!str_contains($research,'<header class="topbar">'),'Research canvas must not render a duplicate legacy header');
 library_ui_assert(str_contains($research,'Advanced Research tools'),'Research preserves the advanced tools contract');
 library_ui_assert(str_contains($research,'/research-citations.php'),'Research preserves project citations entry point');
 library_ui_assert(str_contains($research,'/research-provenance.php'),'Research preserves provenance entry point');

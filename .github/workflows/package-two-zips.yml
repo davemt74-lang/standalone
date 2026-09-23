@@ -47,6 +47,10 @@ jobs:
           test -f package-website/upgrade.php
           test -f package-website/database/schema.sql
           test -f package-website/database/migrations/20260922_046_model_improvement_campaigns.sql
+          test -f package-website/database/migrations/20260922_047_research_agents.sql
+          test -f package-website/app/research-agents.php
+          test -f package-website/api/research-agents.php
+          test -f package-website/assets/js/research-agent-shell.js
           test -f package-website/admin/model-campaigns.php
           test -f package-website/admin/intelligence-release-audit.php
           test -f package-website/docs/phase-48-end-to-end-closed-loop-release-hardening.md
