@@ -39,7 +39,7 @@ function research_task_event(PDO $pdo,int $projectId,?int $planId,?int $taskId,s
 }
 
 function research_task_clean_due($value): ?string {
-    $value=trim((string)$value;if($value==='')return null;try{$d=new DateTimeImmutable($value);return $d->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');}catch(Throwable $e){throw new InvalidArgumentException('Invalid due date.');}
+    $value=trim((string)$value);if($value==='')return null;try{$d=new DateTimeImmutable($value);return $d->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');}catch(Throwable $e){throw new InvalidArgumentException('Invalid due date.');}
 }
 
 function research_task_plan_hash(string $title,string $objective,string $priority,?string $due,string $deliverableType,string $deliverableTitle): string {
@@ -191,9 +191,15 @@ function research_task_queue_ready(PDO $pdo,int $planId,?int $requestedByUserId=
 }
 
 function research_task_input_hash(PDO $pdo,array $task): string {
-    $deps=[];$q=$pdo->prepare("SELECT parent.public_id,parent.status,parent.updated_at FROM research_task_dependencies d JOIN research_tasks parent ON parent.id=d.depends_on_task_id WHERE d.task_id=? ORDER BY parent.id");$q->execute([(int)$task['id']);$deps=$q->fetchAll()?:[];
-    $workspace=function_exists('research_workspace_input_hash')?research_workspace_input_hash($pdo,(int)$task['project_id']):'';
-    return hash('sha256',json_encode([$task['public_id'],$task['title'],$task['description'],$task['task_type'],$task['priority'],$task['due_at'],$task['updated_at'],$deps,$workspace],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+    $deps=[];$q=$pdo->prepare("SELECT parent.public_id,parent.status,parent.completed_at FROM research_task_dependencies d JOIN research_tasks parent ON parent.id=d.depends_on_task_id WHERE d.task_id=? ORDER BY parent.id");$q->execute([(int)$task['id']]);$deps=$q->fetchAll()?:[];
+    $gates=[];$q=$pdo->prepare("SELECT gate_type,required_json,status,waived_at FROM research_task_completion_gates WHERE task_id=? ORDER BY gate_type");$q->execute([(int)$task['id']]);foreach($q->fetchAll() as $g)$gates[]=[(string)$g['gate_type'],(string)$g['required_json'],(string)$g['status'],(string)($g['waived_at']??'')];
+    $sources=[];$q=$pdo->prepare("SELECT s.public_id,s.status,s.current_version_id,COALESCE(sv.content_hash,'') content_hash FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE ps.project_id=? ORDER BY s.id");$q->execute([(int)$task['project_id']]);foreach($q->fetchAll() as $r)$sources[]=[(string)$r['public_id'],(string)$r['status'],(int)($r['current_version_id']??0),(string)$r['content_hash']];
+    $claims=[];$q=$pdo->prepare("SELECT rc.public_id,rc.status,rc.updated_at,COUNT(ce.id) evidence_count,COALESCE(MAX(ce.id),0) evidence_revision FROM research_claims rc LEFT JOIN claim_evidence ce ON ce.claim_id=rc.id WHERE rc.project_id=? GROUP BY rc.id ORDER BY rc.id");$q->execute([(int)$task['project_id']]);foreach($q->fetchAll() as $r)$claims[]=[(string)$r['public_id'],(string)$r['status'],(string)$r['updated_at'],(int)$r['evidence_count'],(int)$r['evidence_revision']];
+    $objects=[];if(installer_table_exists($pdo,'research_retrieval_documents')){$q=$pdo->prepare("SELECT object_type,object_public_id,COALESCE(source_updated_at,updated_at) evidence_updated_at FROM research_retrieval_documents WHERE project_id=? ORDER BY object_type,object_public_id");$q->execute([(int)$task['project_id']]);foreach($q->fetchAll() as $r)$objects[]=[(string)$r['object_type'],(string)$r['object_public_id'],(string)$r['evidence_updated_at']];}
+    return hash('sha256',json_encode([
+      (string)$task['public_id'],(string)$task['title'],(string)($task['description']??''),(string)$task['task_type'],(string)$task['priority'],(string)($task['due_at']??''),(int)($task['plan_revision']??0),
+      $deps,$gates,$sources,$claims,$objects
+    ],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
 }
 
 function research_task_execution_context(PDO $pdo,string $taskPublic): ?array {
@@ -202,13 +208,13 @@ function research_task_execution_context(PDO $pdo,string $taskPublic): ?array {
     $workspace=function_exists('research_workspace_context')?research_workspace_context($pdo,(int)$task['project_id']):null;$refs=[['type'=>'research_project','id'=>$task['project_public_id']]];$chunks=[];
     foreach(array_slice((array)($workspace['snapshot']['claims']??[]),0,30) as $x){$refs[]=['type'=>'claim','id'=>$x['public_id']];$chunks[]='[CLAIM '.$x['public_id'].'] '.$x['status'].' · '.$x['statement'];}
     foreach(array_slice((array)($workspace['snapshot']['source_risks']??[]),0,20) as $x){$refs[]=['type'=>'source','id'=>$x['source_public_id']];$chunks[]='[SOURCE '.$x['source_public_id'].'] '.($x['title']?:$x['domain']).($x['latest_diff']?' · '.$x['latest_diff']:'');}
-    $q=$pdo->prepare("SELECT s.public_id,s.title,s.domain,sv.extracted_text FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE ps.project_id=? ORDER BY ps.created_at DESC LIMIT 16");$q->execute([(int)$task['project_id']);
-    foreach($q->fetchAll() as $s){$refs[]=['type'=>'source','id'=>$s['public_id']];$chunks[]='[SOURCE '.$s['public_id'].'] '.($s['title']?:$s['domain'])."
-".mb_substr((string)($s['extracted_text']??''),0,1800);}
-    $allowed=[];foreach($refs as $ref)$allowed[$ref['type'].':'.$ref['id']]=true;
-    return ['task'=>$task,'workspace_text'=>(string)($workspace['text']??''),'evidence_text'=>implode("
-
-",$chunks),'refs'=>$refs,'allowed_refs'=>$allowed,'input_hash'=>research_task_input_hash($pdo,$task)];
+    $q=$pdo->prepare("SELECT s.public_id,s.title,s.domain,sv.extracted_text FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE ps.project_id=? ORDER BY ps.created_at DESC LIMIT 16");$q->execute([(int)$task['project_id']]);
+    foreach($q->fetchAll() as $s){$refs[]=['type'=>'source','id'=>$s['public_id']];$chunks[]='[SOURCE '.$s['public_id'].'] '.($s['title']?:$s['domain'])."\n".mb_substr((string)($s['extracted_text']??''),0,1800);}
+    if(function_exists('research_retrieval_context')&&research_retrieval_ready($pdo)&&!empty($task['research_agent_id'])){
+        try{$agent=research_task_agent_by_id($pdo,(int)$task['research_agent_id']);if($agent){$viewer=research_task_owner($pdo,$agent);$query=trim((string)$task['title'].' '.(string)($task['description']??''));$retrieval=research_retrieval_context($pdo,[],$viewer,(string)$task['project_public_id'],$query,[],10);if(!empty($retrieval['text']))$chunks[]=(string)$retrieval['text'];foreach((array)($retrieval['refs']??[]) as $ref)$refs[]=$ref;}}catch(Throwable $ignored){}
+    }
+    $allowed=[];foreach($refs as $ref){$type=(string)($ref['type']??'');$id=(string)($ref['id']??'');if($type!==''&&$id!=='')$allowed[$type.':'.$id]=true;}
+    return ['task'=>$task,'workspace_text'=>(string)($workspace['text']??''),'evidence_text'=>implode("\n\n",$chunks),'refs'=>$refs,'allowed_refs'=>$allowed,'input_hash'=>research_task_input_hash($pdo,$task)];
 }
 
 function research_task_mark_processing(PDO $pdo,string $publicId): void {
