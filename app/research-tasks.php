@@ -137,7 +137,7 @@ function research_task_plan_create(PDO $pdo,array $viewer,array $input,bool $cre
     $deliverable=(string)($input['deliverable_type']??'research_brief');if(!isset(research_task_deliverable_types()[$deliverable]))$deliverable='research_brief';
     $deliverableTitle=mb_substr(trim((string)($input['deliverable_title']??'')),0,255);if($deliverableTitle==='')$deliverableTitle=$title;
     $hash=research_task_plan_hash($title,$objective,$priority,$due,$deliverable,$deliverableTitle);$public=ulid_like();$tasks=is_array($input['tasks']??null)?array_slice($input['tasks'],0,30):[];
-    $pdo->beginTransaction();
+    $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
     try{
         $pdo->prepare("INSERT INTO research_task_plans(public_id,research_agent_id,project_id,created_by_user_id,created_by_agent,title,objective,status,priority,due_at,deliverable_type,deliverable_title,current_revision,plan_hash)
           VALUES(?,?,?,?,?,?,?,'active',?,?,?,?,1,?)")->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],$createdByAgent?1:0,$title,$objective,$priority,$due,$deliverable,$deliverableTitle,$hash]);
@@ -146,8 +146,8 @@ function research_task_plan_create(PDO $pdo,array $viewer,array $input,bool $cre
         foreach($tasks as $idx=>$raw){if(!is_array($raw)||empty($raw['depends_on'])||!isset($created[$idx]))continue;$taskId=(int)$created[$idx]['id'];foreach(array_slice((array)$raw['depends_on'],0,12) as $depIndex){$di=(int)$depIndex;if($di<0||!isset($created[$di])||$di===$idx)continue;$pdo->prepare("INSERT IGNORE INTO research_task_dependencies(task_id,depends_on_task_id,dependency_type) VALUES(?,?,'finish_to_start')")->execute([$taskId,(int)$created[$di]['id']]);}}
         $q=$pdo->prepare('SELECT * FROM research_task_plans WHERE id=?');$q->execute([$planId]);$plan=$q->fetch();research_task_plan_snapshot($pdo,$plan,'Initial plan',(int)$viewer['id'],$createdByAgent);
         research_task_event($pdo,(int)$project['id'],$planId,null,'plan_created',$createdByAgent?'agent':'user',(int)$viewer['id'],['task_count'=>count($created),'deliverable_type'=>$deliverable]);
-        $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     research_task_queue_ready($pdo,$planId,(int)$viewer['id'],'dependency_ready');
     research_task_refresh_deliverable($pdo,$viewer,$public);
     return research_task_plan_access($pdo,$viewer,$public)??['public_id'=>$public,'title'=>$title];
@@ -401,6 +401,25 @@ function research_task_agent_for_project(PDO $pdo,array $viewer,string $projectP
     $project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)return null;
     $q=$pdo->prepare("SELECT public_id FROM research_agents WHERE project_id=? AND status='active' ORDER BY is_default DESC,id ASC LIMIT 1");$q->execute([(int)$project['id']]);$public=(string)($q->fetchColumn()?:'');
     return $public!==''?research_agent_access($pdo,$viewer,$public):null;
+}
+
+function research_task_update(PDO $pdo,array $viewer,string $taskPublic,array $input): array {
+    $task=research_task_access($pdo,$viewer,$taskPublic);if(!$task)throw new RuntimeException('Research task not found.');if(($task['status']??'')==='researching')throw new RuntimeException('Wait for the active task run to finish before editing this task.');
+    $agent=research_task_agent($pdo,$viewer,(string)$task['agent_public_id']);research_task_project($pdo,$viewer,$agent);
+    $title=mb_substr(trim((string)($input['title']??$task['title'])),0,255);if($title==='')throw new InvalidArgumentException('Task title is required.');
+    $description=mb_substr(trim((string)($input['description']??$task['description']??'')),0,12000);
+    $type=(string)($input['task_type']??$task['task_type']);if(!isset(research_task_types()[$type]))$type=(string)$task['task_type'];
+    $priority=(string)($input['priority']??$task['priority']);if(!isset(research_task_priorities()[$priority]))$priority=(string)$task['priority'];
+    $due=array_key_exists('due_at',$input)?research_task_clean_due($input['due_at']):$task['due_at'];$typeChanged=$type!==(string)$task['task_type'];
+    $pdo->prepare("UPDATE research_tasks SET title=?,description=?,task_type=?,priority=?,due_at=?,status='queued',blocking_reason=NULL,execution_summary=NULL,execution_refs_json=NULL,completion_evaluation_json=NULL,human_reviewed_at=NULL,human_reviewed_by_user_id=NULL,completed_at=NULL,updated_at=NOW() WHERE id=?")
+      ->execute([$title,$description!==''?$description:null,$type,$priority,$due,(int)$task['id']]);
+    if($typeChanged){$pdo->prepare('DELETE FROM research_task_completion_gates WHERE task_id=?')->execute([(int)$task['id']]);research_task_add_gates($pdo,(int)$task['id'],is_array($input['gates']??null)?$input['gates']:research_task_default_gates($type));}
+    elseif(is_array($input['gates']??null)){research_task_add_gates($pdo,(int)$task['id'],$input['gates']);}
+    $pdo->prepare('DELETE FROM research_task_evidence_refs WHERE task_id=?')->execute([(int)$task['id']]);
+    research_task_event($pdo,(int)$task['project_id'],$task['plan_id']?(int)$task['plan_id']:null,(int)$task['id'],'revised','user',(int)$viewer['id'],['task_type'=>$type,'priority'=>$priority]);
+    if($task['plan_id']){$q=$pdo->prepare("UPDATE research_task_plans SET current_revision=current_revision+1,updated_at=NOW() WHERE id=?");$q->execute([(int)$task['plan_id']]);$q=$pdo->prepare("SELECT * FROM research_task_plans WHERE id=?");$q->execute([(int)$task['plan_id']]);$plan=$q->fetch();research_task_plan_snapshot($pdo,$plan,'Task revised',(int)$viewer['id'],false);}
+    research_task_queue($pdo,(int)$task['id'],(int)$viewer['id'],'replan');if($task['plan_id'])research_task_refresh_deliverable_by_plan_id($pdo,(int)$task['plan_id']);
+    return research_task_access($pdo,$viewer,$taskPublic)??$task;
 }
 
 function research_task_plan_add_task(PDO $pdo,array $viewer,string $planPublic,array $input,bool $createdByAgent=false): array {
