@@ -2687,3 +2687,42 @@
   }
   .researchLibraryDrawer{width:100vw!important}
 }
+
+
+/* Phase 55.3 — Desktop control consolidation + editor button visibility */
+.homeFeedPage.researchDesktopMode .researchAgentCanvasTopActions{
+  display:none!important;
+}
+.researchDesktopActions .researchDesktopLibrary{
+  margin-left:4px!important;
+  color:#20252a!important;
+}
+.researchLibraryDocToolbar button{
+  color:#1f2937!important;
+  background:#fff!important;
+  border-color:#d6dbe0!important;
+}
+.researchLibraryDocToolbar button strong,
+.researchLibraryDocToolbar button em,
+.researchLibraryDocToolbar button u,
+.researchLibraryDocToolbar button span,
+.researchLibraryDocToolbar button svg{
+  color:#1f2937!important;
+  fill:#1f2937!important;
+  stroke:#1f2937!important;
+}
+.researchLibraryDocToolbar button:hover,
+.researchLibraryDocToolbar button:focus-visible{
+  color:#111827!important;
+  background:#f3f5f7!important;
+  border-color:#c8cdd3!important;
+  outline:none!important;
+}
+.researchLibraryDocToolbar [data-research-library-doc-save]{
+  font-weight:800!important;
+}
+.researchDesktopDocumentWindow .researchDocumentToolbar button,
+.researchDesktopDocumentWindow .researchDocumentToolbar select{
+  color:#30363c!important;
+  background:#fff!important;
+}
