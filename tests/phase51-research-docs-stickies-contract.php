@@ -28,7 +28,7 @@ $need('app/agent-actions.php',"'research.create_document'",'Governed Agent actio
 $need('app/agent-actions.php',"'research.create_sticky'",'Research Agents must be able to propose floating stickies through governed actions.');
 $need('app/agent-actions.php','You are no longer a member of the Team that owns this Research Agent.','Pending Team Research Agent actions must re-check live Team membership.');
 $need('app/agent-actions.php','research_agent_workspace_post_document_to_chat','Confirmed Agent document creation must post a new chat document card.');
-$need('app/conversations.php','object_handoff_message_attachments','Agent conversations must resolve durable object attachments.');
+$need('app/agent-chat.php',"\$type==='document'&&function_exists('object_handoff_resolve')",'Agent conversation reloads must enrich document attachments without changing legacy context attachments.');
 $need('app/object-handoff.php',"'document'=>'Research document'",'Research documents must be first-class handoff objects.');
 $need('app/agent-chat.php',"if(\$type==='document'",'Research documents must be valid Agent context.');
 $need('app/workspace-context.php',"if(\$type==='document'",'Document workspace continuity must resolve by reference.');
