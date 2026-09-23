@@ -12,6 +12,7 @@ try{
 
     for($i=0;$i<$limit;$i++){
         $run=research_program_claim($pdo);if(!$run)break;$token=(string)$run['claim_token'];$program=research_program_by_id($pdo,(int)$run['program_id']);
+        if($program)$program=research_program_effective_for_run($program,$run);
         if(!$program){
             try{job_claim_complete($pdo,'research_program_runs',(int)$run['id'],$token,'skipped');}catch(Throwable $ignored){}
             $skipped++;continue;
