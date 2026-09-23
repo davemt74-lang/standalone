@@ -36,7 +36,7 @@ $source=ensure_source($pdo,'https://example.com/'.$run.'/source','Phase 54 Prima
 $sourceText='The primary source describes launchwindowalpha and supporting public evidence.';
 $pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash) VALUES(?,1,?,?,?,?)")
   ->execute([$source['id'],'https://example.com/'.$run.'/source','Phase 54 Primary Source',$sourceText,hash('sha256',$sourceText)]);
-$sourceVersion=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=?,updated_at=NOW() WHERE id=?')->execute([$sourceVersion,$source['id']]);
+$sourceVersion=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=?,last_checked_at=NOW() WHERE id=?')->execute([$sourceVersion,$source['id']]);
 $pdo->prepare('INSERT INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([$project['id'],$source['id'],$owner['id']]);
 
 $capturePublic=$pub('cap');$pdo->prepare("INSERT INTO captures(public_id,source_id,source_version_id,user_id,capture_type,selected_text,start_seconds,end_seconds) VALUES(?,?,?,?, 'video_clip',?,?,?)")
