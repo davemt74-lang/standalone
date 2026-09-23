@@ -78,6 +78,10 @@ function research_intelligence_portfolio_create(PDO $pdo,array $viewer,array $in
     $public=ulid_like();$pdo->prepare("INSERT INTO research_intelligence_portfolios(public_id,owner_user_id,team_id,title,objective,briefing_cadence,timezone_name,briefing_time_local,briefing_weekday,briefing_day_of_month) VALUES(?,?,?,?,?,?,?,?,?,?)")
       ->execute([$public,(int)$viewer['id'],$team['id']??null,$title,$objective,$cadence,$timezone,$time,$weekday,$day]);
     $portfolio=research_intelligence_portfolio_access($pdo,$viewer,$public);if(!$portfolio)throw new RuntimeException('Portfolio could not be created.');
+    if(function_exists('research_intelligence_portfolio_operations_ready')&&research_intelligence_portfolio_operations_ready($pdo)){
+        $policy=(string)($input['briefing_policy']??'material_only');if(!in_array($policy,['always','material_only'],true))$policy='material_only';$threshold=(string)($input['materiality_threshold']??'important');if(!in_array($threshold,['any','important','high'],true))$threshold='important';
+        $pdo->prepare('UPDATE research_intelligence_portfolios SET briefing_policy=?,materiality_threshold=? WHERE id=?')->execute([$policy,$threshold,(int)$portfolio['id']]);$portfolio=research_intelligence_portfolio_access($pdo,$viewer,$public)??$portfolio;research_intelligence_portfolio_refresh_schedule($pdo,$portfolio,true);$portfolio=research_intelligence_portfolio_access($pdo,$viewer,$public)??$portfolio;
+    }
     research_intelligence_portfolio_event($pdo,(int)$portfolio['id'],'created',$byAgent?'agent':'user',(int)$viewer['id'],['scope'=>$team?'team':'personal']);
     return $portfolio;
 }
@@ -91,8 +95,13 @@ function research_intelligence_portfolio_update(PDO $pdo,array $viewer,string $p
     $weekday=$cadence==='weekly'?max(0,min(6,(int)($input['briefing_weekday']??$p['briefing_weekday']??1))):null;$day=in_array($cadence,['monthly','quarterly'],true)?max(1,min(28,(int)($input['briefing_day_of_month']??$p['briefing_day_of_month']??1))):null;
     $pdo->prepare("UPDATE research_intelligence_portfolios SET title=?,objective=?,briefing_cadence=?,timezone_name=?,briefing_time_local=?,briefing_weekday=?,briefing_day_of_month=?,updated_at=NOW() WHERE id=?")
       ->execute([$title,$objective,$cadence,$timezone,$time,$weekday,$day,(int)$p['id']]);
+    $fresh=research_intelligence_portfolio_access($pdo,$viewer,$publicId)??$p;
+    if(function_exists('research_intelligence_portfolio_operations_ready')&&research_intelligence_portfolio_operations_ready($pdo)){
+        $policy=(string)($input['briefing_policy']??($fresh['briefing_policy']??'material_only'));if(!in_array($policy,['always','material_only'],true))$policy='material_only';$threshold=(string)($input['materiality_threshold']??($fresh['materiality_threshold']??'important'));if(!in_array($threshold,['any','important','high'],true))$threshold='important';
+        $pdo->prepare('UPDATE research_intelligence_portfolios SET briefing_policy=?,materiality_threshold=? WHERE id=?')->execute([$policy,$threshold,(int)$p['id']]);$fresh=research_intelligence_portfolio_access($pdo,$viewer,$publicId)??$fresh;research_intelligence_portfolio_refresh_schedule($pdo,$fresh,true);$fresh=research_intelligence_portfolio_access($pdo,$viewer,$publicId)??$fresh;
+    }
     research_intelligence_portfolio_event($pdo,(int)$p['id'],'updated','user',(int)$viewer['id']);
-    return research_intelligence_portfolio_access($pdo,$viewer,$publicId)??$p;
+    return $fresh;
 }
 
 function research_intelligence_portfolio_program_scope_ok(array $portfolio,array $program): bool {
@@ -224,9 +233,27 @@ function research_intelligence_portfolio_briefings(PDO $pdo,array $portfolio,int
     $q->execute([(int)$portfolio['id']]);return $q->fetchAll()?:[];
 }
 
-function research_intelligence_portfolio_render_briefing(array $portfolio,array $snapshot,array $inferences): string {
+function research_intelligence_portfolio_snapshot_access(PDO $pdo,array $viewer,string $portfolioPublic,string $snapshotPublic): ?array {
+    $p=research_intelligence_portfolio_access($pdo,$viewer,$portfolioPublic);if(!$p)return null;$q=$pdo->prepare('SELECT * FROM research_intelligence_portfolio_snapshots WHERE public_id=? AND portfolio_id=? LIMIT 1');$q->execute([trim($snapshotPublic),(int)$p['id']]);$s=$q->fetch();if(!$s)return null;$s['aggregate']=json_decode((string)$s['aggregate_json'],true)?:[];$s['provenance']=json_decode((string)$s['provenance_json'],true)?:[];return $s;
+}
+
+function research_intelligence_portfolio_previous_snapshot(PDO $pdo,array $portfolio,?int $excludeId=null): ?array {
+    $params=[(int)$portfolio['id']];$where='portfolio_id=?';if($excludeId!==null){$where.=' AND id<>?';$params[]=$excludeId;}$q=$pdo->prepare("SELECT * FROM research_intelligence_portfolio_snapshots WHERE $where ORDER BY id DESC LIMIT 1");$q->execute($params);$s=$q->fetch();if(!$s)return null;$s['aggregate']=json_decode((string)$s['aggregate_json'],true)?:[];$s['provenance']=json_decode((string)$s['provenance_json'],true)?:[];return $s;
+}
+
+function research_intelligence_portfolio_compare_snapshots(?array $previous,array $current): array {
+    if(!$previous)return ['has_previous'=>false,'summary'=>[],'new_risks'=>[],'new_opportunities'=>[],'new_cross_program'=>[]];
+    $pa=(array)($previous['aggregate']??[]);$ca=(array)($current['aggregate']??[]);$ps=(array)($pa['summary']??[]);$cs=(array)($ca['summary']??[]);
+    $summary=[];foreach(['material_changes','high_changes','failed_runs_30d','stale_sources'] as $key)$summary[$key]=(int)($cs[$key]??0)-(int)($ps[$key]??0);
+    $keyer=fn(array $r): string=>(string)($r['type']??'').'|'.(string)($r['ref_type']??'').'|'.(string)($r['ref_public_id']??'').'|'.(string)($r['key']??'');
+    $new=function(array $now,array $old)use($keyer): array{$seen=[];foreach($old as $r)if(is_array($r))$seen[$keyer($r)]=true;$out=[];foreach($now as $r)if(is_array($r)&&!isset($seen[$keyer($r)]))$out[]=$r;return array_slice($out,0,20);};
+    return ['has_previous'=>true,'previous_snapshot_id'=>$previous['public_id']??null,'summary'=>$summary,'new_risks'=>$new((array)($ca['risks']??[]),(array)($pa['risks']??[])),'new_opportunities'=>$new((array)($ca['opportunities']??[]),(array)($pa['opportunities']??[])),'new_cross_program'=>$new((array)($ca['cross_program']??[]),(array)($pa['cross_program']??[]))];
+}
+
+function research_intelligence_portfolio_render_briefing(array $portfolio,array $snapshot,array $inferences,array $comparison=[]): string {
     $a=$snapshot['aggregate'];$h=fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');$html='<h1>'.$h($portfolio['title']).' — Executive Briefing</h1><p>'.$h($portfolio['objective']).'</p><p><strong>Evidence window:</strong> '.$h($a['window_days']).' days · <strong>Generated:</strong> '.$h($a['generated_at']).'</p>';
     $s=$a['summary'];$html.='<h2>Executive overview</h2><ul><li>'.$h($s['programs']).' Programs · '.$h($s['active']).' active · '.$h($s['paused']).' paused</li><li>'.$h($s['material_changes']).' material changes · '.$h($s['high_changes']).' high-priority changes</li><li>'.$h($s['failed_runs_30d']).' failed runs in the last 30 days</li><li>'.$h($s['stale_sources']).' source links have evidence older than 30 days or no current capture</li></ul>';
+    $html.='<h2>New since last briefing</h2>';if(empty($comparison['has_previous']))$html.='<p>This is the first frozen Portfolio comparison point.</p>';else{$delta=(array)($comparison['summary']??[]);$html.='<ul><li>Material changes: '.($delta['material_changes']>=0?'+':'').$h($delta['material_changes']??0).'</li><li>High-priority changes: '.($delta['high_changes']>=0?'+':'').$h($delta['high_changes']??0).'</li><li>Failed runs: '.($delta['failed_runs_30d']>=0?'+':'').$h($delta['failed_runs_30d']??0).'</li><li>Stale evidence: '.($delta['stale_sources']>=0?'+':'').$h($delta['stale_sources']??0).'</li></ul>';if(!empty($comparison['new_risks'])){$html.='<h3>New risks</h3><ul>';foreach($comparison['new_risks'] as $r)$html.='<li>'.$h($r['program_title']??'Portfolio').' — '.$h($r['summary']??'').'</li>';$html.='</ul>';}if(!empty($comparison['new_opportunities'])){$html.='<h3>New opportunities</h3><ul>';foreach($comparison['new_opportunities'] as $r)$html.='<li>'.$h($r['program_title']??'Portfolio').' — '.$h($r['summary']??'').'</li>';$html.='</ul>';}}
     $section=function(string $title,array $rows)use(&$html,$h){$html.='<h2>'.$h($title).'</h2>';if(!$rows){$html.='<p>No current items.</p>';return;}$html.='<ul>';foreach(array_slice($rows,0,15) as $r)$html.='<li><strong>'.$h($r['program_title']??$r['kind']??'Portfolio').':</strong> '.$h($r['summary']??($r['key']??'')).'</li>';$html.='</ul>';};
     $section('Risks',$a['risks']);$section('Opportunities',$a['opportunities']);$section('Cross-program signals',$a['cross_program']);
     $html.='<h2>What changed</h2>';if(!$a['trends'])$html.='<p>No material deltas in this window.</p>';else{$html.='<ul>';foreach(array_slice($a['trends'],0,15,true) as $type=>$count)$html.='<li>'.$h(str_replace('_',' ',$type)).': '.$h($count).'</li>';$html.='</ul>';}
@@ -238,12 +265,15 @@ function research_intelligence_portfolio_create_briefing(PDO $pdo,array $viewer,
     $p=research_intelligence_portfolio_access($pdo,$viewer,$portfolioPublic);if(!$p)throw new RuntimeException('Portfolio not found.');if(!research_intelligence_portfolio_can_write($p))throw new RuntimeException('You have view-only access to this Portfolio.');
     $programs=research_intelligence_portfolio_programs($pdo,$viewer,$p);if(!$programs)throw new RuntimeException('Add at least one Research Program before creating an Executive Briefing.');$anchor=null;$anchorId=(int)($p['anchor_program_id']??0);foreach($programs as $program)if((int)$program['id']===$anchorId){$anchor=$program;break;}$anchor=$anchor?:$programs[0];
     $project=project_access($pdo,(int)$viewer['id'],(string)$anchor['project_public_id']);if(!$project||!project_can_write($project))throw new RuntimeException('The anchor Program workspace is not writable.');
-    $snapshot=research_intelligence_portfolio_snapshot($pdo,$viewer,$portfolioPublic,(int)($input['window_days']??30),'briefing');$inferences=research_intelligence_portfolio_inferences($pdo,$p,40);$html=research_intelligence_portfolio_render_briefing($p,$snapshot,$inferences);
+    $snapshotPublic=trim((string)($input['snapshot_public_id']??''));$previous=null;
+    if($snapshotPublic!==''){$snapshot=research_intelligence_portfolio_snapshot_access($pdo,$viewer,$portfolioPublic,$snapshotPublic);if(!$snapshot)throw new RuntimeException('Frozen Portfolio snapshot is unavailable.');$previous=research_intelligence_portfolio_previous_snapshot($pdo,$p,(int)$snapshot['id']);}
+    else{$previous=research_intelligence_portfolio_previous_snapshot($pdo,$p);$snapshot=research_intelligence_portfolio_snapshot($pdo,$viewer,$portfolioPublic,(int)($input['window_days']??30),'briefing');}
+    $comparison=research_intelligence_portfolio_compare_snapshots($previous,$snapshot);$inferences=research_intelligence_portfolio_inferences($pdo,$p,40);$html=research_intelligence_portfolio_render_briefing($p,$snapshot,$inferences,$comparison);
     $title=mb_substr(trim((string)($input['title']??'')),0,240);if($title==='')$title=(string)$p['title'].' — Executive Briefing — '.gmdate('Y-m-d');
     $doc=research_agent_workspace_create_document($pdo,$viewer,$project,['title'=>$title,'content_html'=>$html,'summary'=>'Executive briefing across '.count($programs).' Research Programs. Deterministic aggregation and Agent inference are labeled separately.','document_type'=>'research_brief'],$byAgent);
     $public=ulid_like();$pdo->prepare("INSERT INTO research_executive_briefings(public_id,portfolio_id,snapshot_id,document_object_id,created_by_user_id,title) VALUES(?,?,?,?,?,?)")->execute([$public,(int)$p['id'],(int)$snapshot['id'],(int)$doc['id'],(int)$viewer['id'],$title]);
     $pdo->prepare('UPDATE research_intelligence_portfolios SET last_briefed_at=NOW(),updated_at=NOW() WHERE id=?')->execute([(int)$p['id']]);research_intelligence_portfolio_event($pdo,(int)$p['id'],'briefing_created',$byAgent?'agent':'user',(int)$viewer['id'],['briefing_id'=>$public,'document_id'=>$doc['public_id'],'snapshot_id'=>$snapshot['public_id']]);
-    return ['public_id'=>$public,'title'=>$title,'document'=>$doc,'snapshot'=>$snapshot,'portfolio'=>$p];
+    return ['public_id'=>$public,'title'=>$title,'document'=>$doc,'snapshot'=>$snapshot,'comparison'=>$comparison,'portfolio'=>$p];
 }
 
 function research_intelligence_portfolio_briefing_access(PDO $pdo,array $viewer,string $publicId): ?array {
@@ -253,11 +283,14 @@ function research_intelligence_portfolio_briefing_access(PDO $pdo,array $viewer,
 function research_intelligence_portfolio_prepare_publication(PDO $pdo,array $viewer,string $briefingPublic,array $input=[]): array {
     $b=research_intelligence_portfolio_briefing_access($pdo,$viewer,$briefingPublic);if(!$b)throw new RuntimeException('Executive Briefing not found.');$p=research_intelligence_portfolio_access($pdo,$viewer,(string)$b['portfolio_public_id']);if(!$p||!research_intelligence_portfolio_can_write($p))throw new RuntimeException('You have view-only access to this Portfolio.');
     if(!empty($b['publication_public_id'])){$w=research_publication_workflow_access($pdo,$viewer,(string)$b['publication_public_id']);if($w)return $w;}
-    $workflow=research_publication_workflow_create($pdo,$viewer,(string)$b['document_public_id'],['title'=>(string)$b['title'],'summary'=>'Executive Briefing for '.$p['title'],'visibility'=>(string)($input['visibility']??($p['team_id']?'team':'private')),'required_approvals'=>max(1,(int)($input['required_approvals']??1)),'owner_approval'=>true,'review_complete'=>true,'no_unresolved_threads'=>true,'no_failed_task_gates'=>true,'no_high_contradictions'=>true,'fresh_evidence_days'=>max(1,min(365,(int)($input['fresh_evidence_days']??30)))]);
+    $publicationInput=['title'=>(string)$b['title'],'summary'=>'Executive Briefing for '.$p['title'],'visibility'=>(string)($input['visibility']??($p['team_id']?'team':'private')),'required_approvals'=>max(1,(int)($input['required_approvals']??1)),'owner_approval'=>true,'review_complete'=>true,'no_unresolved_threads'=>true,'no_failed_task_gates'=>true,'no_high_contradictions'=>true,'fresh_evidence_days'=>max(1,min(365,(int)($input['fresh_evidence_days']??30)))];
+    if(function_exists('research_intelligence_portfolio_publication_recipient_ids'))$publicationInput['recipient_user_ids']=research_intelligence_portfolio_publication_recipient_ids($pdo,$p);
+    $workflow=research_publication_workflow_create($pdo,$viewer,(string)$b['document_public_id'],$publicationInput);
     $pdo->prepare("UPDATE research_executive_briefings SET publication_workflow_id=?,status='in_review',updated_at=NOW() WHERE id=?")->execute([(int)$workflow['id'],(int)$b['id']]);research_intelligence_portfolio_event($pdo,(int)$p['id'],'briefing_publication_prepared','user',(int)$viewer['id'],['briefing_id'=>$briefingPublic,'workflow_id'=>$workflow['public_id']]);return $workflow;
 }
 
 function research_intelligence_portfolio_next_briefing(array $p): ?string {
+    if(array_key_exists('next_cycle_at',$p)&&trim((string)($p['next_cycle_at']??''))!=='')return (string)$p['next_cycle_at'];
     $cadence=(string)($p['briefing_cadence']??'manual');if($cadence==='manual')return null;$last=trim((string)($p['last_briefed_at']??$p['created_at']??''));$base=$last!==''?strtotime($last):time();
     $seconds=match($cadence){'weekly'=>7*86400,'monthly'=>30*86400,'quarterly'=>90*86400,default=>0};return $seconds>0?gmdate('Y-m-d H:i:s',$base+$seconds):null;
 }
@@ -265,7 +298,7 @@ function research_intelligence_portfolio_next_briefing(array $p): ?string {
 function research_intelligence_portfolio_is_due(array $p): bool {$next=research_intelligence_portfolio_next_briefing($p);return $next!==null&&strtotime($next)<=time();}
 
 function research_intelligence_portfolio_detail(PDO $pdo,array $viewer,string $publicId): ?array {
-    $p=research_intelligence_portfolio_access($pdo,$viewer,$publicId);if(!$p)return null;$p['programs']=research_intelligence_portfolio_programs($pdo,$viewer,$p);$p['available_programs']=research_intelligence_portfolio_available_programs($pdo,$viewer,$p);$p['aggregate']=research_intelligence_portfolio_aggregate($pdo,$viewer,$p,30);$p['snapshots']=research_intelligence_portfolio_snapshots($pdo,$p,20);$p['inferences']=research_intelligence_portfolio_inferences($pdo,$p,40);$p['briefings']=research_intelligence_portfolio_briefings($pdo,$p,30);$p['next_briefing_at']=research_intelligence_portfolio_next_briefing($p);$p['briefing_due']=research_intelligence_portfolio_is_due($p);return $p;
+    $p=research_intelligence_portfolio_access($pdo,$viewer,$publicId);if(!$p)return null;$p['programs']=research_intelligence_portfolio_programs($pdo,$viewer,$p);$p['available_programs']=research_intelligence_portfolio_available_programs($pdo,$viewer,$p);$p['aggregate']=research_intelligence_portfolio_aggregate($pdo,$viewer,$p,30);$p['snapshots']=research_intelligence_portfolio_snapshots($pdo,$p,20);$p['inferences']=research_intelligence_portfolio_inferences($pdo,$p,40);$p['briefings']=research_intelligence_portfolio_briefings($pdo,$p,30);$p['next_briefing_at']=research_intelligence_portfolio_next_briefing($p);$p['briefing_due']=research_intelligence_portfolio_is_due($p);if(function_exists('research_intelligence_portfolio_operations_detail'))$p['operations']=research_intelligence_portfolio_operations_detail($pdo,$viewer,$p);return $p;
 }
 
 function research_intelligence_portfolio_contains_project(PDO $pdo,array $viewer,string $portfolioPublic,int $projectId): bool {

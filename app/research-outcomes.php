@@ -24,6 +24,9 @@ function research_outcome_ref_access(PDO $pdo,array $viewer,string $type,string 
     }
     if($type==='report_version'){$q=$pdo->prepare('SELECT rp.public_id FROM research_report_versions rv JOIN research_reports rr ON rr.id=rv.report_id JOIN research_projects rp ON rp.id=rr.project_id WHERE rv.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;}
     if($type==='research_review')return function_exists('research_review_access')&&research_review_access($pdo,$viewer,$publicId)!==null;
+    if($type==='portfolio')return function_exists('research_intelligence_portfolio_access')&&research_intelligence_portfolio_access($pdo,$viewer,$publicId)!==null;
+    if($type==='portfolio_insight'){if(!function_exists('research_intelligence_portfolio_access'))return false;$q=$pdo->prepare('SELECT p.public_id FROM research_intelligence_insights i JOIN research_intelligence_portfolios p ON p.id=i.portfolio_id WHERE i.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&research_intelligence_portfolio_access($pdo,$viewer,$p)!==null;}
+    if($type==='executive_briefing')return function_exists('research_intelligence_portfolio_briefing_access')&&research_intelligence_portfolio_briefing_access($pdo,$viewer,$publicId)!==null;
     if($type==='finding'){
         if(function_exists('research_finding_access'))return research_finding_access($pdo,$viewer,$publicId)!==null;
         $q=$pdo->prepare('SELECT rp.public_id FROM research_findings rf JOIN research_projects rp ON rp.id=rf.project_id WHERE rf.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;

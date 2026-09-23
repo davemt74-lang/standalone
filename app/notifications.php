@@ -89,6 +89,9 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
     if($type==='research_program'){
         return function_exists('research_program_access')&&research_program_access($pdo,$viewer,$public)!==null;
     }
+    if($type==='research_intelligence_portfolio'){
+        return function_exists('research_intelligence_portfolio_access')&&research_intelligence_portfolio_access($pdo,$viewer,$public)!==null;
+    }
     if($type==='cognitive_alert'){
         $context=json_decode((string)($n['context_json']??''),true)?:[];
         return function_exists('proactive_context_access')&&proactive_context_access($pdo,$viewer,$context);
@@ -120,6 +123,10 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
         $url='/research-programs.php?agent='.rawurlencode((string)$p['agent_public_id']).'&program='.rawurlencode($public);
         if(!empty($context['run_id']))$url.='&run='.rawurlencode((string)$context['run_id']);
         return $url;
+    }
+    if($type==='research_intelligence_portfolio'){
+        if(!function_exists('research_intelligence_portfolio_access')||!research_intelligence_portfolio_access($pdo,$viewer,$public))return null;
+        $url='/research-intelligence-portfolios.php?portfolio='.rawurlencode($public);if(!empty($context['briefing_public_id']))$url.='#briefing-'.rawurlencode((string)$context['briefing_public_id']);return $url;
     }
     if($type==='cognitive_alert'){$url=(string)($context['primary_url']??'');return ($url!==''&&str_starts_with($url,'/')&&!str_starts_with($url,'//'))?$url:'/home.php?view=cognitive';}
     if($type==='model_observability_incident')return ($viewer['role']??'')==='admin'?'/admin/model-observability.php?incident='.rawurlencode($public):null;
