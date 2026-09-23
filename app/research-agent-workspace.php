@@ -638,3 +638,31 @@ function research_agent_workspace_transcript_to_document(PDO $pdo,array $viewer,
     $body=(string)$obj['transcript_text'];$html='<h1>'.htmlspecialchars((string)$obj['title'].' Transcript',ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'</h1><p>'.nl2br(htmlspecialchars($body,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8'),false).'</p>';
     return research_agent_workspace_create_document($pdo,$viewer,$project,['title'=>(string)$obj['title'].' Transcript','document_type'=>'document','content_html'=>$html,'parent_id'=>(string)($obj['parent_public_id']??'')],false);
 }
+
+
+function research_agent_workspace_project_context(PDO $pdo,array $viewer,string $projectPublicId,int $limit=10): array {
+    $project=project_access($pdo,(int)$viewer['id'],$projectPublicId);if(!$project)return ['text'=>'','refs'=>[]];
+    $limit=max(1,min(20,$limit));$q=$pdo->prepare("SELECT rwo.public_id,rwo.object_type,rwo.title,
+      rwd.summary,rwd.plain_text,
+      rwu.processing_status,rwu.extracted_text,rwu.original_name upload_name,
+      rwt.status transcript_status,COALESCE(rwt.edited_text,rwt.raw_text) transcript_text,
+      rwb.canonical_url,rwb.description
+      FROM research_workspace_objects rwo
+      LEFT JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
+      LEFT JOIN research_workspace_uploads rwu ON rwu.object_id=rwo.id
+      LEFT JOIN research_workspace_recording_transcripts rwt ON rwt.object_id=rwo.id
+      LEFT JOIN research_workspace_bookmarks rwb ON rwb.object_id=rwo.id
+      WHERE rwo.project_id=? AND rwo.status='active' AND rwo.object_type IN ('document','upload','recording','bookmark')
+      ORDER BY rwo.updated_at DESC,rwo.id DESC LIMIT ".$limit);
+    $q->execute([(int)$project['id']]);$parts=['[RESEARCH AGENT WORKSPACE]'];$refs=[];
+    foreach($q->fetchAll()?:[] as $row){
+        $type=(string)$row['object_type'];$id=(string)$row['public_id'];$title=(string)$row['title'];$body='';
+        if($type==='document')$body=trim((string)($row['summary']?:$row['plain_text']));
+        elseif($type==='upload'&&($row['processing_status']??'')==='ready')$body=trim((string)($row['extracted_text']??''));
+        elseif($type==='recording'&&($row['transcript_status']??'')==='ready')$body=trim((string)($row['transcript_text']??''));
+        elseif($type==='bookmark')$body=trim((string)($row['description']?:$row['canonical_url']));
+        $parts[]=strtoupper($type)." {$id}: ".$title.($body!==''?"\n".mb_substr($body,0,2800):'');
+        $refs[]=['type'=>$type,'id'=>$id];
+    }
+    return ['text'=>mb_substr(implode("\n\n",$parts),0,18000),'refs'=>$refs];
+}
