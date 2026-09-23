@@ -50,7 +50,7 @@ $need('assets/js/agent-chat.js','agentResearchMediaCard','Files and recordings m
 $need('api/research-workspace-upload.php','private_storage_allocate','Uploaded bytes must use private storage.');
 $need('api/research-workspace-upload.php','new finfo(FILEINFO_MIME_TYPE)','Uploads must be server-side MIME validated.');
 $need('api/research-workspace-upload.php','hash_file(\'sha256\'','Uploads must record SHA-256 integrity.');
-$need('app/bootstrap.php',"$requestPath==='/api/research-workspace-upload.php'",'Large request allowance must be scoped only to the Research upload endpoint.');
+$need('app/bootstrap.php',"\$requestPath==='/api/research-workspace-upload.php'",'Large request allowance must be scoped only to the Research upload endpoint.');
 $need('research-workspace-file.php','research_agent_workspace_object','File streaming must re-check object access.');
 $need('research-workspace-file.php','stream_private_file','Research files must use private range-capable streaming.');
 
