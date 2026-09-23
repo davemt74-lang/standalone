@@ -89,3 +89,9 @@ CREATE TABLE IF NOT EXISTS research_transcription_jobs (
   INDEX idx_research_transcription_claim(status,available_at,lease_expires_at,created_at),
   CONSTRAINT fk_research_transcription_job FOREIGN KEY(transcript_id) REFERENCES research_workspace_recording_transcripts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+ALTER TABLE research_workspace_desktop_positions
+  ADD COLUMN IF NOT EXISTS folder_object_id BIGINT UNSIGNED NULL AFTER object_public_id,
+  ADD INDEX IF NOT EXISTS idx_research_desktop_folder(project_id,folder_object_id),
+  ADD CONSTRAINT fk_research_desktop_folder FOREIGN KEY(folder_object_id) REFERENCES research_workspace_objects(id) ON DELETE SET NULL;
