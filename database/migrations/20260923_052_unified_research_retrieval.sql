@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS research_retrieval_jobs (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   started_at DATETIME NULL,
   completed_at DATETIME NULL,
+  rerun_requested TINYINT(1) NOT NULL DEFAULT 0,
   INDEX idx_retrieval_jobs_claim(status,available_at,lease_expires_at,created_at),
   CONSTRAINT fk_retrieval_job_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
