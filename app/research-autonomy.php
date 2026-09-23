@@ -163,10 +163,15 @@ function research_autonomy_chat_update(PDO $pdo,array $agent,array $report,array
     $updateHash=hash('sha256',$state['hash'].'|'.$gaps.'|'.$conflicts.'|'.(string)$report['public_id']);
     $q=$pdo->prepare("SELECT last_posted_state_hash FROM research_autonomy_reports WHERE research_agent_id=?");$q->execute([(int)$agent['id']);$last=(string)($q->fetchColumn()?:'');if($last!==''&&hash_equals($last,$updateHash))return null;
     $body='Research workspace updated: '.$gaps.' evidence gap(s), '.$conflicts.' contradiction(s). I refreshed the Living Research Report and Research Attention note.';
-    $conversation=['id'=>(int)$agent['conversation_id'],'public_id'=>(string)$agent['conversation_public_id']];
-    $msg=agent_chat_insert_agent_message($pdo,$conversation,$body,0);
+    $messagePublic=ulid_like();
+    $pdo->prepare("INSERT INTO conversation_messages(public_id,conversation_id,user_id,sender_type,parent_message_id,body) VALUES(?,?,NULL,'agent',NULL,?)")
+      ->execute([$messagePublic,(int)$agent['conversation_id'],$body]);$messageId=(int)$pdo->lastInsertId();
+    $pdo->prepare('UPDATE conversations SET last_message_at=NOW(),updated_at=NOW() WHERE id=?')->execute([(int)$agent['conversation_id']]);
+    $pdo->prepare("INSERT INTO conversation_events(conversation_id,event_type,message_id,payload_json) VALUES(?,'agent_message_created',?,?)")
+      ->execute([(int)$agent['conversation_id'],$messageId,json_encode(['source'=>'research_autonomy','run_id'=>$runId],JSON_UNESCAPED_SLASHES)]);
+    $msg=['id'=>$messageId,'public_id'=>$messagePublic,'body'=>$body,'sender_type'=>'agent','role'=>'assistant'];
     $pdo->prepare("INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,?,?,?)")
-      ->execute([(int)$msg['id'],'document',(string)$report['public_id'],json_encode(['label'=>'Living Research Report','autonomous_run_id'=>$runId],JSON_UNESCAPED_SLASHES)]);
+      ->execute([$messageId,'document',(string)$report['public_id'],json_encode(['label'=>'Living Research Report','autonomous_run_id'=>$runId],JSON_UNESCAPED_SLASHES)]);
     $pdo->prepare("UPDATE research_autonomy_reports SET last_posted_state_hash=?,updated_at=NOW() WHERE research_agent_id=?")->execute([$updateHash,(int)$agent['id']]);
     return $msg;
 }
