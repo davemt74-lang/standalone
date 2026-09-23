@@ -83,35 +83,51 @@ function app_shell_link(string $href,string $label,string $icon,string $path,?st
     return '<a class="appNavLink'.($active?' active':'').'" href="'.app_shell_h($href).'"><span class="appNavIcon" aria-hidden="true">'.$icon.'</span><span>'.$label.'</span>'.$badge.'</a>';
 }
 function app_shell_research_agent_rows(PDO $pdo,array $user,int $limit=30): array {
-    $limit=max(1,min(50,$limit));
     try{
-        $q=$pdo->prepare("SELECT c.public_id,c.title,COALESCE(c.last_message_at,c.updated_at,c.created_at) activity_at,
-          (SELECT m.body FROM conversation_messages m WHERE m.conversation_id=c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) last_message
-          FROM conversations c
-          JOIN conversation_members cm ON cm.conversation_id=c.id AND cm.user_id=?
-          WHERE c.conversation_type='agent'
-          ORDER BY COALESCE(c.last_message_at,c.updated_at,c.created_at) DESC,c.id DESC
-          LIMIT ".$limit);
-        $q->execute([(int)$user['id']]);
-        return $q->fetchAll()?:[];
+        return function_exists('research_agent_list')?research_agent_list($pdo,$user,$limit):[];
     }catch(Throwable $e){
         return [];
     }
+}
+function app_shell_research_agent_dialog(PDO $pdo,array $user): string {
+    $options='<option value="">Personal</option>';
+    if(function_exists('research_agent_workspace_options')){
+        try{
+            foreach(research_agent_workspace_options($pdo,$user) as $team){
+                $options.='<option value="'.app_shell_h((string)$team['public_id']).'">'.app_shell_h((string)$team['name']).'</option>';
+            }
+        }catch(Throwable $e){}
+    }
+    return '<dialog class="researchAgentCreateDialog" data-research-agent-dialog data-csrf="'.app_shell_h(csrf_token()).'">'
+      .'<form class="researchAgentCreateForm" data-research-agent-form>'
+      .'<header><div><span class="eyebrow">RESEARCH AGENT</span><h2>New Research Agent</h2></div><button type="button" class="researchAgentDialogClose" data-research-agent-close aria-label="Close">×</button></header>'
+      .'<p class="researchAgentCreateIntro">Create a dedicated research workspace and Agent. Add annotations as evidence, then let the Agent continue researching and monitoring that workspace.</p>'
+      .'<div class="researchAgentCreateError" data-research-agent-error hidden></div>'
+      .'<label>Name<input name="name" maxlength="190" required placeholder="e.g. Van Halen coverage monitor"></label>'
+      .'<label>Research objective<textarea name="description" rows="4" maxlength="4000" placeholder="What should this Agent research, watch, compare, or follow?"></textarea></label>'
+      .'<label>Workspace<select name="team_id">'.$options.'</select></label>'
+      .'<label>Monitoring<select name="cadence"><option value="daily">Daily</option><option value="hourly">Hourly</option><option value="weekly">Weekly</option><option value="manual">Manual only</option></select></label>'
+      .'<input type="hidden" name="timezone_name" value="UTC" data-research-agent-timezone>'
+      .'<footer><button type="button" class="button secondary" data-research-agent-close>Cancel</button><button type="submit">Create Research Agent</button></footer>'
+      .'</form></dialog>';
 }
 function app_shell_research_agents(PDO $pdo,array $user,string $path): string {
     $rows=app_shell_research_agent_rows($pdo,$user,30);
     $current=trim((string)($_GET['agent']??''));
     $items='';
     foreach($rows as $row){
-        $id=trim((string)($row['public_id']??''));if($id==='')continue;
-        $title=trim((string)($row['title']??''));if($title==='')$title='New research chat';
+        $conversation=trim((string)($row['conversation_public_id']??''));if($conversation==='')continue;
+        $title=trim((string)($row['name']??''));if($title==='')$title='Research Agent';
         if(mb_strlen($title)>46)$title=mb_substr($title,0,43).'…';
         $last=trim((string)($row['last_message']??''));if($last!==''&&mb_strlen($last)>62)$last=mb_substr($last,0,59).'…';
-        $active=$path==='/home.php'&&$current===$id;
-        $items.='<a class="appShellAgentLink'.($active?' active':'').'" href="/home.php?agent='.rawurlencode($id).'"><span class="appShellAgentIcon" aria-hidden="true">✦</span><span class="appShellAgentCopy"><strong>'.app_shell_h($title).'</strong>'.($last!==''?'<small>'.app_shell_h($last).'</small>':'').'</span></a>';
+        $cadence=trim((string)($row['monitoring_cadence']??'manual'));
+        $meta=$last!==''?$last:(ucfirst($cadence).' monitoring');
+        $active=$path==='/home.php'&&$current===$conversation;
+        $items.='<a class="appShellAgentLink'.($active?' active':'').'" href="/home.php?agent='.rawurlencode($conversation).'"><span class="appShellAgentIcon" aria-hidden="true">✦</span><span class="appShellAgentCopy"><strong>'.app_shell_h($title).'</strong><small>'.app_shell_h($meta).'</small></span></a>';
     }
     if($items==='')$items='<div class="appShellAgentEmpty">No research agents yet.</div>';
-    return '<section class="appShellAgentSection" aria-label="Research Agents"><div class="appShellSectionTitle">Research Agents</div><div class="appShellAgentList">'.$items.'</div></section>';
+    $head='<div class="appShellSectionHeader"><div class="appShellSectionTitle">Research Agents</div><button type="button" class="appShellSectionAdd" data-research-agent-add aria-label="Add Research Agent" title="New Research Agent">+</button></div>';
+    return '<section class="appShellAgentSection" aria-label="Research Agents">'.$head.'<div class="appShellAgentList">'.$items.'</div></section>'.app_shell_research_agent_dialog($pdo,$user);
 }
 function app_shell_research_project_rows(PDO $pdo,array $user,int $limit=30): array {
     $limit=max(1,min(50,$limit));
