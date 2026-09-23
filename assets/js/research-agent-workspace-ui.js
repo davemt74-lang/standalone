@@ -11,12 +11,29 @@
   const initialDocument=String(canvas.dataset.researchDocument||'').trim();
   const csrf=String(canvas.dataset.csrf||'');
 
-  const openButton=canvas.querySelector('[data-research-desktop-open]');
-  const libraryOpenButton=canvas.querySelector('[data-research-library-open]');
+  const openButton=document.querySelector('[data-research-desktop-open]');
+  const libraryOpenButton=document.querySelector('[data-research-library-open]');
   const libraryDrawer=canvas.querySelector('[data-research-library-drawer]');
   const libraryCloseButton=canvas.querySelector('[data-research-library-close]');
   const librarySearch=canvas.querySelector('[data-research-library-search]');
   const libraryList=canvas.querySelector('[data-research-library-list]');
+  const libraryViewer=canvas.querySelector('[data-research-library-viewer]');
+  const libraryViewerBack=canvas.querySelector('[data-research-library-viewer-back]');
+  const libraryViewerClose=canvas.querySelector('[data-research-library-viewer-close]');
+  const libraryViewerType=canvas.querySelector('[data-research-library-viewer-type]');
+  const libraryViewerTitle=canvas.querySelector('[data-research-library-viewer-title]');
+  const libraryDocPanel=canvas.querySelector('[data-research-library-doc-panel]');
+  const libraryDocTitle=canvas.querySelector('[data-research-library-doc-title]');
+  const libraryDocState=canvas.querySelector('[data-research-library-doc-state]');
+  const libraryDocContent=canvas.querySelector('[data-research-library-doc-content]');
+  const libraryDocSave=canvas.querySelector('[data-research-library-doc-save]');
+  const libraryFilePanel=canvas.querySelector('[data-research-library-file-panel]');
+  const libraryFilePreview=canvas.querySelector('[data-research-library-file-preview]');
+  const libraryFileMeta=canvas.querySelector('[data-research-library-file-meta]');
+  const libraryFileText=canvas.querySelector('[data-research-library-file-text]');
+  const libraryFileOpen=canvas.querySelector('[data-research-library-file-open]');
+  const libraryFileDownload=canvas.querySelector('[data-research-library-file-download]');
+  const libraryGenericPanel=canvas.querySelector('[data-research-library-generic-panel]');
   const libraryCount=canvas.querySelector('[data-research-library-count]');
   const libraryIndexState=canvas.querySelector('[data-research-library-index-state]');
   const libraryFolder=canvas.querySelector('[data-research-library-folder]');
@@ -58,6 +75,7 @@
   let items=[],stickies=[],accessRole='viewer',currentFolder='',trashMode=false,desktopOpen=false,libraryOpen=false,libraryFilter='all',libraryResults=[],librarySearchTimer=null,libraryRequestSerial=0;
   const librarySelected=new Map();
   let activeDocument=null,documentRevision=0,documentDirty=false,documentSaving=false,documentSaveTimer=null;
+  let libraryActiveItem=null,libraryDocRevision=0,libraryDocDirty=false,libraryDocSaving=false;
   let maxIconZ=10,maxStickyZ=100;
   const stickyTimers=new Map(),stickyResizeTimers=new Map();
   let processingPollTimer=null,recordingPollTimer=null;
@@ -221,19 +239,72 @@
     }else librarySelected.delete(key);
     updateLibraryAskState();return true;
   }
-  async function openLibraryItem(item){
-    closeLibrary();
-    if(item.object_type==='document'){await openDocument(String(item.public_id));return;}
-    if(item.object_type==='recording'){await openRecording(String(item.public_id));return;}
-    if(item.object_type==='sticky'){
-      if(!desktopOpen)await openDesktop();currentFolder=String(item.folder_public_id||'');renderDesktop();
-      requestAnimationFrame(()=>{const el=stickyLayer?.querySelector('[data-sticky-id="'+CSS.escape(String(item.public_id))+'"]');if(el){el.scrollIntoView({block:'center',inline:'center'});el.classList.add('is-library-focus');setTimeout(()=>el.classList.remove('is-library-focus'),1200);}});
-      return;
+  function resetLibraryViewer(){
+    libraryActiveItem=null;libraryDocRevision=0;libraryDocDirty=false;libraryDocSaving=false;
+    if(libraryDocPanel)libraryDocPanel.hidden=true;if(libraryFilePanel)libraryFilePanel.hidden=true;if(libraryGenericPanel)libraryGenericPanel.hidden=true;
+    if(libraryFilePreview)libraryFilePreview.replaceChildren();if(libraryFileText)libraryFileText.textContent='';if(libraryGenericPanel)libraryGenericPanel.replaceChildren();
+  }
+  function showLibraryList(){
+    resetLibraryViewer();if(libraryViewer)libraryViewer.hidden=true;if(libraryList)libraryList.hidden=false;
+    libraryDrawer?.classList.remove('is-viewing-item');
+  }
+  function showLibraryViewer(item){
+    resetLibraryViewer();libraryActiveItem=item;if(libraryList)libraryList.hidden=true;if(libraryViewer)libraryViewer.hidden=false;
+    libraryDrawer?.classList.add('is-viewing-item');
+    if(libraryViewerType)libraryViewerType.textContent=String(item.object_type||'item').toUpperCase();
+    if(libraryViewerTitle)libraryViewerTitle.textContent=libraryResultLabel(item);
+  }
+  function setLibraryDocState(text,error=false){if(!libraryDocState)return;libraryDocState.textContent=text;libraryDocState.classList.toggle('is-error',!!error);}
+  async function saveLibraryDocument(){
+    if(!libraryActiveItem||libraryActiveItem.object_type!=='document'||!canWrite()||libraryDocSaving||!libraryDocDirty)return;
+    libraryDocSaving=true;setLibraryDocState('Saving…');
+    try{
+      const data=await api(workspaceUrl('save_document'),{method:'POST',data:{agent_id:agentId,object_id:libraryActiveItem.public_id,title:libraryDocTitle?.value||libraryResultLabel(libraryActiveItem),content_html:libraryDocContent?.innerHTML||'',base_revision:libraryDocRevision}});
+      libraryActiveItem=data.item||libraryActiveItem;libraryDocRevision=Number(libraryActiveItem.revision_number||libraryDocRevision);libraryDocDirty=false;
+      if(libraryViewerTitle)libraryViewerTitle.textContent=String(libraryActiveItem.title||'Research document');setLibraryDocState('Saved · v'+libraryDocRevision);
+      await loadLibraryResults();
+    }catch(err){setLibraryDocState(err.message||'Save failed',true);throw err;}finally{libraryDocSaving=false;}
+  }
+  async function openLibraryDocument(item){
+    showLibraryViewer(item);if(libraryDocPanel)libraryDocPanel.hidden=false;
+    const data=await api(workspaceUrl('document',{object_id:String(item.public_id)}));const doc=data.item;if(!doc)throw new Error('Document not found.');
+    libraryActiveItem=doc;libraryDocRevision=Number(doc.revision_number||1);libraryDocDirty=false;
+    if(libraryDocTitle){libraryDocTitle.value=String(doc.title||'Untitled document');libraryDocTitle.readOnly=!canWrite();}
+    if(libraryDocContent){libraryDocContent.innerHTML=String(doc.content_html||'<p><br></p>');libraryDocContent.contentEditable=canWrite()?'true':'false';}
+    if(libraryViewerTitle)libraryViewerTitle.textContent=String(doc.title||'Research document');
+    setLibraryDocState((canWrite()?'Saved':'Read only')+' · v'+libraryDocRevision);
+  }
+  async function openLibraryFile(item){
+    showLibraryViewer(item);if(libraryFilePanel)libraryFilePanel.hidden=false;
+    const action=item.object_type==='recording'?'recording':'upload';
+    const data=await api(workspaceUrl(action,{object_id:String(item.public_id)}));const obj=data.item;if(!obj)throw new Error('File not found.');libraryActiveItem=obj;
+    const isRecording=item.object_type==='recording',mime=String(isRecording?obj.recording_mime_type:obj.upload_mime_type||''),url='/research-workspace-file.php?id='+encodeURIComponent(String(item.public_id));
+    if(libraryFilePreview){
+      libraryFilePreview.replaceChildren();
+      if(mime.startsWith('image/')){const img=document.createElement('img');img.src=url;img.alt=String(obj.title||'Research file');libraryFilePreview.appendChild(img);}
+      else if(mime==='application/pdf'){const frame=document.createElement('iframe');frame.src=url;frame.title=String(obj.title||'PDF');libraryFilePreview.appendChild(frame);}
+      else if(mime.startsWith('audio/')){const audio=document.createElement('audio');audio.controls=true;audio.src=url;libraryFilePreview.appendChild(audio);}
+      else if(mime.startsWith('video/')){const video=document.createElement('video');video.controls=true;video.src=url;libraryFilePreview.appendChild(video);}
     }
-    if(item.object_type==='upload'){window.open('/research-workspace-file.php?id='+encodeURIComponent(String(item.public_id)),'_blank','noopener');return;}
-    if(item.object_type==='annotation'){location.href='/annotation.php?id='+encodeURIComponent(String(item.public_id));return;}
-    if(item.object_type==='source'){location.href='/source.php?id='+encodeURIComponent(String(item.public_id));return;}
-    const href=String(item.href||item.metadata?.url||'');if(href)window.open(href,'_blank','noopener');
+    if(libraryFileMeta)libraryFileMeta.textContent=[mime,isRecording&&obj.recording_duration_seconds?Math.round(Number(obj.recording_duration_seconds))+' sec':'',!isRecording&&obj.upload_page_count?obj.upload_page_count+' pages':''].filter(Boolean).join(' · ');
+    const extracted=isRecording?String(obj.transcript_text||''):String(obj.upload_extracted_text||'');if(libraryFileText)libraryFileText.textContent=extracted||'No extracted text is available for this file.';
+    if(libraryFileOpen)libraryFileOpen.href=url;if(libraryFileDownload)libraryFileDownload.href=url+'&download=1';
+  }
+  function openLibraryGeneric(item){
+    showLibraryViewer(item);if(libraryGenericPanel)libraryGenericPanel.hidden=false;
+    const p=document.createElement('p');p.textContent=String(item.snippet||'Open this Research item in its source view.');libraryGenericPanel.appendChild(p);
+    const a=document.createElement('a');a.textContent='Open item';
+    if(item.object_type==='annotation')a.href='/annotation.php?id='+encodeURIComponent(String(item.public_id));
+    else if(item.object_type==='source')a.href='/source.php?id='+encodeURIComponent(String(item.public_id));
+    else a.href=String(item.href||item.metadata?.url||'#');
+    libraryGenericPanel.appendChild(a);
+  }
+  async function openLibraryItem(item){
+    try{
+      if(item.object_type==='document'){await openLibraryDocument(item);return;}
+      if(item.object_type==='upload'||item.object_type==='recording'){await openLibraryFile(item);return;}
+      openLibraryGeneric(item);
+    }catch(err){showLibraryList();setStatus(err.message||'Unable to open Research item.',true);}
   }
   async function loadRelated(item){
     if(!item?.public_id)return;const serial=++libraryRequestSerial;
@@ -295,10 +366,10 @@
     document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{conversation:conversationId,research_agent:true,prompt:'Review these selected Research items together. Identify the strongest evidence, conflicts, gaps, and useful next steps.\n\nSelected: '+labels.join('; '),context},bubbles:true}));
   }
   async function openLibrary(){
-    libraryOpen=true;libraryDrawer.hidden=false;document.body.classList.add('researchLibraryMode');await loadLibrary();requestAnimationFrame(()=>librarySearch?.focus());
+    libraryOpen=true;libraryDrawer.hidden=false;document.body.classList.add('researchLibraryMode');showLibraryList();await loadLibrary();requestAnimationFrame(()=>librarySearch?.focus());
   }
   function closeLibrary(){
-    libraryOpen=false;libraryDrawer.hidden=true;document.body.classList.remove('researchLibraryMode');
+    if(libraryDocDirty)saveLibraryDocument().catch(()=>{});showLibraryList();libraryOpen=false;libraryDrawer.hidden=true;document.body.classList.remove('researchLibraryMode');
   }
 
   function scheduleProcessingPoll(){
@@ -617,6 +688,15 @@
 
   openButton?.addEventListener('click',openDesktop);closeButton?.addEventListener('click',closeDesktop);
   libraryOpenButton?.addEventListener('click',openLibrary);libraryCloseButton?.addEventListener('click',closeLibrary);
+  libraryViewerBack?.addEventListener('click',()=>{if(libraryDocDirty)saveLibraryDocument().catch(()=>{});showLibraryList();});
+  libraryViewerClose?.addEventListener('click',()=>closeLibrary());
+  libraryDocTitle?.addEventListener('input',()=>{if(!canWrite())return;libraryDocDirty=true;setLibraryDocState('Unsaved');});
+  libraryDocContent?.addEventListener('input',()=>{if(!canWrite())return;libraryDocDirty=true;setLibraryDocState('Unsaved');});
+  libraryDocSave?.addEventListener('click',()=>saveLibraryDocument().catch(()=>{}));
+  canvas.querySelectorAll('[data-research-library-doc-command]').forEach(button=>{
+    button.addEventListener('mousedown',e=>e.preventDefault());
+    button.addEventListener('click',()=>{if(!canWrite()||!libraryDocContent)return;libraryDocContent.focus();try{document.execCommand(String(button.dataset.researchLibraryDocCommand||''),false,null);}catch{}libraryDocDirty=true;setLibraryDocState('Unsaved');});
+  });
   librarySearch?.addEventListener('input',scheduleLibrarySearch);
   canvas.querySelectorAll('[data-research-library-filter]').forEach(button=>button.addEventListener('click',()=>{libraryFilter=String(button.dataset.researchLibraryFilter||'all');canvas.querySelectorAll('[data-research-library-filter]').forEach(b=>b.classList.toggle('is-active',b===button));loadLibraryResults();}));
   [libraryFolder,libraryStatus,libraryDateFrom,libraryDateTo].forEach(control=>control?.addEventListener('change',loadLibraryResults));
@@ -659,7 +739,7 @@
   surface?.addEventListener('dragleave',e=>{if(!surface.contains(e.relatedTarget))surface.classList.remove('is-file-drop');});
   surface?.addEventListener('drop',e=>{if(!canWrite()||!(e.dataTransfer?.files?.length))return;e.preventDefault();surface.classList.remove('is-file-drop');const rect=surface.getBoundingClientRect();uploadFiles(e.dataTransfer.files,e.clientX-rect.left,e.clientY-rect.top,dropFolderId(e));});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&libraryOpen){e.preventDefault();closeLibrary();}});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});if(document.hidden&&libraryDocDirty)saveLibraryDocument().catch(()=>{});});
   document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||e.detail?.document_id||'')));
   document.addEventListener('annotated:research-recording-open',e=>openRecording(String(e.detail?.public_id||e.detail?.recording_id||'')));
 

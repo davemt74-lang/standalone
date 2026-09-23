@@ -160,7 +160,15 @@ try{
     $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:$stats;
 }catch(Throwable $e){$recordHomeIncident('stats',$e);}
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=52.2"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
-<main class="layout homeWorkspaceLayout"><section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
+<main class="layout homeWorkspaceLayout">
+<?php if($requestedResearchAgent):?>
+<div class="researchAgentCanvasTopActions" data-research-canvas-controls>
+  <button type="button" class="researchLibraryOpenButton" data-research-library-open>LIBRARY</button>
+  <button type="button" class="researchDesktopOpenButton" data-research-desktop-open>DESKTOP</button>
+  <button type="button" class="agentChatPanelClose" data-agent-panel-close aria-label="Close Research Agent">×</button>
+</div>
+<?php endif?>
+<section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
 <section class="homeInlineAgentThread" data-home-inline-agent hidden aria-label="Agent Chat">
   <div class="homeInlineAgentMessages" data-inline-agent-messages role="log" aria-live="polite"></div>
   <button type="button" class="homeInlineAgentClose" data-inline-agent-close>Close chat</button>
@@ -192,10 +200,6 @@ try{
 <?php endif?>
 </section>
 <section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>" data-research-document="<?=h((string)($requestedResearchDocument['public_id']??''))?>" hidden>
-  <div class="researchAgentCanvasTopActions">
-    <?php if($requestedResearchAgent):?><button type="button" class="researchLibraryOpenButton" data-research-library-open>LIBRARY</button><button type="button" class="researchDesktopOpenButton" data-research-desktop-open>DESKTOP</button><?php endif?>
-    <button type="button" class="agentChatPanelClose" data-agent-panel-close aria-label="Close Research Agent">×</button>
-  </div>
   <?php if($requestedResearchAgent):?>
   <aside class="researchLibraryDrawer" data-research-library-drawer hidden aria-label="<?=h((string)$requestedResearchAgent['name'])?> library">
     <header class="researchLibraryDrawerHeader">
@@ -221,6 +225,34 @@ try{
       <label>To <input type="date" data-research-library-date-to></label>
     </div>
     <div class="researchLibraryDrawerBody" data-research-library-list></div>
+    <section class="researchLibraryViewer" data-research-library-viewer hidden aria-label="Research Library item">
+      <header class="researchLibraryViewerHeader">
+        <button type="button" data-research-library-viewer-back aria-label="Back to Library">←</button>
+        <div><small data-research-library-viewer-type>ITEM</small><strong data-research-library-viewer-title>Research item</strong></div>
+        <button type="button" data-research-library-viewer-close aria-label="Close viewer">×</button>
+      </header>
+      <div class="researchLibraryViewerBody">
+        <section data-research-library-doc-panel hidden>
+          <div class="researchLibraryDocTitleRow"><input type="text" maxlength="240" data-research-library-doc-title aria-label="Document title"><span data-research-library-doc-state>Saved</span></div>
+          <div class="researchLibraryDocToolbar" role="toolbar" aria-label="Document formatting">
+            <button type="button" data-research-library-doc-command="bold"><strong>B</strong></button>
+            <button type="button" data-research-library-doc-command="italic"><em>I</em></button>
+            <button type="button" data-research-library-doc-command="underline"><u>U</u></button>
+            <button type="button" data-research-library-doc-command="insertUnorderedList">• List</button>
+            <button type="button" data-research-library-doc-command="insertOrderedList">1. List</button>
+            <button type="button" data-research-library-doc-save>Save</button>
+          </div>
+          <div class="researchLibraryDocContent" data-research-library-doc-content contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"></div>
+        </section>
+        <section class="researchLibraryFilePanel" data-research-library-file-panel hidden>
+          <div class="researchLibraryFilePreview" data-research-library-file-preview></div>
+          <div class="researchLibraryFileMeta" data-research-library-file-meta></div>
+          <div class="researchLibraryFileText" data-research-library-file-text></div>
+          <div class="researchLibraryFileActions"><a data-research-library-file-open target="_blank" rel="noopener">Open full size</a><a data-research-library-file-download>Download</a></div>
+        </section>
+        <section class="researchLibraryGenericPanel" data-research-library-generic-panel hidden></section>
+      </div>
+    </section>
     <footer class="researchLibraryDrawerFooter">
       <div><span data-research-library-count>0 items</span><small data-research-library-index-state></small></div>
       <div><button type="button" data-research-library-ask disabled>Ask Agent</button><button type="button" data-research-library-desktop>Open Desktop</button></div>

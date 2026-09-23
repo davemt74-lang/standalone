@@ -5,7 +5,7 @@
   const input=document.querySelector('#homeAgentPrompt');
   const add=document.querySelector('#homeAgentAdd');
   const rightRail=document.querySelector('.homeRightRail');
-  const panelClose=canvas.querySelector('[data-agent-panel-close]');
+  const panelClose=document.querySelector('[data-agent-panel-close]');
   const inlineThread=document.querySelector('[data-home-inline-agent]');
   const inlineMessages=document.querySelector('[data-inline-agent-messages]');
   const inlineClose=document.querySelector('[data-inline-agent-close]');

@@ -64,6 +64,11 @@ jobs:
           test -f package-website/app/research-retrieval.php
           test -f package-website/api/research-retrieval.php
           test -f package-website/worker/research-retrieval-worker.php
+          test -f package-website/database/migrations/20260923_053_autonomous_research_workspace.sql
+          test -f package-website/docs/phase-55-autonomous-research-workspace.md
+          test -f package-website/app/research-autonomy.php
+          test -f package-website/api/research-autonomy.php
+          test -f package-website/worker/research-autonomy-worker.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
