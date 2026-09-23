@@ -25,9 +25,9 @@ One VP3 account can be linked to only one Annotated account.
 
 ## 63C — VP3 Library
 
-The Research workspace exposes a VP3 Library. The initial artifact implementation uses VP3 Meetings because VP3 already has authoritative permissions, transcripts and Meeting Intelligence there.
+The Research workspace exposes a VP3 Library. The initial artifact implementation covers both VP3 Meetings and the general VP3 transcription workspace, using their existing authoritative permissions, transcripts and Transcription/Meeting Intelligence.
 
-Users may browse only meetings their VP3 account can access. Each item shows meeting metadata, transcript/AI-summary availability, the current VP3 version, a link to the original, and whether a newer version is available.
+Users may browse only transcriptions or meetings their VP3 account can access. Each item shows meeting metadata, transcript/AI-summary availability, the current VP3 version, a link to the original, and whether a newer version is available.
 
 The connector data model is generic enough to add other VP3 transcription/recording artifact types later without replacing the account connection.
 
@@ -35,7 +35,7 @@ The connector data model is generic enough to add other VP3 transcription/record
 
 A user explicitly chooses a Research Agent and imports the transcript, AI summary, or both.
 
-The VP3 meeting becomes a normal Annotated **Source** with immutable **Source Versions**.
+The VP3 transcription/meeting becomes a normal Annotated **Source** with immutable **Source Versions**.
 
 - Annotated `content_hash` remains the hash of the imported evidence bytes.
 - VP3's remote version hash is retained separately as `target_content_hash` plus provenance metadata.
