@@ -42,10 +42,10 @@ try{
     if(!$input||!is_file($input))throw new RuntimeException('Uploaded Research file not found.');
     $pdo->prepare("UPDATE research_workspace_uploads SET processing_status='extracting',last_error=NULL,updated_at=NOW() WHERE object_id=?")->execute([(int)$job['object_id']]);
     $text=research_file_extract($input,(string)$job['mime_type'],$config);
-    $text=mb_substr($text,0,2_000_000);
+    $text=mb_substr($text,0,2_000_000);$pageCount=(string)$job['mime_type']==='application/pdf'&&$text!==''?max(1,substr_count($text,"\f")+1):null;
     job_claim_renew($pdo,'research_file_jobs',$id,$token,3600);
     $pdo->beginTransaction();job_claim_assert($pdo,'research_file_jobs',$id,$token);
-    $pdo->prepare("UPDATE research_workspace_uploads SET processing_status='ready',extracted_text=?,last_error=NULL,updated_at=NOW() WHERE object_id=?")->execute([$text!==''?$text:null,(int)$job['object_id']]);
+    $pdo->prepare("UPDATE research_workspace_uploads SET processing_status='ready',extracted_text=?,page_count=COALESCE(?,page_count),last_error=NULL,updated_at=NOW() WHERE object_id=?")->execute([$text!==''?$text:null,$pageCount,(int)$job['object_id']]);
     job_claim_complete($pdo,'research_file_jobs',$id,$token);$pdo->commit();
     if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$job['project_id']);
     notify_user($pdo,(int)$job['created_by_user_id'],null,'research_upload_ready','upload',(string)$job['public_id'],'Your Research file is ready: '.mb_substr((string)$job['original_name'],0,180));
