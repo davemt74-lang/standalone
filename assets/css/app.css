@@ -2126,3 +2126,44 @@
 .researchAgentLibraryChatMessage strong{font-size:.62rem;color:#6b7178}
 .researchAgentLibraryChatMessage p{margin:0;font-size:.69rem;line-height:1.4;color:#383d42;white-space:pre-wrap}
 .researchAgentLibraryChatEmpty{padding:14px;color:#7a8087;font-size:.68rem;text-align:center}
+
+
+/* Phase 50B — Research Docs + floating sticky notes */
+.homeAgentCanvas{position:relative}
+.researchAgentCanvasControls{display:flex;align-items:center;gap:8px}
+.researchStickyCreate{padding:7px 10px;border:1px solid #d9dde2;border-radius:8px;background:#fff;color:#454b52;font-size:.68rem;font-weight:750}
+.researchDocumentWorkspace{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(280px,.9fr);min-height:calc(100vh - 170px);background:#f6f7f8;border-top:1px solid #e2e4e7}
+.researchDocumentWorkspace[hidden]{display:none!important}
+.researchDocumentPane{position:relative;min-width:0;background:#f4f5f6;border-right:1px solid #dfe2e5}
+.researchDocumentHeader{position:sticky;top:0;z-index:14;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.97);border-bottom:1px solid #dfe2e5;backdrop-filter:blur(8px)}
+.researchDocumentHeader>button,.researchDocumentHeaderActions button{padding:6px 9px;border:1px solid #d9dde2;border-radius:8px;background:#fff;color:#4b5158;font-size:.65rem;font-weight:700}
+.researchDocumentTitleWrap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
+.researchDocumentTitleWrap input{min-width:0;padding:6px 8px;border:1px solid transparent;border-radius:7px;background:transparent;font:700 .92rem/1.2 inherit;color:#17191c}
+.researchDocumentTitleWrap input:focus{border-color:#cfd4d9;background:#fff;outline:none}
+.researchDocumentTitleWrap span{color:#838a91;font-size:.6rem;white-space:nowrap}.researchDocumentTitleWrap span.is-error{color:#a32424}
+.researchDocumentHeaderActions{display:flex;gap:6px}
+.researchDocumentToolbar{position:sticky;top:55px;z-index:13;display:flex;align-items:center;gap:4px;padding:8px 14px;background:rgba(250,250,250,.98);border-bottom:1px solid #e2e4e7;overflow-x:auto}
+.researchDocumentToolbar button,.researchDocumentToolbar select{height:30px;padding:0 8px;border:1px solid #d8dce0;border-radius:7px;background:#fff;color:#474d54;font:650 .64rem/1 inherit;white-space:nowrap}
+.researchDocumentToolbar button:hover{background:#f0f2f3}.researchDocumentToolbarSpacer{flex:1}
+.researchDocumentEditor{width:min(860px,calc(100% - 54px));min-height:calc(100vh - 290px);margin:24px auto 110px;padding:54px 62px;border:1px solid #dfe2e5;border-radius:3px;background:#fff;box-shadow:0 8px 30px rgba(18,25,32,.06);color:#22272d;font-size:.92rem;line-height:1.65;outline:none}
+.researchDocumentEditor:focus{border-color:#cbd0d5;box-shadow:0 10px 34px rgba(18,25,32,.08)}
+.researchDocumentEditor h1{margin:0 0 20px;font-size:2rem;line-height:1.15}.researchDocumentEditor h2{margin:28px 0 12px;font-size:1.42rem}.researchDocumentEditor h3{margin:22px 0 10px;font-size:1.12rem}
+.researchDocumentEditor p{margin:0 0 14px}.researchDocumentEditor ul,.researchDocumentEditor ol{margin:0 0 16px;padding-left:26px}.researchDocumentEditor blockquote{margin:18px 0;padding:8px 16px;border-left:3px solid #b9bec4;color:#555d65;background:#f8f8f8}.researchDocumentEditor pre{padding:14px;border-radius:8px;background:#f2f3f4;white-space:pre-wrap}
+.researchDocumentEditor table{width:100%;border-collapse:collapse;margin:18px 0}.researchDocumentEditor th,.researchDocumentEditor td{padding:8px 9px;border:1px solid #d9dde1;text-align:left}.researchDocumentEditor th{background:#f5f6f7}
+.researchDocumentAgentPane{min-width:0;background:#fff;display:flex;flex-direction:column;min-height:0}.researchDocumentAgentPane>header{display:grid;gap:3px;padding:14px 14px 10px;border-bottom:1px solid #e3e5e8}.researchDocumentAgentPane>header strong{font-size:.8rem}.researchDocumentAgentPane>header small{color:#7c838a;font-size:.62rem;line-height:1.35}
+.researchDocumentAgentPane .agentChatMessages{flex:1;min-height:0;max-height:calc(100vh - 260px);overflow:auto;padding:14px 12px 120px}.researchDocumentAgentPane .agentChatMessage{max-width:100%;margin:0 0 10px}.researchDocumentAgentPane .agentChatMessageBody{font-size:.72rem;line-height:1.45}
+.researchDocumentHistory{position:absolute;top:56px;right:0;z-index:20;width:min(340px,88vw);height:calc(100% - 56px);padding:12px;background:#fff;border-left:1px solid #dfe2e5;box-shadow:-14px 0 34px rgba(18,25,32,.08);overflow:auto}.researchDocumentHistory[hidden]{display:none!important}
+.researchDocumentHistory>header{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 10px;border-bottom:1px solid #e3e5e8}.researchDocumentHistory>header button{border:0;background:transparent;font-size:1rem}
+.researchDocumentRevision{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 2px;border-bottom:1px solid #eceeef}.researchDocumentRevision>div{display:grid;gap:2px}.researchDocumentRevision strong{font-size:.7rem}.researchDocumentRevision small{color:#838990;font-size:.58rem}.researchDocumentRevision span,.researchDocumentRevision button{font-size:.58rem}
+.agentDocumentCard{display:grid;gap:8px;width:min(520px,100%);padding:12px;border:1px solid #dce0e4;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(18,25,32,.05)}
+.agentDocumentCardMeta{color:#7d848b;font-size:.58rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.agentDocumentCard>strong,.agentDocumentCard h4{margin:0;font-size:.86rem}.agentDocumentCard p{margin:0;color:#5c636a;font-size:.68rem;line-height:1.45}
+.agentDocumentCardActions{display:flex;flex-wrap:wrap;gap:6px}.agentDocumentCardActions button,.agentDocumentCardActions a{padding:6px 8px;border:1px solid #d9dde1;border-radius:7px;background:#fff;color:#454c53;font:700 .61rem/1 inherit;text-decoration:none}
+.researchStickyLayer{position:absolute;inset:0;z-index:40;pointer-events:none;min-height:100%;overflow:visible}.researchStickyLayer[hidden]{display:none!important}
+.researchSticky{position:absolute;display:flex;flex-direction:column;min-width:180px;min-height:120px;max-width:520px;max-height:600px;border:1px solid rgba(50,55,60,.14);border-radius:5px;box-shadow:0 10px 24px rgba(18,25,32,.18);resize:both;overflow:hidden;pointer-events:auto;transform:rotate(-.15deg)}
+.researchSticky:focus-within{box-shadow:0 14px 30px rgba(18,25,32,.24);transform:none}.researchSticky header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:5px;padding:5px 6px;border-bottom:1px solid rgba(50,55,60,.09);background:rgba(255,255,255,.18)}
+.researchStickyHandle{width:25px;height:25px;border:0;background:transparent;cursor:grab;font-size:.78rem;letter-spacing:-2px}.researchStickyHandle:active{cursor:grabbing}.researchStickyDelete{width:24px;height:24px;border:0;border-radius:50%;background:rgba(255,255,255,.28);font-size:.85rem}
+.researchStickyPalette{display:flex;justify-content:center;gap:3px}.researchStickyColor{width:13px;height:13px;padding:0;border:1px solid rgba(40,45,50,.18);border-radius:50%}.researchStickyColor-yellow{background:#fff0a8}.researchStickyColor-pink{background:#ffd6e2}.researchStickyColor-blue{background:#d8eaff}.researchStickyColor-green{background:#d9f1d4}.researchStickyColor-purple{background:#e7dcff}.researchStickyColor-gray{background:#e8eaec}
+.researchSticky textarea{flex:1;width:100%;min-height:0;padding:12px;border:0;background:transparent;resize:none;outline:none;color:#30343a;font:500 .78rem/1.45 inherit}
+.researchSticky-yellow{background:#fff0a8}.researchSticky-pink{background:#ffd6e2}.researchSticky-blue{background:#d8eaff}.researchSticky-green{background:#d9f1d4}.researchSticky-purple{background:#e7dcff}.researchSticky-gray{background:#e8eaec}
+@media(max-width:980px){.researchDocumentWorkspace{grid-template-columns:minmax(0,1fr)}.researchDocumentPane{border-right:0}.researchDocumentAgentPane{border-top:1px solid #dfe2e5;max-height:48vh}.researchDocumentAgentPane .agentChatMessages{max-height:42vh}.researchDocumentEditor{width:min(760px,calc(100% - 28px));padding:38px 34px}}
+@media(max-width:700px){.researchAgentCanvasControls{width:100%;justify-content:space-between}.researchStickyCreate{order:2}.researchDocumentHeader{grid-template-columns:1fr auto;gap:7px}.researchDocumentHeader>button{grid-column:1/-1;justify-self:start}.researchDocumentTitleWrap{grid-column:1}.researchDocumentHeaderActions{grid-column:2}.researchDocumentToolbar{top:96px}.researchDocumentEditor{width:calc(100% - 14px);margin:12px 7px 100px;padding:28px 20px;border-left:0;border-right:0}.researchDocumentAgentPane{max-height:52vh}.researchSticky{max-width:calc(100vw - 24px)}}

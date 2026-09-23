@@ -8,12 +8,30 @@ declare(strict_types=1);
  * access and never become a second copy of the underlying object.
  */
 function object_handoff_types(): array {
-    return ['annotation'=>'Annotation','bookmark'=>'Bookmark'];
+    return ['annotation'=>'Annotation','bookmark'=>'Bookmark','document'=>'Research document'];
 }
 
 function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publicId): ?array {
     $type=strtolower(trim($type));$publicId=trim($publicId);
     if($publicId==='')return null;
+    if($type==='document'&&function_exists('research_agent_workspace_object')){
+        $row=research_agent_workspace_object($pdo,$viewer,$publicId,false);
+        if(!$row||($row['object_type']??'')!=='document')return null;
+        $preview=trim((string)($row['document_summary']??''));if($preview==='')$preview=mb_substr(trim((string)($row['document_plain_text']??'')),0,360);
+        $conversation=trim((string)($row['conversation_public_id']??''));
+        return [
+          'type'=>'document','public_id'=>(string)$row['public_id'],'label'=>'Research document',
+          'title'=>(string)$row['title'],'preview'=>$preview,
+          'url'=>$conversation!==''?'/home.php?agent='.rawurlencode($conversation).'&doc='.rawurlencode((string)$row['public_id']):'/research-project.php?id='.rawurlencode((string)$row['project_public_id']),
+          'document_type'=>(string)($row['document_type']??'document'),'revision_number'=>(int)($row['revision_number']??1),
+          'created_by_agent'=>(bool)($row['created_by_agent']??false),
+          'author'=>['username'=>(string)$row['creator_username'],'name'=>(string)($row['creator_name']?:$row['creator_username'])],
+          'visibility'=>!empty($row['team_public_id'])?'team':'private',
+          'team_public_id'=>$row['team_public_id']??null,'team_name'=>$row['team_name']??null,
+          'project_public_id'=>(string)$row['project_public_id'],'research_agent_public_id'=>$row['research_agent_public_id']??null,
+          'conversation_public_id'=>$conversation,'created_at'=>$row['created_at']??null,'updated_at'=>$row['updated_at']??null,
+        ];
+    }
     if($type==='bookmark'&&function_exists('research_agent_workspace_object')){
         $row=research_agent_workspace_object($pdo,$viewer,$publicId,false);
         if(!$row||($row['object_type']??'')!=='bookmark')return null;
@@ -66,6 +84,10 @@ function object_handoff_can_share_to_conversation(PDO $pdo,array $viewer,array $
         return !empty($object['team_public_id'])
             &&hash_equals((string)$object['team_public_id'],(string)($conversation['team_public_id']??''));
     }
+    if($object['type']==='document'){
+        return !empty($object['team_public_id'])
+            &&hash_equals((string)$object['team_public_id'],(string)($conversation['team_public_id']??''));
+    }
     return false;
 }
 
@@ -101,5 +123,6 @@ function object_handoff_message_attachments(PDO $pdo,array $viewer,array $messag
 function object_handoff_agent_prompt(string $type): string {
     if($type==='annotation')return 'Review this Annotation as evidence. Summarize what it actually captures, distinguish the author commentary from source evidence, note any integrity or uncertainty concerns, and suggest the most useful next step. Do not create or change Research without confirmation.';
     if($type==='bookmark')return 'Review this Research bookmark and its captured source context. Explain why it may matter to the Research Agent, identify useful evidence or gaps, and suggest the next step. Do not create or change Research without confirmation.';
+    if($type==='document')return 'Review this Research document in the context of its owning Research Agent. Identify useful improvements, unsupported claims, missing evidence, and concrete next steps. Do not edit the document unless the user confirms a governed action.';
     return 'Review this Annotated item and explain the most useful next step.';
 }
