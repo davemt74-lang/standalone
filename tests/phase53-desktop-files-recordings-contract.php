@@ -72,7 +72,7 @@ $need('worker/research-file-worker.php',"job_claim(\$pdo,'research_file_jobs'",'
 $need('worker/research-file-worker.php','ZipArchive','DOCX extraction must use the document archive rather than unsafe shell parsing.');
 $need('worker/research-file-worker.php','pdftotext','PDF extraction must have a local/configured text path.');
 $need('worker/research-transcription-worker.php',"job_claim(\$pdo,'research_transcription_jobs'",'Research transcription must use the leased job queue.');
-$need('worker/research-transcription-worker.php',"$config['transcription']", 'Research recordings must reuse the provider-neutral transcription configuration.');
+$need('worker/research-transcription-worker.php',"\$config['transcription']", 'Research recordings must reuse the provider-neutral transcription configuration.');
 $need('app/jobs.php',"'research_file_jobs'",'Research file jobs must participate in generic lease recovery.');
 $need('app/jobs.php',"'research_transcription_jobs'",'Research transcription jobs must participate in generic lease recovery.');
 
