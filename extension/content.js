@@ -22,9 +22,16 @@ function rememberTextSelection(){currentTextSelection();}
 document.addEventListener('selectionchange',rememberTextSelection,{passive:true});
 document.addEventListener('mouseup',rememberTextSelection,{passive:true});
 document.addEventListener('keyup',e=>{if(e.key==='Shift'||e.shiftKey)rememberTextSelection();},{passive:true});
+function pagePreviewInfo(){
+  const absolute=value=>{try{return value?new URL(value,location.href).href:'';}catch{return '';}};
+  const icon=document.querySelector('link[rel~="icon"]')?.href||document.querySelector('link[rel="shortcut icon"]')?.href||'';
+  const image=metaContent('og:image',true)||metaContent('twitter:image')||'';
+  const description=metaContent('description')||metaContent('og:description',true)||metaContent('twitter:description')||'';
+  return {faviconUrl:absolute(icon),previewImageUrl:absolute(image),description:String(description||'').trim().slice(0,5000)};
+}
 function selectionPayload(includePageText=false){
   const live=currentTextSelection(),selection=live||lastTextSelection||{selectedText:'',selector:null,selectionRect:null};
-  return {url:location.href,canonicalUrl:declaredCanonicalUrl(),title:document.title,selectedText:selection.selectedText,selector:selection.selector,selectionRect:selection.selectionRect,regionRect:lastRegion,pageText:includePageText?(document.body?.innerText||'').slice(0,150000):'',viewport:{width:innerWidth,height:innerHeight,devicePixelRatio:window.devicePixelRatio||1},...mediaInfo()};
+  return {url:location.href,canonicalUrl:declaredCanonicalUrl(),title:document.title,selectedText:selection.selectedText,selector:selection.selector,selectionRect:selection.selectionRect,regionRect:lastRegion,pageText:includePageText?(document.body?.innerText||'').slice(0,150000):'',viewport:{width:innerWidth,height:innerHeight,devicePixelRatio:window.devicePixelRatio||1},...pagePreviewInfo(),...mediaInfo()};
 }
 function startRegionSelection(){
   if(document.getElementById('__annotated_region_overlay'))return;
