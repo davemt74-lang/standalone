@@ -112,6 +112,7 @@ function app_shell_research_agent_dialog(PDO $pdo,array $user): string {
       .'</form></dialog>';
 }
 function app_shell_research_agents(PDO $pdo,array $user,string $path): string {
+    if(function_exists('research_agent_ensure_default')){try{research_agent_ensure_default($pdo,$user);}catch(Throwable $e){}}
     $rows=app_shell_research_agent_rows($pdo,$user,30);
     $current=trim((string)($_GET['agent']??''));
     $items='';
@@ -168,7 +169,6 @@ function app_shell_user_nav(PDO $pdo,array $user,string $path,?int $unread=null)
     $links=[];
     $links[]=app_shell_link('/home.php','Home','⌂',$path);
     $links[]=app_shell_link('/explore.php','Explore','◎',$path);
-    $links[]=app_shell_link('/search.php','Search','⌕',$path);
     $links[]=app_shell_link('/teams.php','Teams','♙',$path,null,app_shell_badge($teamCount));
     $links[]=app_shell_link('/research.php','Research','▤',$path,'/research');
     $links[]=app_shell_link('/live.php','Live','◉',$path);
