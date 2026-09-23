@@ -70,7 +70,7 @@
       const titleEl=document.createElement('strong');titleEl.textContent=a.title||'Untitled document';
       const preview=document.createElement('p');preview.textContent=String(a.preview||'').slice(0,420);
       const actions=document.createElement('div');actions.className='agentDocumentCardActions';
-      const open=document.createElement('button');open.type='button';open.textContent='Open document';open.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:research-document-open',{detail:{document_id:String(a.public_id||'')},bubbles:true})));
+      const open=document.createElement('button');open.type='button';open.textContent='Open document';open.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:research-document-open',{detail:{public_id:String(a.public_id||'')},bubbles:true})));
       const ask=document.createElement('button');ask.type='button';ask.textContent='Ask Agent';ask.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{prompt:'Review this research document and suggest the most useful next step.',context:[{type:'document',public_id:String(a.public_id||''),label:a.title||'Research document'}],research_agent:true,conversation:requestedResearchAgentConversation},bubbles:true,cancelable:true})));
       actions.append(open,ask);card.append(meta,titleEl,preview,actions);return card;
     }
