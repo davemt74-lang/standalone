@@ -7,7 +7,8 @@ function research_agent_workspace_ready(PDO $pdo): bool {
             &&installer_table_exists($pdo,'research_workspace_bookmarks')
             &&installer_table_exists($pdo,'research_workspace_documents')
             &&installer_table_exists($pdo,'research_workspace_document_revisions')
-            &&installer_table_exists($pdo,'research_workspace_stickies');
+            &&installer_table_exists($pdo,'research_workspace_stickies')
+            &&installer_table_exists($pdo,'research_workspace_desktop_positions');
     }catch(Throwable $e){return false;}
 }
 
@@ -449,4 +450,77 @@ function research_agent_workspace_post_document_to_chat(PDO $pdo,array $viewer,s
     $pdo->prepare("INSERT INTO conversation_events(conversation_id,event_type,message_id,payload_json) VALUES(?,'agent_document_created',?,?)")
       ->execute([$conversationId,$messageId,json_encode(['document_public_id'=>$documentPublicId],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);
     return ['id'=>$messageId,'public_id'=>$public,'role'=>'assistant','sender_type'=>'agent','body'=>$body,'attachments'=>[['type'=>'document','public_id'=>$documentPublicId]]];
+}
+
+
+function research_agent_workspace_desktop_annotation_rows(PDO $pdo,array $viewer,array $project): array {
+    $q=$pdo->prepare("SELECT a.public_id,a.text_commentary,a.created_at,s.title source_title,s.domain,
+      u.display_name creator_name,u.username creator_username
+      FROM project_annotations pa
+      JOIN annotations a ON a.id=pa.annotation_id
+      JOIN sources s ON s.id=a.source_id
+      JOIN users u ON u.id=a.user_id
+      WHERE pa.project_id=? AND a.status NOT IN ('removed','restricted')
+      ORDER BY pa.created_at DESC,a.id DESC LIMIT 250");
+    $q->execute([(int)$project['id']]);$rows=[];
+    foreach($q->fetchAll()?:[] as $row){
+        if(!annotation_access($pdo,(string)$row['public_id'],$viewer))continue;
+        $rows[]=[
+          'object_type'=>'annotation','public_id'=>(string)$row['public_id'],
+          'title'=>mb_substr(trim((string)($row['text_commentary']??''))?:((string)($row['source_title']??'')?:'Annotation'),0,120),
+          'subtitle'=>(string)($row['source_title']?:$row['domain']?:'Annotation'),
+          'created_at'=>$row['created_at']??null,
+          'creator_name'=>$row['creator_name']??$row['creator_username']??null,
+          'parent_public_id'=>null
+        ];
+    }
+    return $rows;
+}
+
+function research_agent_workspace_desktop_positions(PDO $pdo,int $projectId): array {
+    $q=$pdo->prepare("SELECT object_type,object_public_id,position_x,position_y,z_index FROM research_workspace_desktop_positions WHERE project_id=?");
+    $q->execute([$projectId]);$out=[];
+    foreach($q->fetchAll()?:[] as $row)$out[(string)$row['object_type'].':'.(string)$row['object_public_id']]=[
+      'x'=>(int)$row['position_x'],'y'=>(int)$row['position_y'],'z'=>(int)$row['z_index']
+    ];
+    return $out;
+}
+
+function research_agent_workspace_desktop_items(PDO $pdo,array $viewer,array $project,bool $trashed=false): array {
+    $positions=research_agent_workspace_desktop_positions($pdo,(int)$project['id']);
+    $items=[];
+    foreach(research_agent_workspace_list($pdo,$viewer,$project,$trashed,500) as $row){
+        if(($row['object_type']??'')==='sticky')continue;
+        $type=(string)$row['object_type'];$id=(string)$row['public_id'];$key=$type.':'.$id;
+        $row['desktop']=$positions[$key]??null;$items[]=$row;
+    }
+    if(!$trashed){
+        foreach(research_agent_workspace_desktop_annotation_rows($pdo,$viewer,$project) as $row){
+            $key='annotation:'.(string)$row['public_id'];$row['desktop']=$positions[$key]??null;$items[]=$row;
+        }
+    }
+    return $items;
+}
+
+function research_agent_workspace_desktop_object_allowed(PDO $pdo,array $viewer,array $project,string $type,string $publicId): bool {
+    $type=strtolower(trim($type));$publicId=trim($publicId);if($publicId==='')return false;
+    if($type==='annotation'){
+        $a=annotation_access($pdo,$publicId,$viewer);if(!$a)return false;
+        $q=$pdo->prepare("SELECT 1 FROM project_annotations WHERE project_id=? AND annotation_id=? LIMIT 1");
+        $q->execute([(int)$project['id'],(int)$a['id']]);return (bool)$q->fetchColumn();
+    }
+    if(!in_array($type,['folder','document','bookmark','upload','recording'],true))return false;
+    $obj=research_agent_workspace_object($pdo,$viewer,$publicId,true);
+    return $obj&&((int)$obj['project_id']===(int)$project['id'])&&(($obj['object_type']??'')===$type);
+}
+
+function research_agent_workspace_desktop_position_save(PDO $pdo,array $viewer,array $project,string $type,string $publicId,int $x,int $y,int $z=1): array {
+    research_agent_workspace_require_write($project);
+    if(!research_agent_workspace_desktop_object_allowed($pdo,$viewer,$project,$type,$publicId))throw new RuntimeException('Desktop item is unavailable.');
+    $x=max(0,min(6000,$x));$y=max(0,min(6000,$y));$z=max(1,min(1000000,$z));
+    $pdo->prepare("INSERT INTO research_workspace_desktop_positions(project_id,object_type,object_public_id,position_x,position_y,z_index,updated_by_user_id)
+      VALUES(?,?,?,?,?,?,?)
+      ON DUPLICATE KEY UPDATE position_x=VALUES(position_x),position_y=VALUES(position_y),z_index=VALUES(z_index),updated_by_user_id=VALUES(updated_by_user_id),updated_at=NOW()")
+      ->execute([(int)$project['id'],$type,$publicId,$x,$y,$z,(int)$viewer['id']]);
+    return ['object_type'=>$type,'public_id'=>$publicId,'x'=>$x,'y'=>$y,'z'=>$z];
 }
