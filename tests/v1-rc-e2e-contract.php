@@ -234,7 +234,8 @@ $need('profile.php','profileActivity','Profile annotations must render in a sing
 $avoid('profile.php','profileColumns','Profile page must not restore the old two-column sidebar layout.');
 $avoid('profile.php','PUBLISHED RESEARCH','Profile page must not render the old Research sidebar.');
 $need('.htaccess','profile.php?u=$1','Clean single-segment username routes must resolve to public profiles.');
-$need('profile.php',"\$GLOBALS['annotated_shell_mode']='header_only'",'Authenticated profile pages must use the default header without the application sidebar.');
+$avoid('profile.php','annotated_shell_mode','Authenticated profile pages must use the full Annotated application shell.');
+$need('profile.php','if(!$viewer):?><header class="topbar"','Only logged-out public profiles may render the lightweight public header.');
 $need('profile.php','profile_path((string)$p[\'username\'])','Profile canonical URLs must use /username.');
 $need('profile.php',"header('Location: '.profile_path(\$username),true,301)",'Legacy profile.php URLs must redirect permanently to /username.');
 $need('app/shell.php','profile_path($username)','The account dropdown must link to the clean profile URL.');
