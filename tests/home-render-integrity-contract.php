@@ -39,6 +39,8 @@ home_render_assert(str_contains($css,'.homeAgentDock .agentChatContextPicker{')&
 home_render_assert(str_contains($css,'.homeAgentDock .agentChatContextTray{')&&str_contains($css,'left:50%'),'Selected context tray is centered over the chat bar');
 home_render_assert(str_contains($css,'.homeAgentDock .agentChatContextTray[hidden]{'),'Empty selected-context tray is forcibly hidden');
 home_render_assert(str_contains($js,'contextTray.hidden=!selectedContext.length'),'Selected-context tray hides when there are no selections');
+home_render_assert(str_contains($js,"form.querySelector('[data-agent-context-picker]')"),'Chat footer + resolves the context picker from the composer');
+home_render_assert(!str_contains($js,"canvas.querySelector('[data-agent-context-picker]')"),'Chat footer + no longer looks for the moved picker in the Agent canvas');
 
 home_render_assert(!str_contains($agent,'SELECT DISTINCT rp.public_id,rp.title'),'Agent context picker no longer uses DISTINCT with an unselected ORDER BY column');
 home_render_assert(str_contains($agent,'EXISTS(SELECT 1 FROM team_members tm'),'Agent Research options use membership EXISTS');
