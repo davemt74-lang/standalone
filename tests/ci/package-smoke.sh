@@ -15,7 +15,7 @@ required=(
   app/release.php app/release-operations.php app/schema-health.php app/research-library.php app/research-agents.php app/research-agent-workspace.php app/research-agent-workspace-ui.php api/research-agents.php api/research-workspace-objects.php assets/js/research-agent-shell.js assets/js/research-agent-workspace-ui.js research.php saved.php teams.php annotation.php profile.php
   admin/system-health.php admin/intelligence-release-audit.php admin/model-campaigns.php
   bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php
-  database/schema.sql database/migrations/20260922_046_model_improvement_campaigns.sql database/migrations/20260922_047_research_agents.sql database/migrations/20260923_048_research_agent_workspace_core.sql
+  database/schema.sql database/migrations/20260922_046_model_improvement_campaigns.sql database/migrations/20260922_047_research_agents.sql database/migrations/20260923_048_research_agent_workspace_core.sql database/migrations/20260923_049_research_docs_floating_stickies.sql
   docs/RELEASE-V1.1-RC1.md docs/phase-49-release-candidate-operational-hardening.md
   extension/manifest.json downloads/Annotated-Chrome-Extension.zip
 )
@@ -35,7 +35,7 @@ if(($r["version"]??"")!=="1.1.0-rc1")throw new RuntimeException("Unexpected appl
 if((int)($r["phase"]??0)!==49)throw new RuntimeException("Unexpected release phase.");
 if(($r["extension_version"]??"")!=="0.36.0"||($m["version"]??"")!=="0.36.0")throw new RuntimeException("Extension/release version mismatch.");
 if(($m["manifest_version"]??0)!==3)throw new RuntimeException("Extension must remain Manifest V3.");
-if(($r["latest_migration"]??"")!=="20260923_048_research_agent_workspace_core.sql")throw new RuntimeException("Release manifest does not identify latest migration.");
+if(($r["latest_migration"]??"")!=="20260923_049_research_docs_floating_stickies.sql")throw new RuntimeException("Release manifest does not identify latest migration.");
 if(!preg_match("/^[a-f0-9]{64}$/",(string)($r["package_fingerprint"]??"")))throw new RuntimeException("Release package fingerprint missing.");
 require $site."/app/release.php"; require $site."/app/release-operations.php";
 if(!hash_equals((string)$r["package_fingerprint"],release_package_fingerprint($site)))throw new RuntimeException("Extracted package fingerprint does not match release manifest.");
