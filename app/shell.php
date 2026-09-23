@@ -133,11 +133,12 @@ function app_shell_research_agents(PDO $pdo,array $user,string $path): string {
 function app_shell_research_project_rows(PDO $pdo,array $user,int $limit=30): array {
     $limit=max(1,min(50,$limit));
     try{
+        $agentExclusion=(function_exists('research_agent_ready')&&research_agent_ready($pdo))?" AND NOT EXISTS(SELECT 1 FROM research_agents rag WHERE rag.project_id=rp.id)":"";
         $q=$pdo->prepare("SELECT rp.public_id,rp.title,rp.status,rp.updated_at,t.name team_name
           FROM research_projects rp
           LEFT JOIN teams t ON t.id=rp.team_id
           WHERE rp.status<>'archived'
-            AND (rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?))
+            AND (rp.owner_user_id=? OR EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=rp.team_id AND tm.user_id=?))".$agentExclusion."
           ORDER BY rp.updated_at DESC,rp.id DESC
           LIMIT ".$limit);
         $q->execute([(int)$user['id'],(int)$user['id']]);
