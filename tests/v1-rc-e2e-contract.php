@@ -116,8 +116,9 @@ $need('assets/css/app.css','.chatPresenceDot.status-online','Team Chat must visu
 $need('assets/css/app.css','.teamChatPopupLayer','Desktop active chat popouts must be styled.');
 $need('settings.php','/chat-settings.php','Account Settings must link to Chat Status.');
 $need('home.php','data-agent-chat-canvas','Home must expose the in-place Agent Chat canvas.');
-$need('home.php','data-agent-back','Agent Chat must expose Back to Feed.');
-$need('home.php','data-agent-new','Agent Chat must expose New Chat.');
+$avoid('home.php','agentChatCanvasHeader','Agent Chat canvas must not restore the removed header.');
+$avoid('home.php','data-agent-back','Agent Chat canvas must not restore the removed Back to Feed header control.');
+$avoid('home.php','data-agent-new','Agent Chat canvas must not restore the removed New Research header control.');
 $need('assets/js/agent-chat.js','annotated:agent-chat-request','Home composer must use the existing Agent Chat request event.');
 $need('assets/js/agent-chat.js','annotated.feedScroll','Agent Chat must restore the exact feed scroll position.');
 $need('assets/js/agent-chat.js','context_options','Agent Chat must expose permission-scoped structured context selection.');
