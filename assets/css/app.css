@@ -2116,3 +2116,13 @@
 .researchBookmarkCard{display:grid;gap:12px}.researchBookmarkBadge{padding:3px 6px;border:1px solid #e0e3e6;border-radius:999px;color:#66707a;font-size:.58rem}.researchBookmarkResearch{display:flex;align-items:center;gap:6px;color:#666d75;font-size:.67rem}.researchBookmarkResearch span{font-weight:750}.researchBookmarkResearch small{color:#92979d}
 .researchBookmarkPreview{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;overflow:hidden;border:1px solid #e0e3e6;border-radius:11px;background:#fbfbfb;color:inherit;text-decoration:none}.researchBookmarkPreview img{width:100%;max-height:280px;object-fit:cover;background:#f0f1f2}.researchBookmarkPreview>span{display:grid;gap:5px;padding:12px 14px}.researchBookmarkPreview small{color:#868c93;font-size:.62rem}.researchBookmarkPreview strong{font-size:.9rem;line-height:1.3}.researchBookmarkPreview p{margin:0;color:#60666d;font-size:.72rem;line-height:1.45}.researchBookmarkActions{display:flex;flex-wrap:wrap;gap:8px}.researchBookmarkActions a,.researchBookmarkActions button{padding:6px 8px;border:0;background:transparent;color:#4c535a;font:inherit;font-size:.67rem;font-weight:700;text-decoration:none}.researchBookmarkActions a:hover,.researchBookmarkActions button:hover{text-decoration:underline}
 @media(max-width:720px){.researchAgentCanvasHeader{align-items:flex-start;flex-direction:column;padding:10px 48px 10px 12px}.researchAgentCanvasNav{width:100%}.researchAgentCanvasNav button{flex:1}.researchAgentWorkspacePanel{padding:14px 10px 110px}.researchWorkspaceToolbar{align-items:flex-start;flex-direction:column}.researchWorkspaceItem{grid-template-columns:30px minmax(0,1fr)}.researchWorkspaceItemActions{grid-column:2;justify-content:flex-start}}
+
+
+/* Research Agent library — agent-first chat feeds */
+.researchAgentLibraryChatFeed{display:grid;gap:7px;max-height:280px;overflow:auto;margin:2px 0 4px;padding:10px;border:1px solid #e2e4e6;border-radius:11px;background:#fafafa}
+.researchAgentLibraryChatMessage{display:grid;gap:3px;padding:8px 9px;border-radius:9px;background:#fff;border:1px solid #e7e9eb}
+.researchAgentLibraryChatMessage.is-agent{border-left:3px solid #6d737a}
+.researchAgentLibraryChatMessage.is-user{margin-left:28px;background:#f3f4f5}
+.researchAgentLibraryChatMessage strong{font-size:.62rem;color:#6b7178}
+.researchAgentLibraryChatMessage p{margin:0;font-size:.69rem;line-height:1.4;color:#383d42;white-space:pre-wrap}
+.researchAgentLibraryChatEmpty{padding:14px;color:#7a8087;font-size:.68rem;text-align:center}
