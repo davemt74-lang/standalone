@@ -48,12 +48,13 @@ function research_autonomy_queue_project(PDO $pdo,int $projectId,?int $requested
 function research_autonomy_input_state(PDO $pdo,int $projectId): array {
     $counts=[];
     foreach([
-      'sources'=>"SELECT COUNT(*),COALESCE(MAX(sv.id),0) FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.source_id=s.id WHERE ps.project_id=?",
-      'annotations'=>"SELECT COUNT(*),COALESCE(MAX(a.id),0) FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id WHERE pa.project_id=? AND a.status='published'",
-      'claims'=>"SELECT COUNT(*),COALESCE(MAX(id),0) FROM research_claims WHERE project_id=?",
-      'findings'=>"SELECT COUNT(*),COALESCE(MAX(id),0) FROM research_findings WHERE project_id=? AND status<>'archived'",
-      'workspace_user'=>"SELECT COUNT(*),COALESCE(MAX(rwo.id),0) FROM research_workspace_objects rwo LEFT JOIN research_autonomy_artifacts raa ON raa.object_id=rwo.id WHERE rwo.project_id=? AND rwo.status='active' AND raa.id IS NULL"
-    ] as $key=>$sql){$q=$pdo->prepare($sql);$q->execute([$projectId]);$row=$q->fetch(PDO::FETCH_NUM)?:[0,0];$counts[$key]=[(int)$row[0],(int)$row[1]];}
+      'sources'=>"SELECT COUNT(DISTINCT ps.source_id),COALESCE(MAX(sv.id),0),COALESCE(MAX(UNIX_TIMESTAMP(s.updated_at)),0) FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.source_id=s.id WHERE ps.project_id=?",
+      'annotations'=>"SELECT COUNT(*),COALESCE(MAX(a.id),0),COALESCE(MAX(UNIX_TIMESTAMP(a.updated_at)),0) FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id WHERE pa.project_id=? AND a.status='published'",
+      'claims'=>"SELECT COUNT(*),COALESCE(MAX(id),0),COALESCE(MAX(UNIX_TIMESTAMP(updated_at)),0) FROM research_claims WHERE project_id=?",
+      'claim_evidence'=>"SELECT COUNT(ce.id),COALESCE(MAX(ce.id),0),COALESCE(MAX(UNIX_TIMESTAMP(ce.created_at)),0) FROM claim_evidence ce JOIN research_claims rc ON rc.id=ce.claim_id WHERE rc.project_id=?",
+      'findings'=>"SELECT COUNT(*),COALESCE(MAX(id),0),COALESCE(MAX(UNIX_TIMESTAMP(updated_at)),0) FROM research_findings WHERE project_id=? AND status<>'archived'",
+      'workspace_user'=>"SELECT COUNT(*),COALESCE(MAX(rwo.id),0),COALESCE(MAX(UNIX_TIMESTAMP(rwo.updated_at)),0) FROM research_workspace_objects rwo LEFT JOIN research_autonomy_artifacts raa ON raa.object_id=rwo.id WHERE rwo.project_id=? AND rwo.status='active' AND raa.id IS NULL"
+    ] as $key=>$sql){$q=$pdo->prepare($sql);$q->execute([$projectId]);$row=$q->fetch(PDO::FETCH_NUM)?:[0,0,0];$counts[$key]=array_map('intval',$row);}
     $hash=hash('sha256',json_encode($counts,JSON_UNESCAPED_SLASHES));
     return ['hash'=>$hash,'counts'=>$counts];
 }
