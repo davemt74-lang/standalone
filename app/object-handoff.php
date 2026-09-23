@@ -8,7 +8,7 @@ declare(strict_types=1);
  * access and never become a second copy of the underlying object.
  */
 function object_handoff_types(): array {
-    return ['annotation'=>'Annotation','bookmark'=>'Bookmark','document'=>'Research document'];
+    return ['annotation'=>'Annotation','bookmark'=>'Bookmark','document'=>'Research document','upload'=>'Research file','recording'=>'Recording'];
 }
 
 function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publicId): ?array {
@@ -30,6 +30,34 @@ function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publ
           'team_public_id'=>$row['team_public_id']??null,'team_name'=>$row['team_name']??null,
           'project_public_id'=>(string)$row['project_public_id'],'research_agent_public_id'=>$row['research_agent_public_id']??null,
           'conversation_public_id'=>$conversation,'created_at'=>$row['created_at']??null,'updated_at'=>$row['updated_at']??null,
+        ];
+    }
+    if(in_array($type,['upload','recording'],true)&&function_exists('research_agent_workspace_object')){
+        $row=research_agent_workspace_object($pdo,$viewer,$publicId,false);
+        if(!$row||($row['object_type']??'')!==$type)return null;
+        $conversation=trim((string)($row['conversation_public_id']??''));
+        if($type==='upload'){
+            $preview=trim((string)($row['upload_extracted_text']??''));if($preview==='')$preview=(string)($row['upload_original_name']??$row['title']);
+            return [
+              'type'=>'upload','public_id'=>(string)$row['public_id'],'label'=>'Research file','title'=>(string)$row['title'],
+              'preview'=>mb_substr($preview,0,360),'url'=>'/research-workspace-file.php?id='.rawurlencode((string)$row['public_id']),
+              'mime_type'=>(string)($row['upload_mime_type']??''),'file_size'=>(int)($row['upload_file_size']??0),'processing_status'=>(string)($row['upload_processing_status']??'queued'),
+              'author'=>['username'=>(string)$row['creator_username'],'name'=>(string)($row['creator_name']?:$row['creator_username'])],
+              'visibility'=>!empty($row['team_public_id'])?'team':'private','team_public_id'=>$row['team_public_id']??null,'team_name'=>$row['team_name']??null,
+              'project_public_id'=>(string)$row['project_public_id'],'research_agent_public_id'=>$row['research_agent_public_id']??null,'conversation_public_id'=>$conversation,
+              'created_at'=>$row['created_at']??null,'updated_at'=>$row['updated_at']??null,
+            ];
+        }
+        $preview=trim((string)($row['transcript_text']??''));if($preview==='')$preview='Transcript '.(string)($row['transcript_status']??'queued');
+        return [
+          'type'=>'recording','public_id'=>(string)$row['public_id'],'label'=>'Recording','title'=>(string)$row['title'],
+          'preview'=>mb_substr($preview,0,360),'url'=>'/research-workspace-file.php?id='.rawurlencode((string)$row['public_id']),
+          'mime_type'=>(string)($row['recording_mime_type']??''),'file_size'=>(int)($row['recording_file_size']??0),'duration_seconds'=>(float)($row['recording_duration_seconds']??0),
+          'transcript_status'=>(string)($row['transcript_status']??'queued'),
+          'author'=>['username'=>(string)$row['creator_username'],'name'=>(string)($row['creator_name']?:$row['creator_username'])],
+          'visibility'=>!empty($row['team_public_id'])?'team':'private','team_public_id'=>$row['team_public_id']??null,'team_name'=>$row['team_name']??null,
+          'project_public_id'=>(string)$row['project_public_id'],'research_agent_public_id'=>$row['research_agent_public_id']??null,'conversation_public_id'=>$conversation,
+          'created_at'=>$row['created_at']??null,'updated_at'=>$row['updated_at']??null,
         ];
     }
     if($type==='bookmark'&&function_exists('research_agent_workspace_object')){
@@ -88,6 +116,10 @@ function object_handoff_can_share_to_conversation(PDO $pdo,array $viewer,array $
         return !empty($object['team_public_id'])
             &&hash_equals((string)$object['team_public_id'],(string)($conversation['team_public_id']??''));
     }
+    if(in_array($object['type'],['upload','recording'],true)){
+        return !empty($object['team_public_id'])
+            &&hash_equals((string)$object['team_public_id'],(string)($conversation['team_public_id']??''));
+    }
     return false;
 }
 
@@ -124,5 +156,7 @@ function object_handoff_agent_prompt(string $type): string {
     if($type==='annotation')return 'Review this Annotation as evidence. Summarize what it actually captures, distinguish the author commentary from source evidence, note any integrity or uncertainty concerns, and suggest the most useful next step. Do not create or change Research without confirmation.';
     if($type==='bookmark')return 'Review this Research bookmark and its captured source context. Explain why it may matter to the Research Agent, identify useful evidence or gaps, and suggest the next step. Do not create or change Research without confirmation.';
     if($type==='document')return 'Review this Research document in the context of its owning Research Agent. Identify useful improvements, unsupported claims, missing evidence, and concrete next steps. Do not edit the document unless the user confirms a governed action.';
+    if($type==='upload')return 'Review this uploaded Research file and its extracted content. Identify important evidence, uncertainty, missing context, and useful next steps.';
+    if($type==='recording')return 'Review this Research recording and its transcript when available. Summarize the useful evidence, decisions, tasks, open questions, and next steps.';
     return 'Review this Annotated item and explain the most useful next step.';
 }
