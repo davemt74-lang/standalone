@@ -121,7 +121,10 @@ try{
     }
     if($action==='move'){
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
-        $item=research_agent_workspace_move($pdo,$viewer,(string)($input['object_id']??''),(string)($input['parent_id']??''));
+        $type=strtolower(trim((string)($input['object_type']??'')));
+        $item=$type!==''
+          ?research_agent_workspace_desktop_move($pdo,$viewer,$project,$type,(string)($input['object_id']??''),(string)($input['parent_id']??''))
+          :research_agent_workspace_move($pdo,$viewer,(string)($input['object_id']??''),(string)($input['parent_id']??''));
         json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='trash'){
