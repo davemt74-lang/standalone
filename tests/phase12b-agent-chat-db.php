@@ -70,6 +70,14 @@ $source=ensure_source($pdo,'https://agent-context-'.$run.'.example.test/article'
 $pdo->prepare('INSERT INTO source_versions(source_id,version_number,final_url,title,content_hash) VALUES(?,1,?,?,?)')->execute([$source['id'],$source['canonical_url'],'Agent public Annotation source',hash('sha256',$run)]);$versionId=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=? WHERE id=?')->execute([$versionId,$source['id']]);
 $capturePublic=$pub('cap');$pdo->prepare("INSERT INTO captures(public_id,source_id,source_version_id,user_id,capture_type,selected_text) VALUES(?,?,?,?,'text','Agent public evidence')")->execute([$capturePublic,$source['id'],$versionId,$owner['id']]);$captureId=(int)$pdo->lastInsertId();
 $annotationPublic=$pub('ann');$pdo->prepare("INSERT INTO annotations(public_id,user_id,source_id,source_version_id,capture_id,text_commentary,visibility,status) VALUES(?,?,?,?,?,'Agent public Annotation','public','published')")->execute([$annotationPublic,$owner['id'],$source['id'],$versionId,$captureId]);
+$boundAgent=research_agent_by_conversation($pdo,$owner,(string)$defaultAgent['conversation_public_id']);
+p12b(($boundAgent['public_id']??'')===$defaultAgent['public_id'],'Research Agent conversation resolves back to its explicit Agent');
+research_agent_attach_context($pdo,$owner,$defaultAgent,[['type'=>'annotation','public_id'=>$annotationPublic]]);
+$q=$pdo->prepare('SELECT COUNT(*) FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id WHERE pa.project_id=? AND a.public_id=?');$q->execute([$defaultAgent['project_id'],$annotationPublic]);
+p12b((int)$q->fetchColumn()===1,'adding an Annotation to a Research Agent persists it into the Agent research workspace');
+research_agent_attach_context($pdo,$owner,$defaultAgent,[['type'=>'annotation','public_id'=>$annotationPublic]]);
+$q->execute([$defaultAgent['project_id'],$annotationPublic]);
+p12b((int)$q->fetchColumn()===1,'Research Agent evidence attachment is idempotent');
 p12b(agent_chat_context_item($pdo,$other,'annotation',$annotationPublic)!==null,'Agent Chat can attach an otherwise accessible public Annotation');
 $pdo->prepare('INSERT INTO blocks(blocker_user_id,blocked_user_id) VALUES(?,?)')->execute([$owner['id'],$other['id']]);
 p12b(agent_chat_context_item($pdo,$other,'annotation',$annotationPublic)===null,'Agent Chat cannot use Annotation context to bypass a user block');
