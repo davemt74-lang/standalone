@@ -161,7 +161,7 @@ No open structured evidence gaps or contradictions.";
 function research_autonomy_chat_update(PDO $pdo,array $agent,array $report,array $state,array $observations,int $runId): ?array {
     $gaps=count(array_filter($observations,fn($x)=>$x['type']==='evidence_gap'));$conflicts=count(array_filter($observations,fn($x)=>$x['type']==='contradiction'));
     $updateHash=hash('sha256',$state['hash'].'|'.$gaps.'|'.$conflicts.'|'.(string)$report['public_id']);
-    $q=$pdo->prepare("SELECT last_posted_state_hash FROM research_autonomy_reports WHERE research_agent_id=?");$q->execute([(int)$agent['id']);$last=(string)($q->fetchColumn()?:'');if($last!==''&&hash_equals($last,$updateHash))return null;
+    $q=$pdo->prepare("SELECT last_posted_state_hash FROM research_autonomy_reports WHERE research_agent_id=?");$q->execute([(int)$agent['id']]);$last=(string)($q->fetchColumn()?:'');if($last!==''&&hash_equals($last,$updateHash))return null;
     $body='Research workspace updated: '.$gaps.' evidence gap(s), '.$conflicts.' contradiction(s). I refreshed the Living Research Report and Research Attention note.';
     $messagePublic=ulid_like();
     $pdo->prepare("INSERT INTO conversation_messages(public_id,conversation_id,user_id,sender_type,parent_message_id,body) VALUES(?,?,NULL,'agent',NULL,?)")
