@@ -124,7 +124,7 @@ function research_intelligence_portfolio_remove_program(PDO $pdo,array $viewer,s
     $p=research_intelligence_portfolio_access($pdo,$viewer,$portfolioPublic);if(!$p)throw new RuntimeException('Portfolio not found.');if(!research_intelligence_portfolio_can_write($p))throw new RuntimeException('You have view-only access to this Portfolio.');
     $program=research_intelligence_portfolio_program_by_public($pdo,$viewer,$programPublic);if(!$program)throw new RuntimeException('Research Program is unavailable.');
     $pdo->prepare('DELETE FROM research_intelligence_portfolio_programs WHERE portfolio_id=? AND program_id=?')->execute([(int)$p['id'],(int)$program['id']]);
-    if((int)($p['anchor_program_id']??0)===(int)$program['id']){$q=$pdo->prepare('SELECT program_id FROM research_intelligence_portfolio_programs WHERE portfolio_id=? ORDER BY member_role="primary" DESC,created_at,id LIMIT 1');$q->execute([(int)$p['id']]);$next=(int)($q->fetchColumn()?:0);$pdo->prepare('UPDATE research_intelligence_portfolios SET anchor_program_id=?,updated_at=NOW() WHERE id=?')->execute([$next?:null,(int)$p['id']]);}
+    if((int)($p['anchor_program_id']??0)===(int)$program['id']){$q=$pdo->prepare('SELECT program_id FROM research_intelligence_portfolio_programs WHERE portfolio_id=? ORDER BY member_role='primary' DESC,created_at,program_id LIMIT 1');$q->execute([(int)$p['id']]);$next=(int)($q->fetchColumn()?:0);$pdo->prepare('UPDATE research_intelligence_portfolios SET anchor_program_id=?,updated_at=NOW() WHERE id=?')->execute([$next?:null,(int)$p['id']]);}
     research_intelligence_portfolio_event($pdo,(int)$p['id'],'program_removed','user',(int)$viewer['id'],['program_id'=>(string)$program['public_id']]);
     return research_intelligence_portfolio_detail($pdo,$viewer,$portfolioPublic)??$p;
 }
@@ -164,7 +164,7 @@ function research_intelligence_portfolio_aggregate(PDO $pdo,array $viewer,array 
         }
         $q=$pdo->prepare("SELECT COUNT(*) FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE ps.project_id IN (SELECT DISTINCT project_id FROM research_programs WHERE id IN ($in)) AND (sv.captured_at IS NULL OR sv.captured_at<DATE_SUB(NOW(),INTERVAL 30 DAY))");$q->execute();$summary['stale_sources']=(int)$q->fetchColumn();
     }
-    arsort($trends);$cross=[];foreach($refs as $key=>$g){if(count($g['programs'])<2)continue;$p=array_values(array_unique(array_filter($g['polarities'],fn($v)=>$v!==0)));$tension=in_array(-1,$p,true)&&(in_array(1,$p,true)||count($p)===1);if(!$tension){foreach($g['items'] as $it)if(in_array($it['type'],['claim_contradicted','contradiction_opened'],true)){$tension=true;break;}}
+    arsort($trends);$cross=[];foreach($refs as $key=>$g){if(count($g['programs'])<2)continue;$polarities=array_values(array_unique(array_filter($g['polarities'],fn($v)=>$v!==0)));$tension=in_array(-1,$polarities,true)&&in_array(1,$polarities,true);
         $cross[]=['key'=>$key,'kind'=>$tension?'cross_program_tension':'shared_signal','program_count'=>count($g['programs']),'program_ids'=>array_keys($g['programs']),'items'=>array_slice($g['items'],0,8)];
     }
     usort($cross,fn($a,$b)=>($b['program_count']<=>$a['program_count']));
@@ -212,14 +212,15 @@ function research_intelligence_portfolio_inferences(PDO $pdo,array $portfolio,in
 }
 
 function research_intelligence_portfolio_briefings(PDO $pdo,array $portfolio,int $limit=30): array {
-    $limit=max(1,min(100,$limit));$q=$pdo->prepare("SELECT b.*,rwo.public_id document_public_id,rwo.title document_title,pw.public_id publication_public_id,pw.status publication_status,c.public_id conversation_public_id
-      FROM research_executive_briefings b JOIN research_workspace_objects rwo ON rwo.id=b.document_object_id
+    $limit=max(1,min(100,$limit));
+    $q=$pdo->prepare("SELECT b.*,rwo.public_id document_public_id,rwo.title document_title,pw.public_id publication_public_id,pw.status publication_status,
+      ra.public_id agent_public_id,c.public_id conversation_public_id
+      FROM research_executive_briefings b
+      JOIN research_workspace_objects rwo ON rwo.id=b.document_object_id
       LEFT JOIN research_publication_workflows pw ON pw.id=b.publication_workflow_id
-      JOIN research_intelligence_portfolio_snapshots s ON s.id=b.snapshot_id
-      LEFT JOIN research_intelligence_portfolio_programs pm ON pm.portfolio_id=b.portfolio_id
-      LEFT JOIN research_programs rp ON rp.id=pm.program_id AND rp.id=(SELECT COALESCE(ip.anchor_program_id,MIN(pm2.program_id)) FROM research_intelligence_portfolios ip LEFT JOIN research_intelligence_portfolio_programs pm2 ON pm2.portfolio_id=ip.id WHERE ip.id=b.portfolio_id GROUP BY ip.id)
-      LEFT JOIN research_agents ra ON ra.id=rp.research_agent_id LEFT JOIN conversations c ON c.id=ra.conversation_id
-      WHERE b.portfolio_id=? GROUP BY b.id,rwo.public_id,rwo.title,pw.public_id,pw.status,c.public_id ORDER BY b.id DESC LIMIT ".$limit);
+      LEFT JOIN research_agents ra ON ra.project_id=rwo.project_id AND ra.status<>'archived'
+      LEFT JOIN conversations c ON c.id=ra.conversation_id
+      WHERE b.portfolio_id=? ORDER BY b.id DESC LIMIT ".$limit);
     $q->execute([(int)$portfolio['id']]);return $q->fetchAll()?:[];
 }
 
