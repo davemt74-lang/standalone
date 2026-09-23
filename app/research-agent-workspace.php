@@ -554,6 +554,7 @@ function research_agent_workspace_upload_specs(): array {
       'image/png'=>['ext'=>'png','kind'=>'upload','max'=>25*1024*1024],
       'image/webp'=>['ext'=>'webp','kind'=>'upload','max'=>25*1024*1024],
       'audio/webm'=>['ext'=>'webm','kind'=>'recording','max'=>200*1024*1024],
+      'video/webm'=>['ext'=>'webm','kind'=>'recording','max'=>200*1024*1024],
       'audio/mpeg'=>['ext'=>'mp3','kind'=>'recording','max'=>200*1024*1024],
       'audio/mp4'=>['ext'=>'m4a','kind'=>'recording','max'=>200*1024*1024],
       'audio/x-m4a'=>['ext'=>'m4a','kind'=>'recording','max'=>200*1024*1024],
