@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS research_monitor_claim_assessments (
   project_id BIGINT UNSIGNED NOT NULL,
   claim_id BIGINT UNSIGNED NOT NULL,
   source_version_id BIGINT UNSIGNED NOT NULL,
+  claim_statement TEXT NOT NULL,
   status ENUM('queued','processing','completed','failed') NOT NULL DEFAULT 'queued',
   assessment ENUM('supports','weakens','contradicts','unrelated') NULL,
   confidence DECIMAL(6,5) NULL,
