@@ -98,3 +98,16 @@ body.auth-open>nav,body.auth-open>main,body.auth-open>.landingPanel{display:none
 
 /* Phase 35 — Unified Action Center & Attention Routing */
 .actionCenterMini{display:grid;gap:8px;padding:10px 0 12px;border-bottom:1px solid #deded8}.actionCenterMini .sectionHead{align-items:flex-start}.actionCenterMiniFeed{display:grid;gap:8px}.actionMiniCard{display:grid;gap:6px;padding:9px;border:1px solid #deded8;border-radius:10px;background:#fff}.actionMiniHead{display:flex;justify-content:space-between;gap:8px}.actionMiniHead span,.actionMiniHead b{font-size:8px;text-transform:uppercase;letter-spacing:.08em}.actionMiniHead span{font-weight:800}.actionMiniHead b{font-weight:700;color:#777}.actionMiniCard strong{font-size:11px;line-height:1.35}.actionMiniCard p{margin:0;font-size:10px;line-height:1.4;color:#555}.actionMiniCard button{justify-self:start;border:1px solid #d7d7d0;border-radius:999px;background:#fff;padding:5px 8px;font-size:9px;font-weight:700}.actionMiniCard.urgency-high{border-left-width:3px}.activityDivider{display:flex;align-items:center;gap:8px;margin:10px 0;color:#777;font-size:9px;text-transform:uppercase;letter-spacing:.08em}.activityDivider:before,.activityDivider:after{content:"";height:1px;background:#e2e2dc;flex:1}
+
+
+/* Phase 50A — Research Agent website bookmarks */
+#bookmarkPage{white-space:nowrap}
+.bookmarkDialog{width:min(430px,calc(100vw - 24px));padding:0;border:1px solid #d7d9d5;border-radius:12px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.bookmarkDialog::backdrop{background:rgba(20,24,28,.28)}
+.bookmarkDialog form{display:grid;gap:11px;padding:16px}
+.bookmarkDialog .sectionHead{align-items:flex-start;margin:0}
+.bookmarkDialog h3{margin:2px 0 0}
+.bookmarkDialog label{display:grid;gap:5px;font-size:11px;font-weight:750;color:#555}
+.bookmarkDialog input,.bookmarkDialog textarea,.bookmarkDialog select{width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #d8dad6;border-radius:8px;background:#fff;font:inherit}
+.bookmarkDialog textarea{resize:vertical;min-height:76px}
+.bookmarkDialog .row{justify-content:flex-end}
