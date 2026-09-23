@@ -7,6 +7,7 @@ $input=$_SERVER['REQUEST_METHOD']==='POST'?(json_decode(file_get_contents('php:/
 try{
     if($action==='list'){
         $viewer=require_api_user($pdo);
+        if(research_agent_ready($pdo))research_agent_ensure_default($pdo,$viewer);
         json_response(['ok'=>true,'data'=>['ready'=>research_agent_ready($pdo),'agents'=>research_agent_list($pdo,$viewer,50)]]);
     }
     if($action==='create'){
