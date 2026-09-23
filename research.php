@@ -3,41 +3,17 @@ declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
 require_once __DIR__.'/app/research-library.php';
 $u=require_user($pdo);
-$error='';
-
-if($_SERVER['REQUEST_METHOD']==='POST'){
-    require_csrf();
-    $title=trim((string)($_POST['title']??''));
-    $description=trim((string)($_POST['description']??''));
-    $teamPublic=trim((string)($_POST['team_id']??''));
-    if($title==='')$error='Project title is required.';
-    else{
-        $teamId=null;
-        if($teamPublic!==''){
-            $q=$pdo->prepare("SELECT t.id FROM teams t JOIN team_members tm ON tm.team_id=t.id WHERE t.public_id=? AND tm.user_id=? AND tm.role IN ('owner','admin','researcher')");
-            $q->execute([$teamPublic,$u['id']]);
-            $teamId=$q->fetchColumn()?:null;
-            if(!$teamId)$error='You do not have permission to create research in that team.';
-        }
-        if(!$error){
-            $public=ulid_like();
-            $q=$pdo->prepare('INSERT INTO research_projects(public_id,owner_user_id,team_id,title,description) VALUES(?,?,?,?,?)');
-            $q->execute([$public,$u['id'],$teamId,$title,$description?:null]);
-            header('Location:/research-project.php?id='.urlencode($public));
-            exit;
-        }
-    }
-}
-
 $researchAgents=[];
 try{
     if(function_exists('research_agent_ensure_default'))research_agent_ensure_default($pdo,$u);
     if(function_exists('research_agent_list'))$researchAgents=research_agent_list($pdo,$u,30);
 }catch(Throwable $e){}
-$projects=research_library_projects($pdo,$u,100);
-$q=$pdo->prepare("SELECT t.public_id,t.name FROM teams t JOIN team_members tm ON tm.team_id=t.id WHERE tm.user_id=? AND tm.role IN ('owner','admin','researcher') ORDER BY t.name");
-$q->execute([$u['id']]);
-$teams=$q->fetchAll();
+foreach($researchAgents as &$agent){
+    $agent['chat_feed']=function_exists('research_agent_chat_feed')
+        ?research_agent_chat_feed($pdo,$u,(string)$agent['public_id'],6)
+        :[];
+}
+unset($agent);
 ?>
 <!doctype html>
 <html>
@@ -49,35 +25,9 @@ $teams=$q->fetchAll();
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research">
 <main class="researchLibraryCanvas">
-  <section class="researchLibraryHero">
-    <div class="researchLibraryIntro">
-      <span class="eyebrow">RESEARCH</span>
-      <h1>Evidence workspaces</h1>
-      <p>Open a project like a folder: see what changed, how active it is, and where the evidence and discussion are growing.</p>
-    </div>
-    <div class="researchLibraryActions">
-      <details class="researchAddResearch"<?= $error!==''?' open':'' ?>>
-        <summary class="button researchAddResearchButton">ADD RESEARCH</summary>
-        <div class="researchCreatePopover">
-          <div class="researchCreateHead">
-            <div><span class="eyebrow">NEW WORKSPACE</span><h2>Add Research</h2></div>
-          </div>
-          <?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>
-          <form method="post" class="stack researchCreateForm">
-            <input type="hidden" name="csrf" value="<?=h(csrf_token())?>">
-            <label>Title<input name="title" required value="<?=h((string)($_POST['title']??''))?>" placeholder="Research project title"></label>
-            <label>Description<textarea name="description" rows="4" placeholder="What are you researching?"><?=h((string)($_POST['description']??''))?></textarea></label>
-            <label>Workspace<select name="team_id"><option value="">Personal</option><?php foreach($teams as $t):?><option value="<?=h($t['public_id'])?>"<?=((string)($_POST['team_id']??'')===(string)$t['public_id'])?' selected':''?>><?=h($t['name'])?></option><?php endforeach?></select></label>
-            <button>Create Research</button>
-          </form>
-        </div>
-      </details>
-    </div>
-  </section>
-
   <section class="researchLibraryToolbar" aria-label="Research workspace tools">
     <nav class="researchLibraryTabs researchPrimaryActions">
-      <a class="active" href="/research.php">Projects <span><?=h((string)count($projects))?></span></a>
+      <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a>
       <a href="/research-portfolio.php">Portfolio</a>
       <a href="/research-publications.php">Living Research</a>
       <a href="/research-reviews.php">Review Center</a>
@@ -101,7 +51,7 @@ $teams=$q->fetchAll();
   <section class="researchAgentLibrarySection" aria-label="Research Agents">
     <header class="researchAgentLibraryHead">
       <div><span class="eyebrow">RESEARCH AGENTS</span><h2>Your active agents</h2></div>
-      <button type="button" class="button secondary researchAgentLibraryAdd" data-research-agent-add>+ NEW RESEARCH AGENT</button>
+      <button type="button" class="button secondary researchAgentLibraryAdd" data-research-agent-add>+ New Research Agent</button>
     </header>
     <div class="researchAgentLibraryGrid">
       <?php foreach($researchAgents as $agent):?>
@@ -119,69 +69,26 @@ $teams=$q->fetchAll();
           <span><strong><?=h(ucfirst((string)$agent['monitoring_cadence']))?></strong><small>Monitoring</small></span>
           <span><strong><?=h($agent['last_message']!==''?'Active':'Ready')?></strong><small>Agent state</small></span>
         </div>
-        <?php if(trim((string)($agent['last_message']??''))!==''):?><div class="researchAgentLibraryRecent"><span>Latest</span><?=h($agent['last_message'])?></div><?php endif?>
+        <div class="researchAgentLibraryChatFeed" aria-label="<?=h($agent['name'])?> chat feed">
+          <?php if(empty($agent['chat_feed'])):?><div class="researchAgentLibraryChatEmpty">No conversation yet. Open the Agent to start researching.</div>
+          <?php else:?><?php foreach((array)$agent['chat_feed'] as $message):?>
+            <div class="researchAgentLibraryChatMessage <?=($message['sender_type']??'')==='agent'?'is-agent':'is-user'?>">
+              <strong><?=h((string)$message['speaker'])?></strong>
+              <p><?=h((string)$message['body'])?></p>
+            </div>
+          <?php endforeach?><?php endif?>
+        </div>
         <footer>
-          <a class="researchAgentLibraryOpen" href="/home.php?agent=<?=h(rawurlencode((string)$agent['conversation_public_id']))?>">Open Agent</a>
-          <a href="/research-project.php?id=<?=h(rawurlencode((string)$agent['project_public_id']))?>">Research workspace</a>
+          <a class="researchAgentLibraryOpen" href="/home.php?agent=<?=h(rawurlencode((string)$agent['conversation_public_id']))?>">Open Agent Chat</a>
+          <a href="/research-project.php?id=<?=h(rawurlencode((string)$agent['project_public_id']))?>">Workspace</a>
         </footer>
       </article>
       <?php endforeach?>
     </div>
   </section>
 
-  <?php if(!$projects):?>
-    <section class="researchLibraryEmpty">
-      <div class="researchFolderGlyph" aria-hidden="true"></div>
-      <h2>No Research projects yet</h2>
-      <p>Create your first workspace to start collecting sources, annotations, Claims, Findings, discussion, and ongoing Research activity.</p>
-    </section>
-  <?php else:?>
-    <section class="researchFolderGrid" id="projects" aria-label="Research projects">
-      <?php foreach($projects as $p):$recent=research_library_recent_meta((string)($p['recent_at']??$p['updated_at']??''));?>
-      <article class="researchFolderCard">
-        <div class="researchFolderTab" aria-hidden="true"></div>
-        <header class="researchFolderHeader">
-          <div class="researchFolderGlyph" aria-hidden="true"></div>
-          <div class="researchFolderIdentity">
-            <span class="researchFolderScope"><?=h($p['team_name']?:'Personal')?></span>
-            <h2><a href="/research-project.php?id=<?=h($p['public_id'])?>"><?=h($p['title'])?></a></h2>
-          </div>
-          <span class="researchFolderStatus"><?=h(ucfirst((string)$p['status']))?></span>
-        </header>
-
-        <?php if(trim((string)$p['description'])!==''):?><p class="researchFolderDescription"><?=h($p['description'])?></p><?php endif?>
-
-        <div class="researchFolderSignals">
-          <?php if((int)$p['notification_count']>0):?><span class="researchSignal researchSignalAlert"><span aria-hidden="true">●</span><?=h((string)$p['notification_count'])?> notifications</span><?php endif?>
-          <?php if($recent['recent']):?><span class="researchSignal researchSignalRecent">Recent · <?=h($recent['label'])?></span><?php else:?><span class="researchSignal">Updated <?=h($recent['label'])?></span><?php endif?>
-        </div>
-
-        <div class="researchFolderSocial" aria-label="Project activity">
-          <span title="Comments"><b>💬</b><strong><?=h((string)$p['comment_count'])?></strong><small>Comments</small></span>
-          <span title="Likes"><b>♥</b><strong><?=h((string)$p['like_count'])?></strong><small>Likes</small></span>
-          <span title="Annotations"><b>◫</b><strong><?=h((string)$p['annotation_count'])?></strong><small>Annotations</small></span>
-          <span title="Sources"><b>↗</b><strong><?=h((string)$p['source_count'])?></strong><small>Sources</small></span>
-        </div>
-
-        <div class="researchFolderEvidence">
-          <span><strong><?=h((string)$p['claim_count'])?></strong> Claims</span>
-          <span><strong><?=h((string)$p['finding_count'])?></strong> Findings</span>
-          <span><strong><?=h((string)$p['task_count'])?></strong> Open tasks</span>
-        </div>
-
-        <footer class="researchFolderFooter">
-          <a class="researchFolderOpen" href="/research-project.php?id=<?=h($p['public_id'])?>">Open folder</a>
-          <nav aria-label="<?=h($p['title'])?> shortcuts">
-            <a href="/research-brief.php?id=<?=h($p['public_id'])?>">Brief</a>
-            <a href="/research-timeline.php?id=<?=h($p['public_id'])?>">Timeline</a>
-            <a href="/home.php?agent_context_type=research&amp;agent_context_id=<?=h($p['public_id'])?>#agent-chat">Agent</a>
-          </nav>
-        </footer>
-      </article>
-      <?php endforeach?>
-    </section>
-  <?php endif?>
 </main>
 <script src="/assets/js/workspace-state.js?v=34.0"></script>
+<script src="/assets/js/research-agent-shell.js?v=50.0"></script>
 </body>
 </html>
