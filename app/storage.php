@@ -67,7 +67,7 @@ function evidence_content_type(string $path): string {
     return match(strtolower(pathinfo($path,PATHINFO_EXTENSION))){
         'png'=>'image/png','jpg','jpeg'=>'image/jpeg','webp'=>'image/webp','gif'=>'image/gif',
         'webm'=>'audio/webm','ogg'=>'audio/ogg','mp3'=>'audio/mpeg','m4a'=>'audio/mp4','wav'=>'audio/wav',
-        'mp4'=>'video/mp4','mov'=>'video/quicktime',default=>'application/octet-stream'};
+        'mp4'=>'video/mp4','mov'=>'video/quicktime','pdf'=>'application/pdf','docx'=>'application/vnd.openxmlformats-officedocument.wordprocessingml.document','txt','md'=>'text/plain; charset=utf-8','csv'=>'text/csv; charset=utf-8',default=>'application/octet-stream'};
 }
 function stream_evidence_file(string $path): never {
     if(!is_file($path)||!is_readable($path)){http_response_code(404);exit('Evidence not found.');}
@@ -84,5 +84,27 @@ function stream_evidence_file(string $path): never {
     if($status===206)header("Content-Range: bytes $start-$end/$size");
     $fh=fopen($path,'rb');if(!$fh){http_response_code(404);exit;}fseek($fh,$start);$left=$length;
     while($left>0&&!feof($fh)){$chunk=fread($fh,min(8192,$left));if($chunk===false)break;echo $chunk;$left-=strlen($chunk);if(function_exists('fastcgi_finish_request')){}flush();}
+    fclose($fh);exit;
+}
+
+
+function stream_private_file(string $path,string $mime,string $filename,bool $attachment=false): never {
+    if(!is_file($path)||!is_readable($path)){http_response_code(404);exit('File not found.');}
+    $mime=trim($mime)?:evidence_content_type($path);
+    $filename=preg_replace('/[^A-Za-z0-9._() -]+/u','_',trim($filename))?:basename($path);
+    $size=(int)filesize($path);$start=0;$end=max(0,$size-1);$status=200;
+    $range=(string)($_SERVER['HTTP_RANGE']??'');
+    if($range!==''&&preg_match('/bytes=(\d*)-(\d*)/',$range,$m)){
+        if($m[1]===''&&$m[2]!==''){$len=min((int)$m[2],$size);$start=max(0,$size-$len);}else{$start=(int)($m[1]?:0);if($m[2]!=='')$end=min($end,(int)$m[2]);}
+        if($start>$end||$start>=$size){header('Content-Range: bytes */'.$size);http_response_code(416);exit;}
+        $status=206;
+    }
+    $length=$end-$start+1;http_response_code($status);
+    header('Content-Type: '.$mime);header('X-Content-Type-Options: nosniff');header('Accept-Ranges: bytes');
+    header('Content-Length: '.$length);header('Cache-Control: private, no-store, max-age=0');
+    header('Content-Disposition: '.($attachment?'attachment':'inline').'; filename="'.str_replace('"','',$filename).'"');
+    if($status===206)header("Content-Range: bytes $start-$end/$size");
+    $fh=fopen($path,'rb');if(!$fh){http_response_code(404);exit;}fseek($fh,$start);$left=$length;
+    while($left>0&&!feof($fh)){$chunk=fread($fh,min(65536,$left));if($chunk===false)break;echo $chunk;$left-=strlen($chunk);flush();}
     fclose($fh);exit;
 }
