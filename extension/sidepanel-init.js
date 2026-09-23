@@ -24,6 +24,9 @@ function initializeSidebarBindings(){
   sidebarBindClick('authAccountSignOut',extensionLogout);
 
   sidebarBindClick('refresh',loadPage);
+  sidebarBindClick('bookmarkPage',phase50OpenBookmark);
+  sidebarBind('bookmarkForm','submit',phase50SaveBookmark);
+  sidebarBind('bookmarkAgent','change',()=>phase50LoadBookmarkFolders(String(document.getElementById('bookmarkAgent')?.value||'')));
   sidebarBindClick('publish',publish);
   sidebarBindClick('setStart',()=>setClip('start'));
   sidebarBindClick('setEnd',()=>setClip('end'));
