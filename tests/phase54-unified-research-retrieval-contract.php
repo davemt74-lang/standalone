@@ -66,7 +66,7 @@ $need('home.php','/assets/css/app.css?v=54.0','Phase 54 stylesheet must have a f
 $need('home.php','research-agent-workspace-ui.js?v=54.0','Phase 54 Library runtime must have a fresh cache key.');
 
 $need('app/agent-chat.php','research_retrieval_context($pdo,$config,$viewer','Research Agent Chat must retrieve against the latest user prompt.');
-$need('app/agent-chat.php','Prefer targeted retrieval','');
+$need('app/agent-chat.php',"research_retrieval_ready(\$pdo))?['text'=>'','refs'=>[]]:ai_research_context",'Phase 54 must suppress the old broad source/annotation dump when unified retrieval is available.');
 $need('app/agent-chat.php','preserve the supplied locator exactly','Agent system instructions must preserve evidence locators.');
 $need('app/research-agent-workspace.php','function research_agent_workspace_sticky_context','Sticky search results must be usable as Agent context.');
 $avoid('app/workspace-context.php','research_retrieval_chunks','Cross-surface workspace continuity must not copy derived retrieval content.');
