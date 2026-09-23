@@ -31,6 +31,8 @@ p56((bool)$project,'Research Agent project is available for monitoring.');
 $url='https://example.com/'.$run.'/watched';
 $urlWatch=research_monitor_create($pdo,$owner,['agent_id'=>$agent['public_id'],'watch_type'=>'url','target'=>$url,'cadence'=>'daily','alert_level'=>'important','auto_promote'=>false]);
 p56(($urlWatch['watch_type']??'')==='url'&&($urlWatch['status']??'')==='active','56.1 creates an Agent-scoped URL watch.');
+$q=$pdo->prepare("SELECT COUNT(*) FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id=? AND s.canonical_url_hash=?");$q->execute([$project['id'],hash('sha256',canonicalize_url($url))]);
+p56((int)$q->fetchColumn()===1,'56.1 an exact URL watch immediately enters the existing Source Monitor corpus.');
 $urlWatchAgain=research_monitor_create($pdo,$owner,['agent_id'=>$agent['public_id'],'watch_type'=>'url','target'=>$url,'cadence'=>'weekly','alert_level'=>'all','auto_promote'=>false]);
 p56((int)$urlWatchAgain['id']===(int)$urlWatch['id']&&$urlWatchAgain['cadence']==='weekly','56.1 deduplicates watch identity while allowing settings updates.');
 
@@ -108,14 +110,24 @@ $q=$pdo->prepare('SELECT assessment FROM research_monitor_claim_states WHERE wat
 p56((string)$q->fetchColumn()==='weakened','56.4 explicit support and contradiction remain side-by-side.');
 
 $assessmentPublic=$pub('assess');
-$pdo->prepare("INSERT INTO research_monitor_claim_assessments(public_id,watch_id,project_id,claim_id,source_version_id,status) VALUES(?,?,?,?,?,'processing')")
-  ->execute([$assessmentPublic,$claimWatch['id'],$project['id'],$claimId,$newVersion]);
+$claimStatement='The launch target is October 15.';
+$pdo->prepare("INSERT INTO research_monitor_claim_assessments(public_id,watch_id,project_id,claim_id,source_version_id,claim_statement,status) VALUES(?,?,?,?,?,?,'processing')")
+  ->execute([$assessmentPublic,$claimWatch['id'],$project['id'],$claimId,$newVersion,$claimStatement]);
 $claimStatusBefore=(string)$pdo->query("SELECT status FROM research_claims WHERE id=".$claimId)->fetchColumn();
 $derived=research_monitor_claim_assessment_apply($pdo,$assessmentPublic,json_encode(['assessment'=>'supports','confidence'=>0.91,'rationale'=>'The monitored source directly states the October 15 launch target.']),'ai-'.$run);
 $claimStatusAfter=(string)$pdo->query("SELECT status FROM research_claims WHERE id=".$claimId)->fetchColumn();
 p56(($derived['assessment']??'')==='supports'&&$claimStatusBefore===$claimStatusAfter,'56.4 model-backed monitoring intelligence is derived and never silently rewrites the saved claim.');
 $q=$pdo->prepare("SELECT COUNT(*) FROM research_monitor_events WHERE watch_id=? AND claim_id=? AND event_type='claim_supported'");$q->execute([$claimWatch['id'],$claimId]);
 p56((int)$q->fetchColumn()>=1,'56.4 model-backed claim intelligence retains claim/source provenance as a monitoring event.');
+
+$stalePublic=$pub('assess');
+$pdo->prepare("INSERT INTO research_monitor_claim_assessments(public_id,watch_id,project_id,claim_id,source_version_id,claim_statement,status) VALUES(?,?,?,?,?,?,'processing')")
+  ->execute([$stalePublic,$claimWatch['id'],$project['id'],$claimId,$oldVersion,$claimStatement]);
+$pdo->prepare("UPDATE research_claims SET statement='The launch target is October 20.' WHERE id=?")->execute([$claimId]);
+$stale=research_monitor_claim_assessment_apply($pdo,$stalePublic,json_encode(['assessment'=>'supports','confidence'=>0.95,'rationale'=>'Stale result fixture.']),'ai-stale-'.$run);
+$q=$pdo->prepare("SELECT status FROM research_monitor_claim_assessments WHERE public_id=?");$q->execute([$stalePublic]);$staleStatus=(string)$q->fetchColumn();
+p56(!empty($stale['stale'])&&$staleStatus==='failed','56.4 AI output for an edited claim is discarded instead of being attached to new wording.');
+$pdo->prepare("UPDATE research_claims SET statement=? WHERE id=?")->execute([$claimStatement,$claimId]);
 
 $messagesBeforeQ=$pdo->prepare("SELECT COUNT(*) FROM conversation_messages WHERE conversation_id=? AND sender_type='agent' AND body LIKE 'Research monitoring update for %'");$messagesBeforeQ->execute([$agent['conversation_id']]);$messagesBefore=(int)$messagesBeforeQ->fetchColumn();
 $notified=research_monitor_chat_updates($pdo,$claimWatch,999001);
@@ -140,5 +152,7 @@ p56throws(fn()=>research_monitor_summary($pdo,$outsider,(string)$agent['public_i
 $archiveWatch=research_monitor_create($pdo,$owner,['agent_id'=>$agent['public_id'],'watch_type'=>'topic','target'=>'temporary archive target','cadence'=>'manual']);
 p56(research_monitor_set_status($pdo,$owner,(string)$archiveWatch['public_id'],'archived'),'56.6 watches can be archived without deleting monitoring history.');
 p56(research_monitor_watch_access($pdo,$owner,(string)$archiveWatch['public_id'])===null,'56.6 archived watches leave the active control surface.');
+$q=$pdo->prepare("SELECT status FROM research_monitor_jobs WHERE watch_id=?");$q->execute([$archiveWatch['id']]);
+p56((string)$q->fetchColumn()==='done','56.6 archiving drains queued monitoring work instead of leaving release-health backlog.');
 
 echo "Phase 56 Continuous Research Monitoring MariaDB suite passed.\n";
