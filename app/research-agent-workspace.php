@@ -8,7 +8,12 @@ function research_agent_workspace_ready(PDO $pdo): bool {
             &&installer_table_exists($pdo,'research_workspace_documents')
             &&installer_table_exists($pdo,'research_workspace_document_revisions')
             &&installer_table_exists($pdo,'research_workspace_stickies')
-            &&installer_table_exists($pdo,'research_workspace_desktop_positions');
+            &&installer_table_exists($pdo,'research_workspace_desktop_positions')
+            &&installer_table_exists($pdo,'research_workspace_uploads')
+            &&installer_table_exists($pdo,'research_workspace_recordings')
+            &&installer_table_exists($pdo,'research_workspace_recording_transcripts')
+            &&installer_table_exists($pdo,'research_file_jobs')
+            &&installer_table_exists($pdo,'research_transcription_jobs');
     }catch(Throwable $e){return false;}
 }
 
@@ -47,6 +52,9 @@ function research_agent_workspace_object(PDO $pdo,array $viewer,string $publicId
       rwb.source_id,rwb.canonical_url,rwb.domain,rwb.description,rwb.favicon_url,rwb.preview_image_url,
       rwd.document_type,rwd.content_html,rwd.plain_text document_plain_text,rwd.summary document_summary,rwd.revision_number,rwd.content_hash,rwd.created_by_agent,rwd.last_edited_at,
       rws.body sticky_body,rws.color sticky_color,rws.position_x sticky_x,rws.position_y sticky_y,rws.width_px sticky_width,rws.height_px sticky_height,rws.z_index sticky_z,
+      rwu.storage_uri upload_storage_uri,rwu.original_name upload_original_name,rwu.mime_type upload_mime_type,rwu.file_size upload_file_size,rwu.checksum upload_checksum,rwu.processing_status upload_processing_status,rwu.extracted_text upload_extracted_text,rwu.page_count upload_page_count,rwu.last_error upload_last_error,
+      rwr.storage_uri recording_storage_uri,rwr.original_name recording_original_name,rwr.mime_type recording_mime_type,rwr.file_size recording_file_size,rwr.checksum recording_checksum,rwr.duration_seconds recording_duration_seconds,rwr.recording_source,
+      rwt.status transcript_status,COALESCE(rwt.edited_text,rwt.raw_text) transcript_text,rwt.language transcript_language,rwt.provider transcript_provider,rwt.model transcript_model,rwt.last_error transcript_last_error,
       s.public_id source_public_id,s.title source_title
       FROM research_workspace_objects rwo
       JOIN research_projects rp ON rp.id=rwo.project_id
@@ -58,6 +66,9 @@ function research_agent_workspace_object(PDO $pdo,array $viewer,string $publicId
       LEFT JOIN research_workspace_bookmarks rwb ON rwb.object_id=rwo.id
       LEFT JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
       LEFT JOIN research_workspace_stickies rws ON rws.object_id=rwo.id
+      LEFT JOIN research_workspace_uploads rwu ON rwu.object_id=rwo.id
+      LEFT JOIN research_workspace_recordings rwr ON rwr.object_id=rwo.id
+      LEFT JOIN research_workspace_recording_transcripts rwt ON rwt.object_id=rwo.id
       LEFT JOIN sources s ON s.id=rwb.source_id
       WHERE rwo.public_id=? LIMIT 1");
     $q->execute([$publicId]);$row=$q->fetch();if(!$row)return null;
@@ -79,6 +90,9 @@ function research_agent_workspace_list(PDO $pdo,array $viewer,array $project,boo
       rwb.canonical_url,rwb.domain,rwb.description,rwb.favicon_url,rwb.preview_image_url,
       rwd.document_type,rwd.summary document_summary,rwd.revision_number,rwd.created_by_agent,rwd.last_edited_at,
       rws.body sticky_body,rws.color sticky_color,rws.position_x sticky_x,rws.position_y sticky_y,rws.width_px sticky_width,rws.height_px sticky_height,rws.z_index sticky_z,
+      rwu.original_name upload_original_name,rwu.mime_type upload_mime_type,rwu.file_size upload_file_size,rwu.processing_status upload_processing_status,rwu.page_count upload_page_count,rwu.last_error upload_last_error,
+      rwr.original_name recording_original_name,rwr.mime_type recording_mime_type,rwr.file_size recording_file_size,rwr.duration_seconds recording_duration_seconds,rwr.recording_source,
+      rwt.status transcript_status,rwt.language transcript_language,rwt.last_error transcript_last_error,
       s.public_id source_public_id,s.title source_title
       FROM research_workspace_objects rwo
       JOIN research_projects rp ON rp.id=rwo.project_id
@@ -88,6 +102,9 @@ function research_agent_workspace_list(PDO $pdo,array $viewer,array $project,boo
       LEFT JOIN research_workspace_bookmarks rwb ON rwb.object_id=rwo.id
       LEFT JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
       LEFT JOIN research_workspace_stickies rws ON rws.object_id=rwo.id
+      LEFT JOIN research_workspace_uploads rwu ON rwu.object_id=rwo.id
+      LEFT JOIN research_workspace_recordings rwr ON rwr.object_id=rwo.id
+      LEFT JOIN research_workspace_recording_transcripts rwt ON rwt.object_id=rwo.id
       LEFT JOIN sources s ON s.id=rwb.source_id
       WHERE rwo.project_id=? AND rwo.status=?
       ORDER BY CASE WHEN rwo.object_type='folder' THEN 0 ELSE 1 END,rwo.sort_order,rwo.title,rwo.id
@@ -523,4 +540,100 @@ function research_agent_workspace_desktop_position_save(PDO $pdo,array $viewer,a
       ON DUPLICATE KEY UPDATE position_x=VALUES(position_x),position_y=VALUES(position_y),z_index=VALUES(z_index),updated_by_user_id=VALUES(updated_by_user_id),updated_at=NOW()")
       ->execute([(int)$project['id'],$type,$publicId,$x,$y,$z,(int)$viewer['id']]);
     return ['object_type'=>$type,'public_id'=>$publicId,'x'=>$x,'y'=>$y,'z'=>$z];
+}
+
+
+function research_agent_workspace_upload_specs(): array {
+    return [
+      'application/pdf'=>['ext'=>'pdf','kind'=>'upload','max'=>50*1024*1024],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'=>['ext'=>'docx','kind'=>'upload','max'=>50*1024*1024],
+      'text/plain'=>['ext'=>'txt','kind'=>'upload','max'=>20*1024*1024],
+      'text/markdown'=>['ext'=>'md','kind'=>'upload','max'=>20*1024*1024],
+      'text/csv'=>['ext'=>'csv','kind'=>'upload','max'=>20*1024*1024],
+      'image/jpeg'=>['ext'=>'jpg','kind'=>'upload','max'=>25*1024*1024],
+      'image/png'=>['ext'=>'png','kind'=>'upload','max'=>25*1024*1024],
+      'image/webp'=>['ext'=>'webp','kind'=>'upload','max'=>25*1024*1024],
+      'audio/webm'=>['ext'=>'webm','kind'=>'recording','max'=>200*1024*1024],
+      'audio/mpeg'=>['ext'=>'mp3','kind'=>'recording','max'=>200*1024*1024],
+      'audio/mp4'=>['ext'=>'m4a','kind'=>'recording','max'=>200*1024*1024],
+      'audio/x-m4a'=>['ext'=>'m4a','kind'=>'recording','max'=>200*1024*1024],
+      'audio/wav'=>['ext'=>'wav','kind'=>'recording','max'=>200*1024*1024],
+      'audio/x-wav'=>['ext'=>'wav','kind'=>'recording','max'=>200*1024*1024],
+      'audio/ogg'=>['ext'=>'ogg','kind'=>'recording','max'=>200*1024*1024],
+    ];
+}
+
+function research_agent_workspace_register_upload(PDO $pdo,array $viewer,array $project,array $input): array {
+    research_agent_workspace_require_write($project);
+    $parent=research_agent_workspace_parent($pdo,(int)$project['id'],(string)($input['parent_id']??''));
+    $title=mb_substr(trim((string)($input['title']??$input['original_name']??'Uploaded file')),0,240);if($title==='')$title='Uploaded file';
+    $public=ulid_like();$pdo->beginTransaction();
+    try{
+      $pdo->prepare("INSERT INTO research_workspace_objects(public_id,project_id,parent_id,created_by_user_id,object_type,title) VALUES(?,?,?,?, 'upload',?)")
+        ->execute([$public,(int)$project['id'],$parent['id']??null,(int)$viewer['id'],$title]);
+      $objectId=(int)$pdo->lastInsertId();
+      $pdo->prepare("INSERT INTO research_workspace_uploads(object_id,project_id,storage_uri,original_name,mime_type,file_size,checksum,processing_status) VALUES(?,?,?,?,?,?,?,'queued')")
+        ->execute([$objectId,(int)$project['id'],(string)$input['storage_uri'],mb_substr((string)$input['original_name'],0,255),(string)$input['mime_type'],(int)$input['file_size'],(string)$input['checksum']]);
+      $pdo->prepare("INSERT INTO research_file_jobs(object_id,input_path,status) VALUES(?,?,'queued')")->execute([$objectId,(string)$input['storage_uri']]);
+      $pdo->commit();
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    return research_agent_workspace_object($pdo,$viewer,$public,false)??['public_id'=>$public,'object_type'=>'upload','title'=>$title];
+}
+
+function research_agent_workspace_register_recording(PDO $pdo,array $viewer,array $project,array $input): array {
+    research_agent_workspace_require_write($project);
+    $parent=research_agent_workspace_parent($pdo,(int)$project['id'],(string)($input['parent_id']??''));
+    $title=mb_substr(trim((string)($input['title']??'')),0,240);if($title==='')$title='Recording '.gmdate('Y-m-d H:i');
+    $source=in_array((string)($input['recording_source']??'browser'),['browser','upload'],true)?(string)$input['recording_source']:'browser';
+    $duration=max(0,(float)($input['duration_seconds']??0));$public=ulid_like();$pdo->beginTransaction();
+    try{
+      $pdo->prepare("INSERT INTO research_workspace_objects(public_id,project_id,parent_id,created_by_user_id,object_type,title) VALUES(?,?,?,?, 'recording',?)")
+        ->execute([$public,(int)$project['id'],$parent['id']??null,(int)$viewer['id'],$title]);
+      $objectId=(int)$pdo->lastInsertId();
+      $pdo->prepare("INSERT INTO research_workspace_recordings(object_id,project_id,storage_uri,original_name,mime_type,file_size,checksum,duration_seconds,recording_source) VALUES(?,?,?,?,?,?,?,?,?)")
+        ->execute([$objectId,(int)$project['id'],(string)$input['storage_uri'],mb_substr((string)$input['original_name'],0,255),(string)$input['mime_type'],(int)$input['file_size'],(string)$input['checksum'],$duration>0?$duration:null,$source]);
+      $pdo->prepare("INSERT INTO research_workspace_recording_transcripts(object_id,status) VALUES(?,'queued')")->execute([$objectId]);
+      $transcriptId=(int)$pdo->lastInsertId();
+      $pdo->prepare("INSERT INTO research_transcription_jobs(transcript_id,input_path,status) VALUES(?,?,'queued')")->execute([$transcriptId,(string)$input['storage_uri']]);
+      $pdo->commit();
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    return research_agent_workspace_object($pdo,$viewer,$public,false)??['public_id'=>$public,'object_type'=>'recording','title'=>$title];
+}
+
+function research_agent_workspace_retry_transcription(PDO $pdo,array $viewer,string $publicId): array {
+    $obj=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$obj||($obj['object_type']??'')!=='recording')throw new RuntimeException('Recording not found.');
+    $project=research_agent_workspace_project($pdo,$viewer,(string)($obj['research_agent_public_id']??''),(string)$obj['project_public_id']);if(!$project)throw new RuntimeException('Recording not found.');research_agent_workspace_require_write($project);
+    $q=$pdo->prepare("SELECT id FROM research_workspace_recording_transcripts WHERE object_id=? LIMIT 1");$q->execute([(int)$obj['id']]);$transcriptId=(int)($q->fetchColumn()?:0);if($transcriptId<1)throw new RuntimeException('Recording transcript is unavailable.');
+    $pdo->prepare("UPDATE research_workspace_recording_transcripts SET status='queued',last_error=NULL,updated_at=NOW() WHERE id=?")->execute([$transcriptId]);
+    $pdo->prepare("INSERT INTO research_transcription_jobs(transcript_id,input_path,status) VALUES(?,?,'queued') ON DUPLICATE KEY UPDATE status='queued',attempts=0,claim_token=NULL,lease_expires_at=NULL,available_at=NOW(),last_error=NULL,started_at=NULL,completed_at=NULL,input_path=VALUES(input_path)")
+      ->execute([$transcriptId,(string)$obj['recording_storage_uri']]);
+    return research_agent_workspace_object($pdo,$viewer,$publicId,false)??$obj;
+}
+
+function research_agent_workspace_upload_context(PDO $pdo,array $viewer,string $publicId): ?array {
+    $obj=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$obj||($obj['object_type']??'')!=='upload')return null;
+    $text=trim((string)($obj['upload_extracted_text']??''));
+    return [
+      'type'=>'upload','public_id'=>$publicId,'label'=>(string)$obj['title'],
+      'text'=>"[RESEARCH UPLOAD {$publicId}]\nResearch: {$obj['project_title']}\nFile: {$obj['upload_original_name']}\nType: {$obj['upload_mime_type']}\nProcessing: {$obj['upload_processing_status']}\nExtracted content:\n".mb_substr($text,0,18000),
+      'refs'=>[['type'=>'upload','id'=>$publicId],['type'=>'research_project','id'=>(string)$obj['project_public_id']]]
+    ];
+}
+
+function research_agent_workspace_recording_context(PDO $pdo,array $viewer,string $publicId): ?array {
+    $obj=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$obj||($obj['object_type']??'')!=='recording')return null;
+    $transcript=trim((string)($obj['transcript_text']??''));
+    return [
+      'type'=>'recording','public_id'=>$publicId,'label'=>(string)$obj['title'],
+      'text'=>"[RESEARCH RECORDING {$publicId}]\nResearch: {$obj['project_title']}\nRecording: {$obj['title']}\nDuration seconds: ".(string)($obj['recording_duration_seconds']??'')."\nTranscript status: ".(string)($obj['transcript_status']??'queued')."\nTranscript:\n".mb_substr($transcript,0,18000),
+      'refs'=>[['type'=>'recording','id'=>$publicId],['type'=>'research_project','id'=>(string)$obj['project_public_id']]]
+    ];
+}
+
+function research_agent_workspace_transcript_to_document(PDO $pdo,array $viewer,string $recordingPublicId): array {
+    $obj=research_agent_workspace_object($pdo,$viewer,$recordingPublicId,false);if(!$obj||($obj['object_type']??'')!=='recording')throw new RuntimeException('Recording not found.');
+    if(($obj['transcript_status']??'')!=='ready'||trim((string)($obj['transcript_text']??''))==='')throw new RuntimeException('The recording transcript is not ready yet.');
+    $project=research_agent_workspace_project($pdo,$viewer,(string)($obj['research_agent_public_id']??''),(string)$obj['project_public_id']);if(!$project)throw new RuntimeException('Recording not found.');research_agent_workspace_require_write($project);
+    $body=(string)$obj['transcript_text'];$html='<h1>'.htmlspecialchars((string)$obj['title'].' Transcript',ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').'</h1><p>'.nl2br(htmlspecialchars($body,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8'),false).'</p>';
+    return research_agent_workspace_create_document($pdo,$viewer,$project,['title'=>(string)$obj['title'].' Transcript','document_type'=>'document','content_html'=>$html,'parent_id'=>(string)($obj['parent_public_id']??'')],false);
 }
