@@ -323,26 +323,28 @@ function research_agent_workspace_save_document(PDO $pdo,array $viewer,string $p
     $obj=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$obj||$obj['object_type']!=='document')throw new RuntimeException('Document not found.');
     $project=research_agent_workspace_project($pdo,$viewer,(string)($obj['research_agent_public_id']??''),(string)$obj['project_public_id']);if(!$project)throw new RuntimeException('Document not found.');
     research_agent_workspace_require_write($project);
-    $base=max(0,(int)($input['base_revision']??0));
-    $title=mb_substr(trim((string)($input['title']??$obj['title'])),0,240);if($title==='')$title='Untitled document';
-    $html=research_agent_workspace_clean_html((string)($input['content_html']??$obj['content_html']??''));$plain=research_agent_workspace_plain_text($html);
-    $summary=mb_substr(trim((string)($input['summary']??$obj['document_summary']??'')),0,5000);$hash=hash('sha256',$title."\n".$html);
-    $pdo->beginTransaction();
+    $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
     try{
-        $q=$pdo->prepare("SELECT d.revision_number,d.content_hash,o.title FROM research_workspace_documents d JOIN research_workspace_objects o ON o.id=d.object_id WHERE d.object_id=? FOR UPDATE");
+        $q=$pdo->prepare("SELECT rwo.title,rwd.content_html,rwd.summary,rwd.revision_number,rwd.content_hash
+          FROM research_workspace_objects rwo JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
+          WHERE rwo.id=? AND rwo.status='active' FOR UPDATE");
         $q->execute([(int)$obj['id']]);$locked=$q->fetch();if(!$locked)throw new RuntimeException('Document not found.');
-        $current=(int)$locked['revision_number'];
+        $base=max(0,(int)($input['base_revision']??0));$current=(int)($locked['revision_number']??1);
         if($base>0&&$base!==$current)throw new RuntimeException('This document changed in another session. Reload it before saving.');
-        if(hash_equals((string)$locked['content_hash'],$hash)&&$title===(string)$locked['title']){
-            $pdo->commit();return research_agent_workspace_object($pdo,$viewer,$publicId,false)??$obj;
+        $title=mb_substr(trim((string)($input['title']??$locked['title'])),0,240);if($title==='')$title='Untitled document';
+        $html=research_agent_workspace_clean_html((string)($input['content_html']??$locked['content_html']??''));$plain=research_agent_workspace_plain_text($html);
+        $summary=mb_substr(trim((string)($input['summary']??$locked['summary']??'')),0,5000);$hash=hash('sha256',$title."\n".$html);
+        if(hash_equals((string)($locked['content_hash']??''),$hash)&&$title===(string)$locked['title']){
+            if($ownsTransaction)$pdo->commit();
+            return research_agent_workspace_object($pdo,$viewer,$publicId,false)??$obj;
         }
         $next=$current+1;
         $pdo->prepare("UPDATE research_workspace_objects SET title=?,updated_at=NOW() WHERE id=?")->execute([$title,(int)$obj['id']]);
         $pdo->prepare("UPDATE research_workspace_documents SET content_html=?,plain_text=?,summary=?,revision_number=?,content_hash=?,last_edited_by_user_id=?,last_edited_at=NOW(),updated_at=NOW() WHERE object_id=?")
           ->execute([$html!==''?$html:null,$plain!==''?$plain:null,$summary!==''?$summary:null,$next,$hash,(int)$viewer['id'],(int)$obj['id']]);
         research_agent_workspace_document_snapshot($pdo,(int)$obj['id'],$title,$html,$plain,$summary!==''?$summary:null,(int)$viewer['id'],$next);
-        $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return research_agent_workspace_object($pdo,$viewer,$publicId,false)??$obj;
 }
 
