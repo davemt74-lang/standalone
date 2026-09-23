@@ -26,6 +26,7 @@ try{
                 job_claim_complete($pdo,'research_automation_runs',(int)$run['id'],(string)$run['claim_token'],'skipped');$skipped++;continue;
             }
             $result=research_automation_execute($pdo,$config,$run);research_automation_complete_run($pdo,$viewer,$automation,$run,$result);
+            if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$run['project_id'],(int)$run['user_id'],'schedule','Scheduled Research Agent monitoring completed.');
             if($result['status']==='skipped')$skipped++;else $completed++;
         }catch(Throwable $e){
             try{
