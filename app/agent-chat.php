@@ -59,6 +59,9 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         $derived=annotation_intelligence_context_text($pdo,$publicId,$viewer);if($derived!=='')$text.="\n\n".$derived;
         return ['type'=>'annotation','public_id'=>$publicId,'label'=>mb_substr((string)($r['text_commentary']?:($r['title']?:$r['domain'])),0,90),'text'=>$text,'refs'=>[['type'=>'annotation','id'=>$publicId],['type'=>'source','id'=>$r['source_public_id']]]];
     }
+    if($type==='bookmark'&&function_exists('research_agent_workspace_bookmark_context')){
+        return research_agent_workspace_bookmark_context($pdo,$viewer,$publicId);
+    }
     if($type==='source'){
         $s=source_access($pdo,$publicId,$viewer);if(!$s)return null;
         $q=$pdo->prepare("SELECT s.public_id,s.title,s.canonical_url,s.domain,sv.extracted_text FROM sources s LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE s.id=?");$q->execute([$s['id']]);$r=$q->fetch();if(!$r)return null;
