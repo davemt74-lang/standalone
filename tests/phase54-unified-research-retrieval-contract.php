@@ -74,8 +74,8 @@ $need('assets/js/research-agent-workspace-ui.js','loadRelated(item)','Research L
 $need('assets/js/research-agent-workspace-ui.js','askAgentAboutLibrarySelection','Selected retrieval results must hand authoritative objects to Agent Chat.');
 $need('assets/js/research-agent-workspace-ui.js','folder_id:String(libraryFolder?.value','Folder scope must be sent to the retrieval API.');
 $need('assets/css/app.css','/* Phase 54 — Unified Research retrieval console */','Phase 54 retrieval UI styling must ship.');
-$need('home.php','/assets/css/app.css?v=55.3','Phase 54 stylesheet must have a fresh cache key.');
-$need('home.php','research-agent-workspace-ui.js?v=55.3','Phase 54 Library runtime must have a fresh cache key.');
+$need('home.php','/assets/css/app.css?v=56.0','Phase 54 stylesheet must have a fresh cache key.');
+$need('home.php','research-agent-workspace-ui.js?v=56.0','Phase 54 Library runtime must have a fresh cache key.');
 
 $need('app/agent-chat.php','research_retrieval_context($pdo,$config,$viewer','Research Agent Chat must retrieve against the latest user prompt.');
 $need('app/agent-chat.php',"research_retrieval_ready(\$pdo))?['text'=>'','refs'=>[]]:ai_research_context",'Phase 54 must suppress the old broad source/annotation dump when unified retrieval is available.');
