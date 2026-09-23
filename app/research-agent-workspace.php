@@ -47,8 +47,6 @@ function research_agent_workspace_object(PDO $pdo,array $viewer,string $publicId
       LEFT JOIN research_agents ra ON ra.project_id=rp.id AND ra.status<>'archived'
       LEFT JOIN teams t ON t.id=rp.team_id
       JOIN users u ON u.id=rwo.created_by_user_id
-      JOIN research_projects rp ON rp.id=rwo.project_id
-      LEFT JOIN teams t ON t.id=rp.team_id
       LEFT JOIN research_workspace_objects parent ON parent.id=rwo.parent_id
       LEFT JOIN research_workspace_bookmarks rwb ON rwb.object_id=rwo.id
       LEFT JOIN sources s ON s.id=rwb.source_id
@@ -70,6 +68,8 @@ function research_agent_workspace_list(PDO $pdo,array $viewer,array $project,boo
       rwb.canonical_url,rwb.domain,rwb.description,rwb.favicon_url,rwb.preview_image_url,
       s.public_id source_public_id,s.title source_title
       FROM research_workspace_objects rwo
+      JOIN research_projects rp ON rp.id=rwo.project_id
+      LEFT JOIN teams t ON t.id=rp.team_id
       JOIN users u ON u.id=rwo.created_by_user_id
       LEFT JOIN research_workspace_objects parent ON parent.id=rwo.parent_id
       LEFT JOIN research_workspace_bookmarks rwb ON rwb.object_id=rwo.id
