@@ -401,7 +401,7 @@ function research_monitor_summary(PDO $pdo,array $viewer,string $agentPublic): a
     $q=$pdo->prepare("SELECT status,COUNT(*) total FROM research_monitor_watches WHERE research_agent_id=? AND status<>'archived' GROUP BY status");$q->execute([(int)$agent['id']]);$watchCounts=[];foreach($q->fetchAll() as $row)$watchCounts[$row['status']]=(int)$row['total'];
     $q=$pdo->prepare("SELECT status,COUNT(*) total FROM research_monitor_candidates WHERE project_id=? GROUP BY status");$q->execute([$projectId]);$candidateCounts=[];foreach($q->fetchAll() as $row)$candidateCounts[$row['status']]=(int)$row['total'];
     $q=$pdo->prepare("SELECT importance,COUNT(*) total FROM research_monitor_events WHERE project_id=? AND occurred_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) GROUP BY importance");$q->execute([$projectId]);$eventCounts=[];foreach($q->fetchAll() as $row)$eventCounts[$row['importance']]=(int)$row['total'];
-    $q=$pdo->prepare("SELECT MAX(last_checked_at) FROM research_monitor_watches WHERE research_agent_id=?");$q->execute([(int)$agent['id']);$last=$q->fetchColumn();
+    $q=$pdo->prepare("SELECT MAX(last_checked_at) FROM research_monitor_watches WHERE research_agent_id=?");$q->execute([(int)$agent['id']]);$last=$q->fetchColumn();
     return ['agent_public_id'=>$agentPublic,'watches'=>$watchCounts,'candidates'=>$candidateCounts,'events_30d'=>$eventCounts,'last_checked_at'=>$last?:null];
 }
 
