@@ -57,7 +57,7 @@ function vp3_connector_callback(PDO $pdo,array $config,string $code,string $stat
     $stored=is_array($_SESSION['vp3_oauth_state']??null)?$_SESSION['vp3_oauth_state']:[];unset($_SESSION['vp3_oauth_state']);if(empty($stored)||!hash_equals((string)($stored['state']??''),$state)||(int)($stored['created_at']??0)<time()-600)throw new RuntimeException('VP3 connection state expired. Start the connection again.');
     $cfg=vp3_connector_config($config);$tokens=vp3_connector_token_exchange($config,['grant_type'=>'authorization_code','code'=>$code,'redirect_uri'=>$cfg['redirect_uri']]);$identity=vp3_connector_identity_from_token($config,(string)$tokens['access_token']);$mode=(string)$stored['mode'];
     if($mode==='connect'){$uid=(int)($viewer['id']??0);if($uid<1||$uid!==(int)$stored['user_id'])throw new RuntimeException('Sign in to the same Annotated account that started this VP3 connection.');vp3_connector_attach($pdo,$config,$uid,$identity,$tokens);return ['user_id'=>$uid,'mode'=>'connect'];}
-    $remote=(string)$identity['id'];$q=$pdo->prepare("SELECT u.id FROM vp3_connections c JOIN users u ON u.id=c.user_id WHERE c.vp3_user_id=? AND c.status='active' AND u.status='active' LIMIT 1");$q->execute([$remote]);$uid=(int)($q->fetchColumn()?:0);
+    $remote=(string)$identity['id'];$q=$pdo->prepare("SELECT u.id FROM vp3_connections c JOIN users u ON u.id=c.user_id WHERE c.vp3_user_id=? AND u.status='active' LIMIT 1");$q->execute([$remote]);$uid=(int)($q->fetchColumn()?:0);
     if(!$uid){$email=filter_var((string)($identity['email']??''),FILTER_VALIDATE_EMAIL)?strtolower((string)$identity['email']):null;if($email!==null){$q=$pdo->prepare('SELECT id FROM users WHERE email=? AND status="active" LIMIT 1');$q->execute([$email]);if($q->fetchColumn())throw new RuntimeException('An Annotated account already uses this email. Sign in to Annotated first, then choose Connect VP3 Account in Settings.');}
         $display=mb_substr(trim((string)($identity['display_name']??'VP3 User')),0,100);$username=vp3_connector_unique_username($pdo,$remote,$display);$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,password_hash,role,status,live_presence_mode) VALUES(?,?,?,?,NULL,'user','active','cloaked')")->execute([ulid_like(),$username,$display,$email]);$uid=(int)$pdo->lastInsertId();$pdo->prepare('INSERT IGNORE INTO user_preferences(user_id) VALUES(?)')->execute([$uid]);}
     vp3_connector_attach($pdo,$config,$uid,$identity,$tokens);return ['user_id'=>$uid,'mode'=>'login'];
@@ -84,7 +84,10 @@ function vp3_connector_disconnect(PDO $pdo,array $config,int $userId): void {
 }
 function vp3_connector_artifacts(PDO $pdo,array $config,array $viewer): array {return (array)(vp3_connector_api($pdo,$config,(int)$viewer['id'],'/api/connected-site-artifacts.php')['artifacts']??[]);}
 function vp3_connector_artifact(PDO $pdo,array $config,array $viewer,string $remoteId): array {return vp3_connector_api($pdo,$config,(int)$viewer['id'],'/api/connected-site-artifacts.php?id='.rawurlencode($remoteId));}
-function vp3_connector_absolute_source_url(array $config,string $url): string {$url=trim($url);if($url!==''&&str_starts_with($url,'/'))return rtrim((string)vp3_connector_config($config)['base_url'],'/').$url;return $url;}
+function vp3_connector_absolute_source_url(array $config,string $url): string {
+    $cfg=vp3_connector_config($config);$base=rtrim((string)$cfg['base_url'],'/');$url=trim($url);if($url!==''&&str_starts_with($url,'/'))return $base.$url;
+    if(!filter_var($url,FILTER_VALIDATE_URL))return '';$baseParts=parse_url($base);$urlParts=parse_url($url);$same=strtolower((string)($baseParts['scheme']??''))===strtolower((string)($urlParts['scheme']??''))&&strtolower((string)($baseParts['host']??''))===strtolower((string)($urlParts['host']??''))&&(int)($baseParts['port']??0)===(int)($urlParts['port']??0);return $same?$url:'';
+}
 function vp3_connector_text_html(string $text): string {
     $parts=preg_split("/\n{2,}/u",trim($text))?:[];return implode('',array_map(static fn($p)=>'<p>'.nl2br(htmlspecialchars($p,ENT_QUOTES|ENT_HTML5,'UTF-8')).'</p>',$parts));
 }
