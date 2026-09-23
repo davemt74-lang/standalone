@@ -52,7 +52,7 @@ $need('.github/workflows/package-two-zips.yml','bin/release-backup.php','Authori
 $need('tests/ci/package-smoke.sh','Production config.php must never ship','Package smoke must reject production config.php.');
 $need('tests/ci/package-smoke.sh','Embedded Chrome ZIP differs from standalone Chrome ZIP.','Package smoke must compare embedded and standalone Chrome ZIPs.');
 $need('tests/ci/package-smoke.sh','1.1.0','Package smoke must validate V1.1 final identity.');
-$need('tests/ci/package-smoke.sh','Phase 49 release package smoke test passed.','Package smoke must report its explicit Phase 49 gate.');
+$need('tests/ci/package-smoke.sh','Phase 62 V1.1 final release package smoke test passed.','Package smoke must report the stable V1.1 final gate.');
 
 $need('.github/workflows/release-rc.yml',"'v1.1.0-rc*'",'RC workflow must use the V1.1 RC tag family.');
 $avoid('.github/workflows/release-rc.yml',"'v1.0.0-rc*'",'Old V1.0 RC tag family must not remain authoritative.');
@@ -68,8 +68,8 @@ $need('docs/RELEASE-V1.1-RC1.md','Phase 49 release-candidate baseline','Operator
 
 $need('tests/ci/run-full-regression.sh','tests/phase49-release-candidate-ops-db.php','Full regression must include Phase 49 operational DB coverage.');
 $need('tests/phase44-5-workflow-contract.php','tests/phase49-release-candidate-ops-db.php','Workflow hardening must protect Phase 49 full-regression coverage.');
-$need('tests/v1-rc-e2e-contract.php',"V1.1 RC1",'Legacy V1 RC contract must be updated to the V1.1 RC identity.');
-$need('tests/v1-rc-e2e-contract.php',"1.1.0-rc1",'Legacy V1 RC contract must validate the current application version.');
+$need('tests/v1-rc-e2e-contract.php',"V1.1",'Legacy V1 release contract must accept the stable V1.1 identity.');
+$need('tests/v1-rc-e2e-contract.php',"1.1.0",'Legacy V1 release contract must validate the stable application version.');
 
 $doc=(string)file_get_contents($root.'/docs/phase-49-release-candidate-operational-hardening.md');
 foreach(['operations/hardening phase, not a new product','V1.1 RC1','Backup output is explicitly blocked','does **not** execute a destructive restore automatically','package smoke verification'] as $needle)
