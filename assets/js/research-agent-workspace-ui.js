@@ -688,6 +688,15 @@
 
   openButton?.addEventListener('click',openDesktop);closeButton?.addEventListener('click',closeDesktop);
   libraryOpenButton?.addEventListener('click',openLibrary);libraryCloseButton?.addEventListener('click',closeLibrary);
+  libraryViewerBack?.addEventListener('click',()=>{if(libraryDocDirty)saveLibraryDocument().catch(()=>{});showLibraryList();});
+  libraryViewerClose?.addEventListener('click',()=>closeLibrary());
+  libraryDocTitle?.addEventListener('input',()=>{if(!canWrite())return;libraryDocDirty=true;setLibraryDocState('Unsaved');});
+  libraryDocContent?.addEventListener('input',()=>{if(!canWrite())return;libraryDocDirty=true;setLibraryDocState('Unsaved');});
+  libraryDocSave?.addEventListener('click',()=>saveLibraryDocument().catch(()=>{}));
+  canvas.querySelectorAll('[data-research-library-doc-command]').forEach(button=>{
+    button.addEventListener('mousedown',e=>e.preventDefault());
+    button.addEventListener('click',()=>{if(!canWrite()||!libraryDocContent)return;libraryDocContent.focus();try{document.execCommand(String(button.dataset.researchLibraryDocCommand||''),false,null);}catch{}libraryDocDirty=true;setLibraryDocState('Unsaved');});
+  });
   librarySearch?.addEventListener('input',scheduleLibrarySearch);
   canvas.querySelectorAll('[data-research-library-filter]').forEach(button=>button.addEventListener('click',()=>{libraryFilter=String(button.dataset.researchLibraryFilter||'all');canvas.querySelectorAll('[data-research-library-filter]').forEach(b=>b.classList.toggle('is-active',b===button));loadLibraryResults();}));
   [libraryFolder,libraryStatus,libraryDateFrom,libraryDateTo].forEach(control=>control?.addEventListener('change',loadLibraryResults));
@@ -730,7 +739,7 @@
   surface?.addEventListener('dragleave',e=>{if(!surface.contains(e.relatedTarget))surface.classList.remove('is-file-drop');});
   surface?.addEventListener('drop',e=>{if(!canWrite()||!(e.dataTransfer?.files?.length))return;e.preventDefault();surface.classList.remove('is-file-drop');const rect=surface.getBoundingClientRect();uploadFiles(e.dataTransfer.files,e.clientX-rect.left,e.clientY-rect.top,dropFolderId(e));});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&libraryOpen){e.preventDefault();closeLibrary();}});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});if(document.hidden&&libraryDocDirty)saveLibraryDocument().catch(()=>{});});
   document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||e.detail?.document_id||'')));
   document.addEventListener('annotated:research-recording-open',e=>openRecording(String(e.detail?.public_id||e.detail?.recording_id||'')));
 
