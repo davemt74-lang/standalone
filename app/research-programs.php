@@ -72,7 +72,7 @@ function research_program_access(PDO $pdo,array $viewer,string $publicId): ?arra
     $q=$pdo->prepare("SELECT rp.*,ra.public_id agent_public_id,ra.name agent_name,ra.conversation_id,c.public_id conversation_public_id,proj.public_id project_public_id,proj.title project_title
       FROM research_programs rp JOIN research_agents ra ON ra.id=rp.research_agent_id JOIN research_projects proj ON proj.id=rp.project_id JOIN conversations c ON c.id=ra.conversation_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      WHERE rp.public_id=? AND rp.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?)) LIMIT 1");
+      WHERE rp.public_id=? AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?)) LIMIT 1");
     $q->execute([(int)$viewer['id'],trim($publicId),(int)$viewer['id'],(int)$viewer['id']]);return $q->fetch()?:null;
 }
 
@@ -163,7 +163,7 @@ function research_program_update(PDO $pdo,array $viewer,string $publicId,array $
 }
 
 function research_program_set_status(PDO $pdo,array $viewer,string $publicId,string $status): array {
-    $program=research_program_access($pdo,$viewer,$publicId);if(!$program)throw new RuntimeException('Research Program not found.');$agent=research_program_agent($pdo,$viewer,(string)$program['agent_public_id']);research_program_project($pdo,$viewer,$agent);if(!in_array($status,['active','paused','archived'],true))throw new InvalidArgumentException('Invalid Program status.');
+    $program=research_program_access($pdo,$viewer,$publicId);if(!$program)throw new RuntimeException('Research Program not found.');$agent=research_program_agent($pdo,$viewer,(string)$program['agent_public_id']);research_program_project($pdo,$viewer,$agent);if(!in_array($status,['active','paused','archived'],true))throw new InvalidArgumentException('Invalid Program status.');if(($program['status']??'')==='archived'&&$status!=='archived')throw new RuntimeException('Archived Research Programs are historical records and cannot be resumed.');
     $next=$status==='active'?research_program_next_run($program):null;$pdo->prepare("UPDATE research_programs SET status=?,next_run_at=?,updated_at=NOW() WHERE id=?")->execute([$status,$next,(int)$program['id']]);
     if($status!=='active')$pdo->prepare("UPDATE research_program_runs SET status='skipped',claim_token=NULL,lease_expires_at=NULL,quiet_suppressed=1,summary='Program paused or archived before execution.',completed_at=NOW() WHERE program_id=? AND status='queued'")->execute([(int)$program['id']]);
     research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],null,$status==='active'?'resumed':$status,'user',(int)$viewer['id']);if($status==='archived')return array_merge($program,['status'=>'archived','next_run_at'=>null]);return research_program_access($pdo,$viewer,$publicId)??$program;
@@ -278,7 +278,7 @@ function research_program_month_count(PDO $pdo,int $programId): int {
 
 function research_program_enqueue(PDO $pdo,array $program,?int $requestedByUserId,string $trigger,?string $scheduledFor=null): ?string {
     if(!in_array($trigger,['schedule','manual','catch_up','recovery'],true))throw new InvalidArgumentException('Invalid Research Program trigger.');
-    if($trigger!=='manual'&&$program['status']!=='active')return null;if(research_program_active_count($pdo,(int)$program['id'])>=(int)$program['max_concurrent_runs'])return null;if(research_program_month_count($pdo,(int)$program['id'])>=(int)$program['monthly_run_limit'])return null;
+    if(($program['status']??'')==='archived')return null;if($trigger!=='manual'&&$program['status']!=='active')return null;if(research_program_active_count($pdo,(int)$program['id'])>=(int)$program['max_concurrent_runs'])return null;if(research_program_month_count($pdo,(int)$program['id'])>=(int)$program['monthly_run_limit'])return null;
     $slot=$scheduledFor?:gmdate('Y-m-d H:i:s');$triggerKey=hash('sha256',(int)$program['id'].'|'.$trigger.'|'.$slot.($trigger==='manual'?'|'.ulid_like():''));$public=ulid_like();
     $q=$pdo->prepare("SELECT id FROM research_program_runs WHERE program_id=? AND input_snapshot_json IS NOT NULL ORDER BY id DESC LIMIT 1");$q->execute([(int)$program['id']]);$previous=(int)($q->fetchColumn()?:0);
     $configJson=json_encode(research_program_config_array($program),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
@@ -311,6 +311,7 @@ function research_program_claim(PDO $pdo): ?array {
 }
 
 function research_program_create_plan(PDO $pdo,array $program,array $viewer,array $run,array $materialDeltas): array {
+    $existing=$pdo->prepare("SELECT public_id FROM research_task_plans WHERE program_run_id=? LIMIT 1");$existing->execute([(int)$run['id']]);$existingPublic=(string)($existing->fetchColumn()?:'');if($existingPublic!==''){ $row=research_task_plan_access($pdo,$viewer,$existingPublic);if($row)return $row;throw new RuntimeException('Existing Program plan is no longer accessible.');}
     $sequence=1;$q=$pdo->prepare("SELECT COUNT(*) FROM research_program_runs WHERE program_id=? AND id<=?");$q->execute([(int)$program['id'],(int)$run['id']]);$sequence=(int)$q->fetchColumn();$when=(string)($run['scheduled_for']?:gmdate('Y-m-d H:i:s'));$memory=research_program_memory($pdo,$program,12);$deltaText=research_program_delta_summary($materialDeltas,20);$scope=research_program_scope($program);$focus=!empty($scope['topics'])?("\nFocus topics: ".implode(', ',$scope['topics'])."."):"";$tasks=research_program_templates($program);if(!$tasks)$tasks=research_program_default_tasks($program);$tasks=array_slice($tasks,0,(int)$program['max_tasks_per_run']);
     foreach($tasks as &$task){$task['description']=trim((string)$task['description']).$focus."\n\nProgram change set:\n".$deltaText."\n\nProgram continuity:\n".$memory['text'];}unset($task);
     $objective=(string)$program['objective'].$focus."\n\nThis is recurring Program run #".$sequence.". Focus on what changed since the previous run; do not repeat unchanged findings unless needed for context.\n\nStructured change set:\n".$deltaText."\n\nContinuity from prior runs:\n".$memory['text'];
