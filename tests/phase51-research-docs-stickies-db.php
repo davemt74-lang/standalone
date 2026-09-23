@@ -60,6 +60,10 @@ p51(($context['type']??'')==='document'&&str_contains((string)$context['text'],'
 $handoff=object_handoff_resolve($pdo,$researcher,'document',(string)$doc['public_id']);
 p51(($handoff['type']??'')==='document'&&($handoff['team_public_id']??'')===$teamPublic,'Research document handoff preserves Team scope.');
 
+$workspaceRef=workspace_context_object($pdo,$researcher,'document',(string)$doc['public_id']);
+p51(($workspaceRef['type']??'')==='document'&&($workspaceRef['research']['public_id']??'')===$agent['project_public_id'],'Shared workspace continuity resolves document by reference to its Research Agent project.');
+p51(!array_key_exists('content_html',$workspaceRef)&&!array_key_exists('document_plain_text',$workspaceRef),'Workspace continuity stores document references without copying document content.');
+
 $pdo->beginTransaction();
 try{
   $agentDoc=research_agent_workspace_create_document($pdo,$researcher,$project,['title'=>'Agent Brief','document_type'=>'research_brief','body'=>"Finding one.\n\nFinding two.",'summary'=>'Agent-created summary'],true);
