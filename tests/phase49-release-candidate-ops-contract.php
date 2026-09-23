@@ -12,9 +12,9 @@ foreach([
 
 if(is_file($root.'/database/migrations/20260922_047_release_candidate_operational_hardening.sql'))$fail[]='Phase 49 must not introduce a database migration.';
 
-$need('app/release.php',"const ANNOTATED_RELEASE = 'V1.1 RC1';",'Phase 49 must expose the V1.1 RC1 release identity.');
-$need('app/release.php',"const ANNOTATED_RELEASE_VERSION = '1.1.0-rc1';",'Phase 49 application version must be 1.1.0-rc1.');
-$need('app/release.php','const ANNOTATED_RELEASE_PHASE = 49;','Phase 49 release identity must expose its release phase.');
+$need('app/release.php',"const ANNOTATED_RELEASE = 'V1.1';",'V1.1 final cutover must expose the stable release identity.');
+$need('app/release.php',"const ANNOTATED_RELEASE_VERSION = '1.1.0';",'V1.1 final cutover must expose application version 1.1.0.');
+$need('app/release.php','const ANNOTATED_RELEASE_PHASE = 62;','V1.1 final cutover must identify Phase 62.');
 $need('app/release.php',"const ANNOTATED_EXTENSION_VERSION = '0.36.0';",'Phase 49 must retain the unchanged Chrome 0.36.0 identity.');
 $need('app/release.php','function release_worker_specs','Release worker schedule must have one canonical definition.');
 $need('app/release.php',"'evaluation'=>['command'=>'php bin/evaluation-worker.php'",'Evaluation worker must be release-critical.');
@@ -51,7 +51,7 @@ $need('.github/workflows/package-two-zips.yml','tests/ci/package-smoke.sh','Auth
 $need('.github/workflows/package-two-zips.yml','bin/release-backup.php','Authoritative server ZIP must include backup tooling.');
 $need('tests/ci/package-smoke.sh','Production config.php must never ship','Package smoke must reject production config.php.');
 $need('tests/ci/package-smoke.sh','Embedded Chrome ZIP differs from standalone Chrome ZIP.','Package smoke must compare embedded and standalone Chrome ZIPs.');
-$need('tests/ci/package-smoke.sh','1.1.0-rc1','Package smoke must validate V1.1 RC1 identity.');
+$need('tests/ci/package-smoke.sh','1.1.0','Package smoke must validate V1.1 final identity.');
 $need('tests/ci/package-smoke.sh','Phase 49 release package smoke test passed.','Package smoke must report its explicit Phase 49 gate.');
 
 $need('.github/workflows/release-rc.yml',"'v1.1.0-rc*'",'RC workflow must use the V1.1 RC tag family.');
