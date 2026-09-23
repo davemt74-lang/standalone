@@ -18,6 +18,7 @@ $conn=vp3_connector_attach($pdo,$cfg,(int)$owner['id'],$identity,$tokens);
 p63(($conn['status']??'')==='active'&&vp3_connector_decrypt($cfg,(string)$conn['access_token_cipher'])===$tokens['access_token'],'63A credentials are encrypted at rest and decrypt only through the Annotated application key.');
 p63(!str_contains((string)$conn['access_token_cipher'],$tokens['access_token'])&&!str_contains((string)$conn['refresh_token_cipher'],$tokens['refresh_token']),'63A raw VP3 credentials are not stored in connection columns.');
 p63throws(fn()=>vp3_connector_attach($pdo,$cfg,(int)$other['id'],$identity,$tokens),'63B one VP3 identity cannot be attached to two Annotated users.');
+p63(vp3_connector_absolute_source_url($cfg,'https://evil.example.test/source')==='','63D imported evidence cannot claim a source URL outside the configured VP3 origin.');
 
 $agent=research_agent_create($pdo,$owner,['name'=>'VP3 Evidence Agent','description'=>'Validate VP3 meeting material.','cadence'=>'manual','timezone_name'=>'UTC']);
 $project=research_agent_workspace_project($pdo,$owner,(string)$agent['public_id']);p63($project!==null,'63D import target is a normal Research Agent workspace.');
@@ -45,11 +46,12 @@ $q=$pdo->prepare('SELECT COUNT(*) FROM source_versions WHERE source_id=?');$q->e
 p63((int)$q->fetchColumn()===2&&$revisionCount((int)$imp2['transcript_document_object_id'])===2&&$revisionCount((int)$imp2['summary_document_object_id'])===2,'63E changed VP3 material creates a new Source Version and normal document revisions.');
 $q=$pdo->prepare('SELECT target_content_hash FROM source_versions WHERE id=?');$q->execute([(int)$imp2['source_version_id']]);p63(hash_equals($hash2,(string)$q->fetchColumn()),'63E import points at the exact updated VP3 version.');
 
-$hash3=hash('sha256','vp3-version-three-'.$run);vp3_connector_reconcile_imports($pdo,$owner,[['id'=>$remoteId,'version_hash'=>$hash3]]);$row=vp3_connector_import_row($pdo,(int)$project['id'],$remoteId);p63(($row['status']??'')==='update_available','63E library reconciliation persists newer VP3 version availability.');
+$hash3=hash('sha256','vp3-version-three-'.$run);vp3_connector_reconcile_imports($pdo,$owner,[['id'=>$remoteId,'type'=>'transcription','version_hash'=>$hash3]]);$row=vp3_connector_import_row($pdo,(int)$project['id'],$remoteId);p63(($row['status']??'')==='update_available','63E library reconciliation persists newer VP3 version availability.');
 vp3_connector_reconcile_imports($pdo,$owner,[]);$row=vp3_connector_import_row($pdo,(int)$project['id'],$remoteId);p63(($row['status']??'')==='source_unavailable','63E revoked/removed VP3 artifact is marked unavailable rather than deleting evidence.');
 
 vp3_connector_mark_disconnected($pdo,(int)$owner['id']);$disconnected=vp3_connector_connection($pdo,(int)$owner['id'],true);p63(($disconnected['status']??'')==='disconnected'&&empty($disconnected['access_token_cipher'])&&empty($disconnected['refresh_token_cipher']),'63E disconnect wipes future VP3 access credentials.');
 $q=$pdo->prepare('SELECT COUNT(*) FROM vp3_imports WHERE id=?');$q->execute([(int)$imp2['id']]);$importStill=(int)$q->fetchColumn();$q=$pdo->prepare('SELECT COUNT(*) FROM source_versions WHERE source_id=?');$q->execute([(int)$imp2['source_id']]);$versionsStill=(int)$q->fetchColumn();
 p63($importStill===1&&$versionsStill===2&&$revisionCount((int)$imp2['transcript_document_object_id'])===2,'63E disconnect preserves explicitly imported Research evidence and history.');
+$reconnected=vp3_connector_attach($pdo,$cfg,(int)$owner['id'],$identity,$tokens);p63(($reconnected['status']??'')==='active','63B the same user can explicitly re-authorize a previously disconnected VP3 identity.');
 
 echo "Phase 63 VP3 Account Connection & Research Ingestion MariaDB suite passed.\n";
