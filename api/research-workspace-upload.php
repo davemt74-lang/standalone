@@ -45,11 +45,12 @@ try{
     $item=$spec['kind']==='recording'
       ?research_agent_workspace_register_recording($pdo,$viewer,$project,$payload)
       :research_agent_workspace_register_upload($pdo,$viewer,$project,$payload);
+    $storedPath=null;
 
     $x=isset($_POST['x'])?(int)$_POST['x']:null;$y=isset($_POST['y'])?(int)$_POST['y']:null;
-    if($x!==null&&$y!==null)research_agent_workspace_desktop_position_save($pdo,$viewer,$project,(string)$item['object_type'],(string)$item['public_id'],$x,$y,20);
-
-    $storedPath=null;
+    if($x!==null&&$y!==null){
+        try{research_agent_workspace_desktop_position_save($pdo,$viewer,$project,(string)$item['object_type'],(string)$item['public_id'],$x,$y,20);}catch(Throwable $ignored){}
+    }
     json_response(['ok'=>true,'data'=>['item'=>$item]],201);
 }catch(InvalidArgumentException $e){
     if($storedPath&&is_file($storedPath))@unlink($storedPath);
