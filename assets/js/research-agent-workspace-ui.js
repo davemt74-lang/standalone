@@ -515,6 +515,8 @@
   surface?.addEventListener('drop',e=>{if(!canWrite()||!(e.dataTransfer?.files?.length))return;e.preventDefault();surface.classList.remove('is-file-drop');const rect=surface.getBoundingClientRect();uploadFiles(e.dataTransfer.files,e.clientX-rect.left,e.clientY-rect.top,dropFolderId(e));});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});});
   document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||e.detail?.document_id||'')));
+  document.addEventListener('annotated:research-recording-open',e=>openRecording(String(e.detail?.public_id||e.detail?.recording_id||'')));
+
   document.addEventListener('annotated:research-document-created',()=>{if(desktopOpen)loadDesktop(false);});
   document.addEventListener('annotated:research-action-executed',e=>{const type=e.detail?.result?.type;if(desktopOpen&&(type==='document'||type==='sticky'))loadDesktop(false);});
   document.addEventListener('annotated:agent-chat-feed-restored',()=>{if(desktopOpen)closeDesktop();});
