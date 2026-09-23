@@ -393,10 +393,10 @@
     head.append(handle,palette,remove);
     const body=document.createElement('textarea');body.value=String(item.body??item.sticky_body??'');body.maxLength=10000;body.placeholder='Write a note…';body.readOnly=!canWrite();
     body.addEventListener('input',()=>{item.body=body.value;scheduleStickySave(item,{body:body.value});});
-    note.append(head,body);note.addEventListener('pointerdown',()=>bringStickyFront(item,note));
+    note.append(head,body);note.addEventListener('pointerdown',()=>{if(canWrite())bringStickyFront(item,note);});
     if(canWrite()){
       let dragging=false,startX=0,startY=0,left=0,top=0;
-      handle.addEventListener('pointerdown',e=>{e.preventDefault();dragging=true;handle.setPointerCapture(e.pointerId);startX=e.clientX;startY=e.clientY;left=parseInt(note.style.left,10)||0;top=parseInt(note.style.top,10)||0;bringStickyFront(item,note);});
+      handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();dragging=true;handle.setPointerCapture(e.pointerId);startX=e.clientX;startY=e.clientY;left=parseInt(note.style.left,10)||0;top=parseInt(note.style.top,10)||0;bringStickyFront(item,note);});
       handle.addEventListener('pointermove',e=>{if(!dragging)return;const layerRect=stickyLayer.getBoundingClientRect(),maxX=Math.max(0,layerRect.width-note.offsetWidth),maxY=Math.max(0,layerRect.height-note.offsetHeight);const x=Math.max(0,Math.min(maxX,left+e.clientX-startX)),y=Math.max(0,Math.min(maxY,top+e.clientY-startY));note.style.left=x+'px';note.style.top=y+'px';});
       handle.addEventListener('pointerup',e=>{if(!dragging)return;dragging=false;try{handle.releasePointerCapture(e.pointerId);}catch{}const x=parseInt(note.style.left,10)||0,y=parseInt(note.style.top,10)||0;item.position_x=x;item.position_y=y;scheduleStickySave(item,{x,y,z:Number(note.style.zIndex)||1},0);});
       if('ResizeObserver' in window){
@@ -440,7 +440,7 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});});
   document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||e.detail?.document_id||'')));
   document.addEventListener('annotated:research-action-executed',e=>{if(e.detail?.result?.type==='document'){primeWorkspace();}});
-  document.addEventListener('annotated:research-document-created',e=>{primeWorkspace();if(e.detail?.public_id)openDocument(String(e.detail.public_id));});
+  document.addEventListener('annotated:research-document-created',()=>{primeWorkspace();});
   document.addEventListener('annotated:agent-chat-feed-restored',()=>{if(activeDocument)closeDocument(true);});
   document.addEventListener('click',e=>{
     const share=e.target.closest('[data-bookmark-share-team]');if(!share)return;
