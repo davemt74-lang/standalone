@@ -126,15 +126,30 @@ function research_agent_create(PDO $pdo,array $viewer,array $input,bool $isDefau
 
 function research_agent_default(PDO $pdo,array $viewer): ?array {
     if(!research_agent_ready($pdo))return null;
-    $q=$pdo->prepare("SELECT public_id FROM research_agents WHERE owner_user_id=? AND is_default=1 AND status<>'archived' ORDER BY id ASC LIMIT 1");
+    $q=$pdo->prepare("SELECT public_id FROM research_agents WHERE owner_user_id=? AND is_default=1 ORDER BY id ASC LIMIT 1");
     $q->execute([(int)$viewer['id']]);
     $public=(string)($q->fetchColumn()?:'');
     return $public!==''?research_agent_access($pdo,$viewer,$public):null;
 }
 
+function research_agent_activate_default(PDO $pdo,array $viewer,array $agent): array {
+    if(($agent['status']??'active')!=='active'){
+        $pdo->prepare("UPDATE research_agents SET status='active',updated_at=NOW() WHERE id=? AND owner_user_id=?")
+            ->execute([(int)$agent['id'],(int)$viewer['id']]);
+        $pdo->prepare("UPDATE research_projects SET status='active',updated_at=NOW() WHERE id=?")
+            ->execute([(int)$agent['project_id']]);
+        if(!empty($agent['automation_id'])){
+            $pdo->prepare("UPDATE research_automations SET status='active',updated_at=NOW() WHERE id=? AND user_id=?")
+                ->execute([(int)$agent['automation_id'],(int)$viewer['id']]);
+        }
+        $agent=research_agent_access($pdo,$viewer,(string)$agent['public_id'])??$agent;
+    }
+    return $agent;
+}
+
 function research_agent_ensure_default(PDO $pdo,array $viewer): ?array {
     if(!research_agent_ready($pdo)||!agent_chat_available($pdo,$viewer))return null;
-    if($existing=research_agent_default($pdo,$viewer))return $existing;
+    if($existing=research_agent_default($pdo,$viewer))return research_agent_activate_default($pdo,$viewer,$existing);
     try{
         return research_agent_create($pdo,$viewer,[
             'name'=>'Research Agent',
@@ -145,7 +160,8 @@ function research_agent_ensure_default(PDO $pdo,array $viewer): ?array {
         ],true);
     }catch(PDOException $e){
         if((string)$e->getCode()!=='23000')throw $e;
-        return research_agent_default($pdo,$viewer);
+        $existing=research_agent_default($pdo,$viewer);
+        return $existing?research_agent_activate_default($pdo,$viewer,$existing):null;
     }
 }
 
