@@ -25,10 +25,15 @@ $need('app/research-agent-workspace.php','This document changed in another sessi
 $need('app/research-agent-workspace.php','function research_agent_workspace_post_document_to_chat','Agent-created documents must be posted into the owning Agent conversation.');
 $need('app/research-agent-workspace.php',"'agent_document_created'",'Agent document delivery must emit a durable conversation event.');
 $need('app/agent-actions.php',"'research.create_document'",'Governed Agent actions must support Research document creation.');
+$need('app/agent-actions.php',"'research.create_sticky'",'Research Agents must be able to propose floating stickies through governed actions.');
+$need('app/agent-actions.php','You are no longer a member of the Team that owns this Research Agent.','Pending Team Research Agent actions must re-check live Team membership.');
 $need('app/agent-actions.php','research_agent_workspace_post_document_to_chat','Confirmed Agent document creation must post a new chat document card.');
 $need('app/conversations.php','object_handoff_message_attachments','Agent conversations must resolve durable object attachments.');
 $need('app/object-handoff.php',"'document'=>'Research document'",'Research documents must be first-class handoff objects.');
 $need('app/agent-chat.php',"if(\$type==='document'",'Research documents must be valid Agent context.');
+$need('app/workspace-context.php',"if(\$type==='document'",'Document workspace continuity must resolve by reference.');
+$avoid('app/workspace-context.php','content_html','Workspace continuity must not persist Research document HTML.');
+$avoid('app/workspace-context.php','document_plain_text','Workspace continuity must not persist Research document text.');
 $need('api/research-workspace-objects.php',"\$action==='save_document'",'Workspace API must expose document autosave.');
 $need('api/research-workspace-objects.php',"\$action==='restore_document_revision'",'Workspace API must expose revision restore.');
 $need('api/research-workspace-objects.php',"\$action==='update_sticky'",'Workspace API must persist floating sticky layout changes.');
