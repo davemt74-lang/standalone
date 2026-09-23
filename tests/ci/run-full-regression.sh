@@ -73,6 +73,7 @@ db_tests=(
   tests/phase56-continuous-research-monitoring-db.php
   tests/phase57-research-tasks-plans-deliverables-db.php
   tests/phase58-research-programs-recurring-intelligence-db.php
+  tests/phase59-collaborative-review-approval-publishing-db.php
 )
 
 for test_file in "${db_tests[@]}"; do

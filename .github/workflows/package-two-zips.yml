@@ -87,6 +87,14 @@ jobs:
           test -f package-website/api/research-programs.php
           test -f package-website/worker/research-program-worker.php
           test -f package-website/research-programs.php
+          test -f package-website/database/migrations/20260923_057_collaborative_review_approval_publishing.sql
+          test -f package-website/docs/phase-59-collaborative-review-approval-publishing.md
+          test -f package-website/app/research-publishing.php
+          test -f package-website/api/research-publications.php
+          test -f package-website/research-publications.php
+          test -f package-website/research-reviews.php
+          test -f package-website/tests/phase59-collaborative-review-approval-publishing-contract.php
+          test -f package-website/tests/phase59-collaborative-review-approval-publishing-db.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

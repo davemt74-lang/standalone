@@ -18,7 +18,7 @@ $must('worker/research-task-worker.php',['program_run_id','research_program_task
 $must('api/research-programs.php',['run_now','run_detail','pause','resume','archive'],'Phase 58 API');
 $must('research-programs.php',['RECURRING INTELLIGENCE','Run now','PROGRAM CONTINUITY','RUN HISTORY','Token budget / run'],'Phase 58 Control Center');
 $must('app/agent-actions.php',["'research.create_program'","research_program_create"],'Phase 58 governed Agent action');
-$must('home.php',['data-research-library-filter="programs"','app.css?v=58.0','research-agent-workspace-ui.js?v=58.0'],'Phase 58 Home/Library');
+$must('home.php',['data-research-library-filter="programs"','app.css?v=59.0','research-agent-workspace-ui.js?v=59.0'],'Phase 58 Home/Library');
 $must('assets/js/research-agent-workspace-ui.js',['researchProgramUrl','renderLibraryPrograms','loadLibraryPrograms'],'Phase 58 Library JS');
 $must('app/cognitive-feed.php',['research_program_cognitive_observations'],'Phase 58 Now integration');
 $must('app/notifications.php',["\$type==='research_program'","/research-programs.php?agent="],'Phase 58 notification routing');

@@ -27,6 +27,7 @@
   const libraryDocState=canvas.querySelector('[data-research-library-doc-state]');
   const libraryDocContent=canvas.querySelector('[data-research-library-doc-content]');
   const libraryDocSave=canvas.querySelector('[data-research-library-doc-save]');
+  const libraryDocPublish=canvas.querySelector('[data-research-library-doc-publish]');
   const libraryFilePanel=canvas.querySelector('[data-research-library-file-panel]');
   const libraryFilePreview=canvas.querySelector('[data-research-library-file-preview]');
   const libraryFileMeta=canvas.querySelector('[data-research-library-file-meta]');
@@ -55,6 +56,7 @@
   const documentTitle=desktop.querySelector('[data-research-document-title]');
   const documentEditor=desktop.querySelector('[data-research-document-editor]');
   const documentSaveState=desktop.querySelector('[data-research-document-save-state]');
+  const documentPublish=desktop.querySelector('[data-research-document-publish]');
   const documentHistoryPanel=desktop.querySelector('[data-research-document-history-panel]');
   const documentHistoryList=desktop.querySelector('[data-research-document-history-list]');
   const fileInput=desktop.querySelector('[data-research-desktop-file-input]');
@@ -354,6 +356,14 @@
     if(libraryViewerTitle)libraryViewerTitle.textContent=libraryResultLabel(item);
   }
   function setLibraryDocState(text,error=false){if(!libraryDocState)return;libraryDocState.textContent=text;libraryDocState.classList.toggle('is-error',!!error);}
+  function publicationUrl(publicId){return '/research-publications.php?doc='+encodeURIComponent(String(publicId||''));}
+  async function publishLibraryDocument(){
+    if(!libraryActiveItem||libraryActiveItem.object_type!=='document')return;
+    if(libraryDocDirty)await saveLibraryDocument();location.href=publicationUrl(libraryActiveItem.public_id);
+  }
+  async function publishDesktopDocument(){
+    if(!activeDocument)return;if(documentDirty)await saveDocument(true);location.href=publicationUrl(activeDocument.public_id);
+  }
   async function saveLibraryDocument(){
     if(!libraryActiveItem||libraryActiveItem.object_type!=='document'||!canWrite()||libraryDocSaving||!libraryDocDirty)return;
     libraryDocSaving=true;setLibraryDocState('Saving…');
@@ -804,6 +814,7 @@
   libraryDocTitle?.addEventListener('input',()=>{if(!canWrite())return;libraryDocDirty=true;setLibraryDocState('Unsaved');});
   libraryDocContent?.addEventListener('input',()=>{if(!canWrite())return;libraryDocDirty=true;setLibraryDocState('Unsaved');});
   libraryDocSave?.addEventListener('click',()=>saveLibraryDocument().catch(()=>{}));
+  libraryDocPublish?.addEventListener('click',()=>publishLibraryDocument().catch(err=>setLibraryDocState(err.message||'Unable to prepare publication.',true)));
   canvas.querySelectorAll('[data-research-library-doc-command]').forEach(button=>{
     button.addEventListener('mousedown',e=>e.preventDefault());
     button.addEventListener('click',()=>{if(!canWrite()||!libraryDocContent)return;libraryDocContent.focus();try{document.execCommand(String(button.dataset.researchLibraryDocCommand||''),false,null);}catch{}libraryDocDirty=true;setLibraryDocState('Unsaved');});
@@ -846,6 +857,7 @@
   desktop.querySelector('[data-doc-table]')?.addEventListener('click',insertDocumentTable);
   desktop.querySelector('[data-doc-ask-selection]')?.addEventListener('click',()=>{if(activeDocument)askAgentAbout('document',activeDocument.public_id,documentTitle.value||activeDocument.title||'document',selectedDocumentText());});
   desktop.querySelector('[data-doc-sticky-selection]')?.addEventListener('click',()=>{const text=selectedDocumentText();if(text)createSticky(text);});
+  documentPublish?.addEventListener('click',()=>publishDesktopDocument().catch(err=>setDocumentSaveState(err.message||'Unable to prepare publication.',true)));
 
   surface?.addEventListener('dragover',e=>{if(!canWrite()||![...(e.dataTransfer?.types||[])].includes('Files'))return;e.preventDefault();surface.classList.add('is-file-drop');if(e.dataTransfer)e.dataTransfer.dropEffect='copy';});
   surface?.addEventListener('dragleave',e=>{if(!surface.contains(e.relatedTarget))surface.classList.remove('is-file-drop');});

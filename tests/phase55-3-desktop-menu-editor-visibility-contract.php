@@ -10,8 +10,8 @@ $fail=[];
 foreach([
   'data-research-desktop-library'=>'Desktop toolbar must expose one Library control.',
   'class="researchDesktopLibrary"'=>'Desktop Library control must be part of the canonical desktop action bar.',
-  '/assets/css/app.css?v=58.0'=>'Home must request the Phase 58 CSS cache key.',
-  '/assets/js/research-agent-workspace-ui.js?v=58.0'=>'Home must request the Phase 58 Research workspace JS cache key.',
+  '/assets/css/app.css?v=59.0'=>'Home must request the Phase 59 CSS cache key.',
+  '/assets/js/research-agent-workspace-ui.js?v=59.0'=>'Home must request the Phase 59 Research workspace JS cache key.',
 ] as $needle=>$message)if(!str_contains($home,$needle))$fail[]=$message;
 
 foreach([
