@@ -195,6 +195,7 @@ function research_review_respond(PDO $pdo,array $viewer,string $publicId,string 
     if(function_exists('data_attribution_try_capture_review_response'))data_attribution_try_capture_review_response($pdo,(int)$viewer['id'],$public);
     if((int)$review['requested_by_user_id']!==(int)$viewer['id'])research_review_notify($pdo,(int)$review['requested_by_user_id'],(int)$viewer['id'],'research_review_response',$review,(string)($viewer['display_name']?:$viewer['username']).' responded to '.$review['title'].': '.(research_review_decisions()[$decision]??$decision),['event_public_id'=>$public]);
     research_review_record_outcome($pdo,$viewer,$review,$decision,'Research review response: '.(research_review_decisions()[$decision]??$decision),$comment,['response_public_id'=>$public]);
+    if(function_exists('research_publication_sync_review'))research_publication_sync_review($pdo,$viewer,$publicId);
     return research_review_access($pdo,$viewer,$publicId)??[];
 }
 
@@ -211,12 +212,13 @@ function research_review_complete(PDO $pdo,array $viewer,string $publicId): arra
     $pdo->prepare("UPDATE research_reviews SET status='completed',completed_at=NOW(),completion_json=?,updated_at=NOW() WHERE id=? AND status='open'")->execute([json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$review['id']]);research_review_event($pdo,(int)$review['id'],'completed',(int)$viewer['id'],$snapshot);
     foreach($agg['assignments'] as $a)if((int)$a['reviewer_user_id']!==(int)$viewer['id'])research_review_notify($pdo,(int)$a['reviewer_user_id'],(int)$viewer['id'],'research_review_completed',$review,'Review completed: '.$review['title'],['consensus'=>$agg['consensus']]);
     research_review_record_outcome($pdo,$viewer,$review,'completed','Research review completed',$agg['consensus'],['completed_at'=>$snapshot['completed_at'],'consensus'=>$agg['consensus'],'counts'=>$agg['counts']]);
+    if(function_exists('research_publication_sync_review'))research_publication_sync_review($pdo,$viewer,$publicId);
     return research_review_access($pdo,$viewer,$publicId)??[];
 }
 
 function research_review_cancel(PDO $pdo,array $viewer,string $publicId): bool {
     $review=research_review_access($pdo,$viewer,$publicId);if(!$review)return false;if($review['status']!=='open')return false;if(!research_review_can_manage($viewer,$review))throw new RuntimeException('You cannot cancel this review.');
-    $q=$pdo->prepare("UPDATE research_reviews SET status='cancelled',cancelled_at=NOW(),updated_at=NOW() WHERE id=? AND status='open'");$q->execute([$review['id']]);if($q->rowCount()!==1)return false;research_review_event($pdo,(int)$review['id'],'cancelled',(int)$viewer['id']);return true;
+    $q=$pdo->prepare("UPDATE research_reviews SET status='cancelled',cancelled_at=NOW(),updated_at=NOW() WHERE id=? AND status='open'");$q->execute([$review['id']]);if($q->rowCount()!==1)return false;research_review_event($pdo,(int)$review['id'],'cancelled',(int)$viewer['id']);if(function_exists('research_publication_sync_review'))research_publication_sync_review($pdo,$viewer,$publicId);return true;
 }
 
 function research_review_restart(PDO $pdo,array $viewer,string $publicId,?string $dueAt=null): array {
