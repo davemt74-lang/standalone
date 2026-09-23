@@ -2175,8 +2175,6 @@
 .researchAgentCanvasTopActions .agentChatPanelClose{position:static!important;inset:auto!important;width:34px!important;height:34px!important;display:grid!important;place-items:center!important;border:1px solid #d6d9de!important;border-radius:9px!important;background:#fff!important;color:#222!important;font-size:18px!important;line-height:1!important;box-shadow:0 1px 2px rgba(0,0,0,.04)!important}
 .researchDesktopOpenButton{height:34px!important;padding:0 12px!important;border:1px solid #d6d9de!important;border-radius:9px!important;background:#fff!important;color:#222!important;font-size:11px!important;font-weight:800!important;letter-spacing:.08em!important;box-shadow:0 1px 2px rgba(0,0,0,.04)!important}
 .researchDesktopOpenButton:hover,.researchAgentCanvasTopActions .agentChatPanelClose:hover{background:#f4f5f6!important}
-.researchAgentChatHeader{padding-right:145px!important}
-.researchAgentChatHeader .researchAgentCanvasIdentity{gap:3px}
 
 .researchDesktop{position:absolute;inset:0;z-index:60;display:grid;grid-template-rows:58px minmax(0,1fr) 28px;background:#eef1f4;color:#1f2328;overflow:hidden}
 .researchDesktop[hidden]{display:none!important}
@@ -2242,10 +2240,6 @@
 .homeAgentCanvas.researchDesktopOpen>.researchAgentCanvasTopActions{
   display:none!important;
 }
-.homeAgentCanvas.researchDesktopOpen>.researchAgentChatHeader{
-  visibility:hidden!important;
-  pointer-events:none!important;
-}
 .homeAgentCanvas.researchDesktopOpen .researchDesktop{
   width:100%!important;
   max-width:none!important;
@@ -2309,3 +2303,207 @@
 
 .researchDesktopIcon[data-object-type="folder"].is-folder-drop-target{outline:2px solid #58636d!important;outline-offset:5px!important;background:rgba(255,255,255,.7)!important;border-radius:8px!important}
 .researchDesktopIcon[data-object-type="folder"].is-folder-drop-target .researchDesktopIconGraphic{transform:translateY(-2px) scale(1.08);filter:drop-shadow(0 3px 5px rgba(0,0,0,.18))}
+
+
+/* Phase 53.1 — Headerless Research Agent canvas + full-height Library drawer */
+.researchAgentCanvasTopActions{
+  position:sticky!important;
+  top:10px!important;
+  right:auto!important;
+  z-index:9500!important;
+  width:max-content!important;
+  margin:10px 12px -44px auto!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:7px!important;
+  pointer-events:auto!important;
+}
+.researchAgentCanvasTopActions .researchLibraryOpenButton,
+.researchAgentCanvasTopActions .researchDesktopOpenButton,
+.researchAgentCanvasTopActions .agentChatPanelClose{
+  appearance:none!important;
+  position:static!important;
+  inset:auto!important;
+  height:34px!important;
+  min-width:34px!important;
+  padding:0 11px!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid #d4d8dd!important;
+  border-radius:9px!important;
+  background:rgba(255,255,255,.94)!important;
+  color:#20252a!important;
+  box-shadow:0 2px 8px rgba(23,28,33,.08)!important;
+  backdrop-filter:blur(10px)!important;
+  font-family:inherit!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  letter-spacing:.06em!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+.researchAgentCanvasTopActions .agentChatPanelClose{
+  width:34px!important;
+  padding:0!important;
+  font-size:18px!important;
+  font-weight:500!important;
+  letter-spacing:0!important;
+}
+.researchAgentCanvasTopActions .researchLibraryOpenButton:hover,
+.researchAgentCanvasTopActions .researchDesktopOpenButton:hover,
+.researchAgentCanvasTopActions .agentChatPanelClose:hover{
+  background:#f3f5f6!important;
+}
+.researchAgentCanvasHeader,
+.researchAgentChatHeader{
+  display:none!important;
+}
+
+.researchLibraryDrawer{
+  position:fixed!important;
+  top:0!important;
+  right:0!important;
+  bottom:0!important;
+  z-index:30000!important;
+  width:min(430px,100vw)!important;
+  height:100dvh!important;
+  max-height:none!important;
+  display:grid!important;
+  grid-template-rows:auto auto auto minmax(0,1fr) auto!important;
+  overflow:hidden!important;
+  background:#fff!important;
+  color:#20252a!important;
+  border-left:1px solid #d9dde1!important;
+  box-shadow:-18px 0 48px rgba(20,26,32,.18)!important;
+}
+.researchLibraryDrawer[hidden]{display:none!important}
+.researchLibraryDrawerHeader{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:16px!important;
+  min-height:64px!important;
+  padding:12px 14px 10px!important;
+  border-bottom:1px solid #e3e6e9!important;
+  background:#fff!important;
+}
+.researchLibraryDrawerHeader>div{display:grid;gap:2px;min-width:0}
+.researchLibraryDrawerHeader .eyebrow{font-size:9px!important;letter-spacing:.1em!important}
+.researchLibraryDrawerHeader strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.researchLibraryDrawerHeader>button{
+  appearance:none!important;
+  width:34px!important;
+  height:34px!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid #d7dbe0!important;
+  border-radius:8px!important;
+  background:#fff!important;
+  color:#272c31!important;
+  font-size:18px!important;
+  line-height:1!important;
+}
+.researchLibrarySearch{padding:10px 12px 8px;background:#fff}
+.researchLibrarySearch input{
+  width:100%!important;
+  height:36px!important;
+  padding:0 11px!important;
+  border:1px solid #d9dde2!important;
+  border-radius:8px!important;
+  outline:none!important;
+  background:#f8f9fa!important;
+  color:#252a2f!important;
+  box-shadow:none!important;
+  font:inherit!important;
+  font-size:11px!important;
+}
+.researchLibrarySearch input:focus{border-color:#8e969f!important;background:#fff!important}
+.researchLibraryTabs{
+  display:flex!important;
+  gap:5px!important;
+  padding:0 12px 10px!important;
+  overflow-x:auto!important;
+  scrollbar-width:none!important;
+  border-bottom:1px solid #eceef0!important;
+  background:#fff!important;
+}
+.researchLibraryTabs::-webkit-scrollbar{display:none}
+.researchLibraryTabs button{
+  appearance:none!important;
+  flex:0 0 auto!important;
+  height:28px!important;
+  padding:0 8px!important;
+  border:1px solid #dce0e4!important;
+  border-radius:999px!important;
+  background:#fff!important;
+  color:#596169!important;
+  font-size:9px!important;
+  font-weight:750!important;
+  white-space:nowrap!important;
+}
+.researchLibraryTabs button.is-active{
+  border-color:#252b31!important;
+  background:#252b31!important;
+  color:#fff!important;
+}
+.researchLibraryDrawerBody{
+  min-height:0!important;
+  overflow:auto!important;
+  padding:8px!important;
+  background:#f7f8f9!important;
+}
+.researchLibraryItem{
+  appearance:none!important;
+  width:100%!important;
+  display:grid!important;
+  grid-template-columns:36px minmax(0,1fr)!important;
+  gap:9px!important;
+  align-items:start!important;
+  padding:9px!important;
+  margin:0 0 5px!important;
+  border:1px solid transparent!important;
+  border-radius:8px!important;
+  background:#fff!important;
+  color:#252a2f!important;
+  text-align:left!important;
+  box-shadow:none!important;
+}
+.researchLibraryItem:hover{border-color:#d8dde2!important;background:#fcfcfd!important}
+.researchLibraryItemIcon{width:34px;height:34px;display:grid;place-items:center;font-size:22px}
+.researchLibraryItemCopy{min-width:0;display:grid;gap:2px}
+.researchLibraryItemCopy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.researchLibraryItemCopy small{color:#7a828a;font-size:9px}
+.researchLibraryItemPreview{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;color:#626a72;font-size:9px;line-height:1.35}
+.researchLibraryEmpty{padding:34px 14px;text-align:center;color:#7b838b;font-size:11px}
+.researchLibraryDrawerFooter{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  min-height:48px!important;
+  padding:8px 12px!important;
+  border-top:1px solid #e1e4e7!important;
+  background:#fff!important;
+  color:#7a828a!important;
+  font-size:9px!important;
+}
+.researchLibraryDrawerFooter button{
+  appearance:none!important;
+  height:30px!important;
+  padding:0 10px!important;
+  border:1px solid #d6dbe0!important;
+  border-radius:7px!important;
+  background:#fff!important;
+  color:#30363c!important;
+  font-size:9px!important;
+  font-weight:750!important;
+}
+.researchDesktopSticky.is-library-focus{outline:3px solid rgba(45,55,65,.35);outline-offset:3px}
+@media(max-width:640px){
+  .researchLibraryDrawer{width:100vw!important}
+  .researchAgentCanvasTopActions{top:8px!important;margin-right:8px!important}
+  .researchAgentCanvasTopActions .researchLibraryOpenButton,
+  .researchAgentCanvasTopActions .researchDesktopOpenButton{padding:0 8px!important;font-size:9px!important}
+}
