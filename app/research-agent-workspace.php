@@ -363,7 +363,7 @@ function research_agent_workspace_save_document(PDO $pdo,array $viewer,string $p
         research_agent_workspace_document_snapshot($pdo,(int)$obj['id'],$title,$html,$plain,$summary!==''?$summary:null,(int)$viewer['id'],$next);
         if($ownsTransaction)$pdo->commit();
     }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
-    return research_agent_workspace_object($pdo,$viewer,$publicId,false)??$obj;
+    $saved=research_agent_workspace_object($pdo,$viewer,$publicId,false)??$obj;if(function_exists('research_publication_document_changed'))research_publication_document_changed($pdo,$viewer,$publicId);return $saved;
 }
 
 function research_agent_workspace_document_revisions(PDO $pdo,array $viewer,string $publicId,int $limit=30): array {
