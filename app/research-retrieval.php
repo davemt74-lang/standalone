@@ -289,9 +289,25 @@ function research_retrieval_folder_scope(PDO $pdo,int $projectId,string $folderP
     return $public;
 }
 
+function research_retrieval_annotation_allowed(PDO $pdo,array $viewer,string $publicId): bool {
+    $uid=(int)($viewer['id']??0);$admin=(($viewer['role']??'')==='admin');
+    $q=$pdo->prepare("SELECT a.user_id,a.visibility,a.team_id,a.status,COALESCE(s.moderation_status,'visible') source_moderation_status
+      FROM annotations a JOIN sources s ON s.id=a.source_id WHERE a.public_id=? LIMIT 1");
+    $q->execute([$publicId]);$row=$q->fetch();if(!$row)return false;
+    if(($row['source_moderation_status']??'visible')==='restricted'&&!$admin)return false;
+    if($admin||(int)$row['user_id']===$uid)return true;
+    if(($row['status']??'')!=='published')return false;
+    if(($row['visibility']??'')==='public')return true;
+    if(($row['visibility']??'')==='team'&&!empty($row['team_id'])){
+        $m=$pdo->prepare('SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1');$m->execute([(int)$row['team_id'],$uid]);
+        return (bool)$m->fetchColumn();
+    }
+    return false;
+}
+
 function research_retrieval_result_allowed(PDO $pdo,array $viewer,array $row): bool {
     $type=(string)($row['object_type']??'');$id=(string)($row['object_public_id']??'');
-    if($type==='annotation')return annotation_access($pdo,$id,$viewer)!==null;
+    if($type==='annotation')return research_retrieval_annotation_allowed($pdo,$viewer,$id);
     if(in_array($type,['document','bookmark','sticky','upload','recording'],true))return research_agent_workspace_object($pdo,$viewer,$id,false)!==null;
     if($type==='source')return source_access($pdo,$id,$viewer)!==null;
     return false;
