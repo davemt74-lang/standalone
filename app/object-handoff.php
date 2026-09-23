@@ -103,7 +103,7 @@ function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publ
 function object_handoff_can_share_to_conversation(PDO $pdo,array $viewer,array $conversation,string $type,string $publicId): bool {
     $object=object_handoff_resolve($pdo,$viewer,$type,$publicId);if(!$object)return false;
     if(($conversation['conversation_type']??'')!=='team'||empty($conversation['team_id']))return false;
-    $conversationTeamPublic=trim($conversationTeamPublic);
+    $conversationTeamPublic=trim((string)($conversation['team_public_id']??''));
     if($conversationTeamPublic===''){
         $tq=$pdo->prepare('SELECT public_id FROM teams WHERE id=? LIMIT 1');$tq->execute([(int)$conversation['team_id']]);
         $conversationTeamPublic=trim((string)($tq->fetchColumn()?:''));
