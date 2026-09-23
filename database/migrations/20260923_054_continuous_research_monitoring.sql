@@ -1,3 +1,7 @@
+-- Expand the existing source-history lifecycle so a previously unavailable source can be recorded as restored.
+ALTER TABLE source_change_events
+  MODIFY COLUMN change_type ENUM('updated','edited','moved','unavailable','restored') NOT NULL;
+
 -- Annotated Phase 56 — Continuous Research Monitoring & External Research Intelligence
 
 CREATE TABLE IF NOT EXISTS research_monitor_watches (
