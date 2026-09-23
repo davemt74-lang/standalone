@@ -1,0 +1,121 @@
+name: Annotated V1.1 Final Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v1.1.0'
+
+permissions:
+  contents: read
+
+jobs:
+  full-regression:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: annotated_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    strategy:
+      matrix:
+        php-version: ['8.1', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify final release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin annotated-v1-1-development:refs/remotes/origin/annotated-v1-1-development
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/annotated-v1-1-development
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate stable V1.1 identity
+        run: |
+          php -r 'require "app/release.php"; if(ANNOTATED_RELEASE!=="V1.1"||ANNOTATED_RELEASE_VERSION!=="1.1.0"||ANNOTATED_RELEASE_PHASE!==62||ANNOTATED_RELEASE_CHANNEL!=="stable"||ANNOTATED_EXTENSION_VERSION!=="0.36.0") exit(1);'
+          php -r '$m=json_decode(file_get_contents("extension/manifest.json"),true,512,JSON_THROW_ON_ERROR); if(($m["manifest_version"]??0)!==3||($m["version"]??"")!=="0.36.0") exit(1);'
+      - name: PHP syntax
+        run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
+      - name: Extension JavaScript syntax
+        run: find extension assets/js -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Complete historical regression
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: bash tests/ci/run-full-regression.sh
+      - name: Supported baseline upgrade rehearsal
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_release_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE62_RESET_DBS: '1'
+        run: php tests/ci/phase62-upgrade-supported-baselines.php
+
+  mysql8-release:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: annotated_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify final release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin annotated-v1-1-development
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/annotated-v1-1-development
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - name: MySQL 8 final release suite
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: |
+          php tests/install-db.php
+          php tests/ci/prepare-current-schema.php
+          php tests/phase62-v1-1-final-release-db.php
+          php tests/phase62-v1-1-soak-db.php
+      - name: MySQL 8 supported baseline upgrades
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_release_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE62_RESET_DBS: '1'
+        run: php tests/ci/phase62-upgrade-supported-baselines.php
+
+  package:
+    needs: [full-regression, mysql8-release]
+    uses: ./.github/workflows/package-two-zips.yml
