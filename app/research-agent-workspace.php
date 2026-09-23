@@ -21,7 +21,7 @@ function research_agent_workspace_project(PDO $pdo,array $viewer,string $agentPu
 }
 
 function research_agent_workspace_require_write(array $project): void {
-    if(!project_can_write($project))throw new RuntimeException('You have view-only access to this Research workspace.');
+    if(!in_array((string)($project['access_role']??''),['owner','admin','researcher'],true))throw new RuntimeException('You have view-only access to this Research workspace.');
 }
 
 function research_agent_workspace_parent(PDO $pdo,int $projectId,string $parentPublic=''): ?array {
@@ -54,7 +54,9 @@ function research_agent_workspace_object(PDO $pdo,array $viewer,string $publicId
       WHERE rwo.public_id=? LIMIT 1");
     $q->execute([$publicId]);$row=$q->fetch();if(!$row)return null;
     if(!$includeTrashed&&($row['status']??'')!=='active')return null;
-    if(!project_access($pdo,(int)$viewer['id'],(string)$row['project_public_id']))return null;
+    if(!empty($row['research_agent_public_id'])){
+        if(!research_agent_access($pdo,$viewer,(string)$row['research_agent_public_id']))return null;
+    }elseif(!project_access($pdo,(int)$viewer['id'],(string)$row['project_public_id']))return null;
     $row['metadata']=json_decode((string)($row['metadata_json']??''),true)?:[];
     return $row;
 }
@@ -214,7 +216,7 @@ function research_agent_workspace_bookmark_feed(PDO $pdo,array $viewer,int $limi
       LEFT JOIN research_workspace_objects parent ON parent.id=rwo.parent_id
       LEFT JOIN sources s ON s.id=rwb.source_id
       LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
-      WHERE rwo.status='active' AND (rp.owner_user_id=? OR tm.user_id=?)
+      WHERE rwo.status='active' AND ((rp.team_id IS NULL AND rp.owner_user_id=?) OR (rp.team_id IS NOT NULL AND tm.user_id=?))
       ORDER BY rwo.created_at DESC,rwo.id DESC LIMIT ".$limit);
     $q->execute([$uid,$uid,$uid]);return $q->fetchAll()?:[];
 }
