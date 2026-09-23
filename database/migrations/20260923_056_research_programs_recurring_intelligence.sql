@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS research_program_runs (
   project_id BIGINT UNSIGNED NOT NULL,
   requested_by_user_id BIGINT UNSIGNED NULL,
   previous_run_id BIGINT UNSIGNED NULL,
+  program_revision INT UNSIGNED NOT NULL,
+  program_config_json JSON NOT NULL,
   trigger_type ENUM('schedule','manual','catch_up','recovery') NOT NULL DEFAULT 'schedule',
   trigger_key CHAR(64) NOT NULL UNIQUE,
   scheduled_for DATETIME NULL,
