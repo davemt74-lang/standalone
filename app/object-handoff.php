@@ -8,12 +8,29 @@ declare(strict_types=1);
  * access and never become a second copy of the underlying object.
  */
 function object_handoff_types(): array {
-    return ['annotation'=>'Annotation'];
+    return ['annotation'=>'Annotation','bookmark'=>'Bookmark'];
 }
 
 function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publicId): ?array {
     $type=strtolower(trim($type));$publicId=trim($publicId);
-    if($type!=='annotation'||$publicId==='')return null;
+    if($publicId==='')return null;
+    if($type==='bookmark'&&function_exists('research_agent_workspace_object')){
+        $row=research_agent_workspace_object($pdo,$viewer,$publicId,false);
+        if(!$row||($row['object_type']??'')!=='bookmark')return null;
+        $preview=trim((string)($row['description']??''));if($preview==='')$preview=(string)($row['canonical_url']??'');
+        return [
+          'type'=>'bookmark','public_id'=>(string)$row['public_id'],'label'=>'Bookmark',
+          'title'=>(string)$row['title'],'preview'=>mb_substr($preview,0,320),
+          'url'=>(string)$row['canonical_url'],
+          'source'=>['public_id'=>(string)($row['source_public_id']??''),'title'=>(string)($row['source_title']?:$row['title']),'domain'=>(string)($row['domain']??'')],
+          'author'=>['username'=>(string)$row['creator_username'],'name'=>(string)($row['creator_name']?:$row['creator_username'])],
+          'visibility'=>!empty($row['team_public_id'])?'team':'private',
+          'team_public_id'=>$row['team_public_id']??null,'team_name'=>$row['team_name']??null,
+          'project_public_id'=>(string)$row['project_public_id'],'research_agent_public_id'=>$row['research_agent_public_id']??null,
+          'created_at'=>$row['created_at']??null,
+        ];
+    }
+    if($type!=='annotation')return null;
     $access=annotation_access($pdo,$publicId,$viewer);if(!$access)return null;
     if((int)$access['user_id']!==(int)$viewer['id']&&function_exists('is_blocked')&&is_blocked($pdo,(int)$viewer['id'],(int)$access['user_id']))return null;
     $q=$pdo->prepare("SELECT a.public_id,a.visibility,a.team_id,a.text_commentary,a.published_at,
@@ -44,6 +61,10 @@ function object_handoff_can_share_to_conversation(PDO $pdo,array $viewer,array $
         if($object['visibility']==='public')return true;
         if($object['visibility']==='team'&&!empty($object['team_id'])&&(int)$object['team_id']===(int)$conversation['team_id'])return true;
         return false;
+    }
+    if($object['type']==='bookmark'){
+        return !empty($object['team_public_id'])
+            &&hash_equals((string)$object['team_public_id'],(string)($conversation['team_public_id']??''));
     }
     return false;
 }
@@ -78,7 +99,7 @@ function object_handoff_message_attachments(PDO $pdo,array $viewer,array $messag
 }
 
 function object_handoff_agent_prompt(string $type): string {
-    return $type==='annotation'
-        ?'Review this Annotation as evidence. Summarize what it actually captures, distinguish the author commentary from source evidence, note any integrity or uncertainty concerns, and suggest the most useful next step. Do not create or change Research without confirmation.'
-        :'Review this Annotated item and explain the most useful next step.';
+    if($type==='annotation')return 'Review this Annotation as evidence. Summarize what it actually captures, distinguish the author commentary from source evidence, note any integrity or uncertainty concerns, and suggest the most useful next step. Do not create or change Research without confirmation.';
+    if($type==='bookmark')return 'Review this Research bookmark and its captured source context. Explain why it may matter to the Research Agent, identify useful evidence or gaps, and suggest the next step. Do not create or change Research without confirmation.';
+    return 'Review this Annotated item and explain the most useful next step.';
 }

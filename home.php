@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/annotation-ui.php';require_once __DIR__.'/app/cognitive-feed-ui.php';require_once __DIR__.'/app/action-center.php';require_once __DIR__.'/app/schema-health.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/annotation-ui.php';require_once __DIR__.'/app/cognitive-feed-ui.php';require_once __DIR__.'/app/research-agent-workspace-ui.php';require_once __DIR__.'/app/action-center.php';require_once __DIR__.'/app/schema-health.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
 
 $schemaStatus=app_schema_runtime_status($pdo,__DIR__.'/database/migrations');
@@ -115,9 +115,17 @@ try{
     $crossResearchAgentHandoff=$reviewAgentHandoff=$impactAgentHandoff=$portfolioAgentHandoff=$directAgentHandoff=null;
 }
 
-$feed=[];
-try{$feed=$feedMode==='latest'?feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations']:[];}
-catch(Throwable $e){$recordHomeIncident('feed',$e);$feed=[];}
+$feed=[];$bookmarkFeed=[];$latestFeed=[];
+try{
+    if($feedMode==='latest'){
+        $feed=feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations'];
+        if(function_exists('research_agent_workspace_bookmark_feed'))$bookmarkFeed=research_agent_workspace_bookmark_feed($pdo,$u,30);
+        foreach($feed as $row)$latestFeed[]=['kind'=>'annotation','created_at'=>(string)($row['published_at']??$row['created_at']??''),'row'=>$row];
+        foreach($bookmarkFeed as $row)$latestFeed[]=['kind'=>'bookmark','created_at'=>(string)($row['created_at']??''),'row'=>$row];
+        usort($latestFeed,fn($a,$b)=>(strtotime((string)$b['created_at'])?:0)<=>(strtotime((string)$a['created_at'])?:0));
+        $latestFeed=array_slice($latestFeed,0,30);
+    }
+}catch(Throwable $e){$recordHomeIncident('feed',$e);$feed=[];$bookmarkFeed=[];$latestFeed=[];}
 
 $people=[];
 try{
@@ -136,7 +144,7 @@ try{
     $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
     $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:$stats;
 }catch(Throwable $e){$recordHomeIncident('stats',$e);}
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>">
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout"><section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
 <section class="homeInlineAgentThread" data-home-inline-agent hidden aria-label="Agent Chat">
   <div class="homeInlineAgentMessages" data-inline-agent-messages role="log" aria-live="polite"></div>
@@ -160,12 +168,33 @@ try{
   <details class="cognitiveRankingNote"><summary>How Now is ranked</summary><p><?=h((string)($cognitiveFeed['ranking']??''))?></p></details>
   <?php if(!($cognitiveFeed['sections']??[])):?><div class="card empty cognitiveCaughtUp"><h2>You’re caught up.</h2><p>No unresolved Research, source, Team, or Agent items need priority right now.</p><a class="button secondary" href="/home.php?view=latest">See latest annotations</a></div><?php else:?><?=cognitive_feed_ui_sections($cognitiveFeed)?><?php endif?>
 <?php else:?>
-  <?php if(!$feed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations and captures from people or sources you follow will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
-  <?php foreach($feed as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?>
+  <?php if(!$latestFeed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations, captures, and Research bookmarks will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
+  <?php foreach($latestFeed as $item):?>
+    <?php if(($item['kind']??'')==='bookmark'):?><?=research_agent_workspace_bookmark_card((array)$item['row'])?>
+    <?php else:?><?=annotation_ui_card((array)$item['row'],$u)?>
+    <?php endif?>
+  <?php endforeach?>
 <?php endif?>
 </section>
-<section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" hidden>
+<section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>" hidden>
   <button type="button" class="agentChatPanelClose" data-agent-panel-close aria-label="Close Agent Chat">×</button>
+  <?php if($requestedResearchAgent):?><header class="researchAgentCanvasHeader" data-research-workspace-header>
+    <div class="researchAgentCanvasIdentity"><span class="eyebrow">RESEARCH AGENT</span><strong><?=h((string)$requestedResearchAgent['name'])?></strong><?php if(!empty($requestedResearchAgent['team_name'])):?><small>Team · <?=h((string)$requestedResearchAgent['team_name'])?></small><?php endif?></div>
+    <nav class="researchAgentCanvasNav" aria-label="Research Agent workspace">
+      <button type="button" class="active" data-research-workspace-view="chat">Chat</button>
+      <button type="button" data-research-workspace-view="files">Files</button>
+      <button type="button" data-research-workspace-view="trash">Trash</button>
+    </nav>
+  </header>
+  <section class="researchAgentWorkspacePanel" data-research-workspace-panel hidden>
+    <div class="researchWorkspaceToolbar">
+      <div><strong data-research-workspace-title>Workspace</strong><small data-research-workspace-path>All files</small></div>
+      <div class="researchWorkspaceToolbarActions"><button type="button" data-research-create-folder>New folder</button><button type="button" class="primary" data-research-create-bookmark>Add bookmark</button></div>
+    </div>
+    <div class="researchWorkspaceBreadcrumbs" data-research-workspace-breadcrumbs></div>
+    <div class="researchWorkspaceStatus" data-research-workspace-status role="status" aria-live="polite"></div>
+    <div class="researchWorkspaceGrid" data-research-workspace-grid></div>
+  </section><?php endif?>
   <div class="agentChatHistoryPanel" data-agent-history hidden><div class="agentChatHistoryHead"><strong>Recent chats</strong><button type="button" data-agent-history-close aria-label="Close chat history">×</button></div><div data-agent-history-list></div></div>
   <div class="agentChatMessages" data-agent-messages role="log" aria-live="polite"><div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p><?php if(($proactiveBriefing['count']??0)>0):?><section class="agentProactiveBriefing"><div class="eyebrow">RESEARCH BRIEFING</div><h3><?=h((string)$proactiveBriefing['count'])?> things worth reviewing</h3><?php foreach((array)$proactiveBriefing['items'] as $brief):?><article><strong><?=h((string)($brief['title']??'Research update'))?></strong><p><?=h((string)($brief['why']??''))?></p><?php if(!empty($brief['primary_url'])):?><a href="<?=h((string)$brief['primary_url'])?>">Open context</a><?php endif?></article><?php endforeach?></section><?php endif?></div></div>
 </section><aside class="homeRightRail <?=$chatTeams?'teamChatRightRail':''?>">
@@ -196,7 +225,8 @@ try{
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
 <script src="/assets/js/workspace-state.js?v=36.0"></script>
-<script src="/assets/js/agent-chat.js?v=38.0"></script>
+<script src="/assets/js/agent-chat.js?v=39.0"></script>
+<script src="/assets/js/research-agent-workspace-ui.js?v=50.0"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=36.0"></script><?php endif?>
 <?php if($proactiveAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$proactiveAgentHandoff['prompt'],'context'=>$proactiveAgentHandoff['context'],'source'=>'proactive_notification'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>

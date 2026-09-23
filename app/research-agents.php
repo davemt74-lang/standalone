@@ -28,7 +28,7 @@ function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
       JOIN conversations c ON c.id=ra.conversation_id AND c.conversation_type='agent'
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      WHERE ra.status<>'archived' AND (ra.owner_user_id=? OR tm.user_id=?)
+      WHERE ra.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))
       ORDER BY COALESCE(c.last_message_at,ra.updated_at,ra.created_at) DESC,ra.id DESC
       LIMIT ".$limit);
     $q->execute([(int)$viewer['id'],(int)$viewer['id'],(int)$viewer['id']]);
@@ -36,6 +36,22 @@ function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
     foreach($rows as &$row)$row['last_message']=mb_substr(trim((string)($row['last_message']??'')),0,120);
     unset($row);
     return $rows;
+}
+
+function research_agent_chat_feed(PDO $pdo,array $viewer,string $agentPublicId,int $limit=6): array {
+    $agent=research_agent_access($pdo,$viewer,$agentPublicId);if(!$agent)return [];
+    $limit=max(1,min(20,$limit));
+    $q=$pdo->prepare("SELECT m.public_id,m.sender_type,m.body,m.created_at,u.username,u.display_name
+      FROM conversation_messages m
+      LEFT JOIN users u ON u.id=m.user_id
+      WHERE m.conversation_id=? AND m.deleted_at IS NULL
+      ORDER BY m.id DESC LIMIT ".$limit);
+    $q->execute([(int)$agent['conversation_id']]);$rows=array_reverse($q->fetchAll()?:[]);
+    foreach($rows as &$row){
+        $row['body']=mb_substr(trim((string)$row['body']),0,420);
+        $row['speaker']=($row['sender_type']??'')==='agent'?(string)$agent['name']:(string)($row['display_name']?:$row['username']?:'You');
+    }
+    unset($row);return $rows;
 }
 
 function research_agent_access(PDO $pdo,array $viewer,string $publicId): ?array {
@@ -47,7 +63,7 @@ function research_agent_access(PDO $pdo,array $viewer,string $publicId): ?array 
       JOIN conversations c ON c.id=ra.conversation_id
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      WHERE ra.public_id=? AND (ra.owner_user_id=? OR tm.user_id=?) LIMIT 1");
+      WHERE ra.public_id=? AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?)) LIMIT 1");
     $q->execute([(int)$viewer['id'],$publicId,(int)$viewer['id'],(int)$viewer['id']]);
     return $q->fetch()?:null;
 }
@@ -58,7 +74,7 @@ function research_agent_by_conversation(PDO $pdo,array $viewer,string $conversat
     $q=$pdo->prepare("SELECT ra.public_id FROM research_agents ra
       JOIN conversations c ON c.id=ra.conversation_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      WHERE c.public_id=? AND ra.status<>'archived' AND (ra.owner_user_id=? OR tm.user_id=?) LIMIT 1");
+      WHERE c.public_id=? AND ra.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?)) LIMIT 1");
     $q->execute([(int)$viewer['id'],$conversationPublicId,(int)$viewer['id'],(int)$viewer['id']]);
     $public=(string)($q->fetchColumn()?:'');
     return $public!==''?research_agent_access($pdo,$viewer,$public):null;

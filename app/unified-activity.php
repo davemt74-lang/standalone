@@ -211,6 +211,27 @@ function unified_activity_agent(PDO $pdo,array $viewer,array &$items,int $limit)
     }
 }
 
+function unified_activity_workspace_bookmarks(PDO $pdo,array $viewer,array &$items,int $limit): void {
+    if(!function_exists('research_agent_workspace_ready')||!research_agent_workspace_ready($pdo))return;
+    $rows=research_agent_workspace_bookmark_feed($pdo,$viewer,$limit);
+    foreach($rows as $row){
+        $team=trim((string)($row['team_name']??''));$project=(string)$row['project_title'];
+        unified_activity_add($items,[
+          'type'=>'research_bookmark_added','surface'=>'research','created_at'=>$row['created_at'],
+          'title'=>'Bookmark added to '.($row['research_agent_name']?:$project),
+          'body'=>mb_substr(trim((string)($row['description']??''))?:((string)($row['domain']??'')?:$row['canonical_url']),0,280),
+          'href'=>(string)$row['canonical_url'],
+          'actor'=>['public_id'=>$row['creator_public_id'],'name'=>$row['creator_name']?:$row['creator_username'],'username'=>$row['creator_username']],
+          'object'=>['type'=>'bookmark','public_id'=>$row['public_id']],
+          'context'=>[
+            ['type'=>'research','public_id'=>$row['project_public_id']],
+            ['type'=>'bookmark','public_id'=>$row['public_id']]
+          ],
+          'meta'=>array_filter(['research_agent'=>$row['research_agent_name']?:null,'project'=>$project,'team'=>$team?:null,'domain'=>$row['domain']??null])
+        ]);
+    }
+}
+
 function unified_activity_collect(PDO $pdo,array $viewer,int $limit=60): array {
     $limit=max(5,min(120,$limit));if(!unified_activity_ready($pdo))return [];
     $items=[];$slice=max(8,min(30,$limit));
@@ -219,6 +240,7 @@ function unified_activity_collect(PDO $pdo,array $viewer,int $limit=60): array {
     unified_activity_project_annotations($pdo,$viewer,$items,$slice);
     unified_activity_research_objects($pdo,$viewer,$items,$slice);
     unified_activity_reports($pdo,$viewer,$items,$slice);
+    unified_activity_workspace_bookmarks($pdo,$viewer,$items,$slice);
     unified_activity_agent($pdo,$viewer,$items,$slice);
     $rows=array_values($items);usort($rows,fn($a,$b)=>(strtotime((string)$b['created_at'])?:0)<=>(strtotime((string)$a['created_at'])?:0));
     return array_slice($rows,0,$limit);

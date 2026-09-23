@@ -1,0 +1,41 @@
+CREATE TABLE IF NOT EXISTS research_workspace_objects (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  project_id BIGINT UNSIGNED NOT NULL,
+  parent_id BIGINT UNSIGNED NULL,
+  created_by_user_id BIGINT UNSIGNED NOT NULL,
+  object_type ENUM('folder','document','sticky','upload','recording','bookmark') NOT NULL,
+  title VARCHAR(240) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  metadata_json JSON NULL,
+  status ENUM('active','trashed') NOT NULL DEFAULT 'active',
+  trashed_at DATETIME NULL,
+  trashed_by_user_id BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_research_workspace_project(project_id,status,parent_id,sort_order,id),
+  INDEX idx_research_workspace_type(project_id,object_type,status,updated_at),
+  CONSTRAINT fk_research_workspace_object_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_workspace_object_parent FOREIGN KEY(parent_id) REFERENCES research_workspace_objects(id) ON DELETE SET NULL,
+  CONSTRAINT fk_research_workspace_object_creator FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_workspace_object_trashed_by FOREIGN KEY(trashed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS research_workspace_bookmarks (
+  object_id BIGINT UNSIGNED PRIMARY KEY,
+  project_id BIGINT UNSIGNED NOT NULL,
+  source_id BIGINT UNSIGNED NULL,
+  canonical_url TEXT NOT NULL,
+  url_hash CHAR(64) NOT NULL,
+  domain VARCHAR(255) NULL,
+  description TEXT NULL,
+  favicon_url TEXT NULL,
+  preview_image_url TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_research_workspace_bookmark(project_id,url_hash),
+  INDEX idx_research_workspace_bookmark_source(source_id),
+  CONSTRAINT fk_research_workspace_bm_object FOREIGN KEY(object_id) REFERENCES research_workspace_objects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_workspace_bm_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_workspace_bm_source FOREIGN KEY(source_id) REFERENCES sources(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

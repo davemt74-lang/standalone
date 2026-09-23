@@ -21,14 +21,27 @@ function agent_chat_create(PDO $pdo,array $viewer,string $title='New Research'):
     return ['id'=>$id,'public_id'=>$public,'title'=>$title,'conversation_type'=>'agent'];
 }
 function agent_chat_access(PDO $pdo,array $viewer,string $publicId): ?array {
-    $row=conversation_access($pdo,$viewer,$publicId);if(!$row||($row['conversation_type']??'')!=='agent')return null;return $row;
+    $row=conversation_access($pdo,$viewer,$publicId);if(!$row||($row['conversation_type']??'')!=='agent')return null;
+    try{
+        if(installer_table_exists($pdo,'research_agents')){
+            $q=$pdo->prepare("SELECT ra.team_id FROM research_agents ra WHERE ra.conversation_id=? AND ra.status<>'archived' LIMIT 1");
+            $q->execute([(int)$row['id']]);$teamId=(int)($q->fetchColumn()?:0);
+            if($teamId>0){
+                $m=$pdo->prepare("SELECT role FROM team_members WHERE team_id=? AND user_id=? LIMIT 1");$m->execute([$teamId,(int)$viewer['id']]);$role=(string)($m->fetchColumn()?:'');
+                if($role==='')return null;
+                $pdo->prepare("INSERT IGNORE INTO conversation_members(conversation_id,user_id,member_role) VALUES(?,?,?)")
+                    ->execute([(int)$row['id'],(int)$viewer['id'],in_array($role,['owner','admin'],true)?$role:'member']);
+            }
+        }
+    }catch(Throwable $e){return null;}
+    return $row;
 }
 function agent_chat_list(PDO $pdo,array $viewer,int $limit=30): array {
     $limit=max(1,min(100,$limit));$q=$pdo->prepare("SELECT c.public_id,c.title,c.last_message_at,c.created_at,c.updated_at,
       (SELECT body FROM conversation_messages m WHERE m.conversation_id=c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) last_message
       FROM conversations c JOIN conversation_members cm ON cm.conversation_id=c.id AND cm.user_id=?
       WHERE c.conversation_type='agent' ORDER BY COALESCE(c.last_message_at,c.updated_at) DESC,c.id DESC LIMIT ".$limit);
-    $q->execute([$viewer['id']]);$rows=$q->fetchAll();foreach($rows as &$row)$row['last_message']=mb_substr((string)($row['last_message']??''),0,120);unset($row);return $rows;
+    $q->execute([$viewer['id']]);$rows=$q->fetchAll();$rows=array_values(array_filter($rows,fn($row)=>agent_chat_access($pdo,$viewer,(string)$row['public_id'])!==null));foreach($rows as &$row)$row['last_message']=mb_substr((string)($row['last_message']??''),0,120);unset($row);return $rows;
 }
 function agent_chat_message_rows(PDO $pdo,array $viewer,string $conversationPublicId,?int $beforeId=null,int $limit=60): ?array {
     $c=agent_chat_access($pdo,$viewer,$conversationPublicId);if(!$c)return null;
@@ -58,6 +71,9 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         $text="[ANNOTATION {$r['public_id']}]\nSource: ".($r['title']?:$r['canonical_url'])."\nCommentary: ".mb_substr((string)$r['text_commentary'],0,2500)."\nCaptured text: ".mb_substr((string)$r['selected_text'],0,4000).(!empty($r['transcript_text'])?"\nTranscript: ".mb_substr((string)$r['transcript_text'],0,5000):'');
         $derived=annotation_intelligence_context_text($pdo,$publicId,$viewer);if($derived!=='')$text.="\n\n".$derived;
         return ['type'=>'annotation','public_id'=>$publicId,'label'=>mb_substr((string)($r['text_commentary']?:($r['title']?:$r['domain'])),0,90),'text'=>$text,'refs'=>[['type'=>'annotation','id'=>$publicId],['type'=>'source','id'=>$r['source_public_id']]]];
+    }
+    if($type==='bookmark'&&function_exists('research_agent_workspace_bookmark_context')){
+        return research_agent_workspace_bookmark_context($pdo,$viewer,$publicId);
     }
     if($type==='source'){
         $s=source_access($pdo,$publicId,$viewer);if(!$s)return null;
