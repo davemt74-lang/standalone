@@ -280,13 +280,16 @@
     try{
       const data=await api(workspaceUrl('document',{object_id:publicId})),item=data.item;if(!item)throw new Error('Document not found.');
       activeDocument=item;documentRevision=Number(item.revision_number||1);documentDirty=false;
-      documentTitle.value=String(item.title||'Untitled document');documentEditor.innerHTML=String(item.content_html||'<p><br></p>');
-      setDocumentSaveState('Saved · v'+documentRevision);
+      documentTitle.value=String(item.title||'Untitled document');documentTitle.readOnly=!canWrite();
+      documentEditor.innerHTML=String(item.content_html||'<p><br></p>');documentEditor.contentEditable=canWrite()?'true':'false';
+      canvas.querySelectorAll('[data-doc-command],[data-doc-block],[data-doc-link],[data-doc-table],[data-doc-sticky-selection]').forEach(control=>{control.disabled=!canWrite();});
+      setDocumentSaveState((canWrite()?'Saved':'Read only')+' · v'+documentRevision);
       chatScroll=messages?.scrollTop||0;
       if(panel)panel.hidden=true;documentWorkspace.hidden=false;if(messages){messages.hidden=false;documentAgentPane?.appendChild(messages);}
       canvas.classList.add('researchDocumentMode');currentView='document';
       for(const b of viewButtons)b.classList.toggle('active',b.dataset.researchWorkspaceView==='docs');
       history.replaceState({},'',documentUrl(publicId));
+      document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{research_public_id:String(item.project_public_id||canvas.dataset.researchAgentProject||''),object_type:'document',object_public_id:publicId,agent_conversation_public_id:conversationId,surface:'research-document'}}));
       requestAnimationFrame(()=>documentEditor.focus());
     }catch(err){setStatus(err.message||'Unable to open document.',true);}
   }
@@ -319,7 +322,9 @@
     if(messages){messageHomeParent.insertBefore(messages,messageHomeNext);messages.hidden=false;}
     if(documentWorkspace)documentWorkspace.hidden=true;canvas.classList.remove('researchDocumentMode');
     currentView='chat';for(const b of viewButtons)b.classList.toggle('active',b.dataset.researchWorkspaceView==='chat');
-    if(panel)panel.hidden=true;history.replaceState({},'',documentUrl(''));requestAnimationFrame(()=>{if(messages)messages.scrollTop=chatScroll;});
+    if(panel)panel.hidden=true;history.replaceState({},'',documentUrl(''));
+    document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{research_public_id:String(canvas.dataset.researchAgentProject||''),object_type:'',object_public_id:'',agent_conversation_public_id:conversationId,surface:'research-agent'}}));
+    requestAnimationFrame(()=>{if(messages)messages.scrollTop=chatScroll;});
   }
   function selectedDocumentText(){
     const selection=window.getSelection();if(!selection||selection.isCollapsed||!documentEditor)return '';
