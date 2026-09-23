@@ -65,6 +65,7 @@ require_once __DIR__ . '/research-agent-workspace.php';
 require_once __DIR__ . '/research-retrieval.php';
 require_once __DIR__ . '/research-autonomy.php';
 require_once __DIR__ . '/research-monitoring.php';
+require_once __DIR__ . '/research-tasks.php';
 require_once __DIR__ . '/cross-research.php';
 require_once __DIR__ . '/research-outcomes.php';
 require_once __DIR__ . '/research-reviews.php';
