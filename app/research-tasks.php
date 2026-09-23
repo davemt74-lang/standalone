@@ -417,13 +417,14 @@ function research_task_update(PDO $pdo,array $viewer,string $taskPublic,array $i
     elseif(is_array($input['gates']??null)){research_task_add_gates($pdo,(int)$task['id'],$input['gates']);}
     $pdo->prepare('DELETE FROM research_task_evidence_refs WHERE task_id=?')->execute([(int)$task['id']]);
     research_task_event($pdo,(int)$task['project_id'],$task['plan_id']?(int)$task['plan_id']:null,(int)$task['id'],'revised','user',(int)$viewer['id'],['task_type'=>$type,'priority'=>$priority]);
-    if($task['plan_id']){$q=$pdo->prepare("UPDATE research_task_plans SET current_revision=current_revision+1,updated_at=NOW() WHERE id=?");$q->execute([(int)$task['plan_id']]);$q=$pdo->prepare("SELECT * FROM research_task_plans WHERE id=?");$q->execute([(int)$task['plan_id']]);$plan=$q->fetch();research_task_plan_snapshot($pdo,$plan,'Task revised',(int)$viewer['id'],false);}
+    if($task['plan_id']){$q=$pdo->prepare("UPDATE research_task_plans SET current_revision=current_revision+1,status=CASE WHEN status='completed' THEN 'active' ELSE status END,completed_at=CASE WHEN status='completed' THEN NULL ELSE completed_at END,updated_at=NOW() WHERE id=?");$q->execute([(int)$task['plan_id']]);$q=$pdo->prepare("SELECT * FROM research_task_plans WHERE id=?");$q->execute([(int)$task['plan_id']]);$plan=$q->fetch();research_task_plan_snapshot($pdo,$plan,'Task revised',(int)$viewer['id'],false);}
     research_task_queue($pdo,(int)$task['id'],(int)$viewer['id'],'replan');if($task['plan_id'])research_task_refresh_deliverable_by_plan_id($pdo,(int)$task['plan_id']);
     return research_task_access($pdo,$viewer,$taskPublic)??$task;
 }
 
 function research_task_plan_add_task(PDO $pdo,array $viewer,string $planPublic,array $input,bool $createdByAgent=false): array {
     $plan=research_task_plan_access($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Research plan not found.');$agent=research_task_agent($pdo,$viewer,(string)$plan['agent_public_id']);$project=research_task_project($pdo,$viewer,$agent);
+    if($plan['status']==='completed'){$pdo->prepare("UPDATE research_task_plans SET status='active',completed_at=NULL,updated_at=NOW() WHERE id=?")->execute([(int)$plan['id']]);$plan['status']='active';$plan['completed_at']=null;}
     $q=$pdo->prepare("SELECT COALESCE(MAX(position),-1)+1 FROM research_tasks WHERE plan_id=?");$q->execute([(int)$plan['id']]);$input['position']=(int)$q->fetchColumn();
     $task=research_task_create($pdo,$viewer,$agent,$project,$input,(int)$plan['id'],$createdByAgent);
     foreach(array_slice((array)($input['depends_on']??[]),0,12) as $dependencyPublic){$dep=research_task_access($pdo,$viewer,(string)$dependencyPublic);if(!$dep||(int)$dep['plan_id']!==(int)$plan['id']||(int)$dep['id']===(int)$task['id'])continue;$pdo->prepare("INSERT IGNORE INTO research_task_dependencies(task_id,depends_on_task_id,dependency_type) VALUES(?,?,'finish_to_start')")->execute([(int)$task['id'],(int)$dep['id']]);}
