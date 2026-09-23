@@ -64,17 +64,28 @@
     return ({annotation:'/annotation.php?id=',research:'/research-project.php?id=',research_project:'/research-project.php?id=',source:'/source.php?id=',team:'/team.php?id=',claim:'/research-claim.php?id=',finding:'/research-finding.php?id='})[String(a?.type||'')]?.concat(id)||'';
   }
   function renderAttachment(a){
+    if(String(a?.type||'')==='document'&&a?.available!==false){
+      const card=document.createElement('section');card.className='agentDocumentCard';card.dataset.documentId=String(a.public_id||'');
+      const meta=document.createElement('div');meta.className='agentDocumentCardMeta';meta.textContent=(a.created_by_agent?'AGENT DOCUMENT':'RESEARCH DOCUMENT')+' · v'+String(a.revision_number||1);
+      const titleEl=document.createElement('strong');titleEl.textContent=a.title||'Untitled document';
+      const preview=document.createElement('p');preview.textContent=String(a.preview||'').slice(0,420);
+      const actions=document.createElement('div');actions.className='agentDocumentCardActions';
+      const open=document.createElement('button');open.type='button';open.textContent='Open document';open.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:research-document-open',{detail:{document_id:String(a.public_id||'')},bubbles:true})));
+      const ask=document.createElement('button');ask.type='button';ask.textContent='Ask Agent';ask.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:{prompt:'Review this research document and suggest the most useful next step.',context:[{type:'document',public_id:String(a.public_id||''),label:a.title||'Research document'}],research_agent:true,conversation:requestedResearchAgentConversation},bubbles:true,cancelable:true})));
+      actions.append(open,ask);card.append(meta,titleEl,preview,actions);return card;
+    }
     const href=attachmentUrl(a),chip=document.createElement(href?'a':'span');chip.className='agentContextChip';chip.textContent=(a.metadata?.label||a.label||a.public_id||a.type);
     if(href){chip.href=href;chip.title='Open '+String(a.type||'Annotated context').replace(/_/g,' ');}
     return chip;
   }
   function capabilityLabel(key){
-    return ({'research.create_task':'Create research task','research.create_note':'Create research note','research.create_claim':'Create claim','research.attach_annotation_evidence':'Attach annotation evidence','research.create_finding':'Create finding','research.link_claims':'Link claims'})[key]||String(key||'Research action');
+    return ({'research.create_task':'Create research task','research.create_note':'Create research note','research.create_document':'Create research document','research.create_claim':'Create claim','research.attach_annotation_evidence':'Attach annotation evidence','research.create_finding':'Create finding','research.link_claims':'Link claims'})[key]||String(key||'Research action');
   }
   function proposalSummary(p){
     const a=p.arguments||{},key=p.capability_key||'';
     if(key==='research.create_task')return a.title||'New research task';
     if(key==='research.create_note')return String(a.body||'').slice(0,180);
+    if(key==='research.create_document')return a.title||'New research document';
     if(key==='research.create_claim')return String(a.statement||'').slice(0,180);
     if(key==='research.attach_annotation_evidence')return (a.relationship||'supports')+' · '+(a.annotation_id||'annotation')+' → '+(a.claim_id||'claim');
     if(key==='research.create_finding')return a.title||'New finding';
@@ -107,7 +118,7 @@
       confirm.disabled=true;reject.disabled=true;
       try{
         const data=await request(action,{method:'POST',data:{proposal_id:p.public_id}});
-        p={...p,...data,status:data.status||p.status,result:data.result||p.result};updateProposalCard(card,p);if(p.status==='executed')document.dispatchEvent(new CustomEvent('annotated:research-action-executed',{detail:p}));
+        p={...p,...data,status:data.status||p.status,result:data.result||p.result};updateProposalCard(card,p);if(p.status==='executed'){document.dispatchEvent(new CustomEvent('annotated:research-action-executed',{detail:p}));if(p.result?.type==='document'){document.dispatchEvent(new CustomEvent('annotated:research-document-created',{detail:p.result}));if(activeConversation)openConversation(activeConversation,title?.textContent||'',{researchAgent:researchAgentMode});}}
       }catch(err){
         if(String(err.message||'').includes('changed after')||String(err.message||'').includes('expired')){p.status='stale';p.error_text=err.message;updateProposalCard(card,p);}
         else alert(err.message||'Unable to update Agent action.');
