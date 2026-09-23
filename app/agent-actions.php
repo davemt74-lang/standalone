@@ -25,6 +25,14 @@ function agent_action_capabilities(): array {
         'label'=>'Create recurring Research Program','description'=>'Create a governed recurring intelligence Program that generates fresh Research plans and deliverables on a schedule. The user must confirm the Program before it is scheduled.',
         'arguments'=>['title'=>'string','objective'=>'string','cadence'=>'hourly|daily|weekly|monthly|manual','timezone_name'=>'IANA timezone optional','run_time_local'=>'HH:MM optional','weekday'=>'0-6 optional','day_of_month'=>'1-28 optional','priority'=>'low|medium|high|urgent optional','deliverable_type'=>'research_brief|competitive_analysis|due_diligence|source_digest|timeline|comparison|weekly_report|report|analysis|document','quiet_mode'=>'material_only|always optional','materiality_threshold'=>'any|important|high optional','catch_up_mode'=>'latest|skip optional','topics'=>'array optional','token_budget_per_run'=>'integer optional','monthly_run_limit'=>'integer optional']
       ],
+      'research.prepare_publication_review'=>[
+        'label'=>'Prepare document publication review','description'=>'Create a governed publication workflow for an existing Research document and request human review. The Agent cannot review, approve, or publish it.',
+        'arguments'=>['document_id'=>'Research document public ID','reviewer_ids'=>'array of user public IDs','approver_ids'=>'array of user public IDs optional','required_approvals'=>'integer optional','due_at'=>'date/time optional','instructions'=>'string optional','visibility'=>'private|team|public optional']
+      ],
+      'research.publish_approved_document'=>[
+        'label'=>'Publish approved Research document','description'=>'Publish an already-approved Phase 59 workflow as an immutable Research report version. All review and approval gates must already be satisfied and the user must confirm this action.',
+        'arguments'=>['workflow_id'=>'Research publication workflow public ID']
+      ],
       'research.create_note'=>[
         'label'=>'Create research note','description'=>'Save a concise Research note to the current project.',
         'arguments'=>['body'=>'string']
@@ -141,6 +149,16 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $topics=[];foreach(array_slice((array)($args['topics']??[]),0,30) as $topic){$topic=$s($topic,160);if($topic!==''&&!in_array($topic,$topics,true))$topics[]=$topic;}
         return ['title'=>$title,'objective'=>$objective,'cadence'=>$cadence,'timezone_name'=>$s($args['timezone_name']??'UTC',64),'run_time_local'=>$s($args['run_time_local']??'09:00',8),'weekday'=>max(0,min(6,(int)($args['weekday']??1))),'day_of_month'=>max(1,min(28,(int)($args['day_of_month']??1))),'priority'=>$priority,'deliverable_type'=>$deliverable,'quiet_mode'=>$quiet,'materiality_threshold'=>$materiality,'catch_up_mode'=>$catch,'scope'=>['topics'=>$topics,'include_annotations'=>true,'include_workspace'=>true],'token_budget_per_run'=>max(1000,min(2000000,(int)($args['token_budget_per_run']??60000))),'monthly_run_limit'=>max(1,min(1000,(int)($args['monthly_run_limit']??31)))];
     }
+    if($capability==='research.prepare_publication_review'){
+        $document=$s($args['document_id']??'',64);if($document==='')throw new InvalidArgumentException('Research document ID is required.');
+        $reviewers=[];foreach(array_slice((array)($args['reviewer_ids']??[]),0,30) as $id){$id=$s($id,64);if($id!==''&&!in_array($id,$reviewers,true))$reviewers[]=$id;}if(!$reviewers)throw new InvalidArgumentException('At least one reviewer is required.');
+        $approvers=[];foreach(array_slice((array)($args['approver_ids']??[]),0,30) as $id){$id=$s($id,64);if($id!==''&&!in_array($id,$approvers,true))$approvers[]=$id;}
+        $visibility=(string)($args['visibility']??'private');if(!in_array($visibility,['private','team','public'],true))$visibility='private';
+        return ['document_id'=>$document,'reviewer_ids'=>$reviewers,'approver_ids'=>$approvers,'required_approvals'=>max(1,min(20,(int)($args['required_approvals']??count($reviewers)))),'due_at'=>$s($args['due_at']??'',80),'instructions'=>$s($args['instructions']??'',8000),'visibility'=>$visibility];
+    }
+    if($capability==='research.publish_approved_document'){
+        $workflow=$s($args['workflow_id']??'',64);if($workflow==='')throw new InvalidArgumentException('Publication workflow ID is required.');return ['workflow_id'=>$workflow];
+    }
     if($capability==='research.create_note'){
         $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Research note body is required.');return ['body'=>$body];
     }
@@ -158,6 +176,16 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $statement=$s($args['statement']??'',8000);if($statement==='')throw new InvalidArgumentException('Claim statement is required.');
         $type=(string)($args['claim_type']??'factual');if(!in_array($type,['factual','disputed','prediction','interpretation','data_point'],true))$type='factual';
         return ['statement'=>$statement,'claim_type'=>$type];
+    }
+    if($capability==='research.prepare_publication_review'){
+        if(!isset($seen['document:'.$args['document_id']]))return false;
+        if(!function_exists('research_agent_workspace_object'))return false;$doc=research_agent_workspace_object($pdo,$viewer,(string)$args['document_id'],false);if(!$doc||(int)$doc['project_id']!==$projectId||($doc['object_type']??'')!=='document')return false;
+        $eligible=[];foreach(research_review_eligible_reviewers($pdo,$viewer,(string)$project['public_id']) as $person)$eligible[(string)$person['public_id']]=true;
+        foreach(array_merge((array)$args['reviewer_ids'],(array)$args['approver_ids']) as $public)if(!isset($eligible[(string)$public]))return false;
+        return true;
+    }
+    if($capability==='research.publish_approved_document'){
+        if(!function_exists('research_publication_workflow_access'))return false;$w=research_publication_workflow_access($pdo,$viewer,(string)$args['workflow_id']);return $w&&(int)$w['project_id']===$projectId;
     }
     if($capability==='research.attach_annotation_evidence'){
         $claim=$s($args['claim_id']??'',64);$annotation=$s($args['annotation_id']??'',64);if($claim===''||$annotation==='')throw new InvalidArgumentException('Claim and Annotation IDs are required.');
@@ -266,6 +294,20 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         $agent=research_task_agent_for_project($pdo,$viewer,(string)$project['public_id']);if(!$agent)throw new RuntimeException('This project has no active Research Agent.');
         $args['agent_id']=$agent['public_id'];$program=research_program_create($pdo,$viewer,$args,true);
         return ['type'=>'research_program','public_id'=>(string)$program['public_id'],'label'=>(string)$program['title'],'url'=>'/research-programs.php?agent='.rawurlencode((string)$agent['public_id']).'&program='.rawurlencode((string)$program['public_id'])];
+    }
+    if($capability==='research.prepare_publication_review'){
+        if(!function_exists('research_publications_ready')||!research_publications_ready($pdo))throw new RuntimeException('Collaborative Publishing requires the latest database upgrade.');
+        $doc=research_agent_workspace_object($pdo,$viewer,(string)$args['document_id'],false);if(!$doc||(int)$doc['project_id']!==$projectId)throw new RuntimeException('Research document is no longer available in this project.');
+        $workflow=research_publication_workflow_create($pdo,$viewer,(string)$args['document_id'],['visibility'=>$args['visibility'],'required_approvals'=>$args['required_approvals']]);
+        $eligible=[];foreach(research_review_eligible_reviewers($pdo,$viewer,(string)$project['public_id']) as $person)$eligible[(string)$person['public_id']]=$person;
+        $reviewers=[];foreach((array)$args['reviewer_ids'] as $public){$person=$eligible[(string)$public]??null;if($person)$reviewers[]=['user_id'=>(int)$person['id'],'role'=>in_array($public,(array)$args['approver_ids'],true)?'approver':'reviewer','required'=>true];}
+        foreach((array)$args['approver_ids'] as $public){if(in_array($public,(array)$args['reviewer_ids'],true))continue;$person=$eligible[(string)$public]??null;if($person)$reviewers[]=['user_id'=>(int)$person['id'],'role'=>'approver','required'=>true];}
+        $workflow=research_publication_request_review($pdo,$viewer,(string)$workflow['public_id'],$reviewers,(string)$args['due_at'],(string)$args['instructions']);
+        return ['type'=>'research_publication','public_id'=>(string)$workflow['public_id'],'label'=>(string)$workflow['title'],'url'=>'/research-publications.php?workflow='.rawurlencode((string)$workflow['public_id']),'status'=>(string)$workflow['status']];
+    }
+    if($capability==='research.publish_approved_document'){
+        if(!function_exists('research_publication_publish'))throw new RuntimeException('Collaborative Publishing is unavailable.');$result=research_publication_publish($pdo,$viewer,(string)$args['workflow_id']);
+        return ['type'=>'research_report','public_id'=>(string)$result['public_id'],'label'=>'Published Research version '.(int)$result['version_number'],'url'=>'/research-report.php?id='.rawurlencode((string)$result['public_id']).'&v='.(int)$result['version_number']];
     }
     if($capability==='research.create_note'){
         $public=ulid_like();$pdo->prepare('INSERT INTO research_notes(public_id,project_id,user_id,body) VALUES(?,?,?,?)')->execute([$public,$projectId,$userId,$args['body']]);
