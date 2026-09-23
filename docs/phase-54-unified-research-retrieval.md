@@ -75,7 +75,7 @@ Migration 052 adds:
 - `research_retrieval_jobs`
 - `research_retrieval_queries`
 
-Workspace writes and completed file/transcription processing queue the owning project for refresh. Search also verifies the live project state hash and self-heals a stale or missing index before returning results.
+Workspace writes and completed file/transcription processing queue the owning project for refresh. Search also verifies the live project state hash and self-heals a stale or missing index before returning results. Rebuilds are incremental: unchanged chunks retain their semantic embeddings, while changed content or changed provenance locators are regenerated.
 
 The leased retrieval worker is:
 
