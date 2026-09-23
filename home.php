@@ -282,8 +282,8 @@ try{
   <button type="submit" class="homeAgentSend" aria-label="Send to Agent">↑</button>
 </form>
 <script src="/assets/js/workspace-state.js?v=36.0"></script>
-<script src="/assets/js/agent-chat.js?v=40.0"></script>
-<script src="/assets/js/research-agent-workspace-ui.js?v=52.0"></script>
+<script src="/assets/js/agent-chat.js?v=41.0"></script>
+<script src="/assets/js/research-agent-workspace-ui.js?v=52.1"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=36.0"></script><?php endif?>
 <?php if($proactiveAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$proactiveAgentHandoff['prompt'],'context'=>$proactiveAgentHandoff['context'],'source'=>'proactive_notification'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
