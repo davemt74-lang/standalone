@@ -110,6 +110,12 @@ jobs:
           test -f package-website/tests/phase61-portfolio-intelligence-operations-contract.php
           test -f package-website/tests/phase61-portfolio-intelligence-operations-db.php
           test -f package-website/tests/ci/phase61-upgrade-from-058.php
+          test -f package-website/docs/RELEASE-V1.1.md
+          test -f package-website/docs/phase-62-v1-1-final-release-validation-production-cutover.md
+          test -f package-website/tests/phase62-final-release-contract.php
+          test -f package-website/tests/phase62-v1-1-final-release-db.php
+          test -f package-website/tests/phase62-v1-1-soak-db.php
+          test -f package-website/tests/ci/phase62-upgrade-supported-baselines.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
