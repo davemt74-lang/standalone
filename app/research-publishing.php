@@ -254,6 +254,7 @@ function research_publication_publish(PDO $pdo,array $viewer,string $publicId): 
     $publish=research_report_publish($pdo,$project,$viewer,(string)$w['visibility'],(string)$w['title'],$w['summary']!==null?(string)$w['summary']:null,(array)$w['topics'],$doc,['workflow_id'=>(int)$w['id'],'document_object_id'=>(int)$w['document_object_id'],'document_revision_number'=>(int)$w['document_revision_number'],'document_revision_public_id'=>(string)$w['document_revision_public_id'],'approval_snapshot'=>$approval]);
     $fresh=research_publication_workflow_access($pdo,$viewer,$publicId);if(!$fresh||$fresh['status']!=='published')throw new RuntimeException('Publication transaction did not finalize the workflow.');
     try{$distribution=research_publication_distribute($pdo,$viewer,$fresh,$publish);}catch(Throwable $e){error_log('[Annotated publication distribution] '.$e->getMessage());$distribution=['sent'=>0,'skipped'=>0,'failed'=>1,'error'=>'Publication succeeded; one or more distribution operations need attention.'];}
+    if(function_exists('research_intelligence_portfolio_publication_distributed')){try{research_intelligence_portfolio_publication_distributed($pdo,$viewer,$fresh,$publish,$distribution);}catch(Throwable $e){error_log('[Annotated portfolio publication continuity] '.$e->getMessage());}}
     return array_merge($publish,['distribution'=>$distribution,'workflow'=>$fresh]);
 }
 
