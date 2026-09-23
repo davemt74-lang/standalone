@@ -116,3 +116,87 @@ async function phase34WorkspaceWebsiteUrl(path,patch={}){
 async function phase34WorkspaceOpen(path,patch={}){
   await phase34WorkspaceCommit(patch);chrome.tabs.create({url:await phase34WorkspaceWebsiteUrl(path,patch)});
 }
+
+
+/* Phase 50A — Research Agent website bookmarks */
+let phase50BookmarkAgents=[],phase50BookmarkPage=null;
+
+async function phase50ResearchAgents(){
+  const j=await api('/api/research-agents.php?action=list');
+  phase50BookmarkAgents=(j.data?.agents||[]).filter(a=>String(a.status||'active')!=='archived');
+  return phase50BookmarkAgents;
+}
+
+function phase50FolderLabel(row,map){
+  const parts=[];let current=row,guard=0;
+  while(current&&guard++<40){parts.unshift(String(current.title||'Folder'));current=map.get(String(current.parent_public_id||''));}
+  return parts.join(' / ');
+}
+
+async function phase50LoadBookmarkFolders(agentPublic){
+  const select=$('#bookmarkFolder');if(!select)return;
+  select.innerHTML='<option value="">All files</option>';
+  if(!agentPublic)return;
+  try{
+    const j=await api('/api/research-workspace-objects.php?action=list&agent_id='+encodeURIComponent(agentPublic));
+    const folders=(j.data?.items||[]).filter(x=>x.object_type==='folder'&&x.status==='active'),map=new Map(folders.map(x=>[String(x.public_id),x]));
+    folders.sort((a,b)=>phase50FolderLabel(a,map).localeCompare(phase50FolderLabel(b,map)));
+    for(const row of folders){const option=document.createElement('option');option.value=String(row.public_id);option.textContent=phase50FolderLabel(row,map);select.appendChild(option);}
+  }catch(e){$('#bookmarkStatus').textContent=e.message||'Unable to load Research Agent folders.';}
+}
+
+async function phase50OpenBookmark(){
+  if(!token){await connect();if(!token)return;}
+  const dialog=$('#bookmarkDialog'),agentSelect=$('#bookmarkAgent'),status=$('#bookmarkStatus');
+  if(!dialog||!agentSelect)return;
+  status.textContent='Loading Research Agents…';
+  try{
+    phase50BookmarkPage=await readPage(false);
+    const url=String(phase50BookmarkPage?.canonicalUrl||phase50BookmarkPage?.url||'');
+    if(!/^https?:\/\//i.test(url))throw new Error('This page cannot be saved as a website bookmark.');
+    const agents=await phase50ResearchAgents();agentSelect.replaceChildren();
+    if(!agents.length)throw new Error('Create a Research Agent before saving website bookmarks.');
+    for(const agent of agents){
+      const option=document.createElement('option');option.value=String(agent.public_id);option.textContent=(agent.team_name?'Team · ':'')+String(agent.name||'Research Agent');option.dataset.project=String(agent.project_public_id||'');option.dataset.team=String(agent.team_public_id||'');option.dataset.conversation=String(agent.conversation_public_id||'');agentSelect.appendChild(option);
+    }
+    const state=await phase34WorkspaceRead(),preferred=agents.find(a=>String(a.project_public_id||'')===String(state.research_public_id||''))||agents.find(a=>a.is_default)||agents[0];
+    if(preferred)agentSelect.value=String(preferred.public_id);
+    $('#bookmarkTitle').value=String(phase50BookmarkPage?.title||'').slice(0,240);
+    $('#bookmarkNotes').value='';
+    await phase50LoadBookmarkFolders(agentSelect.value);
+    status.textContent=String(phase50BookmarkPage?.canonicalUrl||phase50BookmarkPage?.url||'');
+    if(!dialog.open)dialog.showModal();
+  }catch(e){status.textContent=e.message||'Unable to prepare bookmark.';if(!dialog.open)dialog.showModal();}
+}
+
+async function phase50SaveBookmark(event){
+  event?.preventDefault();
+  const dialog=$('#bookmarkDialog'),agentPublic=String($('#bookmarkAgent')?.value||''),status=$('#bookmarkStatus'),button=$('#confirmBookmark');
+  const agent=phase50BookmarkAgents.find(a=>String(a.public_id)===agentPublic);
+  if(!agent||!phase50BookmarkPage){status.textContent='Choose a Research Agent.';return;}
+  button.disabled=true;status.textContent='Saving bookmark…';
+  try{
+    const payload={
+      agent_id:agentPublic,
+      parent_id:String($('#bookmarkFolder')?.value||''),
+      url:String(phase50BookmarkPage.canonicalUrl||phase50BookmarkPage.url||''),
+      title:String($('#bookmarkTitle')?.value||phase50BookmarkPage.title||'').slice(0,240),
+      description:String($('#bookmarkNotes')?.value||'').slice(0,5000),
+      favicon_url:String(phase50BookmarkPage.faviconUrl||''),
+      preview_image_url:String(phase50BookmarkPage.previewImageUrl||'')
+    };
+    const j=await api('/api/research-workspace-objects.php?action=create_bookmark',{method:'POST',body:JSON.stringify(payload)}),item=j.data?.item;
+    if(!item?.public_id)throw new Error('Bookmark was saved but the workspace did not return its ID.');
+    await phase34WorkspaceCommit({
+      team_public_id:String(agent.team_public_id||''),
+      research_public_id:String(agent.project_public_id||''),
+      object_type:'bookmark',
+      object_public_id:String(item.public_id),
+      agent_conversation_public_id:String(agent.conversation_public_id||''),
+      surface:'browser'
+    });
+    status.textContent='Saved to '+String(agent.name||'Research Agent')+'.';
+    setTimeout(()=>{if(dialog.open)dialog.close();},350);
+  }catch(e){status.textContent=e.message||'Unable to save bookmark.';}
+  finally{button.disabled=false;}
+}
