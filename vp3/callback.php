@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__).'/app/bootstrap.php';header('Cache-Control: no-store, private');header('Referrer-Policy: no-referrer');
-$error=trim((string)($_GET['error']??''));if($error!==''){unset($_SESSION['vp3_oauth_state']);header('Location: /login.php?vp3_error='.rawurlencode($error));exit;}
+$error=trim((string)($_GET['error']??''));if($error!==''){$pending=is_array($_SESSION['vp3_oauth_state']??null)?$_SESSION['vp3_oauth_state']:[];unset($_SESSION['vp3_oauth_state']);$target=(($pending['mode']??'')==='connect'&&current_user($pdo))?'/settings.php?vp3_error='.rawurlencode($error):'/login.php?vp3_error='.rawurlencode($error);header('Location: '.$target);exit;}
 try{
     $code=trim((string)($_GET['code']??''));$state=trim((string)($_GET['state']??''));if($code===''||$state==='')throw new RuntimeException('VP3 did not return a complete authorization response.');
     $viewer=current_user($pdo);$result=vp3_connector_callback($pdo,$config,$code,$state,$viewer);$uid=(int)$result['user_id'];
