@@ -209,6 +209,7 @@ try{
       <button type="button" data-research-library-filter="annotation">Annotations</button>
       <button type="button" data-research-library-filter="upload">Files</button>
       <button type="button" data-research-library-filter="recording">Recordings</button>
+      <button type="button" data-research-library-filter="transcript">Transcripts</button>
       <button type="button" data-research-library-filter="bookmark">Bookmarks</button>
       <button type="button" data-research-library-filter="sticky">Stickies</button>
     </nav>
