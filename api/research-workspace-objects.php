@@ -1,0 +1,70 @@
+<?php
+declare(strict_types=1);
+require dirname(__DIR__).'/app/bootstrap.php';
+api_headers();
+
+$action=(string)($_GET['action']??'list');
+$input=$_SERVER['REQUEST_METHOD']==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
+
+try{
+    $viewer=in_array($action,['list','folders'],true)?require_api_user($pdo):require_api_mutation_auth($pdo);
+    if(!research_agent_workspace_ready($pdo))throw new RuntimeException('Research Agent workspace requires the latest database upgrade.');
+
+    $agentPublic=trim((string)($input['agent_id']??''));
+    $projectPublic=trim((string)($input['project_id']??''));
+    $project=research_agent_workspace_project($pdo,$viewer,$agentPublic,$projectPublic);
+    if(!$project)json_response(['ok'=>false,'error'=>['code'=>'WORKSPACE_NOT_FOUND','message'=>'Research Agent workspace not found.']],404);
+
+    if($action==='list'){
+        $trashed=!empty($input['trashed']);
+        $items=research_agent_workspace_list($pdo,$viewer,$project,$trashed,300);
+        json_response(['ok'=>true,'data'=>[
+          'project'=>['public_id'=>$project['public_id'],'title'=>$project['title'],'access_role'=>$project['access_role']],
+          'agent'=>isset($project['research_agent'])?[
+            'public_id'=>$project['research_agent']['public_id'],
+            'name'=>$project['research_agent']['name'],
+            'conversation_public_id'=>$project['research_agent']['conversation_public_id']
+          ]:null,
+          'items'=>$items
+        ]]);
+    }
+    if($action==='create_folder'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
+        $item=research_agent_workspace_create_folder($pdo,$viewer,$project,(string)($input['title']??''),(string)($input['parent_id']??''));
+        json_response(['ok'=>true,'data'=>['item'=>$item]],201);
+    }
+    if($action==='create_bookmark'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
+        $item=research_agent_workspace_create_bookmark($pdo,$viewer,$project,is_array($input)?$input:[]);
+        json_response(['ok'=>true,'data'=>['item'=>$item]],201);
+    }
+    if($action==='rename'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
+        $item=research_agent_workspace_rename($pdo,$viewer,(string)($input['object_id']??''),(string)($input['title']??''));
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
+    }
+    if($action==='move'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
+        $item=research_agent_workspace_move($pdo,$viewer,(string)($input['object_id']??''),(string)($input['parent_id']??''));
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
+    }
+    if($action==='trash'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
+        $item=research_agent_workspace_trash($pdo,$viewer,(string)($input['object_id']??''));
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
+    }
+    if($action==='restore'){
+        rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
+        $item=research_agent_workspace_restore($pdo,$viewer,(string)($input['object_id']??''));
+        json_response(['ok'=>true,'data'=>['item'=>$item]]);
+    }
+    json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);
+}catch(InvalidArgumentException $e){
+    json_response(['ok'=>false,'error'=>['code'=>'INVALID_INPUT','message'=>$e->getMessage()]],422);
+}catch(RuntimeException $e){
+    json_response(['ok'=>false,'error'=>['code'=>'WORKSPACE_ERROR','message'=>$e->getMessage()]],403);
+}catch(Throwable $e){
+    $reference=substr(hash('sha256','research-workspace|'.$e->getMessage().'|'.microtime(true).'|'.random_bytes(8)),0,12);
+    error_log('[Annotated research workspace '.$reference.'] '.$e->getMessage().' in '.$e->getFile().':'.$e->getLine());
+    json_response(['ok'=>false,'error'=>['code'=>'WORKSPACE_INTERNAL','message'=>'Research workspace could not complete this request. Reference: '.$reference]],500);
+}
