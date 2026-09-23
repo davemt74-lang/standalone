@@ -31,6 +31,7 @@ try{
     $pdo->prepare("UPDATE research_workspace_recording_transcripts SET status='ready',raw_text=?,segments_json=?,language=COALESCE(?,language),last_error=NULL,updated_at=NOW() WHERE id=?")->execute([$text,$segments?json_encode($segments,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null,$language,(int)$job['transcript_id']]);
     job_claim_complete($pdo,'research_transcription_jobs',$id,$token);$pdo->commit();
     if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$job['project_id']);
+    if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$job['project_id'],(int)$job['created_by_user_id'],'research_change','Research recording transcription completed.');
     notify_user($pdo,(int)$job['created_by_user_id'],null,'research_transcript_ready','recording',(string)$job['public_id'],'Transcript ready: '.mb_substr((string)$job['title'],0,180));
     release_worker_heartbeat($pdo,'research_transcription','success','Research transcription completed.',1);echo "Research transcript ready.\n";
 }catch(LostJobClaim $e){
