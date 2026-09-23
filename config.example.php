@@ -24,11 +24,19 @@ return [
         'session_ttl_days' => 30,
     ],
     'transcription' => [
-        // Command receives {input} and {output}. It must write UTF-8 plain text to {output}.
+        // Command receives {input} and {output}. It may write UTF-8 plain text, or JSON\n        // {"text":"...","language":"en","segments":[{"start":0,"end":4.2,"text":"..."}]} for timestamp citations.
         // Example: '/usr/local/bin/annotated-transcribe {input} {output}'
         'command' => '',
         'provider' => 'local',
         'model' => '',
+    ],
+    'research_retrieval' => [
+        // Optional provider-neutral embeddings. Command receives UTF-8 text at {input}
+        // and must write either a JSON numeric array or {"embedding":[...]} to {output}.
+        // Leave blank for lexical/full-text retrieval only.
+        'embedding_command' => '',
+        'embedding_provider' => 'local',
+        'embedding_model' => '',
     ],
     'oauth' => [
         'google' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],

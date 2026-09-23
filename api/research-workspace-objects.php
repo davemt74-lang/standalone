@@ -14,6 +14,7 @@ try{
     $projectPublic=trim((string)($input['project_id']??''));
     $project=research_agent_workspace_project($pdo,$viewer,$agentPublic,$projectPublic);
     if(!$project)json_response(['ok'=>false,'error'=>['code'=>'WORKSPACE_NOT_FOUND','message'=>'Research Agent workspace not found.']],404);
+    if($_SERVER['REQUEST_METHOD']==='POST'&&function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$project['id']);
 
     if($action==='list'){
         $trashed=!empty($input['trashed']);

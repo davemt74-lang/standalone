@@ -51,6 +51,7 @@ try{
     if($x!==null&&$y!==null){
         try{research_agent_workspace_desktop_position_save($pdo,$viewer,$project,(string)$item['object_type'],(string)$item['public_id'],$x,$y,20);}catch(Throwable $ignored){}
     }
+    if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$project['id']);
     json_response(['ok'=>true,'data'=>['item'=>$item]],201);
 }catch(InvalidArgumentException $e){
     if($storedPath&&is_file($storedPath))@unlink($storedPath);

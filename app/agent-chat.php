@@ -87,6 +87,9 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
     if($type==='document'&&function_exists('research_agent_workspace_document_context')){
         return research_agent_workspace_document_context($pdo,$viewer,$publicId);
     }
+    if($type==='sticky'&&function_exists('research_agent_workspace_sticky_context')){
+        return research_agent_workspace_sticky_context($pdo,$viewer,$publicId);
+    }
     if($type==='upload'&&function_exists('research_agent_workspace_upload_context')){
         return research_agent_workspace_upload_context($pdo,$viewer,$publicId);
     }
@@ -99,10 +102,12 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         return ['type'=>'source','public_id'=>$publicId,'label'=>$r['title']?:$r['domain'],'text'=>"[SOURCE {$r['public_id']}]\n".($r['title']?:$r['canonical_url'])."\n".mb_substr((string)$r['extracted_text'],0,9000),'refs'=>[['type'=>'source','id'=>$publicId]]];
     }
     if($type==='research'){
-        $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;$ctx=ai_research_context($pdo,(int)$p['id']);$workspace=research_workspace_ready($pdo)?research_workspace_context($pdo,(int)$p['id']):null;$workspaceRefs=[];
+        $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;
+        $ctx=(function_exists('research_retrieval_ready')&&research_retrieval_ready($pdo))?['text'=>'','refs'=>[]]:ai_research_context($pdo,(int)$p['id']);
+        $workspace=research_workspace_ready($pdo)?research_workspace_context($pdo,(int)$p['id']):null;$workspaceRefs=[];
         if($workspace){$snap=$workspace['snapshot']??[];foreach((array)($snap['claims']??[]) as $x)if(!empty($x['public_id']))$workspaceRefs[]=['type'=>'claim','id'=>$x['public_id']];foreach((array)($snap['entities']??[]) as $x)if(!empty($x['public_id']))$workspaceRefs[]=['type'=>'entity','id'=>$x['public_id']];foreach((array)($snap['source_risks']??[]) as $x)if(!empty($x['source_public_id']))$workspaceRefs[]=['type'=>'source','id'=>$x['source_public_id']];foreach((array)($snap['annotation_links']??[]) as $x){if(!empty($x['source_annotation_id']))$workspaceRefs[]=['type'=>'annotation','id'=>$x['source_annotation_id']];if(!empty($x['target_annotation_id']))$workspaceRefs[]=['type'=>'annotation','id'=>$x['target_annotation_id']];}}
         $text="[RESEARCH PROJECT {$p['public_id']}]\nTitle: {$p['title']}\n".$ctx['text'];if($workspace)$text.="\n\n".$workspace['text'];$refs=array_merge([['type'=>'research_project','id'=>$publicId]],$ctx['refs'],$workspaceRefs);
-        if(function_exists('research_agent_workspace_project_context')){$desktopCtx=research_agent_workspace_project_context($pdo,$viewer,$publicId,10);if(!empty($desktopCtx['text']))$text.="\n\n".$desktopCtx['text'];$refs=array_merge($refs,(array)($desktopCtx['refs']??[]));}
+        if((!function_exists('research_retrieval_ready')||!research_retrieval_ready($pdo))&&function_exists('research_agent_workspace_project_context')){$desktopCtx=research_agent_workspace_project_context($pdo,$viewer,$publicId,10);if(!empty($desktopCtx['text']))$text.="\n\n".$desktopCtx['text'];$refs=array_merge($refs,(array)($desktopCtx['refs']??[]));}
         if(function_exists('cross_research_ready')&&cross_research_ready($pdo)){$cross=cross_research_context($pdo,$viewer,$publicId,10);if(!empty($cross['text']))$text.="\n\n".$cross['text'];$refs=array_merge($refs,(array)($cross['refs']??[]));}
         if(function_exists('research_reviews_ready')&&research_reviews_ready($pdo)){$reviews=research_review_context($pdo,$viewer,$publicId,10);if(!empty($reviews['text']))$text.="\n\n".$reviews['text'];$refs=array_merge($refs,(array)($reviews['refs']??[]));}
         if(function_exists('change_impact_ready')&&change_impact_ready($pdo)){$impact=change_impact_context($pdo,$viewer,$publicId,8);if(!empty($impact['text']))$text.="\n\n".$impact['text'];$refs=array_merge($refs,(array)($impact['refs']??[]));}
@@ -139,6 +144,7 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     $conversation=$conversationPublicId?agent_chat_access($pdo,$viewer,$conversationPublicId):null;if($conversationPublicId&& !$conversation)throw new RuntimeException('Agent conversation not found.');
     if(!$conversation)$conversation=agent_chat_create($pdo,$viewer,mb_substr(preg_replace('/\s+/u',' ',$prompt),0,80));
     $context=agent_chat_context_normalize($pdo,$viewer,$contextItems);
+    $retrievalContext=null;
     if(function_exists('research_agent_by_conversation')){
         try{
             $researchAgent=research_agent_by_conversation($pdo,$viewer,(string)$conversation['public_id']);
@@ -147,6 +153,9 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
                 if(!$hasProject){
                     $projectContext=agent_chat_context_item($pdo,$viewer,'research',(string)$researchAgent['project_public_id']);
                     if($projectContext)$context[]=$projectContext;
+                }
+                if(function_exists('research_retrieval_context')&&research_retrieval_ready($pdo)){
+                    try{$retrievalContext=research_retrieval_context($pdo,$config,$viewer,(string)$researchAgent['project_public_id'],$prompt,[],10);}catch(Throwable $ignored){}
                 }
                 if(function_exists('research_agent_attach_context'))research_agent_attach_context($pdo,$viewer,$researchAgent,$context);
             }
@@ -165,7 +174,8 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     $isAdmin=($viewer['role']??'')==='admin';$quota=rate_limit_consume($pdo,$isAdmin?'agent-chat-admin':'agent-chat-pro','user:'.$viewer['id'],$isAdmin?300:60,3600);if(!$quota['allowed'])throw new RuntimeException('Agent Chat request limit reached. Try again in about '.max(1,(int)ceil($quota['retry_after']/60)).' minute(s).');
     $model=$isAdmin?ai_setting_model_id($pdo,'admin',false):ai_setting_model_id($pdo,'pro',true);if(!$model)$model=ai_setting_model_id($pdo,'research',true);if(!$model)throw new RuntimeException('No Agent Chat model is configured.');ai_interactive_model_record($pdo,$viewer,$model);
     $history=agent_chat_history_text($pdo,(int)$conversation['id'],16);$contextText=implode("\n\n",array_map(fn($x)=>$x['text'],$context));$refs=[];foreach($context as $item)foreach($item['refs'] as $ref)$refs[]=$ref;
-    $system='You are Annotated Agent Chat, a provenance-first research and collaboration assistant. Distinguish captured/source evidence from inference. Never invent Annotated IDs, quotes, people, team activity, or research findings. When structured Annotated context is supplied, cite its IDs in brackets such as [ANNOTATION id], [SOURCE id], or [RESEARCH PROJECT id]. If evidence is missing, say what is missing. Be concise, useful, and action-oriented. Do not claim an action was executed unless the application explicitly confirms it.';
+    if($retrievalContext&&!empty($retrievalContext['text'])){$contextText.=($contextText!==''?"\n\n":'').$retrievalContext['text'];foreach((array)($retrievalContext['refs']??[]) as $ref)$refs[]=$ref;}
+    $system='You are Annotated Agent Chat, a provenance-first research and collaboration assistant. Distinguish captured/source evidence from inference. Never invent Annotated IDs, quotes, people, team activity, or research findings. When structured Annotated context is supplied, cite its IDs in brackets. For unified Research retrieval evidence, preserve the supplied locator exactly when present, for example [DOCUMENT id · Section name], [UPLOAD id · Page 6], or [RECORDING id · 08:42]. If evidence is missing, say what is missing. Be concise, useful, and action-oriented. Do not claim an action was executed unless the application explicitly confirms it.';
     $researchProjects=array_filter(agent_action_project_map($pdo,$viewer,$context),fn($p)=>project_can_write($p));
     if($researchProjects&&agent_actions_ready($pdo)){
         $ids=implode(', ',array_keys($researchProjects));

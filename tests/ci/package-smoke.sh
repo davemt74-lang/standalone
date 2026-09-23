@@ -12,11 +12,11 @@ unzip -q "$website" -d "$tmp/site"
 unzip -q "$extension" -d "$tmp/ext"
 required=(
   index.php install.php upgrade.php RELEASE-MANIFEST.json
-  app/release.php app/release-operations.php app/schema-health.php app/research-library.php app/research-agents.php app/research-agent-workspace.php app/research-agent-workspace-ui.php api/research-agents.php api/research-workspace-objects.php api/research-workspace-upload.php research-workspace-file.php worker/research-file-worker.php worker/research-transcription-worker.php assets/js/research-agent-shell.js assets/js/research-agent-workspace-ui.js research.php saved.php teams.php annotation.php profile.php
+  app/release.php app/release-operations.php app/schema-health.php app/research-library.php app/research-agents.php app/research-agent-workspace.php app/research-agent-workspace-ui.php app/research-retrieval.php api/research-agents.php api/research-workspace-objects.php api/research-workspace-upload.php api/research-retrieval.php research-workspace-file.php worker/research-file-worker.php worker/research-transcription-worker.php worker/research-retrieval-worker.php assets/js/research-agent-shell.js assets/js/research-agent-workspace-ui.js research.php saved.php teams.php annotation.php profile.php
   admin/system-health.php admin/intelligence-release-audit.php admin/model-campaigns.php
   bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php
-  database/schema.sql database/migrations/20260922_046_model_improvement_campaigns.sql database/migrations/20260922_047_research_agents.sql database/migrations/20260923_048_research_agent_workspace_core.sql database/migrations/20260923_049_research_docs_floating_stickies.sql database/migrations/20260923_050_research_agent_desktop.sql database/migrations/20260923_051_research_desktop_uploads_recordings.sql
-  docs/RELEASE-V1.1-RC1.md docs/phase-49-release-candidate-operational-hardening.md docs/phase-51-research-docs-floating-stickies.md docs/phase-52-research-agent-desktop.md docs/phase-53-desktop-files-recordings.md
+  database/schema.sql database/migrations/20260922_046_model_improvement_campaigns.sql database/migrations/20260922_047_research_agents.sql database/migrations/20260923_048_research_agent_workspace_core.sql database/migrations/20260923_049_research_docs_floating_stickies.sql database/migrations/20260923_050_research_agent_desktop.sql database/migrations/20260923_051_research_desktop_uploads_recordings.sql database/migrations/20260923_052_unified_research_retrieval.sql
+  docs/RELEASE-V1.1-RC1.md docs/phase-49-release-candidate-operational-hardening.md docs/phase-51-research-docs-floating-stickies.md docs/phase-52-research-agent-desktop.md docs/phase-53-desktop-files-recordings.md docs/phase-54-unified-research-retrieval.md
   extension/manifest.json downloads/Annotated-Chrome-Extension.zip
 )
 for path in "${required[@]}"; do [[ -f "$tmp/site/$path" ]] || { echo "Missing website package file: $path" >&2; exit 1; }; done
@@ -35,12 +35,12 @@ if(($r["version"]??"")!=="1.1.0-rc1")throw new RuntimeException("Unexpected appl
 if((int)($r["phase"]??0)!==49)throw new RuntimeException("Unexpected release phase.");
 if(($r["extension_version"]??"")!=="0.36.0"||($m["version"]??"")!=="0.36.0")throw new RuntimeException("Extension/release version mismatch.");
 if(($m["manifest_version"]??0)!==3)throw new RuntimeException("Extension must remain Manifest V3.");
-if(($r["latest_migration"]??"")!=="20260923_051_research_desktop_uploads_recordings.sql")throw new RuntimeException("Release manifest does not identify latest migration.");
+if(($r["latest_migration"]??"")!=="20260923_052_unified_research_retrieval.sql")throw new RuntimeException("Release manifest does not identify latest migration.");
 if(!preg_match("/^[a-f0-9]{64}$/",(string)($r["package_fingerprint"]??"")))throw new RuntimeException("Release package fingerprint missing.");
 require $site."/app/release.php"; require $site."/app/release-operations.php";
 if(!hash_equals((string)$r["package_fingerprint"],release_package_fingerprint($site)))throw new RuntimeException("Extracted package fingerprint does not match release manifest.");
 $status=release_installed_manifest_status($site);if(!$status["pass"])throw new RuntimeException($status["detail"]);
 '
-for file in home.php research.php profile.php research-workspace-file.php app/research-library.php app/research-agents.php app/research-agent-workspace.php app/research-agent-workspace-ui.php api/research-agents.php api/research-workspace-objects.php api/research-workspace-upload.php worker/research-file-worker.php worker/research-transcription-worker.php app/bootstrap.php app/runtime-compat.php app/schema-health.php app/release.php app/release-operations.php admin/system-health.php bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php; do php -l "$tmp/site/$file" >/dev/null; done
+for file in home.php research.php profile.php research-workspace-file.php app/research-library.php app/research-agents.php app/research-agent-workspace.php app/research-agent-workspace-ui.php api/research-agents.php api/research-workspace-objects.php api/research-workspace-upload.php api/research-retrieval.php worker/research-file-worker.php worker/research-transcription-worker.php worker/research-retrieval-worker.php app/research-retrieval.php app/bootstrap.php app/runtime-compat.php app/schema-health.php app/release.php app/release-operations.php admin/system-health.php bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php; do php -l "$tmp/site/$file" >/dev/null; done
 php -n "$tmp/site/tests/runtime-compat-contract.php" >/dev/null
 echo "Phase 49 release package smoke test passed."

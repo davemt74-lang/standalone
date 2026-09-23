@@ -12,7 +12,7 @@ if(empty($schemaStatus['ready'])){
     }
     $incident=app_schema_runtime_incident((string)($schemaStatus['error']?:('Runtime schema is not current: '.implode(', ',(array)($schemaStatus['pending']??[])).' changed='.implode(',',(array)($schemaStatus['changed']??[])))),'home-schema');
     http_response_code(503);
-    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated database update required</title><link rel="stylesheet" href="/assets/css/app.css?v=53.1"></head><body><main class="panel narrow"><h1>Database update required</h1><p>Annotated cannot safely load the Home workspace until the database schema matches this release.</p><?php if(($u['role']??'')==='admin'):?><p><a class="button" href="/upgrade.php">Open database upgrade</a></p><?php else:?><p>Please ask an Annotated administrator to complete the database upgrade.</p><?php endif?><p class="meta">Reference: <?=h($incident)?></p></main></body></html><?php
+    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated database update required</title><link rel="stylesheet" href="/assets/css/app.css?v=54.0"></head><body><main class="panel narrow"><h1>Database update required</h1><p>Annotated cannot safely load the Home workspace until the database schema matches this release.</p><?php if(($u['role']??'')==='admin'):?><p><a class="button" href="/upgrade.php">Open database upgrade</a></p><?php else:?><p>Please ask an Annotated administrator to complete the database upgrade.</p><?php endif?><p class="meta">Reference: <?=h($incident)?></p></main></body></html><?php
     exit;
 }
 
@@ -202,9 +202,10 @@ try{
       <div><span class="eyebrow">RESEARCH LIBRARY</span><strong><?=h((string)$requestedResearchAgent['name'])?></strong></div>
       <button type="button" data-research-library-close aria-label="Close Research Library">×</button>
     </header>
-    <div class="researchLibrarySearch"><input type="search" data-research-library-search placeholder="Search docs, annotations, recordings…" autocomplete="off"></div>
+    <div class="researchLibrarySearch"><input type="search" data-research-library-search placeholder="Search all Research evidence…" autocomplete="off"></div>
     <nav class="researchLibraryTabs" aria-label="Research Library filters">
       <button type="button" class="is-active" data-research-library-filter="all">All</button>
+      <button type="button" data-research-library-filter="source">Sources</button>
       <button type="button" data-research-library-filter="document">Docs</button>
       <button type="button" data-research-library-filter="annotation">Annotations</button>
       <button type="button" data-research-library-filter="upload">Files</button>
@@ -213,8 +214,17 @@ try{
       <button type="button" data-research-library-filter="bookmark">Bookmarks</button>
       <button type="button" data-research-library-filter="sticky">Stickies</button>
     </nav>
+    <div class="researchLibraryFilters">
+      <select data-research-library-folder aria-label="Folder scope"><option value="">All folders</option></select>
+      <select data-research-library-status aria-label="Processing status"><option value="">Any status</option><option value="ready">Ready</option><option value="queued">Queued</option><option value="extracting">Extracting</option><option value="processing">Processing</option><option value="blocked">Blocked</option><option value="failed">Failed</option></select>
+      <label>From <input type="date" data-research-library-date-from></label>
+      <label>To <input type="date" data-research-library-date-to></label>
+    </div>
     <div class="researchLibraryDrawerBody" data-research-library-list></div>
-    <footer class="researchLibraryDrawerFooter"><span data-research-library-count>0 items</span><button type="button" data-research-library-desktop>Open Desktop</button></footer>
+    <footer class="researchLibraryDrawerFooter">
+      <div><span data-research-library-count>0 items</span><small data-research-library-index-state></small></div>
+      <div><button type="button" data-research-library-ask disabled>Ask Agent</button><button type="button" data-research-library-desktop>Open Desktop</button></div>
+    </footer>
   </aside>
   <section class="researchDesktop" data-research-desktop hidden aria-label="<?=h((string)$requestedResearchAgent['name'])?> desktop">
     <header class="researchDesktopBar">
@@ -337,7 +347,7 @@ try{
 </form>
 <script src="/assets/js/workspace-state.js?v=36.0"></script>
 <script src="/assets/js/agent-chat.js?v=42.0"></script>
-<script src="/assets/js/research-agent-workspace-ui.js?v=53.1"></script>
+<script src="/assets/js/research-agent-workspace-ui.js?v=54.0"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=36.0"></script><?php endif?>
 <?php if($proactiveAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$proactiveAgentHandoff['prompt'],'context'=>$proactiveAgentHandoff['context'],'source'=>'proactive_notification'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>

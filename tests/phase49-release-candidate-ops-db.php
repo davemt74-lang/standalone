@@ -12,18 +12,18 @@ p49(($manifest['manifest_version']??0)===3&&($manifest['version']??'')===ANNOTAT
 
 $release=release_manifest_data($root,'phase49-ci-sha');
 p49($release['version']==='1.1.0-rc1'&&$release['phase']===49&&$release['build_sha']==='phase49-ci-sha','generated release manifest binds release identity and build SHA');
-p49($release['latest_migration']==='20260923_051_research_desktop_uploads_recordings.sql','release manifest identifies the current latest migration after the Research Agent Desktop upgrade');
+p49($release['latest_migration']==='20260923_052_unified_research_retrieval.sql','release manifest identifies the current latest migration after the Research Agent Desktop upgrade');
 p49((bool)preg_match('/^[a-f0-9]{64}$/',(string)$release['package_fingerprint']),'release manifest has a deterministic SHA-256 package fingerprint');
 p49($release['package_fingerprint']===release_package_fingerprint($root),'package fingerprint is deterministic for the same release tree');
 p49(count(installer_pending_migrations($pdo,$root.'/database/migrations'))===0,'Phase 49 release-candidate database has zero pending migrations');
 p49(!is_file($root.'/database/migrations/20260922_047_release_candidate_operational_hardening.sql'),'Phase 49 introduces no database migration');
 
-$specs=release_worker_specs();$expected=['media','transcription','research_files','research_transcription','source_monitor','ai','saved_search','research_automation','evaluation','training','post_training'];
-p49(array_keys($specs)===$expected,'one canonical release schedule covers all eleven required workers');
+$specs=release_worker_specs();$expected=['media','transcription','research_files','research_transcription','research_retrieval','source_monitor','ai','saved_search','research_automation','evaluation','training','post_training'];
+p49(array_keys($specs)===$expected,'one canonical release schedule covers all twelve required workers');
 p49(($specs['evaluation']['command']??'')==='php bin/evaluation-worker.php','Evaluation Harness worker is part of the release-critical schedule');
 $evaluationWorker=(string)file_get_contents($root.'/bin/evaluation-worker.php');
 p49(str_contains($evaluationWorker,'release_worker_heartbeat($pdo,\'evaluation\',\'starting\'')&&str_contains($evaluationWorker,'release_worker_heartbeat($pdo,\'evaluation\',$status'),'Evaluation worker emits start and terminal release heartbeats');
-$queues=release_queue_health($pdo);p49(isset($queues['research_files'],$queues['research_transcription'],$queues['evaluation'],$queues['training'],$queues['post_training']),'release queue health covers Research media plus Evaluation, Training, and Post-Training queues');
+$queues=release_queue_health($pdo);p49(isset($queues['research_files'],$queues['research_transcription'],$queues['research_retrieval'],$queues['evaluation'],$queues['training'],$queues['post_training']),'release queue health covers Research media plus Evaluation, Training, and Post-Training queues');
 
 $parts=parse_url('https://annotated.example.test');p49(($parts['scheme']??'')==='https','test production URL fixture is HTTPS');
 $dbName='';foreach(explode(';',substr($dsn,6)) as $part)if(str_starts_with($part,'dbname='))$dbName=substr($part,7);

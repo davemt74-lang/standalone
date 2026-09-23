@@ -569,6 +569,15 @@ function research_agent_workspace_desktop_position_save(PDO $pdo,array $viewer,a
 }
 
 
+function research_agent_workspace_sticky_context(PDO $pdo,array $viewer,string $publicId): ?array {
+    $obj=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$obj||($obj['object_type']??'')!=='sticky')return null;
+    return [
+      'type'=>'sticky','public_id'=>$publicId,'label'=>(string)$obj['title'],
+      'text'=>"[STICKY {$publicId}]\nResearch: {$obj['project_title']}\nTitle: {$obj['title']}\nNote:\n".mb_substr((string)($obj['sticky_body']??''),0,10000),
+      'refs'=>[['type'=>'sticky','id'=>$publicId],['type'=>'research_project','id'=>(string)$obj['project_public_id']]]
+    ];
+}
+
 function research_agent_workspace_upload_specs(): array {
     return [
       'application/pdf'=>['ext'=>'pdf','kind'=>'upload','max'=>50*1024*1024],
