@@ -12,7 +12,7 @@ if(empty($schemaStatus['ready'])){
     }
     $incident=app_schema_runtime_incident((string)($schemaStatus['error']?:('Runtime schema is not current: '.implode(', ',(array)($schemaStatus['pending']??[])).' changed='.implode(',',(array)($schemaStatus['changed']??[])))),'home-schema');
     http_response_code(503);
-    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated database update required</title><link rel="stylesheet" href="/assets/css/app.css?v=58.0"></head><body><main class="panel narrow"><h1>Database update required</h1><p>Annotated cannot safely load the Home workspace until the database schema matches this release.</p><?php if(($u['role']??'')==='admin'):?><p><a class="button" href="/upgrade.php">Open database upgrade</a></p><?php else:?><p>Please ask an Annotated administrator to complete the database upgrade.</p><?php endif?><p class="meta">Reference: <?=h($incident)?></p></main></body></html><?php
+    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated database update required</title><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head><body><main class="panel narrow"><h1>Database update required</h1><p>Annotated cannot safely load the Home workspace until the database schema matches this release.</p><?php if(($u['role']??'')==='admin'):?><p><a class="button" href="/upgrade.php">Open database upgrade</a></p><?php else:?><p>Please ask an Annotated administrator to complete the database upgrade.</p><?php endif?><p class="meta">Reference: <?=h($incident)?></p></main></body></html><?php
     exit;
 }
 
@@ -159,7 +159,7 @@ try{
     $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
     $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:$stats;
 }catch(Throwable $e){$recordHomeIncident('stats',$e);}
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=58.0"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout">
 <?php if($requestedResearchAgent):?>
 <div class="researchAgentCanvasTopActions" data-research-canvas-controls>
@@ -244,6 +244,7 @@ try{
             <button type="button" data-research-library-doc-command="insertUnorderedList">• List</button>
             <button type="button" data-research-library-doc-command="insertOrderedList">1. List</button>
             <button type="button" data-research-library-doc-save>Save</button>
+            <button type="button" data-research-library-doc-publish>Review &amp; publish</button>
           </div>
           <div class="researchLibraryDocContent" data-research-library-doc-content contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"></div>
         </section>
@@ -305,6 +306,7 @@ try{
             <span class="researchDocumentToolbarSpacer"></span>
             <button type="button" data-doc-ask-selection>Ask Agent</button>
             <button type="button" data-doc-sticky-selection>Sticky</button>
+            <button type="button" data-research-document-publish>Review &amp; publish</button>
           </div>
         </div>
         <div class="researchDocumentEditor" data-research-document-editor contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true"></div>
@@ -383,7 +385,7 @@ try{
 </form>
 <script src="/assets/js/workspace-state.js?v=36.0"></script>
 <script src="/assets/js/agent-chat.js?v=55.1"></script>
-<script src="/assets/js/research-agent-workspace-ui.js?v=58.0"></script>
+<script src="/assets/js/research-agent-workspace-ui.js?v=59.0"></script>
 <script src="/assets/js/cognitive-feed.js?v=17.0"></script>
 <?php if($chatTeams):?><script src="/assets/js/team-chat.js?v=36.0"></script><?php endif?>
 <?php if($proactiveAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$proactiveAgentHandoff['prompt'],'context'=>$proactiveAgentHandoff['context'],'source'=>'proactive_notification'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
