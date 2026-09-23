@@ -1923,3 +1923,169 @@
     padding:18px;
   }
 }
+
+
+/* Research Agents library section */
+.researchAgentLibrarySection{
+  margin:0 0 30px;
+}
+.researchAgentLibraryHead{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:18px;
+  margin:0 2px 14px;
+}
+.researchAgentLibraryHead h2{
+  margin:3px 0 0;
+  font-size:1.12rem;
+  letter-spacing:-.02em;
+}
+.researchAgentLibraryAdd{
+  flex:0 0 auto;
+  min-height:34px!important;
+  font-size:.68rem!important;
+}
+.researchAgentLibraryGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(310px,1fr));
+  gap:18px;
+}
+.researchAgentLibraryCard{
+  min-width:0;
+  min-height:245px;
+  display:flex;
+  flex-direction:column;
+  padding:18px;
+  border:1px solid #d9dde2;
+  border-radius:11px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(17,24,39,.035);
+}
+.researchAgentLibraryCard>header{
+  min-width:0;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr) auto;
+  gap:10px;
+  align-items:start;
+}
+.researchAgentLibraryIcon{
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border:1.5px solid #22262b;
+  border-radius:8px;
+  background:#f7f8f9;
+  font-size:.8rem;
+}
+.researchAgentLibraryIdentity{
+  min-width:0;
+}
+.researchAgentLibraryIdentity>span{
+  display:block;
+  margin-bottom:3px;
+  color:#8a9098;
+  font-size:.58rem;
+  font-weight:760;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.researchAgentLibraryIdentity h3{
+  margin:0;
+  overflow:hidden;
+  font-size:.96rem;
+  line-height:1.25;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.researchAgentLibraryStatus{
+  padding:4px 6px;
+  border:1px solid #e1e4e8;
+  border-radius:999px;
+  background:#fafbfc;
+  color:#5f666e;
+  font-size:.58rem;
+  font-weight:720;
+}
+.researchAgentLibraryCard>p{
+  margin:14px 0 12px;
+  display:-webkit-box;
+  overflow:hidden;
+  color:#626870;
+  font-size:.73rem;
+  line-height:1.45;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+}
+.researchAgentLibraryMeta{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  margin-bottom:11px;
+}
+.researchAgentLibraryMeta>span{
+  display:grid;
+  gap:2px;
+  padding:8px 9px;
+  border:1px solid #eceef1;
+  border-radius:7px;
+  background:#fafbfc;
+}
+.researchAgentLibraryMeta strong{
+  font-size:.72rem;
+}
+.researchAgentLibraryMeta small{
+  color:#8a9098;
+  font-size:.56rem;
+}
+.researchAgentLibraryRecent{
+  margin-bottom:11px;
+  padding:8px 9px;
+  border-left:2px solid #d3d7dc;
+  color:#676d75;
+  background:#fafbfc;
+  font-size:.65rem;
+  line-height:1.4;
+}
+.researchAgentLibraryRecent>span{
+  display:block;
+  margin-bottom:2px;
+  color:#949aa2;
+  font-size:.54rem;
+  font-weight:760;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.researchAgentLibraryCard>footer{
+  margin-top:auto;
+  padding-top:10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-top:1px solid #eceef1;
+}
+.researchAgentLibraryCard>footer a{
+  color:#737981;
+  font-size:.64rem;
+  text-decoration:none;
+}
+.researchAgentLibraryCard>footer a:hover{
+  color:#111;
+  text-decoration:underline;
+}
+.researchAgentLibraryOpen{
+  color:#111!important;
+  font-size:.7rem!important;
+  font-weight:800;
+}
+@media(max-width:700px){
+  .researchAgentLibraryHead{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .researchAgentLibraryGrid{
+    grid-template-columns:1fr;
+  }
+}
