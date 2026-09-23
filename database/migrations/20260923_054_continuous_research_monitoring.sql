@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS research_monitor_watches (
   auto_promote TINYINT(1) NOT NULL DEFAULT 0,
   status ENUM('active','paused','archived') NOT NULL DEFAULT 'active',
   last_checked_at DATETIME NULL,
+  last_source_change_event_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
   next_check_at DATETIME NULL,
   last_result_hash CHAR(64) NULL,
   last_error VARCHAR(1000) NULL,
