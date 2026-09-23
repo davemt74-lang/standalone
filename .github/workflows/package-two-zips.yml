@@ -150,7 +150,7 @@ jobs:
             echo "validated_commit=$GITHUB_SHA"
             echo "workflow_run_id=$GITHUB_RUN_ID"
             echo "workflow_run_attempt=$GITHUB_RUN_ATTEMPT"
-            php -r '$m=json_decode(file_get_contents("package-website/RELEASE-MANIFEST.json"),true,512,JSON_THROW_ON_ERROR); echo "release=".($m["release"]??"").PHP_EOL."release_version=".($m["version"]??"").PHP_EOL."release_phase=".($m["phase"]??"").PHP_EOL."package_fingerprint=".($m["package_fingerprint"]??"").PHP_EOL;'
+            php -r '$m=json_decode(file_get_contents("package-website/RELEASE-MANIFEST.json"),true,512,JSON_THROW_ON_ERROR); echo "release=".($m["release"]??"").PHP_EOL."release_version=".($m["version"]??"").PHP_EOL."release_phase=".($m["phase"]??"").PHP_EOL."release_channel=".($m["channel"]??"").PHP_EOL."latest_migration=".($m["latest_migration"]??"").PHP_EOL."package_fingerprint=".($m["package_fingerprint"]??"").PHP_EOL;'
           } > BUILD-METADATA.txt
           sha256sum Annotated-Website.zip Annotated-Chrome-Extension.zip > SHA256SUMS.txt
 
