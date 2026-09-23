@@ -83,14 +83,15 @@ function research_monitor_create(PDO $pdo,array $viewer,array $input): array {
     if($norm['type']==='claim')research_monitor_validate_claim($pdo,(int)$project['id'],$norm['target']);
     $cadence=strtolower(trim((string)($input['cadence']??$agent['monitoring_cadence']??'daily')));if(!isset(research_monitor_cadences()[$cadence]))$cadence='daily';
     $alert=in_array((string)($input['alert_level']??'important'),['all','important'],true)?(string)$input['alert_level']:'important';
-    $auto=array_key_exists('auto_promote',$input)?((bool)$input['auto_promote']):in_array($norm['type'],['url','domain'],true);
+    $auto=$norm['type']==='url'?true:(array_key_exists('auto_promote',$input)?((bool)$input['auto_promote']):false);
+    $cursorQ=$pdo->prepare('SELECT COALESCE(MAX(sce.id),0) FROM source_change_events sce JOIN project_sources ps ON ps.source_id=sce.source_id WHERE ps.project_id=?');$cursorQ->execute([(int)$project['id']]);$changeCursor=(int)$cursorQ->fetchColumn();
     $public=ulid_like();$next=research_monitor_next_run($cadence);
-    $pdo->prepare("INSERT INTO research_monitor_watches(public_id,research_agent_id,project_id,created_by_user_id,watch_type,target,canonical_url,query_text,watch_key,cadence,alert_level,auto_promote,status,next_check_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?, 'active',?)
+    $pdo->prepare("INSERT INTO research_monitor_watches(public_id,research_agent_id,project_id,created_by_user_id,watch_type,target,canonical_url,query_text,watch_key,cadence,alert_level,auto_promote,status,last_source_change_event_id,next_check_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?, 'active',?,?)
       ON DUPLICATE KEY UPDATE target=VALUES(target),canonical_url=VALUES(canonical_url),query_text=VALUES(query_text),cadence=VALUES(cadence),alert_level=VALUES(alert_level),auto_promote=VALUES(auto_promote),status='active',next_check_at=VALUES(next_check_at),last_error=NULL,updated_at=NOW()")
-      ->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],$norm['type'],$norm['target'],$norm['canonical_url'],$norm['query_text'],$norm['watch_key'],$cadence,$alert,$auto?1:0,$next]);
+      ->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],$norm['type'],$norm['target'],$norm['canonical_url'],$norm['query_text'],$norm['watch_key'],$cadence,$alert,$auto?1:0,$changeCursor,$next]);
     $q=$pdo->prepare('SELECT public_id FROM research_monitor_watches WHERE research_agent_id=? AND watch_key=? LIMIT 1');$q->execute([(int)$agent['id'],$norm['watch_key']]);$id=(string)$q->fetchColumn();
-    $watch=research_monitor_watch_access($pdo,$viewer,$id);if($watch)research_monitor_queue($pdo,(int)$watch['id'],(int)$viewer['id'],'manual');
+    $watch=research_monitor_watch_access($pdo,$viewer,$id);if($watch&&$norm['type']==='url')research_monitor_candidate_ingest($pdo,$watch,['url'=>$norm['canonical_url'],'title'=>$norm['target'],'excerpt'=>'Exact watched URL.']);if($watch)research_monitor_queue($pdo,(int)$watch['id'],(int)$viewer['id'],'manual');
     return $watch?:[];
 }
 
@@ -144,9 +145,10 @@ function research_monitor_queue_for_source(PDO $pdo,int $sourceId,string $trigge
       JOIN sources s ON s.id=ps.source_id
       WHERE s.id=? AND rmw.status='active'");$q->execute([$sourceId]);$count=0;
     foreach($q->fetchAll() as $w){
-        $matches=true;
+        $matches=false;
         if($w['watch_type']==='url')$matches=canonicalize_url((string)$w['source_url'])===canonicalize_url((string)$w['canonical_url']);
-        elseif($w['watch_type']==='domain')$matches=mb_strtolower((string)$w['domain'])===mb_strtolower((string)$w['target']);
+        elseif($w['watch_type']==='domain')$matches=mb_strtolower((string)preg_replace('/^www\\./','',(string)$w['domain']))===mb_strtolower((string)preg_replace('/^www\\./','',(string)$w['target']));
+        elseif($w['watch_type']==='claim')$matches=true;
         if($matches){research_monitor_queue($pdo,(int)$w['id'],null,$trigger);$count++;}
     }return $count;
 }
@@ -172,7 +174,7 @@ function research_monitor_score(array $watch,string $url,string $title='',string
     return ['score'=>max(0,min(100,round($score,2))),'reason'=>mb_substr(implode(' ',$reasons),0,500)];
 }
 
-function research_monitor_candidate_ingest(PDO $pdo,array $watch,array $candidate): ?array {
+function research_monitor_candidate_ingest(PDO $pdo,array $watch,array $candidate,bool $allowAutoPromote=true): ?array {
     $raw=trim((string)($candidate['url']??''));$parts=parse_url($raw);if(!$parts||!in_array(strtolower((string)($parts['scheme']??'')),['http','https'],true)||empty($parts['host']))return null;
     $url=canonicalize_url($raw);$hash=hash('sha256',$url);$title=mb_substr(trim((string)($candidate['title']??'')),0,500);$excerpt=mb_substr(trim((string)($candidate['excerpt']??'')),0,10000);$domain=mb_strtolower((string)(parse_url($url,PHP_URL_HOST)?:''));
     $published=null;if(!empty($candidate['published_at'])){try{$published=(new DateTimeImmutable((string)$candidate['published_at']))->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');}catch(Throwable $e){}}
@@ -183,7 +185,7 @@ function research_monitor_candidate_ingest(PDO $pdo,array $watch,array $candidat
       ->execute([$public,(int)$watch['id'],(int)$watch['project_id'],$url,$hash,$title?:null,$domain?:null,$excerpt?:null,$published,$score['score'],$score['reason'],$payloadHash]);
     $q=$pdo->prepare('SELECT * FROM research_monitor_candidates WHERE watch_id=? AND canonical_url_hash=? LIMIT 1');$q->execute([(int)$watch['id'],$hash]);$row=$q->fetch();if(!$row)return null;
     research_monitor_event($pdo,$watch,'candidate_discovered','candidate|'.$row['id'].'|'.$payloadHash,'Discovered candidate source: '.($title?:$url),'info',null,null,null,['candidate_public_id'=>$row['public_id'],'score'=>(float)$row['relevance_score']]);
-    if((int)$watch['auto_promote']===1&&(float)$row['relevance_score']>=65&&(string)$row['status']==='candidate')$row=research_monitor_candidate_promote($pdo,$watch,$row);
+    if($allowAutoPromote&&(int)$watch['auto_promote']===1&&(float)$row['relevance_score']>=65&&(string)$row['status']==='candidate')$row=research_monitor_candidate_promote($pdo,$watch,$row);
     return $row;
 }
 
@@ -214,11 +216,11 @@ function research_monitor_discovery_command(array $config,array $watch): array {
 }
 
 function research_monitor_domain_sitemap(array $watch): array {
-    if((string)$watch['watch_type']!=='domain')return [];$domain=(string)$watch['target'];$url='https://'.$domain.'/sitemap.xml';
-    try{$fetch=fetch_public_url($url,1048576);if((int)$fetch['status']<200||(int)$fetch['status']>=400)return [];$body=(string)$fetch['body'];$out=[];
-        if(preg_match_all('#<loc>\s*(https?://[^<]+)\s*</loc>#i',$body,$m))foreach(array_slice($m[1],0,30) as $candidate)$out[]=['url'=>html_entity_decode(trim($candidate),ENT_QUOTES|ENT_HTML5,'UTF-8'),'title'=>'','excerpt'=>''];
-        return $out;
-    }catch(Throwable $e){return [];}
+    if((string)$watch['watch_type']!=='domain')return [];$domain=(string)$watch['target'];$root='https://'.$domain.'/';$url=$root.'sitemap.xml';
+    try{$fetch=fetch_public_url($url,1048576);if((int)$fetch['status']<200||(int)$fetch['status']>=400)return [['url'=>$root,'title'=>$domain,'excerpt'=>'Domain root.']];$body=(string)$fetch['body'];$out=[];
+        if(preg_match_all('#<loc>\\s*(https?://[^<]+)\\s*</loc>#i',$body,$m))foreach(array_slice($m[1],0,30) as $candidate)$out[]=['url'=>html_entity_decode(trim($candidate),ENT_QUOTES|ENT_HTML5,'UTF-8'),'title'=>'','excerpt'=>''];
+        return $out?:[['url'=>$root,'title'=>$domain,'excerpt'=>'Domain root.']];
+    }catch(Throwable $e){return [['url'=>$root,'title'=>$domain,'excerpt'=>'Domain root.']];}
 }
 
 function research_monitor_queue_claim_assessments(PDO $pdo,int $projectId,int $sourceVersionId): int {
@@ -276,16 +278,18 @@ function research_monitor_claim_assessment_fail(PDO $pdo,string $publicId,string
 }
 
 function research_monitor_sync_source_changes(PDO $pdo,array $watch): int {
-    $since=(string)($watch['last_checked_at']?:$watch['created_at']);$params=[(int)$watch['project_id'],$since];$filter='';
+    $cursor=(int)($watch['last_source_change_event_id']??0);$params=[(int)$watch['project_id'],$cursor];$filter='';
     if($watch['watch_type']==='url'){$filter=' AND s.canonical_url_hash=?';$params[]=hash('sha256',canonicalize_url((string)$watch['canonical_url']));}
     elseif($watch['watch_type']==='domain'){$filter=' AND (s.domain=? OR s.domain=?)';$params[]=(string)$watch['target'];$params[]='www.'.(string)$watch['target'];}
-    $q=$pdo->prepare("SELECT sce.*,s.id source_id,s.public_id source_public_id,s.title,s.canonical_url FROM source_change_events sce JOIN sources s ON s.id=sce.source_id JOIN project_sources ps ON ps.source_id=s.id WHERE ps.project_id=? AND sce.created_at>?".$filter." ORDER BY sce.id ASC LIMIT 200");$q->execute($params);$count=0;
-    foreach($q->fetchAll() as $e){
+    $q=$pdo->prepare("SELECT sce.*,s.id source_id,s.public_id source_public_id,s.title,s.canonical_url FROM source_change_events sce JOIN sources s ON s.id=sce.source_id JOIN project_sources ps ON ps.source_id=s.id WHERE ps.project_id=? AND sce.id>?".$filter." ORDER BY sce.id ASC LIMIT 200");$q->execute($params);$count=0;$maxCursor=$cursor;
+    foreach($q->fetchAll() as $e){$maxCursor=max($maxCursor,(int)$e['id']);
         $type=match((string)$e['change_type']){'unavailable'=>'source_unavailable','restored'=>'source_restored',default=>'source_changed'};
         $importance=(int)$e['target_changed']===1?'high':'important';$summary=trim((string)($e['diff_summary']??''));if($summary==='')$summary='Monitored source changed: '.($e['title']?:$e['canonical_url']);
         if(research_monitor_event($pdo,$watch,$type,'source-change|'.$e['id'],$summary,$importance,(int)$e['source_id'],(int)$e['id'],null,['source_public_id'=>$e['source_public_id'],'change_type'=>$e['change_type'],'target_changed'=>(int)$e['target_changed']]))$count++;
         research_monitor_queue_claim_assessments($pdo,(int)$watch['project_id'],(int)$e['new_version_id']);
-    }return $count;
+    }
+    if($maxCursor>$cursor)$pdo->prepare('UPDATE research_monitor_watches SET last_source_change_event_id=? WHERE id=?')->execute([$maxCursor,(int)$watch['id']]);
+    return $count;
 }
 
 function research_monitor_sync_claim(PDO $pdo,array $watch): int {
@@ -338,8 +342,8 @@ function research_monitor_run(PDO $pdo,array $config,array $watch,string $trigge
         if((string)$watch['watch_type']==='url')$candidates[]=['url'=>(string)$watch['canonical_url'],'title'=>'','excerpt'=>''];
         elseif((string)$watch['watch_type']==='domain')$candidates=research_monitor_domain_sitemap($watch);
         if(!in_array((string)$watch['watch_type'],['url'],true))$candidates=array_merge($candidates,research_monitor_discovery_command($config,$watch));
-        $seen=[];$discovered=0;$promotedAfter=0;
-        foreach($candidates as $candidate){$row=research_monitor_candidate_ingest($pdo,$watch,$candidate);if(!$row)continue;$seen[]=$row['payload_hash'];$discovered++;if((string)$row['status']==='promoted')$promotedAfter++;}
+        $seen=[];$discovered=0;$promotedAfter=0;$autoPromoteLimit=max(0,min(10,(int)($config['research_monitoring']['auto_promote_limit_per_run']??5)));
+        foreach($candidates as $candidate){$row=research_monitor_candidate_ingest($pdo,$watch,$candidate,$promotedAfter<$autoPromoteLimit);if(!$row)continue;$seen[]=$row['payload_hash'];$discovered++;if((string)$row['status']==='promoted')$promotedAfter++;}
         $events=research_monitor_sync_source_changes($pdo,$watch)+research_monitor_sync_claim($pdo,$watch);
         $outHash=hash('sha256',json_encode([$seen,$events,$promotedAfter],JSON_UNESCAPED_SLASHES));
         $pdo->prepare("UPDATE research_monitor_watches SET last_checked_at=NOW(),next_check_at=?,last_result_hash=?,last_error=NULL,updated_at=NOW() WHERE id=?")->execute([research_monitor_next_run((string)$watch['cadence']),$outHash,(int)$watch['id']]);
