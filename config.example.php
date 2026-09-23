@@ -30,6 +30,14 @@ return [
         'provider' => 'local',
         'model' => '',
     ],
+    'research_retrieval' => [
+        // Optional provider-neutral embeddings. Command receives UTF-8 text at {input}
+        // and must write either a JSON numeric array or {"embedding":[...]} to {output}.
+        // Leave blank for lexical/full-text retrieval only.
+        'embedding_command' => '',
+        'embedding_provider' => 'local',
+        'embedding_model' => '',
+    ],
     'oauth' => [
         'google' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],
         'x' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => ''],
