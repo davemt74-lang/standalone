@@ -24,6 +24,7 @@ for($n=0;$n<$limit;$n++){
         if($eventId){source_integrity_analyze_event($pdo,$eventId);source_integrity_notify_event($pdo,$eventId);live_event_emit_source_change($pdo,(int)$job['source_id'],$eventId);}
         job_claim_complete($pdo,'source_monitor_jobs',$id,$token);$pdo->commit();
         if($eventId&&research_workspace_ready($pdo)){$pq=$pdo->prepare('SELECT project_id FROM project_sources WHERE source_id=?');$pq->execute([$job['source_id']]);foreach($pq->fetchAll(PDO::FETCH_COLUMN) as $projectId)research_workspace_queue($pdo,(int)$projectId,3);}
+        if($eventId&&function_exists('research_monitor_queue_for_source'))research_monitor_queue_for_source($pdo,(int)$job['source_id'],'source_change');
         if($eventId){try{$model=ai_setting_model_id($pdo,'source_monitor');if($model)ai_queue_job($pdo,null,'source_change_summary',$model,'source_change_event',(string)$eventId,[],3);}catch(Throwable $e){}}
         $releaseProcessed++;echo "source job {$job['id']} done\n";
     }catch(LostJobClaim $e){if($pdo->inTransaction())$pdo->rollBack();$releaseFailed++;fwrite(STDERR,"source job {$job['id']}: lease lost; stale fetch discarded\n");}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();try{job_claim_retry_or_fail($pdo,'source_monitor_jobs',$id,$token,substr($e->getMessage(),0,1000),(int)$job['attempts'],3,1800);}catch(LostJobClaim $lost){}$releaseFailed++;fwrite(STDERR,"source job {$job['id']}: {$e->getMessage()}\n");}
