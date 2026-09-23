@@ -387,9 +387,11 @@ function research_agent_workspace_restore_document_revision(PDO $pdo,array $view
 
 function research_agent_workspace_stickies(PDO $pdo,array $viewer,array $project): array {
     if(!research_agent_workspace_ready($pdo))return [];
-    $q=$pdo->prepare("SELECT rwo.public_id,rwo.title,rwo.created_at,rwo.updated_at,rws.body,rws.color,rws.position_x,rws.position_y,rws.width_px,rws.height_px,rws.z_index,
+    $q=$pdo->prepare("SELECT rwo.public_id,rwo.title,rwo.created_at,rwo.updated_at,parent.public_id parent_public_id,
+      rws.body,rws.color,rws.position_x,rws.position_y,rws.width_px,rws.height_px,rws.z_index,
       u.display_name creator_name,u.username creator_username
       FROM research_workspace_objects rwo JOIN research_workspace_stickies rws ON rws.object_id=rwo.id JOIN users u ON u.id=rwo.created_by_user_id
+      LEFT JOIN research_workspace_objects parent ON parent.id=rwo.parent_id
       WHERE rwo.project_id=? AND rwo.object_type='sticky' AND rwo.status='active' ORDER BY rws.z_index,rwo.id");
     $q->execute([(int)$project['id']]);return $q->fetchAll()?:[];
 }
@@ -495,10 +497,13 @@ function research_agent_workspace_desktop_annotation_rows(PDO $pdo,array $viewer
 }
 
 function research_agent_workspace_desktop_positions(PDO $pdo,int $projectId): array {
-    $q=$pdo->prepare("SELECT object_type,object_public_id,position_x,position_y,z_index FROM research_workspace_desktop_positions WHERE project_id=?");
+    $q=$pdo->prepare("SELECT rdp.object_type,rdp.object_public_id,rdp.position_x,rdp.position_y,rdp.z_index,folder.public_id folder_public_id
+      FROM research_workspace_desktop_positions rdp
+      LEFT JOIN research_workspace_objects folder ON folder.id=rdp.folder_object_id AND folder.project_id=rdp.project_id AND folder.object_type='folder' AND folder.status='active'
+      WHERE rdp.project_id=?");
     $q->execute([$projectId]);$out=[];
     foreach($q->fetchAll()?:[] as $row)$out[(string)$row['object_type'].':'.(string)$row['object_public_id']]=[
-      'x'=>(int)$row['position_x'],'y'=>(int)$row['position_y'],'z'=>(int)$row['z_index']
+      'x'=>(int)$row['position_x'],'y'=>(int)$row['position_y'],'z'=>(int)$row['z_index'],'folder_public_id'=>$row['folder_public_id']??null
     ];
     return $out;
 }
@@ -513,7 +518,9 @@ function research_agent_workspace_desktop_items(PDO $pdo,array $viewer,array $pr
     }
     if(!$trashed){
         foreach(research_agent_workspace_desktop_annotation_rows($pdo,$viewer,$project) as $row){
-            $key='annotation:'.(string)$row['public_id'];$row['desktop']=$positions[$key]??null;$items[]=$row;
+            $key='annotation:'.(string)$row['public_id'];$row['desktop']=$positions[$key]??null;
+            $row['parent_public_id']=(string)($row['desktop']['folder_public_id']??'')?:null;
+            $items[]=$row;
         }
     }
     return $items;
@@ -529,6 +536,23 @@ function research_agent_workspace_desktop_object_allowed(PDO $pdo,array $viewer,
     if(!in_array($type,['folder','document','bookmark','upload','recording'],true))return false;
     $obj=research_agent_workspace_object($pdo,$viewer,$publicId,true);
     return $obj&&((int)$obj['project_id']===(int)$project['id'])&&(($obj['object_type']??'')===$type);
+}
+
+function research_agent_workspace_desktop_move(PDO $pdo,array $viewer,array $project,string $type,string $publicId,string $parentPublic=''): array {
+    research_agent_workspace_require_write($project);
+    $type=strtolower(trim($type));$publicId=trim($publicId);$parentPublic=trim($parentPublic);
+    if(!research_agent_workspace_desktop_object_allowed($pdo,$viewer,$project,$type,$publicId))throw new RuntimeException('Desktop item is unavailable.');
+    $parent=research_agent_workspace_parent($pdo,(int)$project['id'],$parentPublic);
+    if($type==='annotation'){
+        $pdo->prepare("INSERT INTO research_workspace_desktop_positions(project_id,object_type,object_public_id,folder_object_id,position_x,position_y,z_index,updated_by_user_id)
+          VALUES(?,'annotation',?,?,24,24,1,?)
+          ON DUPLICATE KEY UPDATE folder_object_id=VALUES(folder_object_id),updated_by_user_id=VALUES(updated_by_user_id),updated_at=NOW()")
+          ->execute([(int)$project['id'],$publicId,$parent['id']??null,(int)$viewer['id']]);
+        return ['object_type'=>'annotation','public_id'=>$publicId,'parent_public_id'=>$parent['public_id']??null];
+    }
+    $obj=research_agent_workspace_object($pdo,$viewer,$publicId,true);
+    if(!$obj||($obj['object_type']??'')!==$type)throw new RuntimeException('Desktop item is unavailable.');
+    return research_agent_workspace_move($pdo,$viewer,$publicId,$parentPublic);
 }
 
 function research_agent_workspace_desktop_position_save(PDO $pdo,array $viewer,array $project,string $type,string $publicId,int $x,int $y,int $z=1): array {
