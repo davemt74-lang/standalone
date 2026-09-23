@@ -7,8 +7,8 @@ Phase 63 connects standalone Annotated to the user's VP3 account. It does **not*
 VP3 is authoritative for VP3 identity and VP3 artifact permissions. Annotated uses a first-party authorization-code connection with explicit scopes:
 
 - `account.identity.read`
-- `meetings.transcripts.read`
-- `meetings.intelligence.read`
+- `transcriptions.read`
+- `transcriptions.intelligence.read`
 
 Annotated stores access/refresh credentials encrypted with the existing Annotated application encryption key. VP3 stores only token hashes.
 
@@ -27,7 +27,7 @@ One VP3 account can be linked to only one Annotated account.
 
 The Research workspace exposes a VP3 Library. The initial artifact implementation covers both VP3 Meetings and the general VP3 transcription workspace, using their existing authoritative permissions, transcripts and Transcription/Meeting Intelligence.
 
-Users may browse only transcriptions or meetings their VP3 account can access. Each item shows meeting metadata, transcript/AI-summary availability, the current VP3 version, a link to the original, and whether a newer version is available.
+Users may browse only transcriptions or meetings their VP3 account can access. Each item shows source metadata, transcript/AI-summary availability, the current VP3 version, a link to the original, and whether a newer version is available.
 
 The connector data model is generic enough to add other VP3 transcription/recording artifact types later without replacing the account connection.
 
@@ -55,6 +55,6 @@ Disconnecting VP3 revokes future access and wipes connection credentials while p
 
 Standalone Annotated validates migration 060, connection security, provenance, versioning, disconnect behavior, upgrade safety, and package inclusion.
 
-VP3 validates Connected Sites authorization, scoped tokens, meeting permission filtering, account UI/revocation, and projection from its existing transcript/Meeting Intelligence stores.
+VP3 validates Connected Sites authorization, scoped tokens, transcription/meeting permission filtering, account UI/revocation, and projection from its existing transcript/Meeting Intelligence stores.
 
 Neither repository creates a second transcript system, AI-summary store, Research system, or identity authority.
