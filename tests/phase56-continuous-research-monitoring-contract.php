@@ -46,7 +46,7 @@ $config=(string)file_get_contents($root.'/config.example.php');
 foreach(["'research_monitoring'","'discovery_command'","'auto_promote_limit_per_run'","{input}","{output}"] as $needle)$must(str_contains($config,$needle),'Phase 56 discovery-provider contract missing: '.$needle);
 
 $home=(string)file_get_contents($root.'/home.php');
-foreach(['data-research-library-filter="monitoring"','/assets/css/app.css?v=56.0','/assets/js/research-agent-workspace-ui.js?v=56.0'] as $needle)$must(str_contains($home,$needle),'Phase 56 Home/Library UI contract missing: '.$needle);
+foreach(['data-research-library-filter="monitoring"','/assets/css/app.css?v=57.0','/assets/js/research-agent-workspace-ui.js?v=57.0'] as $needle)$must(str_contains($home,$needle),'Phase 56 Home/Library UI contract missing: '.$needle);
 foreach(['/assets/css/app.css?v=55.3','/assets/js/research-agent-workspace-ui.js?v=55.3'] as $stale)$must(!str_contains($home,$stale),'Phase 56 Home must not retain stale cache key: '.$stale);
 
 $libraryJs=(string)file_get_contents($root.'/assets/js/research-agent-workspace-ui.js');
