@@ -446,6 +446,26 @@ function research_task_deliverable_finalize(PDO $pdo,array $viewer,string $planP
     $q=$pdo->prepare("UPDATE research_task_deliverables SET status='finalized',finalized_at=NOW(),updated_at=NOW() WHERE plan_id=? AND status<>'finalized'");$q->execute([(int)$plan['id']]);if(!$q->rowCount())throw new RuntimeException('Plan deliverable is already finalized or unavailable.');research_task_event($pdo,(int)$plan['project_id'],(int)$plan['id'],null,'deliverable_finalized','user',(int)$viewer['id']);return research_task_plan_detail($pdo,$viewer,$planPublic)??$plan;
 }
 
+function research_task_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limit=24): void {
+    if(!research_tasks_ready($pdo))return;$limit=max(1,min(60,$limit));
+    $q=$pdo->prepare("SELECT rt.public_id task_public_id,rt.title,rt.status,rt.priority,rt.blocking_reason,rt.updated_at,rtp.public_id plan_public_id,rtp.title plan_title,ra.public_id agent_public_id
+      FROM research_tasks rt JOIN research_task_plans rtp ON rtp.id=rt.plan_id JOIN research_agents ra ON ra.id=rt.research_agent_id
+      LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
+      WHERE rt.status IN ('review','waiting','failed','ready','researching') AND rtp.status='active'
+        AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))
+      ORDER BY FIELD(rt.status,'review','failed','waiting','ready','researching'),FIELD(rt.priority,'urgent','high','medium','low'),rt.updated_at DESC LIMIT ".$limit);
+    $q->execute([(int)$viewer['id'],(int)$viewer['id'],(int)$viewer['id']]);
+    foreach($q->fetchAll() as $r){
+        $status=(string)$r['status'];$section=in_array($status,['review','waiting','failed'],true)?'needs_attention':'next_up';$priority=in_array($status,['review','failed'],true)||$r['priority']==='urgent'?'high':($r['priority']==='high'?'high':'medium');
+        $title=match($status){'review'=>'Research task is ready for review','waiting'=>'Research task is waiting','failed'=>'Research task needs recovery','researching'=>'Research task is in progress',default=>'Research task is ready'};
+        $body=(string)$r['plan_title'].' · '.(string)$r['title'];if(trim((string)($r['blocking_reason']??''))!=='')$body.=' · '.(string)$r['blocking_reason'];
+        $url='/research-tasks.php?agent='.rawurlencode((string)$r['agent_public_id']).'&plan='.rawurlencode((string)$r['plan_public_id']);
+        $actions=[cognitive_feed_action_link('Open task',$url)];
+        if($status==='review')$actions[]=cognitive_feed_action_agent('Ask Agent','Summarize this Research task result, its evidence, completion gates, and anything that still needs human review. Do not approve the task for me.',[['type'=>'research_task','public_id'=>(string)$r['task_public_id']]]);
+        cognitive_feed_add($items,['key'=>cognitive_feed_key('research_task_'.$status,'research_task',(string)$r['task_public_id'],(string)$r['updated_at']),'type'=>'research_task_'.$status,'section'=>$section,'priority'=>$priority,'created_at'=>$r['updated_at'],'score_extra'=>$priority==='high'?14:5,'title'=>$title,'body'=>$body,'meta'=>['task_id'=>$r['task_public_id'],'plan_id'=>$r['plan_public_id'],'status'=>$status],'actions'=>$actions]);
+    }
+}
+
 function research_task_chat_update(PDO $pdo,int $planId,string $message,array $metadata=[]): void {
     $q=$pdo->prepare("SELECT ra.conversation_id,rtp.public_id plan_public_id FROM research_task_plans rtp JOIN research_agents ra ON ra.id=rtp.research_agent_id WHERE rtp.id=? LIMIT 1");$q->execute([$planId]);$x=$q->fetch();if(!$x)return;
     $public=ulid_like();$pdo->prepare("INSERT INTO conversation_messages(public_id,conversation_id,user_id,sender_type,parent_message_id,body) VALUES(?,?,NULL,'agent',NULL,?)")->execute([$public,(int)$x['conversation_id'],mb_substr($message,0,12000)]);$messageId=(int)$pdo->lastInsertId();$pdo->prepare("UPDATE conversations SET last_message_at=NOW(),updated_at=NOW() WHERE id=?")->execute([(int)$x['conversation_id']]);
