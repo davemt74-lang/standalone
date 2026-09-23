@@ -257,8 +257,9 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
         $args=json_decode((string)$proposal['arguments_json'],true);if(!is_array($args))throw new RuntimeException('Stored Agent action arguments are invalid.');
         $pdo->prepare("UPDATE agent_action_proposals SET status='confirmed',confirmed_at=NOW(),error_text=NULL WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'confirmed',(int)$viewer['id']);
         $result=agent_action_execute_capability($pdo,$viewer,$project,(string)$proposal['capability_key'],$args);
-        if(($result['type']??'')==='document'&&!empty($proposal['assistant_message_id'])&&function_exists('research_agent_workspace_attach_document_to_agent_message')){
-            research_agent_workspace_attach_document_to_agent_message($pdo,$viewer,(string)$result['public_id'],(int)$proposal['assistant_message_id']);
+        if(($result['type']??'')==='document'&&function_exists('research_agent_workspace_post_document_to_chat')){
+            $posted=research_agent_workspace_post_document_to_chat($pdo,$viewer,(string)$result['public_id'],!empty($proposal['assistant_message_id'])?(int)$proposal['assistant_message_id']:null);
+            if($posted)$result['chat_message_public_id']=$posted['public_id'];
         }
         $pdo->prepare("UPDATE agent_action_proposals SET status='executed',result_type=?,result_public_id=?,result_json=?,executed_at=NOW(),error_text=NULL WHERE id=?")
           ->execute([(string)($result['type']??''),(string)($result['public_id']??''),json_encode($result,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$proposal['id']]);
