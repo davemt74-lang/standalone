@@ -241,15 +241,18 @@
   }
   function resetLibraryViewer(){
     libraryActiveItem=null;libraryDocRevision=0;libraryDocDirty=false;libraryDocSaving=false;
+    if(libraryViewer)libraryViewer.removeAttribute('data-mode');
     if(libraryDocPanel)libraryDocPanel.hidden=true;if(libraryFilePanel)libraryFilePanel.hidden=true;if(libraryGenericPanel)libraryGenericPanel.hidden=true;
-    if(libraryFilePreview)libraryFilePreview.replaceChildren();if(libraryFileText)libraryFileText.textContent='';if(libraryGenericPanel)libraryGenericPanel.replaceChildren();
+    if(libraryDocTitle)libraryDocTitle.value='';if(libraryDocContent)libraryDocContent.innerHTML='';
+    if(libraryFilePreview)libraryFilePreview.replaceChildren();if(libraryFileMeta)libraryFileMeta.textContent='';if(libraryFileText)libraryFileText.textContent='';if(libraryGenericPanel)libraryGenericPanel.replaceChildren();
   }
   function showLibraryList(){
     resetLibraryViewer();if(libraryViewer)libraryViewer.hidden=true;if(libraryList)libraryList.hidden=false;
     libraryDrawer?.classList.remove('is-viewing-item');
   }
   function showLibraryViewer(item){
-    resetLibraryViewer();libraryActiveItem=item;if(libraryList)libraryList.hidden=true;if(libraryViewer)libraryViewer.hidden=false;
+    resetLibraryViewer();libraryActiveItem=item;if(libraryList)libraryList.hidden=true;
+    if(libraryViewer){libraryViewer.hidden=false;libraryViewer.dataset.mode=String(item.object_type||'item').toLowerCase();}
     libraryDrawer?.classList.add('is-viewing-item');
     if(libraryViewerType)libraryViewerType.textContent=String(item.object_type||'item').toUpperCase();
     if(libraryViewerTitle)libraryViewerTitle.textContent=libraryResultLabel(item);
@@ -267,12 +270,20 @@
   }
   async function openLibraryDocument(item){
     showLibraryViewer(item);if(libraryDocPanel)libraryDocPanel.hidden=false;
+    setLibraryDocState('Loading…');
     const data=await api(workspaceUrl('document',{object_id:String(item.public_id)}));const doc=data.item;if(!doc)throw new Error('Document not found.');
     libraryActiveItem=doc;libraryDocRevision=Number(doc.revision_number||1);libraryDocDirty=false;
     if(libraryDocTitle){libraryDocTitle.value=String(doc.title||'Untitled document');libraryDocTitle.readOnly=!canWrite();}
-    if(libraryDocContent){libraryDocContent.innerHTML=String(doc.content_html||'<p><br></p>');libraryDocContent.contentEditable=canWrite()?'true':'false';}
+    if(libraryDocContent){
+      const html=String(doc.content_html||'').trim(),plain=String(doc.document_plain_text||'').trim();
+      if(html!=='')libraryDocContent.innerHTML=html;
+      else if(plain!=='')libraryDocContent.textContent=plain;
+      else libraryDocContent.innerHTML='<p><br></p>';
+      libraryDocContent.contentEditable=canWrite()?'true':'false';
+    }
     if(libraryViewerTitle)libraryViewerTitle.textContent=String(doc.title||'Research document');
     setLibraryDocState((canWrite()?'Saved':'Read only')+' · v'+libraryDocRevision);
+    requestAnimationFrame(()=>libraryDocContent?.focus({preventScroll:true}));
   }
   async function openLibraryFile(item){
     showLibraryViewer(item);if(libraryFilePanel)libraryFilePanel.hidden=false;

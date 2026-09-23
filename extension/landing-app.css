@@ -2601,3 +2601,89 @@
 @media(max-width:900px){
   .homeWorkspaceLayout>.researchAgentCanvasTopActions{top:66px!important;margin-right:8px!important}
 }
+
+
+/* Phase 55.2 — Library document UI repair */
+.homeWorkspaceLayout>.researchAgentCanvasTopActions{
+  position:fixed!important;
+  top:74px!important;
+  right:18px!important;
+  left:auto!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  align-self:auto!important;
+  justify-self:auto!important;
+  margin:0!important;
+  z-index:29500!important;
+}
+.homeWorkspaceLayout>.researchAgentCanvasTopActions .researchLibraryOpenButton,
+.homeWorkspaceLayout>.researchAgentCanvasTopActions .researchDesktopOpenButton{
+  font-size:8px!important;
+}
+.homeWorkspaceLayout>.researchAgentCanvasTopActions .agentChatPanelClose{
+  font-size:16px!important;
+}
+.researchLibraryDrawer{
+  width:min(560px,100vw)!important;
+}
+.researchLibraryDrawer.is-viewing-item{
+  grid-template-rows:minmax(0,1fr)!important;
+}
+.researchLibraryDrawer.is-viewing-item>.researchLibraryDrawerHeader,
+.researchLibraryDrawer.is-viewing-item>.researchLibrarySearch,
+.researchLibraryDrawer.is-viewing-item>.researchLibraryTabs,
+.researchLibraryDrawer.is-viewing-item>.researchLibraryFilters,
+.researchLibraryDrawer.is-viewing-item>.researchLibraryDrawerBody,
+.researchLibraryDrawer.is-viewing-item>.researchLibraryDrawerFooter{
+  display:none!important;
+}
+.researchLibraryViewer{
+  height:100%!important;
+}
+.researchLibraryViewerBody{
+  min-height:0!important;
+  overflow:hidden!important;
+  background:#fff!important;
+}
+.researchLibraryViewerBody>[data-research-library-doc-panel],
+.researchLibraryViewerBody>[data-research-library-file-panel],
+.researchLibraryViewerBody>[data-research-library-generic-panel]{
+  display:none!important;
+}
+.researchLibraryViewer[data-mode="document"] [data-research-library-doc-panel]{
+  display:grid!important;
+  grid-template-rows:auto auto minmax(0,1fr)!important;
+  min-height:0!important;
+  height:100%!important;
+  background:#fff!important;
+}
+.researchLibraryViewer[data-mode="upload"] [data-research-library-file-panel],
+.researchLibraryViewer[data-mode="recording"] [data-research-library-file-panel]{
+  display:grid!important;
+  min-height:100%!important;
+  align-content:start!important;
+  overflow:auto!important;
+}
+.researchLibraryViewer:not([data-mode="document"]):not([data-mode="upload"]):not([data-mode="recording"]) [data-research-library-generic-panel]:not([hidden]){
+  display:grid!important;
+}
+.researchLibraryDocTitleRow,
+.researchLibraryDocToolbar{
+  position:static!important;
+  top:auto!important;
+}
+.researchLibraryDocContent{
+  min-height:0!important;
+  height:100%!important;
+  overflow:auto!important;
+  padding:24px 26px 96px!important;
+  background:#fff!important;
+  color:#252a2f!important;
+}
+@media(max-width:900px){
+  .homeWorkspaceLayout>.researchAgentCanvasTopActions{
+    top:68px!important;
+    right:10px!important;
+  }
+  .researchLibraryDrawer{width:100vw!important}
+}

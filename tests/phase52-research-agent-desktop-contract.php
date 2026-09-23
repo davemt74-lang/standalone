@@ -50,7 +50,7 @@ $need('assets/css/app.css','.researchDesktop{position:absolute;inset:0','Desktop
 $need('assets/css/app.css','.researchDesktopIcon{appearance:none!important;position:absolute!important','Desktop objects must render as draggable Windows-style icons.');
 $need('assets/css/app.css','.researchDesktopSticky-yellow{background:#fff29a','Traditional yellow digital sticky styling must be explicit.');
 $need('assets/css/app.css','.researchDesktopDocumentWindow{position:absolute','Research Docs must render in a movable desktop window.');
-$need('home.php','research-agent-workspace-ui.js?v=55.1','Desktop runtime must ship with a fresh browser cache key.');
+$need('home.php','research-agent-workspace-ui.js?v=55.2','Desktop runtime must ship with a fresh browser cache key.');
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
 echo "Phase 52 Research Agent Desktop contract passed.\n";
