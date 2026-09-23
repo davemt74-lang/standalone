@@ -47,7 +47,7 @@ if(str_contains($operations,"'channel'=>'release_candidate'"))$fail[]='62F relea
 
 $css=(string)file_get_contents($root.'/assets/css/app.css');$extCss=(string)file_get_contents($root.'/extension/landing-app.css');
 if(!hash_equals(hash('sha256',$css),hash('sha256',$extCss)))$fail[]='62D website and extension shared CSS must remain byte-identical.';
-foreach(['@media(max-width:720px)','.researchAgentDesktop','.intelligencePortfolioCanvas','.intelligenceCommandCenter'] as $needle)if(!str_contains($css,$needle))$fail[]='62D responsive surface contract missing: '.$needle;
+foreach(['@media(max-width:720px)','.researchDesktop','.intelligencePortfolioCanvas','.intelligenceCommandCenter'] as $needle)if(!str_contains($css,$needle))$fail[]='62D responsive surface contract missing: '.$needle;
 
 foreach([
  'home.php','research.php','research-programs.php','research-reviews.php','research-publications.php','research-intelligence-portfolios.php',
