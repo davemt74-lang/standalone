@@ -76,6 +76,8 @@ db_tests=(
   tests/phase59-collaborative-review-approval-publishing-db.php
   tests/phase60-research-intelligence-portfolios-db.php
   tests/phase61-portfolio-intelligence-operations-db.php
+  tests/phase62-v1-1-final-release-db.php
+  tests/phase62-v1-1-soak-db.php
 )
 
 for test_file in "${db_tests[@]}"; do
