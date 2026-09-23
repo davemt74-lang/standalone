@@ -77,7 +77,7 @@ p57(($result1['status']??'')==='complete','57.3 a task with satisfied gates can 
 
 $task2=research_task_access($pdo,$owner,(string)$task2['public_id']);
 p57($task2&&$task2['status']==='ready','57.3 completing a dependency makes the next task ready.');
-$q=$pdo->prepare("SELECT status FROM research_task_jobs WHERE task_id=?");$q->execute([(int)$task2['id']);
+$q=$pdo->prepare("SELECT status FROM research_task_jobs WHERE task_id=?");$q->execute([(int)$task2['id']]);
 p57((string)$q->fetchColumn()==='queued','57.3 ready dependent work is handed to the leased worker queue.');
 
 $ctx2=research_task_execution_context($pdo,(string)$task2['public_id']);
