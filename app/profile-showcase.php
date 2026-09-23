@@ -40,11 +40,17 @@ function profile_showcase_normalize_pins(PDO $pdo,int $userId): void {
     if(!profile_showcase_ready($pdo))return;$q=$pdo->prepare('SELECT id FROM profile_pins WHERE user_id=? ORDER BY position,id');$q->execute([$userId]);$ids=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN));
     $pdo->beginTransaction();try{$temp=100;foreach($ids as $id){$pdo->prepare('UPDATE profile_pins SET position=? WHERE id=?')->execute([$temp++,$id]);}$pos=1;foreach($ids as $id){$pdo->prepare('UPDATE profile_pins SET position=? WHERE id=?')->execute([$pos++,$id]);}$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
+function profile_showcase_prune_pins(PDO $pdo,int $userId): void {
+    if(!profile_showcase_ready($pdo)||$userId<1)return;$q=$pdo->prepare('SELECT id,object_type,object_public_id FROM profile_pins WHERE user_id=? ORDER BY position,id');$q->execute([$userId]);$removed=false;
+    foreach($q->fetchAll() as $row)if(!profile_showcase_object_owned_public($pdo,$userId,(string)$row['object_type'],(string)$row['object_public_id'])){$pdo->prepare('DELETE FROM profile_pins WHERE id=?')->execute([(int)$row['id']]);$removed=true;}
+    if($removed)profile_showcase_normalize_pins($pdo,$userId);
+}
 function profile_showcase_pin_set(PDO $pdo,array $viewer,string $type,string $publicId,bool $pinned): void {
     if(!profile_showcase_ready($pdo))throw new RuntimeException('Profile showcase requires the latest database upgrade.');
     $uid=(int)$viewer['id'];$type=trim($type);$publicId=trim($publicId);
     if(!in_array($type,['annotation','research_report','collection'],true)||$publicId==='')throw new InvalidArgumentException('Unsupported profile item.');
     if(!profile_showcase_object_owned_public($pdo,$uid,$type,$publicId))throw new RuntimeException('Only your own public content can be pinned.');
+    profile_showcase_prune_pins($pdo,$uid);
     if(!$pinned){$pdo->prepare('DELETE FROM profile_pins WHERE user_id=? AND object_type=? AND object_public_id=?')->execute([$uid,$type,$publicId]);profile_showcase_normalize_pins($pdo,$uid);return;}
     $q=$pdo->prepare('SELECT id FROM profile_pins WHERE user_id=? AND object_type=? AND object_public_id=? LIMIT 1');$q->execute([$uid,$type,$publicId]);if($q->fetchColumn())return;
     $q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([$uid]);if((int)$q->fetchColumn()>=3)throw new RuntimeException('You can pin up to 3 public profile items.');
@@ -52,7 +58,7 @@ function profile_showcase_pin_set(PDO $pdo,array $viewer,string $type,string $pu
     $pdo->prepare('INSERT INTO profile_pins(user_id,object_type,object_public_id,position) VALUES(?,?,?,?)')->execute([$uid,$type,$publicId,$position]);
 }
 function profile_showcase_pins(PDO $pdo,array $profile,?array $viewer): array {
-    if(!profile_showcase_ready($pdo))return [];$q=$pdo->prepare('SELECT object_type,object_public_id,position FROM profile_pins WHERE user_id=? ORDER BY position,id LIMIT 3');$q->execute([(int)$profile['id']]);$out=[];
+    if(!profile_showcase_ready($pdo))return [];if($viewer&&(int)($viewer['id']??0)===(int)$profile['id'])profile_showcase_prune_pins($pdo,(int)$profile['id']);$q=$pdo->prepare('SELECT object_type,object_public_id,position FROM profile_pins WHERE user_id=? ORDER BY position,id LIMIT 3');$q->execute([(int)$profile['id']]);$out=[];
     foreach($q->fetchAll() as $pin){$type=(string)$pin['object_type'];$id=(string)$pin['object_public_id'];$item=null;
       if($type==='annotation')$item=public_discovery_annotation($pdo,$id,$viewer);
       elseif($type==='research_report'){foreach((array)($profile['reports']??[]) as $r)if((string)$r['public_id']===$id){$item=$r;break;}}
