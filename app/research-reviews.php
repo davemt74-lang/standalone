@@ -61,6 +61,10 @@ function research_review_finding_state_hash(PDO $pdo,array $finding): string {
     return hash('sha256',$json);
 }
 
+function research_review_assignment_roles_ready(PDO $pdo): bool {
+    try{$q=$pdo->query("SHOW COLUMNS FROM research_review_assignments LIKE 'reviewer_role'");return (bool)$q->fetch();}catch(Throwable $e){return false;}
+}
+
 function research_review_subject(PDO $pdo,array $viewer,string $type,string $publicId): ?array {
     $type=strtolower(trim($type));$publicId=trim($publicId);if($publicId==='')return null;
     if($type==='claim'){
@@ -78,6 +82,12 @@ function research_review_subject(PDO $pdo,array $viewer,string $type,string $pub
         $reportMeta=['id'=>(int)$r['report_id'],'owner_user_id'=>(int)$r['owner_user_id'],'team_id'=>$r['team_id']];
         if(!research_report_version_access($pdo,$reportMeta,(int)$r['version_number'],$viewer))return null;
         return ['type'=>'report_version','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Report v'.(int)$r['version_number'].': '.(string)$r['title'],'hash'=>(string)$r['snapshot_hash'],'version_label'=>'Report version '.(int)$r['version_number'],'url'=>'/research-report.php?id='.rawurlencode((string)$r['report_public_id']).'&v='.(int)$r['version_number'],'summary'=>(string)($r['summary']??''),'report_public_id'=>$r['report_public_id'],'version_number'=>(int)$r['version_number'],'version_id'=>(int)$r['id'],'current_version_id'=>(int)($r['current_version_id']??0)];
+    }
+    if($type==='document'){
+        if(!function_exists('research_agent_workspace_object'))return null;$r=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$r||($r['object_type']??'')!=='document')return null;
+        $hash=hash('sha256',json_encode(['public_id'=>$r['public_id'],'title'=>$r['title'],'revision_number'=>(int)$r['revision_number'],'content_hash'=>(string)$r['content_hash'],'summary'=>(string)($r['document_summary']??'')],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+        $url='/home.php'.(!empty($r['conversation_public_id'])?'?agent='.rawurlencode((string)$r['conversation_public_id']).'&doc='.rawurlencode((string)$r['public_id']):'?doc='.rawurlencode((string)$r['public_id']));
+        return ['type'=>'document','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Document: '.(string)$r['title'],'hash'=>$hash,'version_label'=>'Document revision '.(int)$r['revision_number'],'url'=>$url,'summary'=>(string)($r['document_summary']??$r['document_plain_text']??''),'revision_number'=>(int)$r['revision_number'],'document_object_id'=>(int)$r['id'],'research_agent_public_id'=>$r['research_agent_public_id']??null,'conversation_public_id'=>$r['conversation_public_id']??null];
     }
     if($type==='agent_action'){
         if(!agent_actions_ready($pdo))return null;$q=$pdo->prepare("SELECT aap.*,rp.public_id project_public_id,rp.title project_title,c.public_id conversation_public_id FROM agent_action_proposals aap JOIN research_projects rp ON rp.id=aap.project_id JOIN conversations c ON c.id=aap.conversation_id WHERE aap.public_id=? LIMIT 1");$q->execute([$publicId]);$r=$q->fetch();if(!$r||!project_access($pdo,(int)$viewer['id'],(string)$r['project_public_id']))return null;
@@ -152,7 +162,7 @@ function research_review_record_outcome(PDO $pdo,array $viewer,array $review,str
     research_outcome_try_record($pdo,$viewer,['event_type'=>'research_review','decision_type'=>$decision,'source_type'=>'research_review','source_public_id'=>$review['public_id'],'project_public_id'=>$review['project_public_id'],'object_type'=>$review['subject_type'],'object_public_id'=>$review['subject_public_id'],'title'=>$title,'summary'=>$summary,'refs'=>[['type'=>'project','public_id'=>$review['project_public_id'],'role'=>'context']], 'metadata'=>$extra,'occurred_at'=>date('Y-m-d H:i:s'),'dedupe_key'=>'review:'.$review['public_id'].':'.$decision.':'.($extra['response_public_id']??$extra['completed_at']??ulid_like())]);
 }
 
-function research_review_create(PDO $pdo,array $viewer,string $subjectType,string $subjectPublic,array $reviewerIds,?string $dueAt=null,string $instructions=''): array {
+function research_review_create(PDO $pdo,array $viewer,string $subjectType,string $subjectPublic,array $reviewerIds,?string $dueAt=null,string $instructions='',array $assignmentOptions=[]): array {
     if(!research_reviews_ready($pdo))throw new RuntimeException('Collaborative Research Review requires the Phase 21 database upgrade.');
     $subject=research_review_subject($pdo,$viewer,$subjectType,$subjectPublic);if(!$subject)throw new RuntimeException('Research object is unavailable.');
     $project=project_access($pdo,(int)$viewer['id'],(string)$subject['project_public_id']);if(!$project||!project_can_write($project))throw new RuntimeException('Write access to the Research project is required to request review.');
@@ -165,7 +175,9 @@ function research_review_create(PDO $pdo,array $viewer,string $subjectType,strin
     $pdo->beginTransaction();try{
         $pdo->prepare("INSERT INTO research_reviews(public_id,project_id,requested_by_user_id,subject_type,subject_public_id,subject_hash,subject_version_label,title,instructions,due_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
           ->execute([$public,$subject['project_id'],$viewer['id'],$subject['type'],$subject['public_id'],$subject['hash'],$subject['version_label'],$title,$instructions?:null,$due]);
-        $id=(int)$pdo->lastInsertId();$ins=$pdo->prepare('INSERT INTO research_review_assignments(review_id,reviewer_user_id,assigned_by_user_id) VALUES(?,?,?)');foreach($reviewerIds as $rid)$ins->execute([$id,$rid,$viewer['id']]);
+        $id=(int)$pdo->lastInsertId();$rolesReady=research_review_assignment_roles_ready($pdo);
+        if($rolesReady){$ins=$pdo->prepare('INSERT INTO research_review_assignments(review_id,reviewer_user_id,assigned_by_user_id,reviewer_role,is_required) VALUES(?,?,?,?,?)');foreach($reviewerIds as $rid){$opt=is_array($assignmentOptions[$rid]??null)?$assignmentOptions[$rid]:[];$role=in_array((string)($opt['role']??'reviewer'),['reviewer','approver'],true)?(string)($opt['role']??'reviewer'):'reviewer';$required=array_key_exists('required',$opt)?(bool)$opt['required']:true;$ins->execute([$id,$rid,$viewer['id'],$role,$required?1:0]);}}
+        else{$ins=$pdo->prepare('INSERT INTO research_review_assignments(review_id,reviewer_user_id,assigned_by_user_id) VALUES(?,?,?)');foreach($reviewerIds as $rid)$ins->execute([$id,$rid,$viewer['id']]);}
         research_review_event($pdo,$id,'requested',(int)$viewer['id'],['reviewer_user_ids'=>$reviewerIds,'subject_hash'=>$subject['hash'],'due_at'=>$due]);$pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     $review=research_review_access($pdo,$viewer,$public);foreach($reviewerIds as $rid)research_review_notify($pdo,$rid,(int)$viewer['id'],'research_review_requested',$review,'Review requested: '.$review['title'],['due_at'=>$due]);
@@ -209,9 +221,9 @@ function research_review_cancel(PDO $pdo,array $viewer,string $publicId): bool {
 
 function research_review_restart(PDO $pdo,array $viewer,string $publicId,?string $dueAt=null): array {
     $review=research_review_access($pdo,$viewer,$publicId);if(!$review)throw new RuntimeException('Review is unavailable.');if(!research_review_can_manage($viewer,$review))throw new RuntimeException('You cannot restart this review.');
-    $assignments=research_review_assignments($pdo,$review);$ids=array_map(fn($a)=>(int)$a['reviewer_user_id'],$assignments);$subjectPublic=(string)$review['subject_public_id'];
+    $assignments=research_review_assignments($pdo,$review);$ids=array_map(fn($a)=>(int)$a['reviewer_user_id'],$assignments);$assignmentOptions=[];foreach($assignments as $a)$assignmentOptions[(int)$a['reviewer_user_id']]=['role'=>(string)($a['reviewer_role']??'reviewer'),'required'=>(bool)($a['is_required']??1)];$subjectPublic=(string)$review['subject_public_id'];
     if($review['subject_type']==='report_version'&&!empty($review['subject']['current_version_id'])&&(int)$review['subject']['current_version_id']!==(int)($review['subject']['version_id']??0)){$q=$pdo->prepare('SELECT public_id FROM research_report_versions WHERE id=? LIMIT 1');$q->execute([(int)$review['subject']['current_version_id']]);$latest=(string)($q->fetchColumn()?:'');if($latest!=='')$subjectPublic=$latest;}
-    $new=research_review_create($pdo,$viewer,(string)$review['subject_type'],$subjectPublic,$ids,$dueAt,(string)($review['instructions']??''));
+    $new=research_review_create($pdo,$viewer,(string)$review['subject_type'],$subjectPublic,$ids,$dueAt,(string)($review['instructions']??''),$assignmentOptions);
     if($review['status']==='open'){$pdo->prepare("UPDATE research_reviews SET status='cancelled',cancelled_at=NOW(),updated_at=NOW() WHERE id=? AND status='open'")->execute([$review['id']]);research_review_event($pdo,(int)$review['id'],'superseded',(int)$viewer['id'],['new_review_public_id'=>$new['public_id']]);}
     research_review_event($pdo,(int)$new['id'],'restarted_from',(int)$viewer['id'],['previous_review_public_id'=>$review['public_id']]);return $new;
 }
