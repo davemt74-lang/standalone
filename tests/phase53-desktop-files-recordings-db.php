@@ -25,6 +25,21 @@ $agent=research_agent_create($pdo,$owner,['name'=>'Media Research Agent','descri
 $project=research_agent_workspace_project($pdo,$researcher,(string)$agent['public_id']);
 p53(($project['access_role']??'')==='researcher','Team researcher can add media to the Research Agent Desktop.');
 $folder=research_agent_workspace_create_folder($pdo,$researcher,$project,'Interviews');
+$archive=research_agent_workspace_create_folder($pdo,$researcher,$project,'Archive');
+$subfolder=research_agent_workspace_create_folder($pdo,$researcher,$project,'Interview Notes',(string)$folder['public_id']);
+$bookmark=research_agent_workspace_create_bookmark($pdo,$researcher,$project,['url'=>'https://example.com/'.$run.'/bookmark','title'=>'Research Bookmark']);
+$sticky=research_agent_workspace_create_sticky($pdo,$researcher,$project,['body'=>'Folder me','color'=>'yellow','x'=>80,'y'=>110]);
+
+
+$source=ensure_source($pdo,'https://example.com/'.$run.'/annotation','Phase 53 Annotation Source');
+$pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash) VALUES(?,1,?,?,?,?)")
+  ->execute([$source['id'],'https://example.com/'.$run.'/annotation','Phase 53 Annotation Source','Annotation evidence for folder movement.',hash('sha256','Annotation evidence for folder movement.')]);
+$sourceVersion=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=? WHERE id=?')->execute([$sourceVersion,$source['id']]);
+$capturePublic=$pub('cap');$pdo->prepare("INSERT INTO captures(public_id,source_id,source_version_id,user_id,capture_type,selected_text) VALUES(?,?,?,?, 'text',?)")
+  ->execute([$capturePublic,$source['id'],$sourceVersion,$researcher['id'],'Annotation evidence for folder movement.']);$captureId=(int)$pdo->lastInsertId();
+$annotationPublic=$pub('ann');$pdo->prepare("INSERT INTO annotations(public_id,user_id,source_id,source_version_id,capture_id,text_commentary,visibility,status) VALUES(?,?,?,?,?,?,'public','published')")
+  ->execute([$annotationPublic,$researcher['id'],$source['id'],$sourceVersion,$captureId,'Movable linked annotation']);$annotationId=(int)$pdo->lastInsertId();
+$pdo->prepare('INSERT INTO project_annotations(project_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$project['id'],$annotationId,$researcher['id']]);
 
 $upload=research_agent_workspace_register_upload($pdo,$researcher,$project,[
   'storage_uri'=>'private://research-upload/'.$run.'/evidence.txt','original_name'=>'evidence.txt','mime_type'=>'text/plain',
@@ -61,6 +76,33 @@ p53(($recordingCtx['type']??'')==='recording'&&str_contains((string)$recordingCt
 
 $doc=research_agent_workspace_transcript_to_document($pdo,$researcher,(string)$recording['public_id']);
 p53(($doc['object_type']??'')==='document'&&str_contains((string)$doc['document_plain_text'],'Customer committed to a pilot'),'Ready transcript converts into the shared durable Research Doc model.');
+
+research_agent_workspace_desktop_move($pdo,$researcher,$project,'document',(string)$doc['public_id'],(string)$subfolder['public_id']);
+research_agent_workspace_desktop_move($pdo,$researcher,$project,'bookmark',(string)$bookmark['public_id'],(string)$subfolder['public_id']);
+research_agent_workspace_desktop_move($pdo,$researcher,$project,'upload',(string)$upload['public_id'],(string)$subfolder['public_id']);
+research_agent_workspace_desktop_move($pdo,$researcher,$project,'recording',(string)$recording['public_id'],(string)$subfolder['public_id']);
+research_agent_workspace_desktop_move($pdo,$researcher,$project,'sticky',(string)$sticky['public_id'],(string)$subfolder['public_id']);
+research_agent_workspace_desktop_move($pdo,$researcher,$project,'annotation',$annotationPublic,(string)$subfolder['public_id']);
+research_agent_workspace_desktop_move($pdo,$researcher,$project,'folder',(string)$subfolder['public_id'],(string)$archive['public_id']);
+
+$docMoved=research_agent_workspace_object($pdo,$researcher,(string)$doc['public_id'],false);
+$bookmarkMoved=research_agent_workspace_object($pdo,$researcher,(string)$bookmark['public_id'],false);
+$uploadMoved=research_agent_workspace_object($pdo,$researcher,(string)$upload['public_id'],false);
+$recordingMoved=research_agent_workspace_object($pdo,$researcher,(string)$recording['public_id'],false);
+$stickyMoved=research_agent_workspace_object($pdo,$researcher,(string)$sticky['public_id'],false);
+p53(($docMoved['parent_public_id']??'')===$subfolder['public_id']&&($bookmarkMoved['parent_public_id']??'')===$subfolder['public_id'],'Documents and bookmarks move durably into Desktop folders.');
+p53(($uploadMoved['parent_public_id']??'')===$subfolder['public_id']&&($recordingMoved['parent_public_id']??'')===$subfolder['public_id'],'Uploads and recordings move durably into Desktop folders.');
+p53(($stickyMoved['parent_public_id']??'')===$subfolder['public_id'],'Sticky notes move durably into Desktop folders.');
+
+$desktopAfterMoves=research_agent_workspace_desktop_items($pdo,$researcher,$project,false);
+$annotationMoved=current(array_filter($desktopAfterMoves,fn($x)=>($x['public_id']??'')===$annotationPublic));
+p53(($annotationMoved['parent_public_id']??'')===$subfolder['public_id'],'Linked annotations use durable Desktop folder placement without copying annotation content.');
+$subfolderMoved=research_agent_workspace_object($pdo,$researcher,(string)$subfolder['public_id'],false);
+p53(($subfolderMoved['parent_public_id']??'')===$archive['public_id'],'Folders can be dragged into other folders.');
+
+$nested=research_agent_workspace_create_folder($pdo,$researcher,$project,'Nested',(string)$archive['public_id']);
+p53throws(fn()=>research_agent_workspace_desktop_move($pdo,$researcher,$project,'folder',(string)$archive['public_id'],(string)$nested['public_id']),'Folder drag rejects moving a folder inside its own descendant.');
+
 
 $desktop=research_agent_workspace_desktop_items($pdo,$researcher,$project,false);
 $types=array_count_values(array_map(fn($x)=>(string)$x['object_type'],$desktop));
