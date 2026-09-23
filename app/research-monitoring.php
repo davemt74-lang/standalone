@@ -300,6 +300,32 @@ function research_monitor_run(PDO $pdo,array $config,array $watch,string $trigge
     }
 }
 
+function research_monitor_candidate_access(PDO $pdo,array $viewer,string $publicId): ?array {
+    $q=$pdo->prepare("SELECT rmc.*,rmw.public_id watch_public_id FROM research_monitor_candidates rmc JOIN research_monitor_watches rmw ON rmw.id=rmc.watch_id WHERE rmc.public_id=? LIMIT 1");$q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;
+    $watch=research_monitor_watch_access($pdo,$viewer,(string)$row['watch_public_id']);if(!$watch)return null;$row['watch']=$watch;return $row;
+}
+
+function research_monitor_candidate_ignore(PDO $pdo,array $viewer,string $publicId): bool {
+    $candidate=research_monitor_candidate_access($pdo,$viewer,$publicId);if(!$candidate)return false;$watch=$candidate['watch'];$agent=research_monitor_agent($pdo,$viewer,(string)$watch['agent_public_id']);research_monitor_project_can_write($pdo,$viewer,$agent);
+    if((string)$candidate['status']==='promoted')throw new RuntimeException('Promoted sources remain part of Research; remove them from the project explicitly if needed.');
+    $q=$pdo->prepare("UPDATE research_monitor_candidates SET status='ignored',last_seen_at=NOW() WHERE id=?");$q->execute([(int)$candidate['id']]);return $q->rowCount()>0;
+}
+
+function research_monitor_candidate_promote_for_user(PDO $pdo,array $viewer,string $publicId): array {
+    $candidate=research_monitor_candidate_access($pdo,$viewer,$publicId);if(!$candidate)throw new RuntimeException('Discovery candidate not found.');$watch=$candidate['watch'];$agent=research_monitor_agent($pdo,$viewer,(string)$watch['agent_public_id']);research_monitor_project_can_write($pdo,$viewer,$agent);
+    $row=research_monitor_candidate_promote($pdo,$watch,$candidate);if(function_exists('research_autonomy_queue'))research_autonomy_queue($pdo,(int)$watch['research_agent_id'],(int)$viewer['id'],'research_change','A monitored discovery candidate was promoted into Research.');
+    return $row;
+}
+
+function research_monitor_summary(PDO $pdo,array $viewer,string $agentPublic): array {
+    $agent=research_monitor_agent($pdo,$viewer,$agentPublic);$projectId=(int)$agent['project_id'];
+    $q=$pdo->prepare("SELECT status,COUNT(*) total FROM research_monitor_watches WHERE research_agent_id=? AND status<>'archived' GROUP BY status");$q->execute([(int)$agent['id']]);$watchCounts=[];foreach($q->fetchAll() as $row)$watchCounts[$row['status']]=(int)$row['total'];
+    $q=$pdo->prepare("SELECT status,COUNT(*) total FROM research_monitor_candidates WHERE project_id=? GROUP BY status");$q->execute([$projectId]);$candidateCounts=[];foreach($q->fetchAll() as $row)$candidateCounts[$row['status']]=(int)$row['total'];
+    $q=$pdo->prepare("SELECT importance,COUNT(*) total FROM research_monitor_events WHERE project_id=? AND occurred_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) GROUP BY importance");$q->execute([$projectId]);$eventCounts=[];foreach($q->fetchAll() as $row)$eventCounts[$row['importance']]=(int)$row['total'];
+    $q=$pdo->prepare("SELECT MAX(last_checked_at) FROM research_monitor_watches WHERE research_agent_id=?");$q->execute([(int)$agent['id']);$last=$q->fetchColumn();
+    return ['agent_public_id'=>$agentPublic,'watches'=>$watchCounts,'candidates'=>$candidateCounts,'events_30d'=>$eventCounts,'last_checked_at'=>$last?:null];
+}
+
 function research_monitor_candidates(PDO $pdo,array $viewer,string $watchPublic,int $limit=100): array {
     $watch=research_monitor_watch_access($pdo,$viewer,$watchPublic);if(!$watch)return [];$limit=max(1,min(200,$limit));
     $q=$pdo->prepare("SELECT * FROM research_monitor_candidates WHERE watch_id=? ORDER BY status='candidate' DESC,relevance_score DESC,last_seen_at DESC LIMIT ".$limit);$q->execute([(int)$watch['id']]);return $q->fetchAll()?:[];
