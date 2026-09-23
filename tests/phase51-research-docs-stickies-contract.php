@@ -44,7 +44,7 @@ $need('assets/js/research-agent-workspace-ui.js','selectedDocumentText','Documen
 $need('assets/js/research-agent-workspace-ui.js',"annotated:research-document-created',()=>{primeWorkspace();}",'Agent-created documents should remain in chat until the user opens them.');
 $need('assets/js/agent-chat.js','agentDocumentCard','Agent-created Research documents must render as rich chat cards.');
 $need('assets/js/agent-chat.js',"'research.create_document':'Create research document'",'Agent action UI must describe document creation.');
-$need('assets/css/app.css','grid-template-columns:minmax(0,7fr) minmax(260px,3fr)','Document workspace must use the intended document + Agent split.');
+$need('assets/css/app.css','.researchDocumentWorkspace{display:grid;grid-template-columns:','Document workspace must use a two-pane document + Agent split.');
 $need('assets/css/app.css','.researchStickyLayer{position:absolute','Sticky layer must float above the canvas instead of becoming file-list layout.');
 $need('home.php','agent-chat.js?v=40.0','Research Docs must ship with a fresh Agent Chat cache key.');
 $avoid('assets/js/research-agent-workspace-ui.js',"annotated:research-document-created',e=>{primeWorkspace();if", 'Agent-created documents must not auto-open and pull the user out of chat.');
