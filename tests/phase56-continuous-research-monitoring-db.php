@@ -28,7 +28,7 @@ $agent=research_agent_create($pdo,$owner,['name'=>'Phase 56 Agent','description'
 $project=research_agent_workspace_project($pdo,$owner,(string)$agent['public_id']);
 p56((bool)$project,'Research Agent project is available for monitoring.');
 
-$url='https://example.com/'.$run.'/watched';
+$url='https://8.8.8.8/'.$run.'/watched';
 $urlWatch=research_monitor_create($pdo,$owner,['agent_id'=>$agent['public_id'],'watch_type'=>'url','target'=>$url,'cadence'=>'daily','alert_level'=>'important','auto_promote'=>false]);
 p56(($urlWatch['watch_type']??'')==='url'&&($urlWatch['status']??'')==='active','56.1 creates an Agent-scoped URL watch.');
 $q=$pdo->prepare("SELECT COUNT(*) FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id=? AND s.canonical_url_hash=?");$q->execute([$project['id'],hash('sha256',canonicalize_url($url))]);
@@ -41,14 +41,14 @@ p56(($queryWatch['watch_type']??'')==='query','56.1 supports external discovery 
 p56throws(fn()=>research_monitor_list($pdo,$outsider,(string)$agent['public_id'],20),'56.1 watchlists remain live permission checked.');
 
 $candidate=research_monitor_candidate_ingest($pdo,$queryWatch,[
-  'url'=>'https://example.org/'.$run.'/market-report',
+  'url'=>'https://1.1.1.1/'.$run.'/market-report',
   'title'=>'Phase 56 Market Intelligence Report',
   'excerpt'=>'A phase 56 market intelligence report with monitored research evidence.',
   'published_at'=>'2026-09-23T12:00:00Z'
 ]);
 p56($candidate&&$candidate['status']==='candidate'&&(float)$candidate['relevance_score']>=65,'56.2 discovery candidates are normalized, scored, and retained for review.');
 $candidateAgain=research_monitor_candidate_ingest($pdo,$queryWatch,[
-  'url'=>'https://example.org/'.$run.'/market-report',
+  'url'=>'https://1.1.1.1/'.$run.'/market-report',
   'title'=>'Phase 56 Market Intelligence Report',
   'excerpt'=>'Updated excerpt for the same canonical candidate.',
 ]);
@@ -61,7 +61,7 @@ p56((int)$q->fetchColumn()===1,'56.2 promoted discovery is attached to the exist
 $q=$pdo->prepare("SELECT COUNT(*) FROM source_monitor_jobs WHERE source_id=? AND status IN ('queued','processing')");$q->execute([$promoted['source_id']]);
 p56((int)$q->fetchColumn()>=1,'56.2 promoted discovery hands off to the existing Source Monitor.');
 
-$ignoredCandidate=research_monitor_candidate_ingest($pdo,$queryWatch,['url'=>'https://example.net/'.$run.'/secondary','title'=>'Secondary phase 56 intelligence','excerpt'=>'phase 56 market intelligence']);
+$ignoredCandidate=research_monitor_candidate_ingest($pdo,$queryWatch,['url'=>'https://9.9.9.9/'.$run.'/secondary','title'=>'Secondary phase 56 intelligence','excerpt'=>'phase 56 market intelligence']);
 p56($ignoredCandidate&&research_monitor_candidate_ignore($pdo,$owner,(string)$ignoredCandidate['public_id']),'56.2 discovery candidates can be explicitly ignored.');
 
 $source=ensure_source($pdo,$url,'Watched Phase 56 Source');
