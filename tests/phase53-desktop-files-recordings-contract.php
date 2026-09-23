@@ -31,7 +31,8 @@ $need('home.php','data-research-library-filter="transcript"','Research Library m
 $avoid('home.php','researchAgentCanvasHeader researchAgentChatHeader','Legacy Research Agent header markup must be removed.');
 $need('assets/js/research-agent-workspace-ui.js','function openLibrary()','Research Library must load live Research objects.');
 $need('assets/js/research-agent-workspace-ui.js','function renderLibrary()','Research Library must render searchable object rows.');
-$need('assets/js/research-agent-workspace-ui.js',"libraryFilter==='transcript'",'Research Library transcript filter must resolve ready recording transcripts without duplicating objects.');
+$need('home.php','data-research-library-filter="transcript"','Research Library transcript filter must remain available after the unified retrieval upgrade.');
+$need('assets/js/research-agent-workspace-ui.js','/api/research-retrieval.php','Research Library must use the Phase 54 server-backed retrieval layer.');
 $need('assets/css/app.css','.researchLibraryDrawer{','Research Library must have a dedicated drawer surface.');
 $need('assets/css/app.css','position:fixed!important;','Research Library must overlay the app rather than live inside the Agent canvas flow.');
 $need('assets/css/app.css','top:0!important;','Research Library must begin above the global header at the top of the viewport.');
@@ -91,8 +92,8 @@ $need('worker/research-transcription-worker.php',"\$config['transcription']", 'R
 $need('app/jobs.php',"'research_file_jobs'",'Research file jobs must participate in generic lease recovery.');
 $need('app/jobs.php',"'research_transcription_jobs'",'Research transcription jobs must participate in generic lease recovery.');
 
-$need('home.php','/assets/css/app.css?v=53.1','Phase 53 stylesheet must have a fresh cache key.');
-$need('home.php','research-agent-workspace-ui.js?v=53.1','Phase 53 Desktop runtime must have a fresh cache key.');
+$need('home.php','/assets/css/app.css?v=54.0','Phase 54 stylesheet must have a fresh cache key.');
+$need('home.php','research-agent-workspace-ui.js?v=54.0','Phase 54 Desktop runtime must have a fresh cache key.');
 $need('home.php','agent-chat.js?v=42.0','Phase 53 Agent Chat media cards must have a fresh cache key.');
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
