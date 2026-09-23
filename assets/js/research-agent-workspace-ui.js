@@ -273,7 +273,7 @@
         status:String(libraryStatus?.value||''),date_from:String(libraryDateFrom?.value||''),date_to:String(libraryDateTo?.value||''),limit:40
       }));
       if(serial!==libraryRequestSerial)return;libraryResults=data.results||[];
-      if(libraryIndexState){const idx=data.index||{};libraryIndexState.textContent=(data.mode?String(data.mode).toUpperCase():'SEARCH')+' · '+String(idx.document_count||0)+' objects · '+String(idx.chunk_count||0)+' chunks'+(idx.semantic_available?' · semantic ready':'');}
+      if(libraryIndexState){const idx=data.index||{};libraryIndexState.textContent=(data.mode?String(data.mode).toUpperCase():'SEARCH')+' · '+String(idx.document_count||0)+' objects · '+String(idx.chunk_count||0)+' chunks'+(idx.semantic_available?' · semantic configured':'');}
       renderLibrary();
     }catch(err){if(serial!==libraryRequestSerial)return;libraryResults=[];if(libraryIndexState)libraryIndexState.textContent='';renderLibrary();setStatus(err.message||'Research search failed.',true);}
   }
