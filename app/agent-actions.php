@@ -88,19 +88,29 @@ function agent_action_project_map(PDO $pdo,array $viewer,array $context): array 
     return $projects;
 }
 
+function agent_action_task_types(): array {
+    return function_exists('research_task_types')?research_task_types():['general'=>'General','find_source'=>'Find source','verify_claim'=>'Verify claim','review_source_change'=>'Review source change','compare_sources'=>'Compare sources','synthesize'=>'Synthesize','draft_deliverable'=>'Draft deliverable','follow_up'=>'Follow up'];
+}
+function agent_action_task_priorities(): array {
+    return function_exists('research_task_priorities')?research_task_priorities():['low'=>'Low','medium'=>'Medium','high'=>'High','urgent'=>'Urgent'];
+}
+function agent_action_deliverable_types(): array {
+    return function_exists('research_task_deliverable_types')?research_task_deliverable_types():['research_brief'=>'Research Brief','competitive_analysis'=>'Competitive Analysis','due_diligence'=>'Due-Diligence Report','source_digest'=>'Source Digest','timeline'=>'Timeline','comparison'=>'Comparison','weekly_report'=>'Weekly Report','report'=>'Report','analysis'=>'Analysis','document'=>'Document'];
+}
+
 function agent_action_clean_arguments(string $capability,array $args): array {
     $s=fn($v,$max)=>mb_substr(trim((string)$v),0,$max);
     if($capability==='research.create_task'){
         $title=$s($args['title']??'',255);if($title==='')throw new InvalidArgumentException('Task title is required.');
-        $type=(string)($args['task_type']??'general');if(!isset(research_task_types()[$type]))$type='general';
-        $priority=(string)($args['priority']??'medium');if(!isset(research_task_priorities()[$priority]))$priority='medium';
+        $type=(string)($args['task_type']??'general');if(!isset(agent_action_task_types()[$type]))$type='general';
+        $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';
         return ['title'=>$title,'description'=>$s($args['description']??'',12000),'task_type'=>$type,'priority'=>$priority,'due_at'=>$s($args['due_at']??'',80)];
     }
     if($capability==='research.create_plan'){
         $title=$s($args['title']??'',255);$objective=$s($args['objective']??'',16000);if($title===''||$objective==='')throw new InvalidArgumentException('Plan title and objective are required.');
-        $priority=(string)($args['priority']??'medium');if(!isset(research_task_priorities()[$priority]))$priority='medium';
-        $deliverable=(string)($args['deliverable_type']??'research_brief');if(!isset(research_task_deliverable_types()[$deliverable]))$deliverable='research_brief';
-        $tasks=[];foreach(array_slice(is_array($args['tasks']??null)?$args['tasks']:[],0,20) as $raw){if(!is_array($raw))continue;$taskTitle=$s($raw['title']??'',255);if($taskTitle==='')continue;$type=(string)($raw['task_type']??'general');if(!isset(research_task_types()[$type]))$type='general';$p=(string)($raw['priority']??$priority);if(!isset(research_task_priorities()[$p]))$p=$priority;$deps=[];foreach(array_slice((array)($raw['depends_on']??[]),0,12) as $d)$deps[]=max(0,(int)$d);$tasks[]=['title'=>$taskTitle,'description'=>$s($raw['description']??'',12000),'task_type'=>$type,'priority'=>$p,'depends_on'=>array_values(array_unique($deps))];}
+        $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';
+        $deliverable=(string)($args['deliverable_type']??'research_brief');if(!isset(agent_action_deliverable_types()[$deliverable]))$deliverable='research_brief';
+        $tasks=[];foreach(array_slice(is_array($args['tasks']??null)?$args['tasks']:[],0,20) as $raw){if(!is_array($raw))continue;$taskTitle=$s($raw['title']??'',255);if($taskTitle==='')continue;$type=(string)($raw['task_type']??'general');if(!isset(agent_action_task_types()[$type]))$type='general';$p=(string)($raw['priority']??$priority);if(!isset(agent_action_task_priorities()[$p]))$p=$priority;$deps=[];foreach(array_slice((array)($raw['depends_on']??[]),0,12) as $d)$deps[]=max(0,(int)$d);$tasks[]=['title'=>$taskTitle,'description'=>$s($raw['description']??'',12000),'task_type'=>$type,'priority'=>$p,'depends_on'=>array_values(array_unique($deps))];}
         if(!$tasks)throw new InvalidArgumentException('A Research plan needs at least one task.');
         return ['title'=>$title,'objective'=>$objective,'priority'=>$priority,'due_at'=>$s($args['due_at']??'',80),'deliverable_type'=>$deliverable,'deliverable_title'=>$s($args['deliverable_title']??'',255),'tasks'=>$tasks];
     }
