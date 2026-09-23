@@ -54,10 +54,12 @@ $edited=research_agent_workspace_save_document($pdo,$owner,(string)$doc['public_
 $workflow=research_publication_workflow_detail($pdo,$owner,(string)$workflow['public_id']);
 p59((int)$edited['revision_number']===2&&$workflow['status']==='changes_requested'&&empty($workflow['owner_approved_at']),'59.3 document edits invalidate the reviewed pin and clear owner approval.');
 
+research_publication_thread_resolve($pdo,$owner,(string)$thread['public_id'],true);
 $workflow=research_publication_restart_review($pdo,$owner,(string)$workflow['public_id'],date('Y-m-d H:i:s',time()+86400));
 p59((int)$workflow['current_round']===2&&(int)$workflow['document_revision_number']===2,'59.1 restarting review pins current revision while preserving round history.');
 $q=$pdo->prepare('SELECT COUNT(*) FROM research_publication_review_rounds WHERE workflow_id=?');$q->execute([(int)$workflow['id']]);p59((int)$q->fetchColumn()===2,'59.1 prior review rounds remain durable and auditable.');
 $newReview=research_review_access($pdo,$owner,(string)$workflow['review_public_id']);
+$thread2=research_publication_thread_create($pdo,$reviewer,(string)$workflow['public_id'],['anchor_type'=>'source','anchor_public_id'=>(string)$source['public_id'],'title'=>'Source checked','body'=>'Primary evidence checked against the current captured version.']);
 
 research_review_respond($pdo,$reviewer,(string)$newReview['public_id'],'approve','Revision addresses my requested change.');
 $eval=research_publication_evaluate($pdo,$owner,(string)$workflow['public_id']);
@@ -65,7 +67,6 @@ p59((int)$eval['approval']['approved']===0&&!empty($eval['approval']['approver_m
 research_review_respond($pdo,$approver,(string)$newReview['public_id'],'approve','Approved for publication.');
 research_review_complete($pdo,$owner,(string)$newReview['public_id']);
 
-$thread2=research_publication_thread_create($pdo,$reviewer,(string)$workflow['public_id'],['anchor_type'=>'source','anchor_public_id'=>(string)$source['public_id'],'title'=>'Source checked','body'=>'Primary evidence checked against the current captured version.']);
 research_publication_owner_approve($pdo,$owner,(string)$workflow['public_id']);
 $eval=research_publication_evaluate($pdo,$owner,(string)$workflow['public_id']);p59(!$eval['pass'],'59.3 unresolved anchored discussion blocks publication even after review and owner approval.');
 research_publication_thread_resolve($pdo,$owner,(string)$thread2['public_id'],true);
