@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__).'/app/bootstrap.php';
-release_worker_heartbeat($pdo,'research-files','starting','Worker invocation started.');
+release_worker_heartbeat($pdo,'research_files','starting','Worker invocation started.');
 
 function research_file_extract_docx(string $path): string {
     if(!class_exists('ZipArchive'))throw new RuntimeException('DOCX extraction requires ZipArchive.');
@@ -36,7 +36,7 @@ function research_file_extract(string $path,string $mime,array $config): string 
 $job=job_claim($pdo,'research_file_jobs',"SELECT j.id job_id,j.*,u.object_id,u.mime_type,u.original_name,rwo.created_by_user_id,rwo.public_id
   FROM research_file_jobs j JOIN research_workspace_uploads u ON u.object_id=j.object_id JOIN research_workspace_objects rwo ON rwo.id=j.object_id
   WHERE j.status='queued' AND j.available_at<=NOW() ORDER BY j.available_at,j.created_at LIMIT 1",[],3600);
-if(!$job){release_worker_heartbeat($pdo,'research-files','success','No queued Research file jobs.');echo "No queued Research file jobs.\n";exit(0);}
+if(!$job){release_worker_heartbeat($pdo,'research_files','success','No queued Research file jobs.');echo "No queued Research file jobs.\n";exit(0);}
 $id=(int)$job['job_id'];$token=(string)$job['claim_token'];$input=storage_path_to_absolute($config,(string)$job['input_path']);
 try{
     if(!$input||!is_file($input))throw new RuntimeException('Uploaded Research file not found.');
@@ -48,9 +48,9 @@ try{
     $pdo->prepare("UPDATE research_workspace_uploads SET processing_status='ready',extracted_text=?,last_error=NULL,updated_at=NOW() WHERE object_id=?")->execute([$text!==''?$text:null,(int)$job['object_id']]);
     job_claim_complete($pdo,'research_file_jobs',$id,$token);$pdo->commit();
     notify_user($pdo,(int)$job['created_by_user_id'],null,'research_upload_ready','upload',(string)$job['public_id'],'Your Research file is ready: '.mb_substr((string)$job['original_name'],0,180));
-    release_worker_heartbeat($pdo,'research-files','success','Research file processed.',1);echo "Research file ready.\n";
+    release_worker_heartbeat($pdo,'research_files','success','Research file processed.',1);echo "Research file ready.\n";
 }catch(LostJobClaim $e){
-    if($pdo->inTransaction())$pdo->rollBack();release_worker_heartbeat($pdo,'research-files','failure','Lease lost; stale result discarded.');fwrite(STDERR,"Research file lease lost.\n");exit(2);
+    if($pdo->inTransaction())$pdo->rollBack();release_worker_heartbeat($pdo,'research_files','failure','Lease lost; stale result discarded.');fwrite(STDERR,"Research file lease lost.\n");exit(2);
 }catch(Throwable $e){
     if($pdo->inTransaction())$pdo->rollBack();$msg=mb_substr($e->getMessage(),0,1000);
     try{
@@ -58,5 +58,5 @@ try{
       if($blocked){job_claim_complete($pdo,'research_file_jobs',$id,$token,'blocked');$pdo->prepare("UPDATE research_workspace_uploads SET processing_status='blocked',last_error=?,updated_at=NOW() WHERE object_id=?")->execute([$msg,(int)$job['object_id']]);}
       else{$state=job_claim_retry_or_fail($pdo,'research_file_jobs',$id,$token,$msg,(int)$job['attempts'],3,90);$pdo->prepare("UPDATE research_workspace_uploads SET processing_status=?,last_error=?,updated_at=NOW() WHERE object_id=?")->execute([$state==='failed'?'failed':'queued',$msg,(int)$job['object_id']]);}
     }catch(LostJobClaim $lost){}
-    release_worker_heartbeat($pdo,'research-files','failure',$msg);fwrite(STDERR,$msg."\n");exit(1);
+    release_worker_heartbeat($pdo,'research_files','failure',$msg);fwrite(STDERR,$msg."\n");exit(1);
 }
