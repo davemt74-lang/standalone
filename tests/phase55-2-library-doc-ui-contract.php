@@ -28,8 +28,8 @@ foreach([
 $outerHeader=strpos($home,'class="researchLibraryDrawerHeader"');
 $viewerHeader=strpos($home,'class="researchLibraryViewerHeader"');
 if($outerHeader===false||$viewerHeader===false||$outerHeader>$viewerHeader)$fail[]='Library and document viewer header order is invalid.';
-if(!str_contains($home,'/assets/css/app.css?v=57.0'))$fail[]='Home must request the Phase 55.2 CSS cache key.';
-if(!str_contains($home,'/assets/js/research-agent-workspace-ui.js?v=57.0'))$fail[]='Home must request the Phase 55.3 workspace JS cache key.';
+if(!str_contains($home,'/assets/css/app.css?v=58.0'))$fail[]='Home must request the Phase 55.2 CSS cache key.';
+if(!str_contains($home,'/assets/js/research-agent-workspace-ui.js?v=58.0'))$fail[]='Home must request the Phase 55.3 workspace JS cache key.';
 
 if($fail){foreach($fail as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
 echo "Phase 55.2 Library document UI contract passed.\n";
