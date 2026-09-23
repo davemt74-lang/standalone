@@ -6,6 +6,9 @@
   const add=document.querySelector('#homeAgentAdd');
   const rightRail=document.querySelector('.homeRightRail');
   const panelClose=canvas.querySelector('[data-agent-panel-close]');
+  const inlineThread=document.querySelector('[data-home-inline-agent]');
+  const inlineMessages=document.querySelector('[data-inline-agent-messages]');
+  const inlineClose=document.querySelector('[data-inline-agent-close]');
   const requestedResearchAgentConversation=String(canvas.dataset.researchAgentConversation||document.body.dataset.researchAgentConversation||'').trim();
   const requestedResearchAgentProject=String(canvas.dataset.researchAgentProject||document.body.dataset.researchAgentProject||'').trim();
   if(!feed||!canvas||!form||!input||!add)return;
@@ -53,7 +56,9 @@
   function setModeFeed(){
     researchAgentMode=false;canvas.hidden=true;feed.hidden=false;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);const url=new URL(location.href);if(url.searchParams.has('agent')){url.searchParams.delete('agent');history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);}requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
   }
-  function clearWelcome(){messages.querySelector('.agentChatWelcome')?.remove();}
+  function messageTarget(){return researchAgentMode?messages:(inlineMessages||messages);}
+  function showInlineThread(){if(inlineThread)inlineThread.hidden=false;}
+  function clearWelcome(){messageTarget().querySelector('.agentChatWelcome')?.remove();}
   function attachmentUrl(a){
     const id=encodeURIComponent(String(a?.public_id||''));if(!id)return '';
     return ({annotation:'/annotation.php?id=',research:'/research-project.php?id=',research_project:'/research-project.php?id=',source:'/source.php?id=',team:'/team.php?id=',claim:'/research-claim.php?id=',finding:'/research-finding.php?id='})[String(a?.type||'')]?.concat(id)||'';
@@ -119,10 +124,10 @@
     if(row.attribution&&Number(row.attribution.attribution_count||0)>0){const lineage=document.createElement('div');lineage.className='agentChatMessageContext';const refs=Number(row.attribution.attribution_count||0),contributors=Number(row.attribution.contributor_count||0);const info=document.createElement('span');info.className='agentContextChip';info.textContent=refs+' Annotated reference'+(refs===1?'':'s')+' · '+contributors+' contributor'+(contributors===1?'':'s');lineage.appendChild(info);if(row.attribution.run_id){const link=document.createElement('a');link.className='agentContextChip';link.href='/data-attribution.php?run_id='+encodeURIComponent(row.attribution.run_id);link.textContent='View lineage';lineage.appendChild(link);}article.appendChild(lineage);}
     if(Array.isArray(row.attachments)&&row.attachments.length){const wrap=document.createElement('div');wrap.className='agentChatMessageContext';row.attachments.forEach(a=>wrap.appendChild(renderAttachment(a)));article.appendChild(wrap);}
     if(Array.isArray(row.action_proposals)&&row.action_proposals.length){const proposals=document.createElement('div');proposals.className='agentActionProposalList';row.action_proposals.forEach(p=>proposals.appendChild(renderProposal(p)));article.appendChild(proposals);}
-    messages.appendChild(article);return article;
+    const target=messageTarget();target.appendChild(article);if(!researchAgentMode)showInlineThread();return article;
   }
   function showThinking(){
-    clearWelcome();const el=document.createElement('article');el.className='agentChatMessage is-agent is-thinking';el.dataset.agentThinking='1';el.innerHTML='<div class="agentChatMessageHead">Annotated Agent</div><div class="agentChatThinking">Thinking…</div>';messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el;
+    clearWelcome();const el=document.createElement('article');el.className='agentChatMessage is-agent is-thinking';el.dataset.agentThinking='1';el.innerHTML='<div class="agentChatMessageHead">Annotated Agent</div><div class="agentChatThinking">Thinking…</div>';const target=messageTarget();target.appendChild(el);if(!researchAgentMode)showInlineThread();target.scrollTop=target.scrollHeight;return el;
   }
   function renderContextTray(){
     contextTray.replaceChildren();
@@ -161,8 +166,8 @@
     const client=globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(16).slice(2);
     try{
       const data=await request('send',{method:'POST',data:{conversation:activeConversation||null,prompt:text,context:selectedContext.map(({type,public_id})=>({type,public_id})),client_message_id:client}});
-      activeConversation=data.conversation?.public_id||activeConversation;if(activeConversation)document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));if(title)title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(true);messages.scrollTop=messages.scrollHeight;loadHistory();
-    }catch(err){thinking.remove();const error=document.createElement('div');error.className='error agentChatError';error.textContent=err.message||'Agent Chat failed.';messages.appendChild(error);}
+      activeConversation=data.conversation?.public_id||activeConversation;if(activeConversation)document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:researchAgentMode?'research-agent':'home'}}));if(title)title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(researchAgentMode);const target=messageTarget();target.scrollTop=target.scrollHeight;loadHistory();
+    }catch(err){thinking.remove();const error=document.createElement('div');error.className='error agentChatError';error.textContent=err.message||'Agent Chat failed.';messageTarget().appendChild(error);if(!researchAgentMode)showInlineThread();}
     finally{sending=false;input.focus();}
   }
 
@@ -171,7 +176,7 @@
   document.addEventListener('annotated:agent-chat-add-context',()=>{contextTray.hidden=true;contextPicker.hidden=false;loadContextOptions();});
   add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
   input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
-  back?.addEventListener('click',setModeFeed);panelClose?.addEventListener('click',setModeFeed);newChat?.addEventListener('click',resetConversation);
+  back?.addEventListener('click',setModeFeed);panelClose?.addEventListener('click',setModeFeed);inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
   historyToggle?.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose?.addEventListener('click',()=>historyPanel.hidden=true);
   contextClose.addEventListener('click',()=>{contextPicker.hidden=true;renderContextTray();});
 
