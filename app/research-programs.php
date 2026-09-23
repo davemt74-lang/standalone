@@ -269,7 +269,7 @@ function research_program_delta_summary(array $deltas,int $limit=16): string {
 }
 
 function research_program_active_count(PDO $pdo,int $programId): int {
-    $q=$pdo->prepare("SELECT COUNT(*) FROM research_program_runs WHERE program_id=? AND status IN ('processing','active')");$q->execute([$programId]);return (int)$q->fetchColumn();
+    $q=$pdo->prepare("SELECT COUNT(*) FROM research_program_runs WHERE program_id=? AND status IN ('queued','processing','active')");$q->execute([$programId]);return (int)$q->fetchColumn();
 }
 
 function research_program_month_count(PDO $pdo,int $programId): int {
@@ -281,9 +281,10 @@ function research_program_enqueue(PDO $pdo,array $program,?int $requestedByUserI
     if($trigger!=='manual'&&$program['status']!=='active')return null;if(research_program_active_count($pdo,(int)$program['id'])>=(int)$program['max_concurrent_runs'])return null;if(research_program_month_count($pdo,(int)$program['id'])>=(int)$program['monthly_run_limit'])return null;
     $slot=$scheduledFor?:gmdate('Y-m-d H:i:s');$triggerKey=hash('sha256',(int)$program['id'].'|'.$trigger.'|'.$slot.($trigger==='manual'?'|'.ulid_like():''));$public=ulid_like();
     $q=$pdo->prepare("SELECT id FROM research_program_runs WHERE program_id=? AND input_snapshot_json IS NOT NULL ORDER BY id DESC LIMIT 1");$q->execute([(int)$program['id']]);$previous=(int)($q->fetchColumn()?:0);
-    $pdo->prepare("INSERT IGNORE INTO research_program_runs(public_id,program_id,research_agent_id,project_id,requested_by_user_id,previous_run_id,trigger_type,trigger_key,scheduled_for,available_at,status) VALUES(?,?,?,?,?,?,?,?,?,NOW(),'queued')")
-      ->execute([$public,(int)$program['id'],(int)$program['research_agent_id'],(int)$program['project_id'],$requestedByUserId,$previous?:null,$trigger,$triggerKey,$scheduledFor]);
-    if(!$pdo->lastInsertId())return null;research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],(int)$pdo->lastInsertId(),'run_queued',$requestedByUserId?'user':'system',$requestedByUserId,['trigger'=>$trigger,'scheduled_for'=>$scheduledFor]);return $public;
+    $configJson=json_encode(research_program_config_array($program),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+    $pdo->prepare("INSERT IGNORE INTO research_program_runs(public_id,program_id,research_agent_id,project_id,requested_by_user_id,previous_run_id,program_revision,program_config_json,trigger_type,trigger_key,scheduled_for,available_at,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,NOW(),'queued')")
+      ->execute([$public,(int)$program['id'],(int)$program['research_agent_id'],(int)$program['project_id'],$requestedByUserId,$previous?:null,(int)$program['current_revision'],$configJson,$trigger,$triggerKey,$scheduledFor]);
+    $runId=(int)$pdo->lastInsertId();if($runId<1)return null;research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],$runId,'run_queued',$requestedByUserId?'user':'system',$requestedByUserId,['trigger'=>$trigger,'scheduled_for'=>$scheduledFor,'program_revision'=>(int)$program['current_revision']]);return $public;
 }
 
 function research_program_enqueue_due(PDO $pdo,int $limit=100): int {
@@ -294,6 +295,15 @@ function research_program_enqueue_due(PDO $pdo,int $limit=100): int {
         if($stale&&$program['catch_up_mode']==='skip'){$pdo->prepare("UPDATE research_programs SET next_run_at=?,updated_at=NOW() WHERE id=?")->execute([$next,(int)$program['id']]);research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],null,'missed_run_skipped','system',null,['scheduled_for'=>$scheduled,'next_run_at'=>$next]);continue;}
         $trigger=$stale?'catch_up':'schedule';if(research_program_enqueue($pdo,$program,null,$trigger,$scheduled)!==null)$count++;$pdo->prepare("UPDATE research_programs SET next_run_at=?,updated_at=NOW() WHERE id=?")->execute([$next,(int)$program['id']]);
     }return $count;
+}
+
+function research_program_effective_for_run(array $program,array $run): array {
+    $config=json_decode((string)($run['program_config_json']??''),true);if(!is_array($config))return $program;
+    foreach(['title','objective','priority','cadence','timezone_name','run_time_local','weekday','day_of_month','quiet_mode','materiality_threshold','catch_up_mode','max_concurrent_runs','monthly_run_limit','token_budget_per_run','max_tasks_per_run','plan_due_offset_hours','deliverable_type','plan_title_template','deliverable_title_template'] as $key)if(array_key_exists($key,$config))$program[$key]=$config[$key];
+    if(array_key_exists('task_template',$config))$program['task_template_json']=json_encode($config['task_template'],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+    if(array_key_exists('scope',$config))$program['scope_json']=json_encode($config['scope'],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+    $program['run_program_revision']=(int)($run['program_revision']??$program['current_revision']??1);
+    return $program;
 }
 
 function research_program_claim(PDO $pdo): ?array {
@@ -332,8 +342,11 @@ function research_program_tokens_used(PDO $pdo,int $runId): int {
 }
 
 function research_program_task_budget(PDO $pdo,int $programRunId,?int $modelId=null): array {
-    $q=$pdo->prepare("SELECT rp.token_budget_per_run,rpr.id FROM research_program_runs rpr JOIN research_programs rp ON rp.id=rpr.program_id WHERE rpr.id=? LIMIT 1");$q->execute([$programRunId]);$row=$q->fetch();if(!$row)return ['allowed'=>true,'used'=>0,'budget'=>0,'reserve'=>0];
-    $used=research_program_tokens_used($pdo,$programRunId);$reserve=6000;if($modelId){$m=$pdo->prepare("SELECT max_output_tokens FROM ai_models WHERE id=? LIMIT 1");$m->execute([$modelId]);$reserve+=max(1000,(int)($m->fetchColumn()?:2048));}$budget=(int)$row['token_budget_per_run'];return ['allowed'=>$used<$budget&&($used+$reserve)<=$budget,'used'=>$used,'budget'=>$budget,'reserve'=>$reserve];
+    $q=$pdo->prepare("SELECT program_config_json FROM research_program_runs WHERE id=? LIMIT 1");$q->execute([$programRunId]);$raw=$q->fetchColumn();if($raw===false)return ['allowed'=>true,'used'=>0,'budget'=>0,'reserve'=>0,'pending'=>0];
+    $config=json_decode((string)$raw,true)?:[];$budget=max(0,(int)($config['token_budget_per_run']??0));if($budget<1)return ['allowed'=>true,'used'=>0,'budget'=>0,'reserve'=>0,'pending'=>0];
+    $used=research_program_tokens_used($pdo,$programRunId);$perTaskReserve=6000;if($modelId){$m=$pdo->prepare("SELECT max_output_tokens FROM ai_models WHERE id=? LIMIT 1");$m->execute([$modelId]);$perTaskReserve+=max(1000,(int)($m->fetchColumn()?:2048));}
+    $q=$pdo->prepare("SELECT COUNT(*) FROM research_task_plans rtp JOIN research_tasks rt ON rt.plan_id=rtp.id JOIN research_task_runs rtr ON rtr.task_id=rt.id WHERE rtp.program_run_id=? AND rtr.status IN ('processing','queued_ai')");$q->execute([$programRunId]);$pending=(int)$q->fetchColumn();$reserve=$perTaskReserve*($pending+1);
+    return ['allowed'=>$used<$budget&&($used+$reserve)<=$budget,'used'=>$used,'budget'=>$budget,'reserve'=>$reserve,'pending'=>$pending];
 }
 
 function research_program_chat_update(PDO $pdo,array $program,string $body,array $metadata=[]): void {
