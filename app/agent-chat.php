@@ -87,6 +87,9 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
     if($type==='document'&&function_exists('research_agent_workspace_document_context')){
         return research_agent_workspace_document_context($pdo,$viewer,$publicId);
     }
+    if($type==='sticky'&&function_exists('research_agent_workspace_sticky_context')){
+        return research_agent_workspace_sticky_context($pdo,$viewer,$publicId);
+    }
     if($type==='upload'&&function_exists('research_agent_workspace_upload_context')){
         return research_agent_workspace_upload_context($pdo,$viewer,$publicId);
     }
