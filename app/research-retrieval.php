@@ -261,7 +261,7 @@ function research_retrieval_rebuild_project(PDO $pdo,array $config,int $projectI
 
 function research_retrieval_embed_pending(PDO $pdo,array $config,int $projectId,int $limit=40): int {
     if(research_retrieval_embed_command($config)==='')return 0;$limit=max(1,min(200,$limit));
-    $q=$pdo->prepare("SELECT c.id,c.content FROM research_retrieval_chunks c JOIN research_retrieval_documents d ON d.id=c.document_id WHERE d.project_id=? AND c.embedding_status IN ('none','failed') ORDER BY c.id LIMIT ".$limit);$q->execute([$projectId]);$done=0;
+    $q=$pdo->prepare("SELECT c.id,c.content FROM research_retrieval_chunks c JOIN research_retrieval_documents d ON d.id=c.document_id WHERE d.project_id=? AND c.embedding_status='none' ORDER BY c.id LIMIT ".$limit);$q->execute([$projectId]);$done=0;
     foreach($q->fetchAll()?:[] as $row){
         try{$vector=research_retrieval_embed_text($config,(string)$row['content']);if(!$vector)continue;
             $pdo->prepare("UPDATE research_retrieval_chunks SET embedding_status='ready',embedding_provider=?,embedding_model=?,embedding_dimensions=?,embedding_json=?,updated_at=NOW() WHERE id=?")
@@ -371,7 +371,13 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
         try{$pdo->prepare("INSERT INTO research_retrieval_queries(public_id,project_id,user_id,query_hash,query_text,retrieval_mode,filters_json,result_refs_json,result_count) VALUES(?,?,?,?,?,?,?,?,?)")
           ->execute([$public,$projectId,(int)$viewer['id'],hash('sha256',$query.'|'.json_encode($filters)),mb_substr($query,0,1000),$mode,json_encode($filters,JSON_UNESCAPED_SLASHES),json_encode($refs,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),count($results)]);}catch(Throwable $e){}
     }
-    return ['project'=>['public_id'=>$projectPublicId,'title'=>$project['title']],'query'=>$query,'mode'=>$mode,'filters'=>$filters,'index'=>['status'=>$state['status']??'ready','indexed_at'=>$state['indexed_at']??null,'document_count'=>(int)($state['document_count']??0),'chunk_count'=>(int)($state['chunk_count']??0),'semantic_available'=>research_retrieval_embed_command($config)!==''],'results'=>$results];
+    $semanticConfigured=research_retrieval_embed_command($config)!=='';$embeddedCount=0;
+    if($semanticConfigured){$eq=$pdo->prepare("SELECT COUNT(*) FROM research_retrieval_chunks c JOIN research_retrieval_documents d ON d.id=c.document_id WHERE d.project_id=? AND c.embedding_status='ready'");$eq->execute([$projectId]);$embeddedCount=(int)$eq->fetchColumn();}
+    $chunkCount=(int)($state['chunk_count']??0);
+    return ['project'=>['public_id'=>$projectPublicId,'title'=>$project['title']],'query'=>$query,'mode'=>$mode,'filters'=>$filters,'index'=>[
+      'status'=>$state['status']??'ready','indexed_at'=>$state['indexed_at']??null,'document_count'=>(int)($state['document_count']??0),'chunk_count'=>$chunkCount,
+      'semantic_available'=>$semanticConfigured,'embedded_chunk_count'=>$embeddedCount,'semantic_ready'=>$semanticConfigured&&$chunkCount>0&&$embeddedCount>=$chunkCount
+    ],'results'=>$results];
 }
 
 function research_retrieval_context(PDO $pdo,array $config,array $viewer,string $projectPublicId,string $query,array $filters=[],int $limit=10): array {
