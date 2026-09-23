@@ -11,6 +11,13 @@
   const csrf=String(canvas.dataset.csrf||'');
 
   const openButton=canvas.querySelector('[data-research-desktop-open]');
+  const libraryOpenButton=canvas.querySelector('[data-research-library-open]');
+  const libraryDrawer=canvas.querySelector('[data-research-library-drawer]');
+  const libraryCloseButton=canvas.querySelector('[data-research-library-close]');
+  const librarySearch=canvas.querySelector('[data-research-library-search]');
+  const libraryList=canvas.querySelector('[data-research-library-list]');
+  const libraryCount=canvas.querySelector('[data-research-library-count]');
+  const libraryDesktopButton=canvas.querySelector('[data-research-library-desktop]');
   const closeButton=desktop.querySelector('[data-research-desktop-close]');
   const surface=desktop.querySelector('[data-research-desktop-surface]');
   const iconLayer=desktop.querySelector('[data-research-desktop-icons]');
@@ -41,7 +48,7 @@
   const transcriptText=desktop.querySelector('[data-research-transcript-text]');
 
 
-  let items=[],stickies=[],accessRole='viewer',currentFolder='',trashMode=false,desktopOpen=false;
+  let items=[],stickies=[],accessRole='viewer',currentFolder='',trashMode=false,desktopOpen=false,libraryOpen=false,libraryFilter='all';
   let activeDocument=null,documentRevision=0,documentDirty=false,documentSaving=false,documentSaveTimer=null;
   let maxIconZ=10,maxStickyZ=100;
   const stickyTimers=new Map(),stickyResizeTimers=new Map();
@@ -181,6 +188,67 @@
     renderStickies();
   }
 
+  function libraryObjectText(item){
+    return [
+      item.title,item.subtitle,item.source_title,item.upload_original_name,item.recording_original_name,
+      item.description,item.canonical_url,item.transcript_text,item.body,item.sticky_body
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+  function libraryRows(){
+    const rows=items.filter(item=>!['folder'].includes(String(item.object_type||''))).concat(
+      stickies.map(item=>({...item,object_type:'sticky',title:item.title||'Sticky note'}))
+    );
+    const q=String(librarySearch?.value||'').trim().toLowerCase();
+    return rows.filter(item=>(libraryFilter==='all'||String(item.object_type)===libraryFilter)&&(!q||libraryObjectText(item).includes(q)));
+  }
+  function libraryMeta(item){
+    const type=String(item.object_type||'');
+    if(type==='recording')return 'Recording · transcript '+String(item.transcript_status||'queued');
+    if(type==='upload')return 'File · '+String(item.upload_processing_status||'queued');
+    if(type==='document')return 'Document';
+    if(type==='annotation')return 'Annotation';
+    if(type==='bookmark')return 'Bookmark';
+    if(type==='sticky')return 'Sticky note';
+    return type;
+  }
+  async function openLibraryItem(item){
+    closeLibrary();
+    if(item.object_type==='sticky'){
+      if(!desktopOpen)await openDesktop();currentFolder=String(item.parent_public_id||'');renderDesktop();
+      requestAnimationFrame(()=>{const el=stickyLayer?.querySelector('[data-sticky-id="'+CSS.escape(String(item.public_id))+'"]');if(el){el.scrollIntoView({block:'center',inline:'center'});el.classList.add('is-library-focus');setTimeout(()=>el.classList.remove('is-library-focus'),1200);}});
+      return;
+    }
+    openDesktopItem(item);
+  }
+  function renderLibrary(){
+    if(!libraryList)return;libraryList.replaceChildren();const rows=libraryRows();
+    if(libraryCount)libraryCount.textContent=rows.length+' item'+(rows.length===1?'':'s');
+    if(!rows.length){const empty=document.createElement('div');empty.className='researchLibraryEmpty';empty.textContent='No matching Research items.';libraryList.appendChild(empty);return;}
+    for(const item of rows){
+      const row=document.createElement('button');row.type='button';row.className='researchLibraryItem';row.dataset.objectType=String(item.object_type||'');
+      const icon=document.createElement('span');icon.className='researchLibraryItemIcon';icon.textContent=iconGlyph(item.object_type);
+      const copy=document.createElement('span');copy.className='researchLibraryItemCopy';
+      const title=document.createElement('strong');title.textContent=desktopObjectLabel(item);
+      const meta=document.createElement('small');meta.textContent=libraryMeta(item);
+      copy.append(title,meta);
+      if(item.object_type==='recording'&&item.transcript_text){const p=document.createElement('span');p.className='researchLibraryItemPreview';p.textContent=String(item.transcript_text).slice(0,140);copy.appendChild(p);}
+      else if(item.object_type==='annotation'&&item.subtitle){const p=document.createElement('span');p.className='researchLibraryItemPreview';p.textContent=String(item.subtitle).slice(0,140);copy.appendChild(p);}
+      row.append(icon,copy);row.addEventListener('click',()=>openLibraryItem(item));libraryList.appendChild(row);
+    }
+  }
+  async function loadLibrary(){
+    if(!agentId)return;
+    try{
+      const data=await api(workspaceUrl('desktop',{trashed:0}));accessRole=String(data.project?.access_role||'viewer');items=data.items||[];stickies=data.stickies||[];renderLibrary();
+    }catch(err){if(libraryList)libraryList.innerHTML='<div class="researchLibraryEmpty"></div>';const e=libraryList?.firstElementChild;if(e)e.textContent=err.message||'Unable to load Research Library.';}
+  }
+  async function openLibrary(){
+    libraryOpen=true;libraryDrawer.hidden=false;document.body.classList.add('researchLibraryMode');await loadLibrary();requestAnimationFrame(()=>librarySearch?.focus());
+  }
+  function closeLibrary(){
+    libraryOpen=false;libraryDrawer.hidden=true;document.body.classList.remove('researchLibraryMode');
+  }
+
   function scheduleProcessingPoll(){
     if(processingPollTimer){clearTimeout(processingPollTimer);processingPollTimer=null;}
     if(!desktopOpen||trashMode)return;
@@ -193,7 +261,7 @@
       const data=await api(workspaceUrl('desktop',{trashed:trashed?1:0}));
       accessRole=String(data.project?.access_role||'viewer');items=data.items||[];stickies=data.stickies||[];
       trashMode=trashed;if(trashed)currentFolder='';
-      applyWriteState();renderDesktop();if(!quiet)setStatus(trashed?'Trash':'Desktop ready');scheduleProcessingPoll();
+      applyWriteState();renderDesktop();if(libraryOpen)renderLibrary();if(!quiet)setStatus(trashed?'Trash':'Desktop ready');scheduleProcessingPoll();
     }catch(err){setStatus(err.message||'Unable to load Research Desktop.',true);}
   }
   async function openDesktop(){
@@ -496,6 +564,10 @@
   }
 
   openButton?.addEventListener('click',openDesktop);closeButton?.addEventListener('click',closeDesktop);
+  libraryOpenButton?.addEventListener('click',openLibrary);libraryCloseButton?.addEventListener('click',closeLibrary);
+  librarySearch?.addEventListener('input',renderLibrary);
+  canvas.querySelectorAll('[data-research-library-filter]').forEach(button=>button.addEventListener('click',()=>{libraryFilter=String(button.dataset.researchLibraryFilter||'all');canvas.querySelectorAll('[data-research-library-filter]').forEach(b=>b.classList.toggle('is-active',b===button));renderLibrary();}));
+  libraryDesktopButton?.addEventListener('click',async()=>{closeLibrary();await openDesktop();});
   desktop.querySelector('[data-research-desktop-new-sticky]')?.addEventListener('click',()=>createSticky(''));
   desktop.querySelector('[data-research-desktop-new-doc]')?.addEventListener('click',openDocumentDialog);
   desktop.querySelector('[data-research-desktop-new-folder]')?.addEventListener('click',openFolderDialog);
@@ -532,6 +604,7 @@
   surface?.addEventListener('dragover',e=>{if(!canWrite()||![...(e.dataTransfer?.types||[])].includes('Files'))return;e.preventDefault();surface.classList.add('is-file-drop');if(e.dataTransfer)e.dataTransfer.dropEffect='copy';});
   surface?.addEventListener('dragleave',e=>{if(!surface.contains(e.relatedTarget))surface.classList.remove('is-file-drop');});
   surface?.addEventListener('drop',e=>{if(!canWrite()||!(e.dataTransfer?.files?.length))return;e.preventDefault();surface.classList.remove('is-file-drop');const rect=surface.getBoundingClientRect();uploadFiles(e.dataTransfer.files,e.clientX-rect.left,e.clientY-rect.top,dropFolderId(e));});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&libraryOpen){e.preventDefault();closeLibrary();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});});
   document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||e.detail?.document_id||'')));
   document.addEventListener('annotated:research-recording-open',e=>openRecording(String(e.detail?.public_id||e.detail?.recording_id||'')));
@@ -543,5 +616,5 @@
   window.addEventListener('resize',()=>{if(desktopOpen)renderDesktop();});
   if(initialDocument)openDocument(initialDocument);
 
-  window.AnnotatedResearchWorkspace={openDesktop,closeDesktop,openDocument,openRecording,createSticky,uploadFiles,reload:()=>desktopOpen?loadDesktop(trashMode):Promise.resolve(),shareBookmarkToTeam:id=>shareObjectToTeam('bookmark',id,'Research bookmark'),shareDocumentToTeam:id=>shareObjectToTeam('document',id,'Research document')};
+  window.AnnotatedResearchWorkspace={openDesktop,closeDesktop,openLibrary,closeLibrary,openDocument,openRecording,createSticky,uploadFiles,reload:()=>desktopOpen?loadDesktop(trashMode):libraryOpen?loadLibrary():Promise.resolve(),shareBookmarkToTeam:id=>shareObjectToTeam('bookmark',id,'Research bookmark'),shareDocumentToTeam:id=>shareObjectToTeam('document',id,'Research document')};
 })();
