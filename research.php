@@ -89,6 +89,5 @@ unset($agent);
 
 </main>
 <script src="/assets/js/workspace-state.js?v=34.0"></script>
-<script src="/assets/js/research-agent-shell.js?v=50.0"></script>
 </body>
 </html>
