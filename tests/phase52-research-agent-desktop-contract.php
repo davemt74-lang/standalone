@@ -38,8 +38,8 @@ $need('assets/js/research-agent-workspace-ui.js',"icon.setPointerCapture",'Deskt
 $need('assets/js/research-agent-workspace-ui.js',"'save_desktop_position'",'Desktop icon positions must persist after drag.');
 $need('assets/js/research-agent-workspace-ui.js',"object_type==='trash'",'Desktop must expose Trash as a system icon.');
 $need('assets/js/research-agent-workspace-ui.js',"item.object_type==='annotation'",'Desktop annotations must open their canonical annotation page.');
-$need('assets/js/research-agent-workspace-ui.js',"item.object_type==='recording'",'Desktop icon renderer must support recording objects.');
-$need('assets/js/research-agent-workspace-ui.js',"item.object_type==='upload'",'Desktop icon renderer must support uploaded-file objects.');
+$need('assets/js/research-agent-workspace-ui.js',"recording:'🎙️'",'Desktop icon renderer must support recording objects.');
+$need('assets/js/research-agent-workspace-ui.js',"upload:'📦'",'Desktop icon renderer must support uploaded-file objects.');
 $need('assets/js/research-agent-workspace-ui.js',"['yellow','pink','blue','green','purple','gray']", 'Desktop stickies must retain the approved six-color palette.');
 $need('assets/js/research-agent-workspace-ui.js','ResizeObserver','Desktop sticky size changes must persist.');
 $need('assets/js/research-agent-workspace-ui.js','data-research-document-window','Research Doc runtime must target the Desktop document window.');
