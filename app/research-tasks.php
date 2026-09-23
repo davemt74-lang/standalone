@@ -269,7 +269,11 @@ function research_task_apply_ai_output(PDO $pdo,string $taskPublic,string $outpu
     $pdo->prepare("UPDATE research_task_runs SET status=?,ai_run_public_id=?,summary=?,refs_json=?,gate_evaluation_json=?,completed_at=NOW() WHERE id=?")
       ->execute([$newStatus==='waiting'?'waiting':'completed',$aiRunPublic,$summary,json_encode($refs,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($evaluation,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),(int)$run['id']]);
     research_task_event($pdo,(int)$task['project_id'],$task['plan_id']?(int)$task['plan_id']:null,(int)$task['id'],$newStatus==='complete'?'completed':$newStatus,'agent',null,['ai_run_public_id'=>$aiRunPublic,'evidence_count'=>count($refs)]);
-    if($task['plan_id']){research_task_plan_recalculate($pdo,(int)$task['plan_id']);research_task_queue_ready($pdo,(int)$task['plan_id'],null,'dependency_ready');}
+    if($task['plan_id']){
+        research_task_plan_recalculate($pdo,(int)$task['plan_id']);research_task_queue_ready($pdo,(int)$task['plan_id'],null,'dependency_ready');research_task_refresh_deliverable_by_plan_id($pdo,(int)$task['plan_id']);
+        $label=$newStatus==='complete'?'completed':($newStatus==='review'?'is ready for review':'is waiting');
+        research_task_chat_update($pdo,(int)$task['plan_id'],'Research task “'.$task['title'].'” '.$label.'. '.mb_substr($summary,0,700),['task_id'=>$taskPublic,'status'=>$newStatus]);
+    }
     return ['stale'=>false,'status'=>$newStatus,'summary'=>$summary,'refs'=>$refs,'evaluation'=>$evaluation];
 }
 
@@ -366,6 +370,36 @@ function research_task_sync_agent_signals(PDO $pdo,int $agentId): int {
     if(installer_table_exists($pdo,'research_monitor_events')){$q=$pdo->prepare("SELECT public_id,event_type,importance,summary FROM research_monitor_events WHERE project_id=? AND importance IN ('important','high') AND occurred_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) ORDER BY id DESC LIMIT 60");$q->execute([(int)$project['id']]);foreach($q->fetchAll() as $e){$fingerprint=hash('sha256','monitor|'.$e['public_id']);$type=str_starts_with((string)$e['event_type'],'claim_')?'verify_claim':'review_source_change';$input=['title'=>'Follow up: '.mb_substr((string)$e['summary'],0,180),'description'=>(string)$e['summary'],'task_type'=>$type,'priority'=>$e['importance']==='high'?'high':'medium'];try{$task=research_task_create($pdo,$viewer,$agent,$project,$input,(int)$plan['id'],true,'monitor_event',(string)$e['public_id'],$fingerprint);research_task_queue($pdo,(int)$task['id'],null,'signal');$count++;}catch(PDOException $x){if((string)$x->getCode()!=='23000')throw $x;}}}
     if($count>0){$q=$pdo->prepare("UPDATE research_task_plans SET current_revision=current_revision+1,updated_at=NOW() WHERE id=?");$q->execute([(int)$plan['id']]);$q=$pdo->prepare("SELECT * FROM research_task_plans WHERE id=?");$q->execute([(int)$plan['id']]);$fresh=$q->fetch();research_task_plan_snapshot($pdo,$fresh,'Agent added tasks from new Research signals',null,true);research_task_refresh_deliverable($pdo,$viewer,(string)$plan['public_id']);}
     return $count;
+}
+
+function research_task_agent_for_project(PDO $pdo,array $viewer,string $projectPublic): ?array {
+    $project=project_access($pdo,(int)$viewer['id'],$projectPublic);if(!$project)return null;
+    $q=$pdo->prepare("SELECT public_id FROM research_agents WHERE project_id=? AND status='active' ORDER BY is_default DESC,id ASC LIMIT 1");$q->execute([(int)$project['id']]);$public=(string)($q->fetchColumn()?:'');
+    return $public!==''?research_agent_access($pdo,$viewer,$public):null;
+}
+
+function research_task_plan_add_task(PDO $pdo,array $viewer,string $planPublic,array $input,bool $createdByAgent=false): array {
+    $plan=research_task_plan_access($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Research plan not found.');$agent=research_task_agent($pdo,$viewer,(string)$plan['agent_public_id']);$project=research_task_project($pdo,$viewer,$agent);
+    $q=$pdo->prepare("SELECT COALESCE(MAX(position),-1)+1 FROM research_tasks WHERE plan_id=?");$q->execute([(int)$plan['id']]);$input['position']=(int)$q->fetchColumn();
+    $task=research_task_create($pdo,$viewer,$agent,$project,$input,(int)$plan['id'],$createdByAgent);
+    foreach(array_slice((array)($input['depends_on']??[]),0,12) as $dependencyPublic){$dep=research_task_access($pdo,$viewer,(string)$dependencyPublic);if(!$dep||(int)$dep['plan_id']!==(int)$plan['id']||(int)$dep['id']===(int)$task['id'])continue;$pdo->prepare("INSERT IGNORE INTO research_task_dependencies(task_id,depends_on_task_id,dependency_type) VALUES(?,?,'finish_to_start')")->execute([(int)$task['id'],(int)$dep['id']]);}
+    $next=(int)$plan['current_revision']+1;$pdo->prepare("UPDATE research_task_plans SET current_revision=?,updated_at=NOW() WHERE id=?")->execute([$next,(int)$plan['id']]);$q=$pdo->prepare("SELECT * FROM research_task_plans WHERE id=?");$q->execute([(int)$plan['id']]);$fresh=$q->fetch();research_task_plan_snapshot($pdo,$fresh,'Task added',(int)$viewer['id'],$createdByAgent);research_task_queue($pdo,(int)$task['id'],(int)$viewer['id'],'manual');research_task_refresh_deliverable($pdo,$viewer,$planPublic);return research_task_access($pdo,$viewer,(string)$task['public_id'])??$task;
+}
+
+function research_task_create_for_project(PDO $pdo,array $viewer,array $project,array $input,bool $createdByAgent=false): array {
+    $agent=research_task_agent_for_project($pdo,$viewer,(string)$project['public_id']);if(!$agent)throw new RuntimeException('This Research project has no active Research Agent.');
+    $plan=research_task_signal_plan($pdo,$viewer,$agent,$project);return research_task_plan_add_task($pdo,$viewer,(string)$plan['public_id'],$input,$createdByAgent);
+}
+
+function research_task_deliverable_resume(PDO $pdo,array $viewer,string $planPublic): array {
+    $plan=research_task_plan_access($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Research plan not found.');$agent=research_task_agent($pdo,$viewer,(string)$plan['agent_public_id']);research_task_project($pdo,$viewer,$agent);
+    $q=$pdo->prepare("SELECT rtd.id,rwo.public_id,rwd.revision_number FROM research_task_deliverables rtd JOIN research_workspace_objects rwo ON rwo.id=rtd.workspace_object_id JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id WHERE rtd.plan_id=? LIMIT 1");$q->execute([(int)$plan['id']]);$d=$q->fetch();if(!$d)throw new RuntimeException('Plan deliverable is unavailable.');
+    $pdo->prepare("UPDATE research_task_deliverables SET status='active',managed_revision_number=?,last_task_state_hash=NULL,updated_at=NOW() WHERE id=?")->execute([(int)$d['revision_number'],(int)$d['id']]);research_task_event($pdo,(int)$plan['project_id'],(int)$plan['id'],null,'deliverable_management_resumed','user',(int)$viewer['id'],['document_public_id'=>$d['public_id']]);research_task_refresh_deliverable($pdo,$viewer,$planPublic);return research_task_plan_detail($pdo,$viewer,$planPublic)??$plan;
+}
+
+function research_task_deliverable_finalize(PDO $pdo,array $viewer,string $planPublic): array {
+    $plan=research_task_plan_access($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Research plan not found.');$agent=research_task_agent($pdo,$viewer,(string)$plan['agent_public_id']);research_task_project($pdo,$viewer,$agent);
+    $q=$pdo->prepare("UPDATE research_task_deliverables SET status='finalized',finalized_at=NOW(),updated_at=NOW() WHERE plan_id=? AND status<>'finalized'");$q->execute([(int)$plan['id']]);if(!$q->rowCount())throw new RuntimeException('Plan deliverable is already finalized or unavailable.');research_task_event($pdo,(int)$plan['project_id'],(int)$plan['id'],null,'deliverable_finalized','user',(int)$viewer['id']);return research_task_plan_detail($pdo,$viewer,$planPublic)??$plan;
 }
 
 function research_task_chat_update(PDO $pdo,int $planId,string $message,array $metadata=[]): void {
