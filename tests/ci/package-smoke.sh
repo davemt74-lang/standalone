@@ -43,4 +43,5 @@ $status=release_installed_manifest_status($site);if(!$status["pass"])throw new R
 '
 for file in home.php research.php profile.php research-workspace-file.php app/research-library.php app/research-agents.php app/research-agent-workspace.php app/research-agent-workspace-ui.php api/research-agents.php api/research-workspace-objects.php api/research-workspace-upload.php api/research-retrieval.php api/research-autonomy.php worker/research-file-worker.php worker/research-transcription-worker.php worker/research-retrieval-worker.php worker/research-autonomy-worker.php app/research-retrieval.php app/research-autonomy.php app/bootstrap.php app/runtime-compat.php app/schema-health.php app/release.php app/release-operations.php admin/system-health.php bin/release-preflight.php bin/release-backup.php bin/release-backup-verify.php bin/release-restore-plan.php; do php -l "$tmp/site/$file" >/dev/null; done
 php -n "$tmp/site/tests/runtime-compat-contract.php" >/dev/null
-echo "Release package smoke test passed through Phase 55."
+echo "Phase 49 release package smoke test passed."
+echo "Phase 55 autonomous Research package extensions passed."
