@@ -48,12 +48,16 @@ function research_autonomy_queue_project(PDO $pdo,int $projectId,?int $requested
 function research_autonomy_input_state(PDO $pdo,int $projectId): array {
     $counts=[];
     foreach([
-      'sources'=>"SELECT COUNT(DISTINCT ps.source_id),COALESCE(MAX(sv.id),0),COALESCE(MAX(UNIX_TIMESTAMP(s.updated_at)),0) FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.source_id=s.id WHERE ps.project_id=?",
+      'sources'=>"SELECT COUNT(DISTINCT ps.source_id),COALESCE(MAX(sv.id),0),COALESCE(MAX(UNIX_TIMESTAMP(s.last_checked_at)),0),COALESCE(MAX(s.current_version_id),0) FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.source_id=s.id WHERE ps.project_id=?",
       'annotations'=>"SELECT COUNT(*),COALESCE(MAX(a.id),0),COALESCE(MAX(UNIX_TIMESTAMP(a.updated_at)),0) FROM project_annotations pa JOIN annotations a ON a.id=pa.annotation_id WHERE pa.project_id=? AND a.status='published'",
       'claims'=>"SELECT COUNT(*),COALESCE(MAX(id),0),COALESCE(MAX(UNIX_TIMESTAMP(updated_at)),0) FROM research_claims WHERE project_id=?",
       'claim_evidence'=>"SELECT COUNT(ce.id),COALESCE(MAX(ce.id),0),COALESCE(MAX(UNIX_TIMESTAMP(ce.created_at)),0) FROM claim_evidence ce JOIN research_claims rc ON rc.id=ce.claim_id WHERE rc.project_id=?",
       'findings'=>"SELECT COUNT(*),COALESCE(MAX(id),0),COALESCE(MAX(UNIX_TIMESTAMP(updated_at)),0) FROM research_findings WHERE project_id=? AND status<>'archived'",
-      'workspace_user'=>"SELECT COUNT(*),COALESCE(MAX(rwo.id),0),COALESCE(MAX(UNIX_TIMESTAMP(rwo.updated_at)),0) FROM research_workspace_objects rwo LEFT JOIN research_autonomy_artifacts raa ON raa.object_id=rwo.id WHERE rwo.project_id=? AND rwo.status='active' AND raa.id IS NULL"
+      'workspace_user'=>"SELECT COUNT(*),COALESCE(MAX(rwo.id),0),COALESCE(MAX(UNIX_TIMESTAMP(rwo.updated_at)),0) FROM research_workspace_objects rwo LEFT JOIN research_autonomy_artifacts raa ON raa.object_id=rwo.id WHERE rwo.project_id=? AND rwo.status='active' AND raa.id IS NULL",
+      'documents'=>"SELECT COUNT(*),COALESCE(MAX(rwd.revision_number),0),COALESCE(MAX(UNIX_TIMESTAMP(rwd.updated_at)),0) FROM research_workspace_documents rwd JOIN research_workspace_objects rwo ON rwo.id=rwd.object_id LEFT JOIN research_autonomy_artifacts raa ON raa.object_id=rwo.id WHERE rwd.project_id=? AND rwo.status='active' AND raa.id IS NULL",
+      'stickies'=>"SELECT COUNT(*),COALESCE(MAX(rws.id),0),COALESCE(MAX(UNIX_TIMESTAMP(rws.updated_at)),0) FROM research_workspace_stickies rws JOIN research_workspace_objects rwo ON rwo.id=rws.object_id LEFT JOIN research_autonomy_artifacts raa ON raa.object_id=rwo.id WHERE rws.project_id=? AND rwo.status='active' AND raa.id IS NULL",
+      'uploads'=>"SELECT COUNT(*),COALESCE(MAX(rwu.object_id),0),COALESCE(MAX(UNIX_TIMESTAMP(rwu.updated_at)),0) FROM research_workspace_uploads rwu JOIN research_workspace_objects rwo ON rwo.id=rwu.object_id WHERE rwu.project_id=? AND rwo.status='active'",
+      'transcripts'=>"SELECT COUNT(*),COALESCE(MAX(rwt.id),0),COALESCE(MAX(UNIX_TIMESTAMP(rwt.updated_at)),0) FROM research_workspace_recording_transcripts rwt JOIN research_workspace_recordings rwr ON rwr.object_id=rwt.object_id JOIN research_workspace_objects rwo ON rwo.id=rwt.object_id WHERE rwr.project_id=? AND rwo.status='active'"
     ] as $key=>$sql){$q=$pdo->prepare($sql);$q->execute([$projectId]);$row=$q->fetch(PDO::FETCH_NUM)?:[0,0,0];$counts[$key]=array_map('intval',$row);}
     $hash=hash('sha256',json_encode($counts,JSON_UNESCAPED_SLASHES));
     return ['hash'=>$hash,'counts'=>$counts];
@@ -61,13 +65,13 @@ function research_autonomy_input_state(PDO $pdo,int $projectId): array {
 
 function research_autonomy_managed_object(PDO $pdo,int $agentId,string $key): ?array {
     $q=$pdo->prepare("SELECT raa.*,rwo.public_id,rwo.object_type,rwo.title,rwo.status FROM research_autonomy_artifacts raa JOIN research_workspace_objects rwo ON rwo.id=raa.object_id
-      WHERE raa.research_agent_id=? AND raa.management_key=? AND raa.status='active' LIMIT 1");$q->execute([$agentId,$key]);return $q->fetch()?:null;
+      WHERE raa.research_agent_id=? AND raa.management_key=? AND raa.status='active' AND rwo.status='active' LIMIT 1");$q->execute([$agentId,$key]);return $q->fetch()?:null;
 }
 
 function research_autonomy_register_artifact(PDO $pdo,array $agent,array $object,string $key,string $kind,string $purpose,int $runId): void {
     $pdo->prepare("INSERT INTO research_autonomy_artifacts(research_agent_id,project_id,object_id,management_key,managed_kind,purpose,created_by_run_id,last_managed_run_id)
       VALUES(?,?,?,?,?,?,?,?)
-      ON DUPLICATE KEY UPDATE purpose=VALUES(purpose),last_managed_run_id=VALUES(last_managed_run_id),status='active',updated_at=NOW()")
+      ON DUPLICATE KEY UPDATE object_id=VALUES(object_id),managed_kind=VALUES(managed_kind),purpose=VALUES(purpose),last_managed_run_id=VALUES(last_managed_run_id),status='active',updated_at=NOW()")
       ->execute([(int)$agent['id'],(int)$agent['project_id'],(int)$object['id'],$key,$kind,mb_substr($purpose,0,500),$runId,$runId]);
 }
 
@@ -102,7 +106,7 @@ function research_autonomy_scan(PDO $pdo,array $agent,int $runId): array {
           ->execute([ulid_like(),(int)$agent['id'],$projectId,$runId,$type,(string)$claim['public_id'],$fp,$title,mb_substr($detail,0,10000),$severity,json_encode([['type'=>'claim','id'=>(string)$claim['public_id']]],JSON_UNESCAPED_SLASHES)]);
         $open[]=['type'=>$type,'subject_type'=>'claim','subject_public_id'=>(string)$claim['public_id'],'title'=>$title,'detail'=>$detail,'severity'=>$severity];
     }
-    $q=$pdo->prepare("SELECT fingerprint FROM research_autonomy_observations WHERE research_agent_id=? AND status='open'");$q->execute([(int)$agent['id']]);
+    $q=$pdo->prepare("SELECT fingerprint FROM research_autonomy_observations WHERE research_agent_id=? AND status='open' AND observation_type IN ('evidence_gap','contradiction')");$q->execute([(int)$agent['id']]);
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $fp)if(!isset($seen[$fp]))$pdo->prepare("UPDATE research_autonomy_observations SET status='resolved',resolved_at=NOW(),updated_at=NOW() WHERE research_agent_id=? AND fingerprint=?")->execute([(int)$agent['id'],$fp]);
     return $open;
 }
