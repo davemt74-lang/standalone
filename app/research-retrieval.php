@@ -197,8 +197,8 @@ function research_retrieval_queue_project(PDO $pdo,int $projectId): void {
     if(!research_retrieval_ready($pdo)||$projectId<1)return;
     $pdo->prepare("INSERT INTO research_retrieval_projects(project_id,status,queued_at) VALUES(?,'pending',NOW())
       ON DUPLICATE KEY UPDATE status=IF(status='indexing','indexing','pending'),queued_at=NOW(),last_error=NULL")->execute([$projectId]);
-    $pdo->prepare("INSERT INTO research_retrieval_jobs(project_id,status,available_at) VALUES(?,'queued',NOW())
-      ON DUPLICATE KEY UPDATE status=IF(status='processing','processing','queued'),attempts=IF(status='processing',attempts,0),claim_token=IF(status='processing',claim_token,NULL),lease_expires_at=IF(status='processing',lease_expires_at,NULL),available_at=NOW(),last_error=NULL,completed_at=NULL")->execute([$projectId]);
+    $pdo->prepare("INSERT INTO research_retrieval_jobs(project_id,status,available_at,rerun_requested) VALUES(?,'queued',NOW(),0)
+      ON DUPLICATE KEY UPDATE rerun_requested=IF(status='processing',1,0),status=IF(status='processing','processing','queued'),attempts=IF(status='processing',attempts,0),claim_token=IF(status='processing',claim_token,NULL),lease_expires_at=IF(status='processing',lease_expires_at,NULL),available_at=NOW(),last_error=NULL,completed_at=NULL")->execute([$projectId]);
 }
 
 function research_retrieval_embed_command(array $config): string {
@@ -331,8 +331,9 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
 
     $rows=[];$mode='browse';
     if($query===''){
-        $sql="SELECT d.*,NULL chunk_id,NULL chunk_index,NULL locator_type,NULL locator_label,NULL locator_json,NULL heading,NULL content,0 lexical_score,NULL embedding_json
-          FROM research_retrieval_documents d WHERE ".implode(' AND ',$where)." ORDER BY COALESCE(d.source_updated_at,d.updated_at) DESC,d.id DESC LIMIT ".($limit*3);
+        $sql="SELECT d.*,c.id chunk_id,c.chunk_index,c.locator_type,c.locator_label,c.locator_json,c.heading,c.content,0 lexical_score,c.embedding_json
+          FROM research_retrieval_documents d LEFT JOIN research_retrieval_chunks c ON c.id=(SELECT c2.id FROM research_retrieval_chunks c2 WHERE c2.document_id=d.id ORDER BY c2.chunk_index LIMIT 1)
+          WHERE ".implode(' AND ',$where)." ORDER BY COALESCE(d.source_updated_at,d.updated_at) DESC,d.id DESC LIMIT ".($limit*3);
         $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll()?:[];
     }else{
         $mode='lexical';$like='%'.$query.'%';$searchWhere=$where;$searchWhere[]="(MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE)>0 OR c.content LIKE ? OR c.heading LIKE ? OR d.title LIKE ?)";
