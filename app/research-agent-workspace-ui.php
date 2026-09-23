@@ -14,7 +14,7 @@ function research_agent_workspace_bookmark_card(array $row): string {
     $conversation=trim((string)($row['conversation_public_id']??''));
     $agentHref=$conversation!==''?'/home.php?agent='.rawurlencode($conversation).'&agent_context_type=bookmark&agent_context_id='.rawurlencode((string)$row['public_id']):'';
     ob_start();?>
-<article class="researchBookmarkCard socialPost" data-bookmark-id="<?=h((string)$row['public_id'])?>">
+<article class="researchBookmarkCard socialPost" data-bookmark-id="<?=h((string)$row['public_id'])?>" data-bookmark-team="<?=h((string)($row['team_public_id']??''))?>">
   <div class="postHead">
     <div class="author">
       <?=function_exists('app_shell_avatar')?app_shell_avatar($creator,'avatarSm'):''?>
@@ -34,6 +34,7 @@ function research_agent_workspace_bookmark_card(array $row): string {
     <a href="<?=h($url)?>" target="_blank" rel="noopener noreferrer">Open website</a>
     <?php if($conversation!==''):?><a href="/home.php?agent=<?=h(rawurlencode($conversation))?>">Open Research Agent</a><?php endif?>
     <?php if($agentHref!==''):?><a href="<?=h($agentHref)?>">Ask Agent</a><?php endif?>
+    <?php if($teamName!==''):?><button type="button" data-bookmark-share-team>Share to Team</button><?php endif?>
     <?php if(!empty($row['project_public_id'])):?><a href="/research-project.php?id=<?=h(rawurlencode((string)$row['project_public_id']))?>">Research</a><?php endif?>
   </footer>
 </article>
