@@ -18,9 +18,9 @@ try{
     if(installer_table_exists($pdo,'research_publication_workflows'))throw new RuntimeException('056 fixture unexpectedly contains Phase 59 publication schema.');
     if(installer_table_exists($pdo,'research_intelligence_portfolios'))throw new RuntimeException('056 fixture unexpectedly contains Phase 60 portfolio schema.');
     $applied=migration_apply_pending($pdo,$root.'/database/migrations',15);
-    $expected=['20260923_057_collaborative_review_approval_publishing','20260923_058_research_intelligence_portfolios_executive_briefing'];
+    $expected=['20260923_057_collaborative_review_approval_publishing','20260923_058_research_intelligence_portfolios_executive_briefing','20260923_059_portfolio_intelligence_operations_follow_through'];
     foreach($expected as $version)if(!in_array($version,$applied,true))throw new RuntimeException('Upgrade did not apply '.$version.'.');
     if(!installer_table_exists($pdo,'research_publication_workflows')||!installer_table_exists($pdo,'research_intelligence_portfolios'))throw new RuntimeException('057→058 upgraded schema is incomplete.');
     $pending=installer_pending_migrations($pdo,$root.'/database/migrations');if($pending)throw new RuntimeException('Upgrade left pending migrations: '.implode(', ',$pending));
-    echo 'PASS: Phase 60 upgrade rehearsal advanced an actual migration-056 database through 057 and 058 with no pending migrations.'."\n";
+    echo 'PASS: Phase 60 upgrade rehearsal advanced an actual migration-056 database through 059 with no pending migrations.'."\n";
 }finally{foreach(glob($tmp.'/*')?:[] as $file)@unlink($file);@rmdir($tmp);}
