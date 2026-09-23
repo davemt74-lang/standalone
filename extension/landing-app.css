@@ -2825,3 +2825,12 @@
 .commandTheme{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line)}.commandTheme strong{overflow-wrap:anywhere}
 @media(max-width:1100px){.intelligenceOperationsGrid{grid-template-columns:1fr 1fr}.intelligenceCommandGrid{grid-template-columns:1fr}}
 @media(max-width:720px){.intelligenceOperationsGrid{grid-template-columns:1fr}.intelligenceDecisionList article,.commandCenterRow,.intelligenceCommandHero{display:block}.intelligenceDecisionList article>div:last-child{margin-top:8px}.intelligenceCommandCenter{padding:16px 14px 56px}}
+
+
+/* Phase 63 — VP3 Account Connection & Research Ingestion */
+.vp3LibraryHero{display:flex;justify-content:space-between;gap:24px;align-items:end;margin:26px 0}.vp3LibraryHero h1{margin:.25rem 0 .5rem;font-size:clamp(2rem,4vw,3.5rem);letter-spacing:-.04em}.vp3LibraryHero p{max-width:860px;margin:0;color:var(--muted)}
+.vp3LibraryStatus{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 18px;margin-bottom:16px}.vp3LibraryStatus>div{display:grid;gap:3px}.vp3LibraryStatus span{color:var(--muted)}
+.vp3LibraryGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.vp3ArtifactCard{display:flex;flex-direction:column;gap:12px}.vp3ArtifactCard>header{display:flex;justify-content:space-between;gap:12px}.vp3ArtifactCard h2{margin:.2rem 0;font-size:1.25rem}.vp3ArtifactAvailability{display:flex;gap:7px;flex-wrap:wrap}.vp3ArtifactAvailability span{padding:5px 9px;border-radius:999px;border:1px solid var(--line);font-size:.78rem;color:var(--muted)}.vp3ArtifactAvailability .is-ready{font-weight:700;color:inherit}
+.vp3ArtifactImport{display:grid;gap:10px;margin-top:auto}.vp3ArtifactImport label{display:grid;gap:5px}.vp3ImportChecks{display:flex;gap:16px;flex-wrap:wrap}.vp3ImportChecks label{display:flex;gap:6px;align-items:center}
+.vp3ImportHistory{margin-top:22px}.vp3ImportHistory>div{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}.vp3ImportHistory>div>span{display:grid;gap:3px}.vp3ImportHistory small{color:var(--muted)}
+@media(max-width:850px){.vp3LibraryGrid{grid-template-columns:1fr}}@media(max-width:720px){.vp3LibraryHero,.vp3ImportHistory>div{display:block}.vp3LibraryHero>a,.vp3ImportHistory>div>a{display:inline-block;margin-top:10px}}
