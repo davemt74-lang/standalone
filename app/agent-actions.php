@@ -25,6 +25,10 @@ function agent_action_capabilities(): array {
         'label'=>'Create research document','description'=>'Create a durable editable Research document in the current Research Agent workspace. The completed document is posted back into the Agent conversation as a document card.',
         'arguments'=>['title'=>'string','body'=>'string','summary'=>'string optional','document_type'=>'document|research_brief|memo|report|analysis|source_summary|timeline|weekly_report']
       ],
+      'research.create_sticky'=>[
+        'label'=>'Create sticky note','description'=>'Pin a concise colored sticky note to the current Research Agent canvas after user confirmation.',
+        'arguments'=>['body'=>'string','color'=>'yellow|pink|blue|green|purple|gray optional']
+      ],
       'research.create_claim'=>[
         'label'=>'Create claim','description'=>'Create a new unverified Claim from the current evidence/context.',
         'arguments'=>['statement'=>'string','claim_type'=>'factual|disputed|prediction|interpretation|data_point']
@@ -95,6 +99,10 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $body=$s($args['body']??'',60000);if($body==='')throw new InvalidArgumentException('Document body is required.');
         $summary=$s($args['summary']??'',5000);$type=research_agent_workspace_document_type((string)($args['document_type']??'document'));
         return ['title'=>$title,'body'=>$body,'summary'=>$summary,'document_type'=>$type];
+    }
+    if($capability==='research.create_sticky'){
+        $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Sticky note body is required.');
+        return ['body'=>$body,'color'=>research_agent_workspace_sticky_color((string)($args['color']??'yellow'))];
     }
     if($capability==='research.create_claim'){
         $statement=$s($args['statement']??'',8000);if($statement==='')throw new InvalidArgumentException('Claim statement is required.');
@@ -206,6 +214,11 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
           'url'=>$conversation!==''?'/home.php?agent='.rawurlencode($conversation).'&doc='.rawurlencode((string)$document['public_id']):'/research-project.php?id='.rawurlencode((string)$project['public_id']),
           'revision_number'=>(int)($document['revision_number']??1),'document_type'=>(string)($document['document_type']??$args['document_type'])
         ];
+    }
+    if($capability==='research.create_sticky'){
+        if(!function_exists('research_agent_workspace_create_sticky'))throw new RuntimeException('Research sticky workspace is unavailable.');
+        $sticky=research_agent_workspace_create_sticky($pdo,$viewer,$project,$args);
+        return ['type'=>'sticky','public_id'=>(string)$sticky['public_id'],'label'=>'Sticky note','color'=>(string)($sticky['sticky_color']??$args['color'])];
     }
     if($capability==='research.create_claim'){
         $public=ulid_like();$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,?,?,'unverified')")
