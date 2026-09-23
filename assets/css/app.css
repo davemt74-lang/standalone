@@ -2365,7 +2365,7 @@
   height:100dvh!important;
   max-height:none!important;
   display:grid!important;
-  grid-template-rows:auto auto auto minmax(0,1fr) auto!important;
+  grid-template-rows:auto auto auto auto minmax(0,1fr) auto!important;
   overflow:hidden!important;
   background:#fff!important;
   color:#20252a!important;
@@ -2502,3 +2502,20 @@
   .researchAgentCanvasTopActions .researchLibraryOpenButton,
   .researchAgentCanvasTopActions .researchDesktopOpenButton{padding:0 8px!important;font-size:9px!important}
 }
+
+
+/* Phase 54 — Unified Research retrieval console */
+.researchLibraryFilters{display:grid;grid-template-columns:minmax(120px,1fr) minmax(100px,.75fr);gap:6px;padding:8px 12px;border-bottom:1px solid #eceef0;background:#fff}
+.researchLibraryFilters select,.researchLibraryFilters input{width:100%;height:31px;padding:0 7px;border:1px solid #dce0e4;border-radius:6px;background:#fff;color:#4a5158;font:inherit;font-size:9px}
+.researchLibraryFilters label{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px;color:#727a82;font-size:8px}
+.researchLibraryItem{width:100%!important;display:grid!important;grid-template-columns:20px minmax(0,1fr) auto!important;gap:7px!important;align-items:center!important;padding:7px 8px!important;margin:0 0 5px!important;border:1px solid transparent!important;border-radius:8px!important;background:#fff!important;color:#252a2f!important;box-shadow:none!important}
+.researchLibraryItem:hover{border-color:#d8dde2!important}
+.researchLibrarySelect{width:15px;height:15px;margin:0;accent-color:#252b31}
+.researchLibraryItemOpen{appearance:none!important;width:100%!important;min-width:0!important;display:grid!important;grid-template-columns:36px minmax(0,1fr)!important;gap:9px!important;align-items:start!important;padding:2px!important;border:0!important;background:transparent!important;color:inherit!important;text-align:left!important;box-shadow:none!important}
+.researchLibraryRelated{appearance:none!important;padding:4px 6px!important;border:1px solid #e0e3e6!important;border-radius:5px!important;background:#fff!important;color:#687078!important;font-size:8px!important;font-weight:700!important}
+.researchLibraryRelated:hover{background:#f1f3f4!important}
+.researchLibraryDrawerFooter>div{display:flex;align-items:center;gap:7px;min-width:0}
+.researchLibraryDrawerFooter>div:first-child{display:grid;gap:1px}
+.researchLibraryDrawerFooter small{display:block;color:#969da4;font-size:7px;white-space:nowrap}
+.researchLibraryDrawerFooter button:disabled{opacity:.4!important;cursor:default!important}
+.researchLibraryDrawerFooter [data-research-library-ask]:not(:disabled){background:#252b31!important;color:#fff!important;border-color:#252b31!important}
