@@ -3,8 +3,8 @@ declare(strict_types=1);
 require dirname(__DIR__).'/app/bootstrap.php';
 release_worker_heartbeat($pdo,'research_transcription','starting','Worker invocation started.');
 $cfg=$config['transcription']??[];$command=trim((string)($cfg['command']??''));$provider=(string)($cfg['provider']??'local');$model=(string)($cfg['model']??'');
-$job=job_claim($pdo,'research_transcription_jobs',"SELECT j.id job_id,j.*,t.object_id,rwo.public_id,rwo.created_by_user_id,rwo.title
-  FROM research_transcription_jobs j JOIN research_workspace_recording_transcripts t ON t.id=j.transcript_id JOIN research_workspace_objects rwo ON rwo.id=t.object_id
+$job=job_claim($pdo,'research_transcription_jobs',"SELECT j.id job_id,j.*,t.object_id,rwr.project_id,rwo.public_id,rwo.created_by_user_id,rwo.title
+  FROM research_transcription_jobs j JOIN research_workspace_recording_transcripts t ON t.id=j.transcript_id JOIN research_workspace_recordings rwr ON rwr.object_id=t.object_id JOIN research_workspace_objects rwo ON rwo.id=t.object_id
   WHERE j.status='queued' AND j.available_at<=NOW() ORDER BY j.available_at,j.created_at LIMIT 1",[],7200);
 if(!$job){release_worker_heartbeat($pdo,'research_transcription','success','No queued Research transcription jobs.');echo "No queued Research transcription jobs.\n";exit(0);}
 $id=(int)$job['job_id'];$token=(string)$job['claim_token'];
@@ -26,6 +26,7 @@ try{
     $pdo->beginTransaction();job_claim_assert($pdo,'research_transcription_jobs',$id,$token);
     $pdo->prepare("UPDATE research_workspace_recording_transcripts SET status='ready',raw_text=?,last_error=NULL,updated_at=NOW() WHERE id=?")->execute([$text,(int)$job['transcript_id']]);
     job_claim_complete($pdo,'research_transcription_jobs',$id,$token);$pdo->commit();
+    if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$job['project_id']);
     notify_user($pdo,(int)$job['created_by_user_id'],null,'research_transcript_ready','recording',(string)$job['public_id'],'Transcript ready: '.mb_substr((string)$job['title'],0,180));
     release_worker_heartbeat($pdo,'research_transcription','success','Research transcription completed.',1);echo "Research transcript ready.\n";
 }catch(LostJobClaim $e){
