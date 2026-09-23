@@ -103,6 +103,15 @@ p53(($subfolderMoved['parent_public_id']??'')===$archive['public_id'],'Folders c
 $nested=research_agent_workspace_create_folder($pdo,$researcher,$project,'Nested',(string)$archive['public_id']);
 p53throws(fn()=>research_agent_workspace_desktop_move($pdo,$researcher,$project,'folder',(string)$archive['public_id'],(string)$nested['public_id']),'Folder drag rejects moving a folder inside its own descendant.');
 
+research_agent_workspace_trash($pdo,$researcher,(string)$archive['public_id']);
+$desktopWhileTrashed=research_agent_workspace_desktop_items($pdo,$researcher,$project,false);
+p53(count(array_filter($desktopWhileTrashed,fn($x)=>($x['public_id']??'')===$annotationPublic))===0,'Annotation inside a trashed folder stays hidden instead of leaking back to the root Desktop.');
+research_agent_workspace_restore($pdo,$researcher,(string)$archive['public_id']);
+$desktopAfterRestore=research_agent_workspace_desktop_items($pdo,$researcher,$project,false);
+$annotationRestored=current(array_filter($desktopAfterRestore,fn($x)=>($x['public_id']??'')===$annotationPublic));
+p53(($annotationRestored['parent_public_id']??'')===$subfolder['public_id'],'Restoring the folder restores the linked annotation to the same folder.');
+
+
 
 $desktop=research_agent_workspace_desktop_items($pdo,$researcher,$project,false);
 $types=array_count_values(array_map(fn($x)=>(string)$x['object_type'],$desktop));
