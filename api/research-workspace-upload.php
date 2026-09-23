@@ -52,6 +52,7 @@ try{
         try{research_agent_workspace_desktop_position_save($pdo,$viewer,$project,(string)$item['object_type'],(string)$item['public_id'],$x,$y,20);}catch(Throwable $ignored){}
     }
     if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$project['id']);
+    if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$project['id'],(int)$viewer['id'],'workspace_change','A Research file or recording was added.');
     json_response(['ok'=>true,'data'=>['item'=>$item]],201);
 }catch(InvalidArgumentException $e){
     if($storedPath&&is_file($storedPath))@unlink($storedPath);
