@@ -161,8 +161,7 @@
 
 /* Phase 12B — Agent Chat canvas */
 .agentChatCanvas{position:relative;min-width:0;min-height:calc(100vh - 150px);padding-bottom:92px}
-.agentChatCanvas[hidden]{display:none!important}.agentChatCanvasHeader{position:sticky;top:72px;z-index:18;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 14px;margin-bottom:12px;border:1px solid #e2e2dc;border-radius:14px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px)}
-.agentChatCanvasHeaderLeft,.agentChatCanvasActions{display:flex;align-items:center;gap:10px}.agentChatCanvasHeaderLeft h2{margin:2px 0 0;font-size:1rem}.agentChatCanvasHeaderLeft .eyebrow{font-size:.65rem}
+.agentChatCanvas[hidden]{display:none!important}
 .agentChatMessages{min-height:520px;max-width:860px;margin:0 auto;padding:20px 10px 120px;overflow:visible}.agentChatWelcome{padding:70px 24px;text-align:center}.agentChatWelcome h2{margin:7px 0 8px;font-size:1.55rem}.agentChatWelcome p{max-width:620px;margin:0 auto;color:#666;line-height:1.55}
 .agentChatMessage{max-width:760px;margin:0 auto 18px}.agentChatMessageHead{margin-bottom:5px;color:#777;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}.agentChatMessageBody{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.58}.agentChatMessage.is-user .agentChatMessageBody{width:fit-content;max-width:min(680px,88%);margin-left:auto;padding:11px 14px;border-radius:18px 18px 5px 18px;background:#f0f0ec}.agentChatMessage.is-user .agentChatMessageHead{text-align:right}.agentChatMessage.is-agent .agentChatMessageBody{padding:4px 0;font-size:.96rem}
 .agentChatThinking{display:inline-flex;align-items:center;gap:6px;color:#777;font-size:.88rem}.agentChatThinking:after{content:"";width:18px;height:6px;border-radius:999px;background:linear-gradient(90deg,#aaa 25%,transparent 25% 50%,#aaa 50% 75%,transparent 75%);background-size:8px 6px;animation:agentThinking .8s linear infinite}@keyframes agentThinking{to{background-position:8px 0}}
@@ -172,7 +171,7 @@
 .agentHistoryItem,.agentContextOption{width:100%;display:block;padding:10px 12px;border:0;border-bottom:1px solid #f0f0ec;border-radius:0;background:#fff;color:inherit;text-align:left}.agentHistoryItem:hover,.agentContextOption:hover{background:#f8f8f5}.agentHistoryItem strong,.agentHistoryItem small{display:block}.agentHistoryItem small{margin-top:3px;color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.agentChatContextPickerBody section h4{margin:12px 12px 5px;font-size:.72rem;color:#666;text-transform:uppercase;letter-spacing:.05em}
 .agentChatError{max-width:760px;margin:0 auto 16px}.agentChatMode .homeAgentDock{box-shadow:0 -10px 32px rgba(255,255,255,.98)}
 @media(max-width:1100px){.agentChatContextTray{width:min(680px,calc(100vw - 330px))}}
-@media(max-width:900px){.agentChatCanvasHeader{top:62px;align-items:flex-start;flex-direction:column}.agentChatCanvasActions{width:100%;justify-content:flex-end}.agentChatMessages{padding-inline:4px}.agentChatContextTray{left:12px;right:12px;bottom:78px;width:auto;transform:none}.agentChatHistoryPanel,.agentChatContextPicker{position:fixed;top:auto;left:12px;right:12px;bottom:86px;width:auto;max-height:65vh}.agentChatMessage.is-user .agentChatMessageBody{max-width:92%}}
+@media(max-width:900px){.agentChatMessages{padding-inline:4px}.agentChatContextTray{left:12px;right:12px;bottom:78px;width:auto;transform:none}.agentChatHistoryPanel,.agentChatContextPicker{position:fixed;top:auto;left:12px;right:12px;bottom:86px;width:auto;max-height:65vh}.agentChatMessage.is-user .agentChatMessageBody{max-width:92%}}
 
 
 /* Phase 13 — Annotation Intelligence */
