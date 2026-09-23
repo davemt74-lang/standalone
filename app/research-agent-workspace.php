@@ -388,14 +388,14 @@ function research_agent_workspace_create_sticky(PDO $pdo,array $viewer,array $pr
     $x=max(0,min(4000,(int)($input['x']??32)));$y=max(0,min(8000,(int)($input['y']??96)));
     $w=max(180,min(520,(int)($input['width']??240)));$h=max(120,min(600,(int)($input['height']??190)));
     $q=$pdo->prepare("SELECT COALESCE(MAX(rws.z_index),0)+1 FROM research_workspace_stickies rws WHERE rws.project_id=?");$q->execute([(int)$project['id']]);$z=max(1,(int)$q->fetchColumn());
-    $public=ulid_like();$pdo->beginTransaction();
+    $public=ulid_like();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
     try{
       $pdo->prepare("INSERT INTO research_workspace_objects(public_id,project_id,parent_id,created_by_user_id,object_type,title) VALUES(?,?,NULL,?,'sticky',?)")
         ->execute([$public,(int)$project['id'],(int)$viewer['id'],$title]);$objectId=(int)$pdo->lastInsertId();
       $pdo->prepare("INSERT INTO research_workspace_stickies(object_id,project_id,body,color,position_x,position_y,width_px,height_px,z_index) VALUES(?,?,?,?,?,?,?,?,?)")
         ->execute([$objectId,(int)$project['id'],$body,$color,$x,$y,$w,$h,$z]);
-      $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+      if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return research_agent_workspace_object($pdo,$viewer,$public,false)??['public_id'=>$public,'object_type'=>'sticky','sticky_body'=>$body,'sticky_color'=>$color];
 }
 
