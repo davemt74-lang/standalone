@@ -275,7 +275,7 @@ $phase11Init=(string)file_get_contents($root.'/extension/sidepanel-init.js');if(
 $phase11Html=(string)file_get_contents($root.'/extension/sidepanel.html');foreach(['role="tablist"','role="tabpanel"','aria-selected','aria-live="polite"'] as $needle)if(!str_contains($phase11Html,$needle))$fail[]="Phase 11 accessibility contract missing: $needle";
 if(($manifest11['minimum_chrome_version']??'')!=='116')$fail[]='Phase 11 RC must declare Chrome 116+.';
 $releaseWorkflow=(string)file_get_contents($root.'/.github/workflows/release-rc.yml');foreach(['v1.1.0-rc','0.36.0','run-full-regression.sh','mysql:8.0','uses: ./.github/workflows/package-two-zips.yml'] as $needle)if(!str_contains($releaseWorkflow,$needle))$fail[]="RC release workflow contract missing: $needle";
-foreach(['media-worker.php'=>'media','transcription-worker.php'=>'transcription','research-file-worker.php'=>'research-files','research-transcription-worker.php'=>'research-transcription','source-monitor-worker.php'=>'source_monitor','ai-worker.php'=>'ai','saved-search-worker.php'=>'saved_search'] as $file=>$name){$body=(string)file_get_contents($root.'/worker/'.$file);if(!str_contains($body,"release_worker_heartbeat(\$pdo,'$name'"))$fail[]="Phase 11 worker heartbeat missing: $file";}
+foreach(['media-worker.php'=>'media','transcription-worker.php'=>'transcription','research-file-worker.php'=>'research_files','research-transcription-worker.php'=>'research_transcription','source-monitor-worker.php'=>'source_monitor','ai-worker.php'=>'ai','saved-search-worker.php'=>'saved_search'] as $file=>$name){$body=(string)file_get_contents($root.'/worker/'.$file);if(!str_contains($body,"release_worker_heartbeat(\$pdo,'$name'"))$fail[]="Phase 11 worker heartbeat missing: $file";}
 
 
 
