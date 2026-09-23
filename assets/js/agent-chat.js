@@ -195,7 +195,7 @@
   document.addEventListener('annotated:agent-chat-add-context',()=>{contextTray.hidden=true;contextPicker.hidden=false;loadContextOptions();});
   add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
   input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
-  back?.addEventListener('click',setModeFeed);panelClose?.addEventListener('click',setModeFeed);inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
+  back?.addEventListener('click',setModeFeed);panelClose?.addEventListener('click',()=>{if(researchAgentMode||requestedResearchAgentConversation){location.href='/research.php';return;}setModeFeed();});inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
   historyToggle?.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose?.addEventListener('click',()=>historyPanel.hidden=true);
   contextClose.addEventListener('click',()=>{contextPicker.hidden=true;renderContextTray();});
 
