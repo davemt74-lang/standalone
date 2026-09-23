@@ -165,11 +165,23 @@ function research_agent_workspace_move(PDO $pdo,array $viewer,string $publicId,s
     return research_agent_workspace_object($pdo,$viewer,$publicId,true)??$obj;
 }
 
+function research_agent_workspace_subtree_ids(PDO $pdo,int $projectId,int $rootId): array {
+    $ids=[$rootId];$frontier=[$rootId];$seen=[$rootId=>true];
+    while($frontier){
+        $marks=implode(',',array_fill(0,count($frontier),'?'));$q=$pdo->prepare("SELECT id FROM research_workspace_objects WHERE project_id=? AND parent_id IN ($marks)");
+        $q->execute(array_merge([$projectId],$frontier));$next=[];
+        foreach($q->fetchAll(PDO::FETCH_COLUMN) as $raw){$id=(int)$raw;if($id<1||isset($seen[$id]))continue;$seen[$id]=true;$ids[]=$id;$next[]=$id;}
+        $frontier=$next;
+    }
+    return $ids;
+}
+
 function research_agent_workspace_trash(PDO $pdo,array $viewer,string $publicId): array {
     $obj=research_agent_workspace_object($pdo,$viewer,$publicId,true);if(!$obj)throw new RuntimeException('Workspace item not found.');
     $project=project_access($pdo,(int)$viewer['id'],(string)$obj['project_public_id']);if(!$project)throw new RuntimeException('Workspace item not found.');research_agent_workspace_require_write($project);
-    $pdo->prepare("UPDATE research_workspace_objects SET status='trashed',trashed_at=NOW(),trashed_by_user_id=?,updated_at=NOW() WHERE id=?")->execute([(int)$viewer['id'],(int)$obj['id']]);
-    if($obj['object_type']==='folder')$pdo->prepare("UPDATE research_workspace_objects SET status='trashed',trashed_at=NOW(),trashed_by_user_id=?,updated_at=NOW() WHERE parent_id=? AND status='active'")->execute([(int)$viewer['id'],(int)$obj['id']]);
+    $ids=$obj['object_type']==='folder'?research_agent_workspace_subtree_ids($pdo,(int)$project['id'],(int)$obj['id']):[(int)$obj['id']];
+    $marks=implode(',',array_fill(0,count($ids),'?'));$params=array_merge([(int)$viewer['id']],$ids);
+    $pdo->prepare("UPDATE research_workspace_objects SET status='trashed',trashed_at=NOW(),trashed_by_user_id=?,updated_at=NOW() WHERE id IN ($marks)")->execute($params);
     return research_agent_workspace_object($pdo,$viewer,$publicId,true)??$obj;
 }
 
@@ -178,7 +190,10 @@ function research_agent_workspace_restore(PDO $pdo,array $viewer,string $publicI
     $project=project_access($pdo,(int)$viewer['id'],(string)$obj['project_public_id']);if(!$project)throw new RuntimeException('Workspace item not found.');research_agent_workspace_require_write($project);
     $parentId=(int)($obj['parent_id']??0);
     if($parentId){$q=$pdo->prepare("SELECT status FROM research_workspace_objects WHERE id=? LIMIT 1");$q->execute([$parentId]);if((string)$q->fetchColumn()!=='active')$parentId=0;}
-    $pdo->prepare("UPDATE research_workspace_objects SET parent_id=?,status='active',trashed_at=NULL,trashed_by_user_id=NULL,updated_at=NOW() WHERE id=?")->execute([$parentId?:null,(int)$obj['id']]);
+    $ids=$obj['object_type']==='folder'?research_agent_workspace_subtree_ids($pdo,(int)$project['id'],(int)$obj['id']):[(int)$obj['id']];
+    $marks=implode(',',array_fill(0,count($ids),'?'));
+    $pdo->prepare("UPDATE research_workspace_objects SET status='active',trashed_at=NULL,trashed_by_user_id=NULL,updated_at=NOW() WHERE id IN ($marks)")->execute($ids);
+    $pdo->prepare("UPDATE research_workspace_objects SET parent_id=? WHERE id=?")->execute([$parentId?:null,(int)$obj['id']]);
     return research_agent_workspace_object($pdo,$viewer,$publicId,false)??$obj;
 }
 
