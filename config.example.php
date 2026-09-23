@@ -24,7 +24,7 @@ return [
         'session_ttl_days' => 30,
     ],
     'transcription' => [
-        // Command receives {input} and {output}. It must write UTF-8 plain text to {output}.
+        // Command receives {input} and {output}. It may write UTF-8 plain text, or JSON\n        // {"text":"...","language":"en","segments":[{"start":0,"end":4.2,"text":"..."}]} for timestamp citations.
         // Example: '/usr/local/bin/annotated-transcribe {input} {output}'
         'command' => '',
         'provider' => 'local',
