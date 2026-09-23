@@ -67,6 +67,7 @@ db_tests=(
   tests/phase50-research-agent-workspace-db.php
   tests/phase51-research-docs-stickies-db.php
   tests/phase52-research-agent-desktop-db.php
+  tests/phase53-desktop-files-recordings-db.php
 )
 
 for test_file in "${db_tests[@]}"; do
