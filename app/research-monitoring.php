@@ -82,7 +82,7 @@ function research_monitor_create(PDO $pdo,array $viewer,array $input): array {
     $norm=research_monitor_target((string)($input['watch_type']??'query'),(string)($input['target']??''));
     if($norm['type']==='claim')research_monitor_validate_claim($pdo,(int)$project['id'],$norm['target']);
     $cadence=strtolower(trim((string)($input['cadence']??$agent['monitoring_cadence']??'daily')));if(!isset(research_monitor_cadences()[$cadence]))$cadence='daily';
-    $alert=in_array((string)($input['alert_level']??'important'),['all','important'],true)?(string)$input['alert_level']:'important';
+    $requestedAlert=(string)($input['alert_level']??'important');$alert=in_array($requestedAlert,['all','important'],true)?$requestedAlert:'important';
     $auto=$norm['type']==='url'?true:(array_key_exists('auto_promote',$input)?((bool)$input['auto_promote']):false);
     $cursorQ=$pdo->prepare('SELECT COALESCE(MAX(sce.id),0) FROM source_change_events sce JOIN project_sources ps ON ps.source_id=sce.source_id WHERE ps.project_id=?');$cursorQ->execute([(int)$project['id']]);$changeCursor=(int)$cursorQ->fetchColumn();
     $public=ulid_like();$next=research_monitor_next_run($cadence);
