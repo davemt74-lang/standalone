@@ -5,6 +5,7 @@
   if(!desktop)return;
 
   const agentId=String(canvas.dataset.researchAgentId||'').trim();
+  const projectId=String(canvas.dataset.researchAgentProject||'').trim();
   const teamId=String(canvas.dataset.researchAgentTeam||'').trim();
   const conversationId=String(canvas.dataset.researchAgentConversation||'').trim();
   const initialDocument=String(canvas.dataset.researchDocument||'').trim();
