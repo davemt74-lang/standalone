@@ -534,7 +534,7 @@ function research_agent_workspace_desktop_object_allowed(PDO $pdo,array $viewer,
         $q=$pdo->prepare("SELECT 1 FROM project_annotations WHERE project_id=? AND annotation_id=? LIMIT 1");
         $q->execute([(int)$project['id'],(int)$a['id']]);return (bool)$q->fetchColumn();
     }
-    if(!in_array($type,['folder','document','bookmark','upload','recording'],true))return false;
+    if(!in_array($type,['folder','document','bookmark','upload','recording','sticky'],true))return false;
     $obj=research_agent_workspace_object($pdo,$viewer,$publicId,true);
     return $obj&&((int)$obj['project_id']===(int)$project['id'])&&(($obj['object_type']??'')===$type);
 }
