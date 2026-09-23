@@ -145,3 +145,28 @@ CREATE TABLE IF NOT EXISTS research_monitor_claim_states (
   CONSTRAINT fk_research_monitor_claim_watch FOREIGN KEY(watch_id) REFERENCES research_monitor_watches(id) ON DELETE CASCADE,
   CONSTRAINT fk_research_monitor_claim_claim FOREIGN KEY(claim_id) REFERENCES research_claims(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS research_monitor_claim_assessments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  watch_id BIGINT UNSIGNED NOT NULL,
+  project_id BIGINT UNSIGNED NOT NULL,
+  claim_id BIGINT UNSIGNED NOT NULL,
+  source_version_id BIGINT UNSIGNED NOT NULL,
+  status ENUM('queued','processing','completed','failed') NOT NULL DEFAULT 'queued',
+  assessment ENUM('supports','weakens','contradicts','unrelated') NULL,
+  confidence DECIMAL(6,5) NULL,
+  rationale TEXT NULL,
+  ai_run_public_id VARCHAR(40) NULL,
+  last_error VARCHAR(1000) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME NULL,
+  UNIQUE KEY uq_research_monitor_claim_assessment(watch_id,claim_id,source_version_id),
+  INDEX idx_research_monitor_claim_assessment_status(status,created_at),
+  INDEX idx_research_monitor_claim_assessment_project(project_id,created_at),
+  CONSTRAINT fk_research_monitor_claim_assessment_watch FOREIGN KEY(watch_id) REFERENCES research_monitor_watches(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_monitor_claim_assessment_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_monitor_claim_assessment_claim FOREIGN KEY(claim_id) REFERENCES research_claims(id) ON DELETE CASCADE,
+  CONSTRAINT fk_research_monitor_claim_assessment_source_version FOREIGN KEY(source_version_id) REFERENCES source_versions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
