@@ -108,14 +108,14 @@ function research_retrieval_record(string $type,string $publicId,string $title,s
 function research_retrieval_collect_records(PDO $pdo,int $projectId): array {
     $records=[];
 
-    $q=$pdo->prepare("SELECT s.public_id,s.title,s.canonical_url,s.domain,s.updated_at,sv.version_number,sv.captured_at,sv.extracted_text
+    $q=$pdo->prepare("SELECT s.public_id,s.title,s.canonical_url,s.domain,s.last_checked_at,sv.version_number,sv.captured_at,sv.extracted_text
       FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id
       WHERE ps.project_id=? ORDER BY ps.created_at,s.id");
     $q->execute([$projectId]);
     foreach($q->fetchAll()?:[] as $row){
         $title=(string)($row['title']?:$row['domain']?:$row['canonical_url']?:'Source');
         $content=(string)($row['extracted_text']??'');
-        $records[] = research_retrieval_record('source',(string)$row['public_id'],$title,$content,null,(string)($row['captured_at']?:$row['updated_at']?:''),[
+        $records[] = research_retrieval_record('source',(string)$row['public_id'],$title,$content,null,(string)($row['captured_at']?:$row['last_checked_at']?:''),[
           'source_url'=>$row['canonical_url']??null,'domain'=>$row['domain']??null,'version_number'=>(int)($row['version_number']??0)
         ],'ready',research_retrieval_chunk_text($content,'source_section','Source section'));
     }
