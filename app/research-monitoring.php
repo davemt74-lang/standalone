@@ -237,8 +237,13 @@ function research_monitor_queue_claim_assessments(PDO $pdo,int $projectId,int $s
         $public=ulid_like();
         $ins=$pdo->prepare("INSERT IGNORE INTO research_monitor_claim_assessments(public_id,watch_id,project_id,claim_id,source_version_id,claim_statement,status) VALUES(?,?,?,?,?,?,'queued')");
         $ins->execute([$public,(int)$row['watch_id'],$projectId,(int)$row['claim_id'],$sourceVersionId,(string)$row['claim_statement']]);
-        if($ins->rowCount()!==1)continue;
-        ai_queue_job($pdo,null,'research_monitor_claim_assessment',$model,'research_monitor_claim_assessment',$public,['watch_public_id'=>$row['watch_public_id']],3);$count++;
+        if($ins->rowCount()!==1){
+            $existing=$pdo->prepare("SELECT public_id,status FROM research_monitor_claim_assessments WHERE watch_id=? AND claim_id=? AND source_version_id=? LIMIT 1");$existing->execute([(int)$row['watch_id'],(int)$row['claim_id'],$sourceVersionId]);$old=$existing->fetch();
+            if(!$old||$old['status']!=='failed')continue;$public=(string)$old['public_id'];
+            $pdo->prepare("UPDATE research_monitor_claim_assessments SET status='queued',claim_statement=?,assessment=NULL,confidence=NULL,rationale=NULL,ai_run_public_id=NULL,last_error=NULL,completed_at=NULL WHERE public_id=?")->execute([(string)$row['claim_statement'],$public]);
+        }
+        try{ai_queue_job($pdo,null,'research_monitor_claim_assessment',$model,'research_monitor_claim_assessment',$public,['watch_public_id'=>$row['watch_public_id']],3);$count++;}
+        catch(Throwable $e){research_monitor_claim_assessment_fail($pdo,$public,'AI assessment queue failed: '.$e->getMessage());}
     }return $count;
 }
 
@@ -261,8 +266,10 @@ function research_monitor_claim_assessment_apply(PDO $pdo,string $publicId,strin
     $row=research_monitor_claim_assessment_context($pdo,$publicId);if(!$row)throw new RuntimeException('Monitoring claim assessment is unavailable.');
     if(!hash_equals(hash('sha256',(string)$row['monitored_statement']),hash('sha256',(string)$row['current_claim_statement']))){
         $fresh=(string)$row['current_claim_statement'];$pdo->prepare("UPDATE research_monitor_claim_assessments SET status='queued',claim_statement=?,assessment=NULL,confidence=NULL,rationale=NULL,ai_run_public_id=NULL,last_error='Requeued because monitored claim changed during processing.',completed_at=NULL WHERE id=?")->execute([$fresh,(int)$row['id']]);
-        try{$model=ai_setting_model_id($pdo,'research');if($model)ai_queue_job($pdo,null,'research_monitor_claim_assessment',$model,'research_monitor_claim_assessment',$publicId,['watch_public_id'=>$row['watch_public_id'],'reason'=>'claim_changed'],3);}catch(Throwable $ignored){}
-        return ['stale'=>true,'assessment'=>null,'confidence'=>null,'rationale'=>'Claim changed during processing; result discarded and requeued.'];
+        $requeued=false;
+        if(function_exists('ai_setting_model_id')&&function_exists('ai_queue_job'))try{$model=ai_setting_model_id($pdo,'research');if($model){ai_queue_job($pdo,null,'research_monitor_claim_assessment',$model,'research_monitor_claim_assessment',$publicId,['watch_public_id'=>$row['watch_public_id'],'reason'=>'claim_changed'],3);$requeued=true;}}catch(Throwable $ignored){}
+        if(!$requeued)research_monitor_claim_assessment_fail($pdo,$publicId,'Claim changed during processing; stale result discarded, but no Research AI model/job could be queued.');
+        return ['stale'=>true,'requeued'=>$requeued,'assessment'=>null,'confidence'=>null,'rationale'=>'Claim changed during processing; stale result discarded.'];
     }
     $json=json_decode(trim($output),true);if(!is_array($json))throw new RuntimeException('Monitoring claim assessment returned invalid JSON.');
     $assessment=strtolower(trim((string)($json['assessment']??'')));if(!in_array($assessment,['supports','weakens','contradicts','unrelated'],true))throw new RuntimeException('Monitoring claim assessment returned an invalid assessment.');
