@@ -139,20 +139,20 @@
     }catch(err){renderInlineError(historyList,err.message||'Unable to load Agent Chat history.');}
   }
   async function openConversation(publicId,chatTitle=''){
-    setModeAgent();activeConversation=publicId;document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));title.textContent=chatTitle||'Agent chat';messages.innerHTML='<div class="agentChatLoading">Loading conversation…</div>';
+    setModeAgent();activeConversation=publicId;document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));if(title)title.textContent=chatTitle||'Agent chat';messages.innerHTML='<div class="agentChatLoading">Loading conversation…</div>';
     try{
       const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length)messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New Research</h2><p>Ask a question or attach Annotated context.</p></div>';saveState(true);messages.scrollTop=messages.scrollHeight;
     }catch(err){renderInlineError(messages,err.message||'Unable to load this Agent Chat.');}
   }
   function resetConversation(){
-    activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'agent'}}));selectedContext=[];renderContextTray();title.textContent='New Research';messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p></div>';saveState(true);input.focus();
+    activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'agent'}}));selectedContext=[];renderContextTray();if(title)title.textContent='New Research';messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>What are you researching?</h2><p>Ask about your annotations, sources, Research projects, or Team context. Attached context is permission-checked before the Agent can use it.</p></div>';saveState(true);input.focus();
   }
   async function sendPrompt(prompt){
     if(sending||!prompt.trim())return;sending=true;setModeAgent();const text=prompt.trim();renderMessage({role:'user',body:text,attachments:selectedContext.map(x=>({metadata:{label:x.label},public_id:x.public_id,type:x.type}))});input.value='';sizeInput();const thinking=showThinking();
     const client=globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(16).slice(2);
     try{
       const data=await request('send',{method:'POST',data:{conversation:activeConversation||null,prompt:text,context:selectedContext.map(({type,public_id})=>({type,public_id})),client_message_id:client}});
-      activeConversation=data.conversation?.public_id||activeConversation;if(activeConversation)document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(true);messages.scrollTop=messages.scrollHeight;loadHistory();
+      activeConversation=data.conversation?.public_id||activeConversation;if(activeConversation)document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));if(title)title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(true);messages.scrollTop=messages.scrollHeight;loadHistory();
     }catch(err){thinking.remove();const error=document.createElement('div');error.className='error agentChatError';error.textContent=err.message||'Agent Chat failed.';messages.appendChild(error);}
     finally{sending=false;input.focus();}
   }
@@ -162,8 +162,8 @@
   document.addEventListener('annotated:agent-chat-add-context',()=>{setModeAgent();contextTray.hidden=true;contextPicker.hidden=false;loadContextOptions();});
   add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
   input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
-  back.addEventListener('click',setModeFeed);newChat.addEventListener('click',resetConversation);
-  historyToggle.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose.addEventListener('click',()=>historyPanel.hidden=true);
+  back?.addEventListener('click',setModeFeed);newChat?.addEventListener('click',resetConversation);
+  historyToggle?.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose?.addEventListener('click',()=>historyPanel.hidden=true);
   contextClose.addEventListener('click',()=>{contextPicker.hidden=true;renderContextTray();});
 
   try{
