@@ -33,7 +33,7 @@ function research_file_extract(string $path,string $mime,array $config): string 
     throw new RuntimeException('Unsupported Research file extraction type.');
 }
 
-$job=job_claim($pdo,'research_file_jobs',"SELECT j.id job_id,j.*,u.object_id,u.mime_type,u.original_name,rwo.created_by_user_id,rwo.public_id
+$job=job_claim($pdo,'research_file_jobs',"SELECT j.id job_id,j.*,u.object_id,u.project_id,u.mime_type,u.original_name,rwo.created_by_user_id,rwo.public_id
   FROM research_file_jobs j JOIN research_workspace_uploads u ON u.object_id=j.object_id JOIN research_workspace_objects rwo ON rwo.id=j.object_id
   WHERE j.status='queued' AND j.available_at<=NOW() ORDER BY j.available_at,j.created_at LIMIT 1",[],3600);
 if(!$job){release_worker_heartbeat($pdo,'research_files','success','No queued Research file jobs.');echo "No queued Research file jobs.\n";exit(0);}
@@ -47,6 +47,7 @@ try{
     $pdo->beginTransaction();job_claim_assert($pdo,'research_file_jobs',$id,$token);
     $pdo->prepare("UPDATE research_workspace_uploads SET processing_status='ready',extracted_text=?,last_error=NULL,updated_at=NOW() WHERE object_id=?")->execute([$text!==''?$text:null,(int)$job['object_id']]);
     job_claim_complete($pdo,'research_file_jobs',$id,$token);$pdo->commit();
+    if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$job['project_id']);
     notify_user($pdo,(int)$job['created_by_user_id'],null,'research_upload_ready','upload',(string)$job['public_id'],'Your Research file is ready: '.mb_substr((string)$job['original_name'],0,180));
     release_worker_heartbeat($pdo,'research_files','success','Research file processed.',1);echo "Research file ready.\n";
 }catch(LostJobClaim $e){
