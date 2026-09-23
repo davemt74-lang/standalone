@@ -18,6 +18,23 @@ Initial supported formats:
 
 Original bytes are stored in private storage with MIME validation, size limits, SHA-256 checksums, permission-checked streaming, and immutable object identity.
 
+## Universal Desktop folder drag/drop
+
+Folders are real Desktop containers. Any movable Desktop object can be dragged onto a folder:
+
+- folders
+- Research Docs
+- bookmarks
+- uploaded files
+- recordings
+- sticky notes
+- linked annotations
+
+Workspace-owned objects keep their canonical `research_workspace_objects.parent_id`. Linked annotations remain authoritative annotation records and store only their Desktop folder placement in `research_workspace_desktop_positions`; annotation content is never copied into the folder model.
+
+Folder targets highlight while dragging. Invalid folder cycles are rejected server-side. Context-menu **Move to folder…** uses the same authorization and persistence path, including for linked annotations. Opening a folder renders both its icon objects and its contained floating sticky notes.
+
+
 Text-bearing files enter the Research file extraction queue. TXT, Markdown, and CSV are extracted natively; DOCX uses ZipArchive; PDF uses the configured PDF text command or local pdftotext when available. Images remain valid Research files even when no OCR/extraction provider is configured.
 
 ## Recordings and transcription
