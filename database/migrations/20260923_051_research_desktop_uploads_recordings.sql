@@ -93,5 +93,4 @@ CREATE TABLE IF NOT EXISTS research_transcription_jobs (
 
 ALTER TABLE research_workspace_desktop_positions
   ADD COLUMN IF NOT EXISTS folder_object_id BIGINT UNSIGNED NULL AFTER object_public_id,
-  ADD INDEX IF NOT EXISTS idx_research_desktop_folder(project_id,folder_object_id),
-  ADD CONSTRAINT fk_research_desktop_folder FOREIGN KEY(folder_object_id) REFERENCES research_workspace_objects(id) ON DELETE SET NULL;
+  ADD INDEX IF NOT EXISTS idx_research_desktop_folder(project_id,folder_object_id);
