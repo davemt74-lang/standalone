@@ -59,6 +59,11 @@ jobs:
           test -f package-website/research-workspace-file.php
           test -f package-website/worker/research-file-worker.php
           test -f package-website/worker/research-transcription-worker.php
+          test -f package-website/database/migrations/20260923_052_unified_research_retrieval.sql
+          test -f package-website/docs/phase-54-unified-research-retrieval.md
+          test -f package-website/app/research-retrieval.php
+          test -f package-website/api/research-retrieval.php
+          test -f package-website/worker/research-retrieval-worker.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
