@@ -69,8 +69,10 @@ p50(research_agent_workspace_object($pdo,$researcher,(string)$childFolder['publi
 research_agent_workspace_restore($pdo,$researcher,(string)$rootFolder['public_id']);
 p50(research_agent_workspace_object($pdo,$researcher,(string)$childFolder['public_id'],false)!==null&&research_agent_workspace_object($pdo,$researcher,(string)$bookmark['public_id'],false)!==null,'Restoring a folder recursively restores its nested workspace objects.');
 
+$conversation=agent_chat_access($pdo,$researcher,(string)$agent['conversation_public_id']);
+p50(is_array($conversation),'Research Agent chat resolves to its persistent conversation before message insertion.');
 $userMessage=conversation_message_create($pdo,$researcher,(string)$agent['conversation_public_id'],'Please review the bookmark.',null,'p50-'.$run);
-agent_chat_insert_agent_message($pdo,$agent,'I reviewed the saved evidence.',(int)$userMessage['id']);
+agent_chat_insert_agent_message($pdo,$conversation,'I reviewed the saved evidence.',(int)$userMessage['id']);
 $chatFeed=research_agent_chat_feed($pdo,$researcher,(string)$agent['public_id'],6);
 p50(count($chatFeed)>=2&&($chatFeed[count($chatFeed)-1]['speaker']??'')===$agent['name'],'Every Research Agent exposes its own persistent recent chat feed.');
 
