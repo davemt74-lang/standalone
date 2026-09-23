@@ -100,6 +100,9 @@ $privateOwner=research_retrieval_search($pdo,[],$owner,(string)$project['public_
 p54(count(array_filter($privateOwner['results'],fn($x)=>($x['public_id']??'')===$privateAnn))===1,'Private annotation remains retrievable to its owner.');
 $privateResearcher=research_retrieval_search($pdo,[],$researcher,(string)$project['public_id'],'secretprivategamma',[],10,true);
 p54(count($privateResearcher['results'])===0,'Derived index never leaks a private annotation to another Team member.');
+$privateRelated=research_retrieval_related($pdo,[],$researcher,(string)$project['public_id'],'annotation',$privateAnn,8);
+p54($privateRelated===[],'Related-evidence discovery cannot use an unauthorized private object as its retrieval seed.');
+
 
 $related=research_retrieval_related($pdo,[],$owner,(string)$project['public_id'],'document',(string)$doc['public_id'],8);
 p54(count(array_filter($related,fn($x)=>($x['object_type']??'')==='sticky'))>=1,'Related evidence discovers a separate object through shared indexed concepts.');
