@@ -498,13 +498,13 @@ function research_agent_workspace_desktop_annotation_rows(PDO $pdo,array $viewer
 }
 
 function research_agent_workspace_desktop_positions(PDO $pdo,int $projectId): array {
-    $q=$pdo->prepare("SELECT rdp.object_type,rdp.object_public_id,rdp.position_x,rdp.position_y,rdp.z_index,folder.public_id folder_public_id
+    $q=$pdo->prepare("SELECT rdp.object_type,rdp.object_public_id,rdp.position_x,rdp.position_y,rdp.z_index,folder.public_id folder_public_id,folder.status folder_status
       FROM research_workspace_desktop_positions rdp
-      LEFT JOIN research_workspace_objects folder ON folder.id=rdp.folder_object_id AND folder.project_id=rdp.project_id AND folder.object_type='folder' AND folder.status='active'
+      LEFT JOIN research_workspace_objects folder ON folder.id=rdp.folder_object_id AND folder.project_id=rdp.project_id AND folder.object_type='folder'
       WHERE rdp.project_id=?");
     $q->execute([$projectId]);$out=[];
     foreach($q->fetchAll()?:[] as $row)$out[(string)$row['object_type'].':'.(string)$row['object_public_id']]=[
-      'x'=>(int)$row['position_x'],'y'=>(int)$row['position_y'],'z'=>(int)$row['z_index'],'folder_public_id'=>$row['folder_public_id']??null
+      'x'=>(int)$row['position_x'],'y'=>(int)$row['position_y'],'z'=>(int)$row['z_index'],'folder_public_id'=>$row['folder_public_id']??null,'folder_status'=>$row['folder_status']??null
     ];
     return $out;
 }
@@ -520,6 +520,7 @@ function research_agent_workspace_desktop_items(PDO $pdo,array $viewer,array $pr
     if(!$trashed){
         foreach(research_agent_workspace_desktop_annotation_rows($pdo,$viewer,$project) as $row){
             $key='annotation:'.(string)$row['public_id'];$row['desktop']=$positions[$key]??null;
+            if(($row['desktop']['folder_status']??null)==='trashed')continue;
             $row['parent_public_id']=(string)($row['desktop']['folder_public_id']??'')?:null;
             $items[]=$row;
         }
