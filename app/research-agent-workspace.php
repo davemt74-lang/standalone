@@ -139,7 +139,18 @@ function research_agent_workspace_create_bookmark(PDO $pdo,array $viewer,array $
         $pdo->prepare("INSERT IGNORE INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)")->execute([(int)$project['id'],(int)$source['id'],(int)$viewer['id']]);
         $pdo->prepare("INSERT INTO source_monitor_jobs(source_id,priority,status) SELECT ?,2,'queued' WHERE NOT EXISTS(SELECT 1 FROM source_monitor_jobs WHERE source_id=? AND status IN ('queued','processing'))")->execute([(int)$source['id'],(int)$source['id']]);
         $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    }catch(Throwable $e){
+        if($pdo->inTransaction())$pdo->rollBack();
+        if($e instanceof PDOException&&(string)$e->getCode()==='23000'){
+            $q=$pdo->prepare("SELECT rwo.public_id FROM research_workspace_bookmarks rwb JOIN research_workspace_objects rwo ON rwo.id=rwb.object_id WHERE rwb.project_id=? AND rwb.url_hash=? LIMIT 1");
+            $q->execute([(int)$project['id'],$hash]);$existingPublic=(string)($q->fetchColumn()?:'');
+            if($existingPublic!==''){
+                $existingObject=research_agent_workspace_object($pdo,$viewer,$existingPublic,false);
+                if($existingObject)return $existingObject;
+            }
+        }
+        throw $e;
+    }
     return research_agent_workspace_object($pdo,$viewer,$public,false)??['public_id'=>$public,'object_type'=>'bookmark','title'=>$title,'canonical_url'=>$canonical];
 }
 
