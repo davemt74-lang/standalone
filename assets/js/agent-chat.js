@@ -5,7 +5,7 @@
   const input=document.querySelector('#homeAgentPrompt');
   const add=document.querySelector('#homeAgentAdd');
   const rightRail=document.querySelector('.homeRightRail');
-  if(!feed||!canvas||!form||!input)return;
+  if(!feed||!canvas||!form||!input||!add)return;
 
   const messages=canvas.querySelector('[data-agent-messages]');
   const title=canvas.querySelector('[data-agent-title]');
@@ -15,10 +15,10 @@
   const historyPanel=canvas.querySelector('[data-agent-history]');
   const historyList=canvas.querySelector('[data-agent-history-list]');
   const historyClose=canvas.querySelector('[data-agent-history-close]');
-  const contextTray=canvas.querySelector('[data-agent-context-tray]');
-  const contextPicker=canvas.querySelector('[data-agent-context-picker]');
-  const contextOptions=canvas.querySelector('[data-agent-context-options]');
-  const contextClose=canvas.querySelector('[data-agent-context-close]');
+  const contextTray=form.querySelector('[data-agent-context-tray]');
+  const contextPicker=form.querySelector('[data-agent-context-picker]');
+  const contextOptions=form.querySelector('[data-agent-context-options]');
+  const contextClose=form.querySelector('[data-agent-context-close]');
   const csrf=canvas.dataset.csrf||'';
   let activeConversation='';
   let selectedContext=[];
