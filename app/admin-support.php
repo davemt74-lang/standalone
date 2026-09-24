@@ -105,15 +105,15 @@ function admin_support_update(PDO $pdo,array $admin,string $casePublicId,string 
     else throw new RuntimeException('Unknown support case operation.');
     $after=admin_support_case($pdo,$casePublicId)??$case;if(function_exists('admin_access_security_audit')&&admin_access_ready($pdo))admin_access_security_audit($pdo,$admin,'action',$casePublicId,'support_'.$operation,$before,['status'=>$after['status'],'priority'=>$after['priority'],'assigned_user_id'=>$after['assigned_user_id'],'escalation_team'=>$after['escalation_team']],$reason);return $after;
 }
-function admin_support_case_timeline(PDO $pdo,array $case,int $limit=300): array {
+function admin_support_case_timeline(PDO $pdo,array $case,int $limit=300,?array $viewer=null): array {
     $rows=[];foreach(admin_support_events($pdo,(int)$case['id'],$limit) as $e)$rows[]=['created_at'=>$e['created_at'],'source'=>'support','title'=>$e['event_type'],'detail'=>$e['body']??'','actor'=>$e['actor_username']??'','visibility'=>$e['visibility']];
-    if(!empty($case['account_id'])&&function_exists('admin_ops_account_timeline'))foreach(admin_ops_account_timeline($pdo,(int)$case['account_id'],$limit) as $e){$e['visibility']='internal';$rows[]=$e;}
+    if(!empty($case['account_id'])&&function_exists('admin_ops_account_timeline'))foreach(admin_ops_account_timeline($pdo,(int)$case['account_id'],$limit,$viewer) as $e){$e['visibility']='internal';$rows[]=$e;}
     usort($rows,fn($a,$b)=>strcmp((string)$b['created_at'],(string)$a['created_at']));return array_slice($rows,0,max(1,min(500,$limit)));
 }
-function admin_support_customer_360(PDO $pdo,array $case): array {
-    $ops=!empty($case['account_id'])&&function_exists('admin_ops_account_360')?admin_ops_account_360($pdo,(int)$case['account_id']):null;$user=null;if(!empty($case['user_id'])){$q=$pdo->prepare("SELECT id,public_id,username,display_name,email,status,role,created_at FROM users WHERE id=?");$q->execute([(int)$case['user_id']]);$user=$q->fetch()?:null;}
+function admin_support_customer_360(PDO $pdo,array $case,?array $viewer=null): array {
+    $ops=!empty($case['account_id'])&&function_exists('admin_ops_account_360')?admin_ops_account_360($pdo,(int)$case['account_id'],$viewer):null;$user=null;if(!empty($case['user_id'])){$q=$pdo->prepare("SELECT id,public_id,username,display_name,email,status,role,created_at FROM users WHERE id=?");$q->execute([(int)$case['user_id']]);$user=$q->fetch()?:null;}
     $members=[];if(!empty($case['account_id'])&&function_exists('account_membership_members'))try{$members=account_membership_members($pdo,(int)$case['account_id']);}catch(Throwable $e){}
-    return ['user'=>$user,'operations'=>$ops,'members'=>$members,'links'=>admin_support_links($pdo,(int)$case['id']),'timeline'=>admin_support_case_timeline($pdo,$case,300)];
+    return ['user'=>$user,'operations'=>$ops,'members'=>$members,'links'=>admin_support_links($pdo,(int)$case['id']),'timeline'=>admin_support_case_timeline($pdo,$case,300,$viewer)];
 }
 function admin_support_metrics(PDO $pdo,array $viewer): array {
     if(!admin_support_ready($pdo))return [];$scalar=fn(string $sql)=>(int)($pdo->query($sql)->fetchColumn()?:0);
