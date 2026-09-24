@@ -13,6 +13,7 @@ $stripe=(string)file_get_contents($root.'/app/stripe-billing.php');if(substr_cou
 foreach(['function stripe_billing_account_state_is_stale','function stripe_billing_account_state_mark','stripe_account_state_watermarks'] as $n)$need('app/stripe-billing.php',$n,'Stripe runtime missing account-state ordering guard '.$n.'.');
 $start=strpos($stripe,'function stripe_billing_sync_package_price');$end=strpos($stripe,"\nfunction ",$start+1);$sync=substr($stripe,$start,$end-$start);$store=strpos($sync,'$mapped=stripe_billing_store_price_mapping');$deactivate=strpos($sync,"['active'=>'false']");if($store===false||$deactivate===false||$store>$deactivate)$fail[]='Stripe Price rotation must durably activate the new local mapping before remotely archiving the old Price.';
 $need('app/stripe-billing.php','rotation_warning','Stripe Price cleanup failure must be non-destructive and visible to Admin.');
+$need('app/stripe-billing.php',"'stripe-package-price'",'Stripe package Price sync/map must serialize per package and mode.');
 $need('app/ai-usage.php',"billing_source']??'manual')==='stripe'",'AI usage must not locally roll Stripe-owned billing periods.');
 foreach(['function ai_usage_reserve_run','function ai_usage_release_run','function ai_usage_settle_run','reserved_tokens'] as $n)$need('app/ai-usage.php',$n,'AI usage runtime missing quota reservation hardening: '.$n);
 $need('app/ai-usage.php',"'ai-usage-account'",'AI quota reservations must serialize per commercial account without holding the billing/member lock during provider calls.');
