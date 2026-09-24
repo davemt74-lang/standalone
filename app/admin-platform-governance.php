@@ -81,6 +81,11 @@ function admin_platform_snapshot_payload(PDO $pdo,array $config,string $root): a
     $features=[];foreach(admin_platform_features($pdo) as $f)$features[$f['feature_key']]=['lifecycle_status'=>$f['lifecycle_status'],'enforcement_mode'=>$f['enforcement_mode'],'default_enabled'=>(bool)$f['default_enabled'],'rollout_percent'=>(int)$f['rollout_percent'],'packages'=>$f['packages'],'accounts'=>$f['accounts'],'dependencies'=>$f['dependencies']];
     return ['config'=>$cfg,'modules'=>$modules,'integrations'=>$integrations,'features'=>$features];
 }
+function admin_platform_canonicalize(mixed $value): mixed {
+    if(!is_array($value))return $value;
+    if(array_is_list($value))return array_map('admin_platform_canonicalize',$value);
+    ksort($value,SORT_STRING);foreach($value as $key=>$item)$value[$key]=admin_platform_canonicalize($item);return $value;
+}
 function admin_platform_drift_material(array $payload): array {
     $cfg=(array)($payload['config']??[]);$release=(array)($cfg['release']??[]);
     $stable=[
@@ -103,7 +108,7 @@ function admin_platform_drift_material(array $payload): array {
     foreach((array)($payload['integrations']??[]) as $key=>$row)$stable['integrations'][(string)$key]=['desired_state'=>$row['desired_state']??null];
     return $stable;
 }
-function admin_platform_fingerprint(array $payload): string {return hash('sha256',json_encode(admin_platform_drift_material($payload),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));}
+function admin_platform_fingerprint(array $payload): string {return hash('sha256',json_encode(admin_platform_canonicalize(admin_platform_drift_material($payload)),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));}
 function admin_platform_capture_snapshot(PDO $pdo,array $config,array $admin,string $type='release_readiness',string $reason='Capture platform readiness snapshot.'): array {
     admin_access_assert_capability($pdo,$admin,'admin.platform.release');if(!admin_platform_ready($pdo))throw new RuntimeException('Admin V2.60 platform schema is unavailable.');if(!in_array($type,['configuration','release_readiness','drift_baseline'],true))throw new InvalidArgumentException('Platform snapshot type is invalid.');
     $payload=admin_platform_snapshot_payload($pdo,$config,dirname(__DIR__));$fingerprint=admin_platform_fingerprint($payload);$build=$payload['config']['release']['build_sha']??null;$public=ulid_like();$pdo->prepare("INSERT INTO admin_platform_snapshots(public_id,snapshot_type,fingerprint,snapshot_json,source_build_sha,created_by_user_id) VALUES(?,?,?,?,?,?)")->execute([$public,$type,$fingerprint,json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),$build,(int)$admin['id']]);$q=$pdo->prepare("SELECT * FROM admin_platform_snapshots WHERE public_id=?");$q->execute([$public]);$row=$q->fetch()?:throw new RuntimeException('Platform snapshot could not be reloaded.');admin_platform_event($pdo,$admin,'platform_snapshot_created','platform_snapshot',$public,null,['snapshot_type'=>$type,'fingerprint'=>$fingerprint],$reason);return $row;
@@ -113,7 +118,7 @@ function admin_platform_latest_snapshot(PDO $pdo,string $type='drift_baseline'):
 }
 function admin_platform_drift(PDO $pdo,array $config): array {
     $current=admin_platform_snapshot_payload($pdo,$config,dirname(__DIR__));$fingerprint=admin_platform_fingerprint($current);$baseline=admin_platform_latest_snapshot($pdo,'drift_baseline');if(!$baseline)return ['status'=>'no_baseline','drifted'=>false,'current_fingerprint'=>$fingerprint,'baseline'=>null,'changed_sections'=>[]];
-    $currentStable=admin_platform_drift_material($current);$oldStable=admin_platform_drift_material((array)($baseline['snapshot']??[]));$changed=[];foreach(['config','modules','integrations','features'] as $section)if(json_encode($oldStable[$section]??null,JSON_UNESCAPED_SLASHES)!==json_encode($currentStable[$section]??null,JSON_UNESCAPED_SLASHES))$changed[]=$section;
+    $currentStable=admin_platform_canonicalize(admin_platform_drift_material($current));$oldStable=admin_platform_canonicalize(admin_platform_drift_material((array)($baseline['snapshot']??[])));$changed=[];foreach(['config','modules','integrations','features'] as $section)if(json_encode($oldStable[$section]??null,JSON_UNESCAPED_SLASHES)!==json_encode($currentStable[$section]??null,JSON_UNESCAPED_SLASHES))$changed[]=$section;
     return ['status'=>$changed?'drifted':'aligned','drifted'=>(bool)$changed,'current_fingerprint'=>$fingerprint,'baseline'=>$baseline,'changed_sections'=>$changed];
 }
 function admin_platform_metrics(PDO $pdo,array $config): array {
