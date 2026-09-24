@@ -156,6 +156,13 @@ jobs:
           DB_PASS: root
           ADMIN_V180_RESET_DB: '1'
         run: php tests/ci/admin-v1-80-upgrade-from-070.php
+      - name: Admin V1.90 tax and invoice upgrade rehearsal from migration 071 through 072
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v190_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V190_RESET_DB: '1'
+        run: php tests/ci/admin-v1-90-upgrade-from-071.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -211,6 +218,7 @@ jobs:
           php tests/admin-v1-60-billing-analytics-db.php
           php tests/admin-v1-70-ai-overage-billing-db.php
           php tests/admin-v1-80-coupons-promotions-credits-db.php
+          php tests/admin-v1-90-tax-invoices-commercial-billing-db.php
       - name: MySQL 8 upgrade rehearsal from migration 056 through 059
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
@@ -316,6 +324,13 @@ jobs:
           DB_PASS: root
           ADMIN_V180_RESET_DB: '1'
         run: php tests/ci/admin-v1-80-upgrade-from-070.php
+      - name: MySQL 8 Admin V1.90 tax and invoice upgrade rehearsal from migration 071 through 072
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v190_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V190_RESET_DB: '1'
+        run: php tests/ci/admin-v1-90-upgrade-from-071.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
