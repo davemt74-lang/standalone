@@ -140,6 +140,7 @@ CREATE TABLE IF NOT EXISTS account_billing_events (
   actor_user_id BIGINT UNSIGNED NULL,
   source ENUM('stripe','admin','system') NOT NULL DEFAULT 'system',
   event_type VARCHAR(100) NOT NULL,
+  stripe_mode ENUM('test','live') NULL,
   stripe_event_id VARCHAR(255) NULL,
   before_json JSON NULL,
   after_json JSON NULL,
