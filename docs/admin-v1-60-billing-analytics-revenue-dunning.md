@@ -32,7 +32,9 @@ If V1.60 itself suspends an account, a later successful payment can restore it o
 2. no other open dunning case exists, and
 3. no later lifecycle decision superseded the dunning suspension.
 
-That prevents payment recovery from undoing a manual/security suspension.
+That prevents payment recovery from undoing a manual/security suspension. Granting billing grace uses the same protection: grace can clear V1.60's dunning ownership without reactivating an account that a later lifecycle decision intentionally kept suspended.
+
+Voided invoices, canceled/non-billable Stripe subscriptions, and explicit commercial-account closure close remaining open dunning cases so stale payment alerts cannot survive the billing lifecycle that created them.
 
 ## Trials
 
@@ -62,7 +64,7 @@ Run:
 
 `php bin/billing-operations.php`
 
-daily. It reviews due dunning cases using the configured policy and writes/updates the current daily snapshot.
+daily. It reviews due dunning cases using the configured policy and writes/updates the current daily snapshot. Webhook requests update provider ledgers and dunning state only; they do not rebuild full account snapshots on the Stripe webhook hot path.
 
 ## Agent boundary
 
