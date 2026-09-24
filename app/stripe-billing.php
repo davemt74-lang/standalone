@@ -101,7 +101,7 @@ function stripe_billing_sync_package_price(PDO $pdo,array $config,array $admin,s
     $package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active')throw new RuntimeException('Choose an active package.');
     $amount=(int)$package['monthly_price_cents'];if($amount<=0)throw new RuntimeException('Stripe recurring prices are only created for paid packages.');
     $settings=stripe_billing_settings($pdo);$mode=(string)$settings['mode'];$current=stripe_billing_active_price($pdo,(int)$package['id'],$mode);
-    if($current&&(int)$current['unit_amount_cents']===$amount&&strtolower((string)$current['currency'])==='usd')return $current;
+    if($current&&(int)$current['unit_amount_cents']===$amount&&strtolower((string)$current['currency'])==='usd'){stripe_billing_api_request($config,$settings,'POST','products/'.rawurlencode((string)$current['stripe_product_id']),['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]]);return $current;}
     $productId=$current['stripe_product_id']??null;
     if(!$productId){
         $product=stripe_billing_api_request($config,$settings,'POST','products',['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]],'annotated-product-'.$mode.'-'.$package['public_id']);
@@ -109,9 +109,9 @@ function stripe_billing_sync_package_price(PDO $pdo,array $config,array $admin,s
     }else{
         stripe_billing_api_request($config,$settings,'POST','products/'.rawurlencode((string)$productId),['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]]);
     }
-    if($current){stripe_billing_api_request($config,$settings,'POST','prices/'.rawurlencode((string)$current['stripe_price_id']),['active'=>'false']);}
     $price=stripe_billing_api_request($config,$settings,'POST','prices',['product'=>$productId,'currency'=>'usd','unit_amount'=>$amount,'recurring'=>['interval'=>'month'],'metadata'=>['annotated_package_id'=>(string)$package['public_id']]],'annotated-price-'.$mode.'-'.$package['public_id'].'-'.$amount);
     $priceId=(string)($price['id']??'');if($priceId==='')throw new RuntimeException('Stripe did not return a Price ID.');
+    if($current){stripe_billing_api_request($config,$settings,'POST','prices/'.rawurlencode((string)$current['stripe_price_id']),['active'=>'false']);}
     $pdo->beginTransaction();try{
         $pdo->prepare('UPDATE stripe_package_prices SET active=0 WHERE package_id=? AND mode=?')->execute([(int)$package['id'],$mode]);
         $pdo->prepare("INSERT INTO stripe_package_prices(public_id,package_id,mode,stripe_product_id,stripe_price_id,currency,unit_amount_cents,billing_interval,active,created_by_user_id) VALUES(?,?,?,?,?,'usd',?,'month',1,?)")
