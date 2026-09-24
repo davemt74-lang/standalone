@@ -59,7 +59,7 @@ function account_membership_account_for_user(PDO $pdo,array $user,?string $accou
     throw new RuntimeException($manage?'You do not administer that commercial account.':'You do not belong to that commercial account.');
 }
 function account_membership_expire_pending(PDO $pdo,int $accountId): int {
-    if(!account_membership_ready($pdo))return 0;$q=$pdo->prepare("SELECT id FROM account_invitations WHERE account_id=? AND status='pending' AND expires_at<=NOW()");$q->execute([$accountId]);$ids=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN)?:[]);if(!$ids)return 0;$ownTx=!$pdo->inTransaction();if($ownTx)$pdo->beginTransaction();
+    if(!account_membership_ready($pdo))return 0;$q=$pdo->prepare("SELECT id FROM account_invitations WHERE account_id=? AND status='pending' AND expires_at<=NOW() FOR UPDATE");$q->execute([$accountId]);$ids=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN)?:[]);if(!$ids)return 0;$ownTx=!$pdo->inTransaction();if($ownTx)$pdo->beginTransaction();
     try{$marks=implode(',',array_fill(0,count($ids),'?'));$u=$pdo->prepare("UPDATE account_invitations SET status='expired' WHERE id IN ($marks) AND status='pending'");$u->execute($ids);foreach($ids as $id)account_membership_event($pdo,$accountId,null,null,$id,'invitation_expired',['status'=>'pending'],['status'=>'expired'],'Invitation expired.');if($ownTx)$pdo->commit();return $u->rowCount();}catch(Throwable $e){if($ownTx&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 function account_membership_pending_reserved_count(PDO $pdo,int $accountId,?int $excludeInvitationId=null): int {
@@ -80,7 +80,9 @@ function account_membership_invitations(PDO $pdo,int $accountId,bool $pendingOnl
     if($pendingOnly)$sql.=" AND i.status='pending' AND i.expires_at>NOW()";$sql.=" ORDER BY i.created_at DESC,i.id DESC LIMIT ".$limit;$q=$pdo->prepare($sql);$q->execute([$accountId]);return $q->fetchAll()?:[];
 }
 function account_membership_invitation_by_public(PDO $pdo,string $publicId): ?array {
-    if(!account_membership_ready($pdo))return null;$q=$pdo->prepare("SELECT i.*,a.public_id account_public_id,a.name account_name,a.status account_status,p.name package_name FROM account_invitations i JOIN accounts a ON a.id=i.account_id JOIN subscription_packages p ON p.id=a.package_id WHERE i.public_id=? LIMIT 1");$q->execute([trim($publicId)]);return $q->fetch()?:null;
+    if(!account_membership_ready($pdo))return null;$q=$pdo->prepare("SELECT i.*,a.public_id account_public_id,a.name account_name,a.status account_status,p.name package_name FROM account_invitations i JOIN accounts a ON a.id=i.account_id JOIN subscription_packages p ON p.id=a.package_id WHERE i.public_id=? LIMIT 1");$q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;
+    if($row['status']==='pending'&&strtotime((string)$row['expires_at'])<=time()){account_membership_expire_pending($pdo,(int)$row['account_id']);$q->execute([trim($publicId)]);$row=$q->fetch()?:$row;}
+    return $row;
 }
 function account_membership_invitation_by_token(PDO $pdo,string $token): ?array {
     if(!account_membership_ready($pdo))return null;$token=trim($token);if(!preg_match('/^[a-f0-9]{64}$/',$token))return null;$hash=hash('sha256',$token);
