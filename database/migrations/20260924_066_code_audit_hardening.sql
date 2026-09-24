@@ -25,6 +25,29 @@ CREATE TABLE IF NOT EXISTS ai_usage_reservations (
   CONSTRAINT fk_ai_usage_reservation_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS stripe_checkout_sessions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  account_id BIGINT UNSIGNED NOT NULL,
+  package_id BIGINT UNSIGNED NOT NULL,
+  created_by_user_id BIGINT UNSIGNED NULL,
+  mode ENUM('test','live') NOT NULL,
+  stripe_customer_id VARCHAR(255) NULL,
+  stripe_price_id VARCHAR(255) NOT NULL,
+  stripe_checkout_session_id VARCHAR(255) NULL,
+  checkout_url TEXT NULL,
+  status ENUM('creating','open','completed','expired') NOT NULL DEFAULT 'creating',
+  expires_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_stripe_checkout_mode_session(mode,stripe_checkout_session_id),
+  INDEX idx_stripe_checkout_account_mode(account_id,mode,status,updated_at,id),
+  CONSTRAINT fk_stripe_checkout_account FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_stripe_checkout_package FOREIGN KEY(package_id) REFERENCES subscription_packages(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_stripe_checkout_actor FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS stripe_account_state_watermarks (
   account_id BIGINT UNSIGNED NOT NULL,
   mode ENUM('test','live') NOT NULL,
