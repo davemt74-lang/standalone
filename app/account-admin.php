@@ -62,15 +62,15 @@ function account_admin_create(PDO $pdo,array $admin,array $input): array {
     $package=subscription_package($pdo,(string)($input['package_id']??''));if(!$package||$package['status']!=='active')throw new RuntimeException('Choose an active package.');
     $reason=account_admin_reason((string)($input['reason']??''));$now=new DateTimeImmutable('now',new DateTimeZone('UTC'));[$start,$end]=subscription_period_from($now);$trial=(int)$package['trial_days'];$trialEnds=$trial>0?$now->modify('+'.$trial.' days')->format('Y-m-d H:i:s'):null;$sub=$trialEnds?'trialing':'active';
     $pdo->beginTransaction();try{
-        $public=ulid_like();$pdo->prepare("INSERT INTO accounts(public_id,account_type,name,owner_user_id,personal_user_id,package_id,subscription_status,period_start,period_end,trial_ends_at,status) VALUES(?,?,?,?,NULL,?,?,?,?,?,'active')")
-          ->execute([$public,$type,mb_substr($name,0,190),(int)$owner['id'],(int)$package['id'],$sub,$start,$end,$trialEnds]);$id=(int)$pdo->lastInsertId();
+        $public=ulid_like();$pdo->prepare("INSERT INTO accounts(public_id,account_type,name,owner_user_id,personal_user_id,package_id,subscription_status,billing_source,period_start,period_end,trial_ends_at,status) VALUES(?,?,?,?,NULL,?,?,?,?,?,?,'active')")
+          ->execute([$public,$type,mb_substr($name,0,190),(int)$owner['id'],(int)$package['id'],$sub,$type==='internal'?'internal':'manual',$start,$end,$trialEnds]);$id=(int)$pdo->lastInsertId();
         $pdo->prepare("INSERT INTO account_members(account_id,user_id,account_role) VALUES(?,?,'owner')")->execute([$id,(int)$owner['id']]);
         account_admin_event($pdo,$id,(int)$admin['id'],(int)$owner['id'],'account_created',null,['name'=>$name,'account_type'=>$type,'package_id'=>$package['public_id'],'subscription_status'=>$sub],$reason);
         $pdo->commit();return account_admin_get($pdo,$id)?:throw new RuntimeException('Created account could not be loaded.');
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 function account_admin_change_package(PDO $pdo,array $admin,string $accountPublicId,string $packagePublicId,string $reason): array {
-    account_admin_require_admin($admin);$account=account_admin_get($pdo,$accountPublicId);if(!$account)throw new RuntimeException('Account not found.');$package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active')throw new RuntimeException('Choose an active package.');$reason=account_admin_reason($reason);if((int)$account['package_id']===(int)$package['id'])return $account;
+    account_admin_require_admin($admin);$account=account_admin_get($pdo,$accountPublicId);if(!$account)throw new RuntimeException('Account not found.');if(($account['billing_source']??'manual')==='stripe'&&function_exists('stripe_billing_current_subscription')&&stripe_billing_current_subscription($pdo,(int)$account['id']))throw new RuntimeException('Stripe-managed accounts must change packages through Stripe billing.');$package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active')throw new RuntimeException('Choose an active package.');$reason=account_admin_reason($reason);if((int)$account['package_id']===(int)$package['id'])return $account;
     $prospectiveLimit=(int)$package['member_limit'];foreach(account_admin_overrides($pdo,(int)$account['id'],true) as $o)if($o['entitlement_key']==='member_limit'){$prospectiveLimit=max(1,(int)json_decode((string)$o['value_json'],true));break;}
     $q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$account['id']]);if((int)$q->fetchColumn()>$prospectiveLimit)throw new RuntimeException('The selected package member limit is below current membership. Add a member-limit override or remove members first.');
     $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));[$start,$end]=subscription_period_from($now);$trial=(int)$package['trial_days'];$trialEnds=$trial>0?$now->modify('+'.$trial.' days')->format('Y-m-d H:i:s'):null;$sub=$trialEnds?'trialing':'active';$before=['package_id'=>$account['package_id'],'package_public_id'=>$account['package_public_id'],'package_name'=>$account['package_name'],'subscription_status'=>$account['subscription_status']];
@@ -87,7 +87,10 @@ function account_admin_update_lifecycle(PDO $pdo,array $admin,string $accountPub
     account_admin_require_admin($admin);$account=account_admin_get($pdo,$accountPublicId);if(!$account)throw new RuntimeException('Account not found.');$reason=account_admin_reason((string)($input['reason']??''));
     $name=trim((string)($input['name']??$account['name']));if($name==='')throw new InvalidArgumentException('Account name is required.');
     $status=(string)($input['status']??$account['status']);if(!in_array($status,['active','suspended','closed'],true))throw new InvalidArgumentException('Invalid account status.');
-    $sub=(string)($input['subscription_status']??$account['subscription_status']);if(!in_array($sub,['trialing','active','paused','canceled'],true))throw new InvalidArgumentException('Invalid subscription status.');
+    $sub=(string)($input['subscription_status']??$account['subscription_status']);if(!in_array($sub,['trialing','active','past_due','paused','canceled'],true))throw new InvalidArgumentException('Invalid subscription status.');
+    $stripeManaged=($account['billing_source']??'manual')==='stripe'&&function_exists('stripe_billing_current_subscription')&&stripe_billing_current_subscription($pdo,(int)$account['id']);
+    if($stripeManaged&&$sub!==(string)$account['subscription_status'])throw new RuntimeException('Stripe-managed subscription state is controlled by Stripe webhooks.');
+    if($stripeManaged&&$status==='closed')throw new RuntimeException('Cancel the Stripe subscription before closing this account.');
     if($status==='closed')$sub='canceled';
     $before=['name'=>$account['name'],'status'=>$account['status'],'subscription_status'=>$account['subscription_status']];
     $after=['name'=>mb_substr($name,0,190),'status'=>$status,'subscription_status'=>$sub];if($before===$after)return $account;

@@ -180,6 +180,7 @@ function app_shell_admin_nav(string $path): string {
     $links=[];
     $links[]=app_shell_link('/admin/','Admin Home','▦',$path,'/admin/index.php');
     $links[]=app_shell_link('/admin/users.php','Users','♙',$path);
+    $links[]=app_shell_link('/admin/billing.php','Billing & Stripe','¤',$path);
     $links[]=app_shell_link('/admin/ai.php','AI & LLM','✦',$path);
     $links[]=app_shell_link('/admin/source-monitor.php','Source Monitor','◌',$path);
     $links[]=app_shell_link('/admin/moderation.php','Moderation','⚑',$path);
@@ -211,7 +212,7 @@ function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode,
 function app_shell_user_menu(array $user,bool $isAdmin): string {
     $username=(string)($user['username']??'');
     $profile=profile_path($username);
-    return '<details class="appUserMenu"><summary>'.app_shell_avatar($user,'appAvatar').'<span class="appUserSummary"><strong>'.app_shell_h((string)($user['display_name']??$username)).'</strong><small>@'.app_shell_h($username).'</small></span><span aria-hidden="true">⌄</span></summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/connected-accounts.php">Connected accounts</a><a href="/data-attribution.php">Data & Attribution</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
+    return '<details class="appUserMenu"><summary>'.app_shell_avatar($user,'appAvatar').'<span class="appUserSummary"><strong>'.app_shell_h((string)($user['display_name']??$username)).'</strong><small>@'.app_shell_h($username).'</small></span><span aria-hidden="true">⌄</span></summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/billing.php">Billing</a><a href="/connected-accounts.php">Connected accounts</a><a href="/data-attribution.php">Data & Attribution</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
 }
 function app_shell_markup(PDO $pdo,array $user): array {
     $path=app_shell_request_path();

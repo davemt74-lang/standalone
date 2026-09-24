@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$message;};
+foreach(['stripe_billing_settings','stripe_package_prices','stripe_customers','stripe_subscriptions','stripe_invoices','stripe_webhook_events','account_billing_events','event_created_at','last_event_created_at',"ENUM('trialing','active','past_due','paused','canceled')"] as $n)$need('database/migrations/20260924_065_stripe_billing_checkout.sql',$n,'Migration 065 missing '.$n);
+foreach(['function stripe_billing_create_checkout','function stripe_billing_create_portal','function stripe_billing_create_checkout_for_account','function stripe_billing_create_portal_for_account','function stripe_billing_user_accounts','function stripe_billing_account_for_user','function stripe_billing_over_capacity_account_ids','function stripe_billing_verify_signature','function stripe_billing_process_webhook','function stripe_billing_sync_subscription','function stripe_billing_sync_invoice','function stripe_billing_sync_package_price'] as $n)$need('app/stripe-billing.php',$n,'Stripe billing runtime missing '.$n);
+foreach(['Payments, subscriptions & billing sync','Stripe settings','Annotated packages → Stripe recurring Prices','Recent Stripe events'] as $n)$need('admin/billing.php',$n,'Admin Stripe workspace missing '.$n);
+foreach(['Subscription & billing','Manage billing in Stripe','Choose a paid package','Billing history'] as $n)$need('billing.php',$n,'Self-service billing workspace missing '.$n);
+$need('stripe/webhook.php','stripe_billing_process_webhook','Stripe webhook endpoint must use canonical signed/idempotent processor.');
+$need('stripe/webhook.php',"REQUEST_METHOD']??'GET')!=='POST'",'Stripe webhook endpoint must reject non-POST requests.');
+$need('stripe/webhook.php',"'Webhook rejected.'",'Stripe webhook endpoint must return a generic public error.');
+$need('app/stripe-billing.php','function stripe_billing_hosted_url','Hosted Stripe redirects must be validated before browser redirect.');
+$need('app/stripe-billing.php',"Authorization: Basic ",'Stripe v1 requests must use documented HTTP Basic API-key authentication.');
+$need('billing.php','billingAccountSwitcher','Self-service billing must support commercial accounts the user owns/administers.');
+$need('app/shell.php','/billing.php','User menu must expose Billing.');
+$need('app/admin-ui.php',"/admin/billing.php",'Admin IA must expose Billing & Stripe.');
+$need('app/admin-ui.php','Accounts over effective member limit','Admin dashboard must flag Stripe-synced over-capacity accounts.');
+$need('admin/billing.php',"admin_ui_sidebar('billing')",'Stripe Admin page must use the shared Admin sidebar.');
+$need('admin/account.php','Stripe webhooks control subscription state.','Stripe-managed Account Admin must render subscription state as webhook-authoritative.');
+$need('app/functions.php',"['paused','canceled']", 'Legacy Pro gate must keep past_due in grace while blocking paused/canceled.');
+$need('app/account-admin.php','Stripe-managed accounts must change packages through Stripe billing.','Account Admin must block manual package drift for Stripe subscriptions.');
+$need('app/subscriptions.php','Stripe-managed accounts must change packages through Stripe billing.','Admin Users package assignment must block Stripe package drift.');
+$need('tests/ci/run-full-regression.sh','tests/admin-v1-40-stripe-billing-db.php','Full regression must execute Admin V1.40 Stripe DB journey.');
+$need('.github/workflows/full-regression.yml','admin-v1-40-upgrade-from-064.php','Phase gate must rehearse migration 065 from 064.');
+$need('.github/workflows/package-two-zips.yml','stripe/webhook.php','Production package must include Stripe webhook endpoint.');
+$css=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');if(!hash_equals(hash('sha256',$css),hash('sha256',$ext)))$fail[]='Website and extension shared CSS must remain byte-identical.';
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Admin V1.40 Stripe billing static contract passed.\n";
