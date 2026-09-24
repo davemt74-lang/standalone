@@ -155,6 +155,13 @@ function require_admin(PDO $pdo): array {
 function user_plan(PDO $pdo,array $user): string {
     if(($user['role']??'')==='admin') return 'admin';
     try{
+        if(function_exists('subscriptions_ready')&&function_exists('subscription_user_account')&&subscriptions_ready($pdo)){
+            $account=subscription_user_account($pdo,(int)$user['id'],false);
+            if($account){
+                if(($account['status']??'active')!=='active'||in_array((string)($account['subscription_status']??''),['paused','canceled'],true))return 'free';
+                return ($account['legacy_plan_tier']??'free')==='pro'?'pro':'free';
+            }
+        }
         $q=$pdo->prepare('SELECT plan_tier,pro_expires_at FROM users WHERE id=?');$q->execute([$user['id']]);$r=$q->fetch();
         if(!$r)return 'free';
         if(($r['plan_tier']??'free')==='pro' && (empty($r['pro_expires_at']) || strtotime((string)$r['pro_expires_at'])>time())) return 'pro';
