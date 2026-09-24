@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS account_billing_events (
   after_json JSON NULL,
   reason VARCHAR(500) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_account_billing_stripe_event(stripe_event_id),
+  INDEX idx_account_billing_stripe_event(stripe_event_id,id),
   INDEX idx_account_billing_account(account_id,created_at,id),
   INDEX idx_account_billing_type(event_type,created_at,id),
   CONSTRAINT fk_account_billing_account FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE,
