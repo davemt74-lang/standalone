@@ -6,7 +6,8 @@ function admin_ui_nav_sections(): array {
         'overview'=>[
             'label'=>'Overview',
             'items'=>[
-                'dashboard'=>['label'=>'Dashboard','url'=>'/admin/'],
+                'dashboard'=>['label'=>'Command Center','url'=>'/admin/'],
+                'action_center'=>['label'=>'Action Center','url'=>'/admin/action-center.php'],
                 'assistant'=>['label'=>'Admin Assistant','url'=>'/admin/assistant.php'],
             ],
         ],
@@ -68,7 +69,7 @@ function admin_ui_sidebar(string $active='dashboard'): string {
         }
         $out.='</div></details>';
     }
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90</span><a href="/logout.php">Sign out</a></div></aside>';
+    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90 · V2.0</span><a href="/logout.php">Sign out</a></div></aside>';
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}
