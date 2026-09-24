@@ -386,7 +386,8 @@ function stripe_billing_sync_invoice(PDO $pdo,array $object,string $eventType,st
         $charge=stripe_billing_api_request($config,$settings,'GET','charges/'.rawurlencode((string)$object['charge']));$customerId=is_string($charge['customer']??null)?(string)$charge['customer']:'';
     }
     if($customerId==='')return;$mode=(string)($settings['mode']??'test');$account=stripe_billing_account_by_customer($pdo,$customerId,$mode);if(!$account)return;
-    stripe_billing_event($pdo,(int)$account['id'],'stripe',str_replace('.','_',$eventType),'Stripe billing event received.',$eventId,null,null,['stripe_object_id'=>$object['id']??null,'charge_id'=>$object['charge']??null]);
+    $amount=0;if($eventType==='charge.refunded')$amount=(int)($object['amount_refunded']??0);elseif(str_starts_with($eventType,'charge.dispute.'))$amount=(int)($object['amount']??0);
+    stripe_billing_event($pdo,(int)$account['id'],'stripe',str_replace('.','_',$eventType),'Stripe billing event received.',$eventId,null,null,['stripe_object_id'=>$object['id']??null,'charge_id'=>$object['charge']??null,'amount_cents'=>$amount,'currency'=>$object['currency']??null]);
 }
 function stripe_billing_claim_webhook(PDO $pdo,string $eventId,string $mode,string $eventType,?string $objectId,string $hash,?string $eventCreatedAt=null): array {
     $q=$pdo->prepare('SELECT * FROM stripe_webhook_events WHERE mode=? AND stripe_event_id=? LIMIT 1');$q->execute([$mode,$eventId]);$existing=$q->fetch();
@@ -424,6 +425,7 @@ function stripe_billing_process_webhook(PDO $pdo,array $config,string $payload,s
         }elseif(in_array($eventType,['charge.refunded','charge.dispute.created','charge.dispute.closed'],true)){
             stripe_billing_record_customer_event($pdo,$config,$settings,$object,$eventType,$eventId);
         }else{stripe_billing_finish_webhook($pdo,$mode,$eventId,'ignored');return ['ok'=>true,'ignored'=>true,'event_id'=>$eventId,'type'=>$eventType];}
+        if(function_exists('billing_operations_handle_stripe_event'))billing_operations_handle_stripe_event($pdo,$object,$eventType,$mode,$eventId,$eventCreatedAt);
         stripe_billing_finish_webhook($pdo,$mode,$eventId,'processed');return ['ok'=>true,'event_id'=>$eventId,'type'=>$eventType];
     }catch(Throwable $e){stripe_billing_finish_webhook($pdo,$mode,$eventId,'failed',$e->getMessage());throw $e;}
 }
