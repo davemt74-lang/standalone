@@ -7,6 +7,9 @@ foreach(['function stripe_billing_create_checkout','function stripe_billing_crea
 foreach(['Payments, subscriptions & billing sync','Stripe settings','Annotated packages → Stripe recurring Prices','Recent Stripe events'] as $n)$need('admin/billing.php',$n,'Admin Stripe workspace missing '.$n);
 foreach(['Subscription & billing','Manage billing in Stripe','Choose a paid package','Billing history'] as $n)$need('billing.php',$n,'Self-service billing workspace missing '.$n);
 $need('stripe/webhook.php','stripe_billing_process_webhook','Stripe webhook endpoint must use canonical signed/idempotent processor.');
+$need('stripe/webhook.php',"REQUEST_METHOD']??'GET')!=='POST'",'Stripe webhook endpoint must reject non-POST requests.');
+$need('stripe/webhook.php',"'Webhook rejected.'",'Stripe webhook endpoint must return a generic public error.');
+$need('app/stripe-billing.php','function stripe_billing_hosted_url','Hosted Stripe redirects must be validated before browser redirect.');
 $need('app/shell.php','/billing.php','User menu must expose Billing.');
 $need('app/admin-ui.php',"/admin/billing.php",'Admin IA must expose Billing & Stripe.');
 $need('admin/billing.php',"admin_ui_sidebar('billing')",'Stripe Admin page must use the shared Admin sidebar.');
