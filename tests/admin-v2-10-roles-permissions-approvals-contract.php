@@ -1,0 +1,28 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$message;};
+$m='database/migrations/20260924_074_admin_roles_permissions_approvals.sql';
+foreach(['admin_roles','admin_action_approvals','admin_approval_policies','admin_security_audit_events','pending_approval','distinct_from_requester','admin_operator_profiles'] as $n)$need($m,$n,'Migration 074 missing '.$n);
+foreach(['function admin_access_profile','function admin_access_has_capability','function admin_access_authorize_request','function admin_access_route_requirement','function admin_access_role_save','function admin_access_assign_operator','function admin_access_active_super_admin_count','function admin_access_approval_policy_save','function admin_access_action_request_approval','function admin_access_action_decide','function admin_access_assert_action_executable','function admin_access_pending_approvals','function admin_access_agent_context'] as $n)$need('app/admin-access.php',$n,'Admin V2.10 access runtime missing '.$n);
+$need('app/admin-access.php','The last active Super Admin cannot be demoted or disabled.','V2.10 must protect the last active Super Admin.');
+$need('app/admin-access.php',"if(\$cap==='admin.roles.manage')continue",'Custom roles must not be able to self-grant security-administration authority.');
+$need('app/admin-access.php','Approval policy requires a reviewer different from the requester.','Approval policies must support separation of duties.');
+$need('app/functions.php','admin_access_authorize_request','require_admin must enforce V2.10 delegated route authorization.');
+$need('app/bootstrap.php',"/admin-access.php'",'V2.10 access runtime must load globally.');
+$need('app/admin-ui.php',"'roles_permissions'=>",'Admin navigation must expose Roles & Permissions.');
+$need('app/admin-ui.php','admin_access_nav_capability','Shared Admin navigation must hide unauthorized destinations.');
+$need('app/admin-ui.php','Admin V2.10','Shared Admin shell must identify V2.10.');
+foreach(['Roles, delegated permissions & approval policies','Delegated Admin assignments','ROLE REGISTRY','SEPARATION OF DUTIES','SECURITY AUDIT'] as $n)$need('admin/roles-permissions.php',$n,'Roles & Permissions workspace missing '.$n);
+foreach(['Preview governed action','Request approval','Approve','Reject','Execute reviewed action','APPROVAL INBOX','ACTION LEDGER'] as $n)$need('admin/action-center.php',$n,'V2.10 Action Center missing '.$n);
+$need('app/admin-operations.php','admin_access_bind_action_policy','Governed previews must bind the current approval policy.');
+$need('app/admin-operations.php','admin_access_assert_action_executable','Governed execution must enforce current action approval state.');
+$need('app/admin-operations.php',"(int)\$record['actor_user_id']!==(int)\$admin['id']", 'V2.10 must preserve requester-owned execution after approval.');
+$need('admin/index.php','Pending approvals','Command Center must surface approval backlog.');
+$need('admin/index.php','Roles & Permissions','Command Center must surface access-control workspace for authorized operators.');
+$need('app/admin-operations.php','admin_access_agent_context','Admin Agent context must include read-only V2.10 access state.');
+$need('tests/ci/run-full-regression.sh','tests/admin-v2-10-roles-permissions-approvals-db.php','Full regression must execute V2.10 database journey.');
+$need('.github/workflows/full-regression.yml','admin-v2-10-upgrade-from-073.php','Phase gate must rehearse migration 074 from 073.');
+$need('.github/workflows/package-two-zips.yml','20260924_074_admin_roles_permissions_approvals.sql','Production package must include migration 074.');
+$need('tests/ci/package-smoke.sh','admin-v2-10-roles-permissions-approvals.md','Release smoke must require V2.10 files.');
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Admin V2.10 roles, delegated permissions & approval policies static contract passed.\n";
