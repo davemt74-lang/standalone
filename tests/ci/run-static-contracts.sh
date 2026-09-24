@@ -12,6 +12,7 @@ php tests/profile-phase2-showcase-contract.php
 php tests/profile-phase3-research-network-contract.php
 php tests/admin-subscriptions-packages-v1-contract.php
 php tests/admin-ai-usage-v1-contract.php
+php tests/admin-v1-20-information-architecture-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
