@@ -93,13 +93,20 @@ jobs:
           DB_PASS: root
           SUBSCRIPTIONS_V1_RESET_DB: '1'
         run: php tests/ci/subscriptions-v1-upgrade-from-061.php
-      - name: Admin V1.10 AI usage upgrade rehearsal from migration 062 through 063
+      - name: Admin V1.10 AI usage upgrade rehearsal from migration 062 through current
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_ai_usage_v1_upgrade;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
           AI_USAGE_V1_RESET_DB: '1'
         run: php tests/ci/ai-usage-v1-upgrade-from-062.php
+      - name: Admin V1.30 upgrade rehearsal from migration 063 through 064
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v130_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V130_RESET_DB: '1'
+        run: php tests/ci/admin-v1-30-upgrade-from-063.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -148,6 +155,7 @@ jobs:
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
           php tests/admin-ai-usage-v1-db.php
+          php tests/admin-v1-30-account-lifecycle-db.php
       - name: MySQL 8 upgrade rehearsal from migration 056 through 059
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
@@ -190,13 +198,20 @@ jobs:
           DB_PASS: root
           SUBSCRIPTIONS_V1_RESET_DB: '1'
         run: php tests/ci/subscriptions-v1-upgrade-from-061.php
-      - name: MySQL 8 Admin V1.10 AI usage upgrade rehearsal from migration 062 through 063
+      - name: MySQL 8 Admin V1.10 AI usage upgrade rehearsal from migration 062 through current
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_ai_usage_v1_upgrade;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
           AI_USAGE_V1_RESET_DB: '1'
         run: php tests/ci/ai-usage-v1-upgrade-from-062.php
+      - name: MySQL 8 Admin V1.30 upgrade rehearsal from migration 063 through 064
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v130_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V130_RESET_DB: '1'
+        run: php tests/ci/admin-v1-30-upgrade-from-063.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
