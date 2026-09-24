@@ -25,6 +25,11 @@ function admin_access_capability_registry(): array {
         'admin.finance.export'=>['group'=>'Finance','label'=>'Export financial evidence','description'=>'Create audited CSV exports from finance ledgers, receivables, exceptions and close records.'],
         'admin.customer_success.view'=>['group'=>'Customer Success','label'=>'View Customer Success','description'=>'View account health, onboarding, retention risks, opportunities, plans and follow-up evidence.'],
         'admin.customer_success.manage'=>['group'=>'Customer Success','label'=>'Manage Customer Success','description'=>'Refresh explainable health snapshots, assign account owners, and manage success plans, milestones and follow-ups.'],
+        'admin.security.view'=>['group'=>'Security & Compliance','label'=>'View Security & Audit Center','description'=>'View normalized administrative audit evidence, security posture, cases and permission review.'],
+        'admin.security.manage'=>['group'=>'Security & Compliance','label'=>'Manage Security cases','description'=>'Create, assign, investigate and resolve Security & Compliance cases.'],
+        'admin.security.export'=>['group'=>'Security & Compliance','label'=>'Export audit evidence','description'=>'Create audited CSV or JSON exports of permission-scoped administrative audit evidence.'],
+        'admin.privacy.view'=>['group'=>'Security & Compliance','label'=>'View privacy workflows','description'=>'View privacy, data-access, export, deletion, restriction and retention request state.'],
+        'admin.privacy.manage'=>['group'=>'Security & Compliance','label'=>'Manage privacy workflows','description'=>'Create, assign and complete governed privacy and compliance requests.'],
         'admin.ai_usage.view'=>['group'=>'AI Usage','label'=>'View AI usage','description'=>'View AI token accounting, allowance and overage evidence.'],
         'admin.ai_usage.manage'=>['group'=>'AI Usage','label'=>'Manage AI usage','description'=>'Use Admin AI usage adjustment and allowance controls.'],
         'admin.models.view'=>['group'=>'AI & Models','label'=>'View AI & model operations','description'=>'View providers, evaluations, registry, training, release, deployment and observability.'],
@@ -42,7 +47,7 @@ function admin_access_capability_registry(): array {
     ];
 }
 function admin_access_security_audit(PDO $pdo,array $actor,string $subjectType,?string $subjectPublicId,string $eventType,mixed $before,mixed $after,string $reason): void {
-    if(!admin_access_ready($pdo))return;admin_ops_require_admin($actor);$encode=fn(mixed $v)=>$v===null?null:json_encode($v,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+    if(!admin_access_ready($pdo))return;if(function_exists('admin_security_ready')&&admin_security_ready($pdo)){admin_security_audit_record($pdo,$actor,['subject_type'=>$subjectType,'subject_public_id'=>$subjectPublicId,'event_type'=>$eventType,'source_domain'=>'security','sensitivity'=>'restricted','before'=>$before,'after'=>$after,'reason'=>$reason]);return;}admin_ops_require_admin($actor);$encode=fn(mixed $v)=>$v===null?null:json_encode($v,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
     $pdo->prepare('INSERT INTO admin_security_audit_events(public_id,actor_user_id,subject_type,subject_public_id,event_type,before_json,after_json,reason) VALUES(?,?,?,?,?,?,?,?)')->execute([ulid_like(),(int)$actor['id'],$subjectType,$subjectPublicId,mb_substr($eventType,0,100),$encode($before),$encode($after),admin_ops_reason($reason)]);
 }
 function admin_access_role_caps(array $role): array {
@@ -94,6 +99,7 @@ function admin_access_route_requirement(string $path,string $method='GET'): ?str
         '/admin/billing.php'=>['admin.billing.view','admin.billing.manage'],'/admin/billing-analytics.php'=>['admin.billing.view','admin.billing.manage'],'/admin/overage-billing.php'=>['admin.billing.view','admin.billing.manage'],'/admin/promotions.php'=>['admin.billing.view','admin.billing.manage'],'/admin/tax-invoices.php'=>['admin.billing.view','admin.billing.manage'],
         '/admin/financial-reporting.php'=>['admin.finance.view','admin.finance.manage'],'/admin/financial-export.php'=>['admin.finance.export','admin.finance.export'],
         '/admin/customer-success.php'=>['admin.customer_success.view','admin.customer_success.manage'],'/admin/customer-success-account.php'=>['admin.customer_success.view','admin.customer_success.manage'],
+        '/admin/security-compliance.php'=>['admin.security.view','admin.security.manage'],'/admin/security-export.php'=>['admin.security.export','admin.security.export'],
         '/admin/usage.php'=>['admin.ai_usage.view','admin.ai_usage.manage'],
         '/admin/ai.php'=>['admin.models.view','admin.models.manage'],'/admin/evaluations.php'=>['admin.models.view','admin.models.manage'],'/admin/model-registry.php'=>['admin.models.view','admin.models.manage'],'/admin/training.php'=>['admin.models.view','admin.models.manage'],'/admin/post-training.php'=>['admin.models.view','admin.models.manage'],'/admin/model-release.php'=>['admin.models.view','admin.models.manage'],'/admin/model-deployment.php'=>['admin.models.view','admin.models.manage'],'/admin/model-observability.php'=>['admin.models.view','admin.models.manage'],'/admin/model-improvements.php'=>['admin.models.view','admin.models.manage'],'/admin/model-campaigns.php'=>['admin.models.view','admin.models.manage'],
         '/admin/source-monitor.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/data-attribution.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/datasets.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/discovery-entities.php'=>['admin.research_data.view','admin.research_data.manage'],
@@ -109,7 +115,7 @@ function admin_access_nav_capability(string $key): string {
         'accounts','users','packages'=>'admin.accounts.view',
         'billing','billing_analytics','overage_billing','promotions','tax_invoices'=>'admin.billing.view',
         'financial_reporting'=>'admin.finance.view',
-        'customer_success','customer_success_account'=>'admin.customer_success.view',
+        'customer_success','customer_success_account'=>'admin.customer_success.view','security_compliance'=>'admin.security.view',
         'usage'=>'admin.ai_usage.view',
         'ai','evaluations','model_registry','training','post_training','model_release','model_deployment','model_observability','model_improvements','model_campaigns'=>'admin.models.view',
         'source_monitor','data_attribution','datasets','discovery_entities'=>'admin.research_data.view',
