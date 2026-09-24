@@ -96,6 +96,7 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
         $context=json_decode((string)($n['context_json']??''),true)?:[];
         return function_exists('proactive_context_access')&&proactive_context_access($pdo,$viewer,$context);
     }
+    if($type==='support_case')return ($viewer['role']??'')==='admin'&&function_exists('admin_support_case')&&function_exists('admin_access_has_capability')&&admin_access_has_capability($pdo,$viewer,'admin.support.view')&&admin_support_case($pdo,$public)!==null;
     if($type==='model_observability_incident')return ($viewer['role']??'')==='admin'&&function_exists('data_model_observability_incident_get')&&data_model_observability_incident_get($pdo,$public)!==null;
     if($type==='model_improvement_case')return ($viewer['role']??'')==='admin'&&function_exists('data_model_improvement_case_get')&&data_model_improvement_case_get($pdo,$public)!==null;
     if($type==='model_improvement_campaign')return ($viewer['role']??'')==='admin'&&function_exists('data_model_campaign_get')&&data_model_campaign_get($pdo,$public)!==null;
@@ -129,6 +130,7 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
         $url='/research-intelligence-portfolios.php?portfolio='.rawurlencode($public);if(!empty($context['briefing_public_id']))$url.='#briefing-'.rawurlencode((string)$context['briefing_public_id']);return $url;
     }
     if($type==='cognitive_alert'){$url=(string)($context['primary_url']??'');return ($url!==''&&str_starts_with($url,'/')&&!str_starts_with($url,'//'))?$url:'/home.php?view=cognitive';}
+    if($type==='support_case')return ($viewer['role']??'')==='admin'&&function_exists('admin_access_has_capability')&&admin_access_has_capability($pdo,$viewer,'admin.support.view')?'/admin/support-case.php?id='.rawurlencode($public):null;
     if($type==='model_observability_incident')return ($viewer['role']??'')==='admin'?'/admin/model-observability.php?incident='.rawurlencode($public):null;
     if($type==='model_improvement_case')return ($viewer['role']??'')==='admin'?'/admin/model-improvements.php?case='.rawurlencode($public):null;
     if($type==='model_improvement_campaign')return ($viewer['role']??'')==='admin'?'/admin/model-campaigns.php?campaign='.rawurlencode($public):null;
