@@ -91,6 +91,7 @@ db_tests=(
   tests/admin-v1-60-billing-analytics-db.php
   tests/admin-v1-70-ai-overage-billing-db.php
   tests/admin-v1-80-coupons-promotions-credits-db.php
+  tests/admin-v1-90-tax-invoices-commercial-billing-db.php
 )
 
 for test_file in "${db_tests[@]}"; do
