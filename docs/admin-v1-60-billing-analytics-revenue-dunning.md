@@ -6,7 +6,7 @@ V1.60 adds an operational finance layer above the Stripe ledgers introduced in V
 
 The Billing Analytics dashboard reports current MRR/ARR, active/trialing/past-due subscriptions, recent collections, package-level recurring revenue and daily movement.
 
-Current MRR includes non-closed accounts on paid packages whose subscription status is active or past due and whose billing source is Stripe or manual. Complimentary/internal accounts and trialing accounts are not counted as current MRR.
+Current MRR includes non-closed paid accounts whose effective subscription status is active or past due. Manual billing uses the Annotated package price. Stripe-managed billing uses the recurring Stripe Price mapped to the account's current subscription in the selected Test/Live mode; an Annotated list-price edit does not change reported Stripe MRR until Stripe is actually using the new Price. Complimentary/internal accounts and trialing accounts are not counted as current MRR.
 
 Daily snapshots persist:
 - current MRR / ARR
@@ -15,7 +15,7 @@ Daily snapshots persist:
 - collected, failed, refunded and disputed amounts
 - open dunning cases and over-capacity accounts
 
-Snapshots are observational. Re-running the same mode/date updates that row; it does not append duplicates.
+Snapshots are observational and Test/Live isolated. The first snapshot establishes a revenue baseline. New, expansion, contraction, churned and recovered MRR on later snapshots are computed by comparing durable per-account snapshots, so later package-price edits do not rewrite prior movement. Re-running the same mode/date updates that row; it does not append duplicates.
 
 ## Dunning
 
