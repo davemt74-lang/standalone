@@ -1,0 +1,22 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__,2);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
+require_once $root.'/app/installer.php';require_once $root.'/app/migrations.php';
+if((string)getenv('SUBSCRIPTIONS_V1_RESET_DB')==='1'){
+    if(!preg_match('/(?:^|;)dbname=([^;]+)/',$dsn,$m))throw new RuntimeException('Upgrade rehearsal DSN must name a database.');$dbName=installer_validate_db_identifier((string)$m[1]);$adminDsn=(string)preg_replace('/;?dbname=[^;]+/','',$dsn);$admin=new PDO($adminDsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false]);$quoted=chr(96).str_replace(chr(96),chr(96).chr(96),$dbName).chr(96);$admin->exec('DROP DATABASE IF EXISTS '.$quoted);$admin->exec('CREATE DATABASE '.$quoted.' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+}
+$pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);$tmp=sys_get_temp_dir().'/annotated-subscriptions-v1-upgrade-'.bin2hex(random_bytes(6));if(!mkdir($tmp,0700,true))throw new RuntimeException('Could not create migration fixture.');
+try{
+    foreach(glob($root.'/database/migrations/*.sql')?:[] as $file){$base=basename($file);if(strcmp($base,'20260923_061_profile_public_identity_showcase.sql')<=0)copy($file,$tmp.'/'.$base);}
+    installer_run($pdo,$root.'/database/schema.sql',$tmp);if(!installer_table_exists($pdo,'profile_pins'))throw new RuntimeException('061 fixture did not reach Profile Phase 2 schema.');if(installer_table_exists($pdo,'subscription_packages'))throw new RuntimeException('061 fixture unexpectedly contains subscription package schema.');
+    $pdo->prepare("INSERT INTO users(public_id,username,display_name,email,status,role,plan_tier,live_presence_mode) VALUES('legacy-free-062','legacy_free_062','Legacy Free','legacy-free-062@example.test','active','user','free','cloaked'),('legacy-pro-062','legacy_pro_062','Legacy Pro','legacy-pro-062@example.test','active','user','pro','cloaked')")->execute();
+    $applied=migration_apply_pending($pdo,$root.'/database/migrations',10);if(!in_array('20260924_062_subscriptions_packages_accounts',$applied,true))throw new RuntimeException('Upgrade did not apply migration 062.');
+    foreach(['subscription_packages','subscription_package_admin_events','accounts','account_members','subscription_package_events'] as $table)if(!installer_table_exists($pdo,$table))throw new RuntimeException('062 upgraded schema missing '.$table.'.');
+    $q=$pdo->query("SELECT slug FROM subscription_packages ORDER BY sort_order,id");$slugs=$q->fetchAll(PDO::FETCH_COLUMN);foreach(['free-trial','basic-user','team-builder'] as $slug)if(!in_array($slug,$slugs,true))throw new RuntimeException('062 seed package missing '.$slug.'.');
+    $q=$pdo->query("SELECT u.username,p.slug FROM users u JOIN accounts a ON a.personal_user_id=u.id JOIN subscription_packages p ON p.id=a.package_id WHERE u.username IN ('legacy_free_062','legacy_pro_062') ORDER BY u.username");$mapped=[];foreach($q->fetchAll() as $row)$mapped[$row['username']]=$row['slug'];
+    if(($mapped['legacy_free_062']??'')!=='free-trial'||($mapped['legacy_pro_062']??'')!=='basic-user')throw new RuntimeException('062 did not map legacy Free/Pro users into the expected seeded packages.');
+    $q=$pdo->query("SELECT COUNT(*) FROM account_members am JOIN accounts a ON a.id=am.account_id WHERE a.personal_user_id IN (SELECT id FROM users WHERE username IN ('legacy_free_062','legacy_pro_062')) AND am.account_role='owner'");if((int)$q->fetchColumn()!==2)throw new RuntimeException('062 did not create personal-account owner memberships.');
+    if((int)$pdo->query('SELECT COUNT(*) FROM teams')->fetchColumn()!==0)throw new RuntimeException('062 subscription backfill must not create Research Teams.');
+    $pending=installer_pending_migrations($pdo,$root.'/database/migrations');if($pending)throw new RuntimeException('Upgrade left pending migrations: '.implode(', ',$pending));$again=migration_apply_pending($pdo,$root.'/database/migrations',10);if($again)throw new RuntimeException('Subscriptions V1 repeat upgrade is not a no-op: '.implode(', ',$again));
+    echo "PASS: Subscriptions & Packages V1 upgrade rehearsal advanced migration 061 through 062, backfilled legacy users, and repeat pass was a no-op.\n";
+}finally{foreach(glob($tmp.'/*')?:[] as $file)@unlink($file);@rmdir($tmp);}

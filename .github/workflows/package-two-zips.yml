@@ -137,6 +137,13 @@ jobs:
           test -f package-website/tests/profile-phase3-research-network-contract.php
           test -f package-website/tests/profile-phase3-research-network-db.php
           test -f package-website/docs/profile-phase-3-social-discovery-research-network.md
+          test -f package-website/database/migrations/20260924_062_subscriptions_packages_accounts.sql
+          test -f package-website/app/subscriptions.php
+          test -f package-website/admin/packages.php
+          test -f package-website/tests/admin-subscriptions-packages-v1-contract.php
+          test -f package-website/tests/admin-subscriptions-packages-v1-db.php
+          test -f package-website/tests/ci/subscriptions-v1-upgrade-from-061.php
+          test -f package-website/docs/admin-subscriptions-packages-v1.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
