@@ -11,7 +11,7 @@ V2.20 adds two capabilities to the V2.10 registry:
 
 The seeded Support Admin role receives Support view/manage, Account view, Billing view, AI Usage view and Action Center view so Customer 360 has the necessary read-only commercial context. It does not receive billing mutation, model mutation, role administration, approval, or governed-action execution authority.
 
-Operations Admin receives Support view/manage. Read-only Auditor receives Support view only.
+Operations Admin receives Support view/manage. Billing, AI & Models, Research & Data, and Trust & Operations roles receive Support view so escalations are visible to the delegated domain owner. Read-only Auditor also receives Support view only.
 
 Direct route authorization is enforced for `/admin/support.php` and `/admin/support-case.php`. GET/HEAD requires view authority; mutation requests require manage authority.
 
@@ -71,7 +71,7 @@ Customer-facing updates are logged separately from internal notes. V2.20 records
 
 ## Escalation and governed actions
 
-Support cases can be escalated to Billing/Finance, Operations, AI & Models, Research & Data, Trust & Moderation, or Security/Super Admin.
+Support cases can be escalated to Billing/Finance, Operations, AI & Models, Research & Data, Trust & Moderation, or Security/Super Admin. Escalation is filterable by team and notifies active administrators who both have Support view authority and the corresponding domain capability.
 
 Support staff do not gain direct financial or high-impact execution authority. Account/billing changes remain in their existing explicit Admin surfaces and V2.10 governed Action Center. The support case keeps the escalation reason and linked evidence so an authorized downstream operator can act under the existing approval rules.
 
