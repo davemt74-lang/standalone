@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__).'/app/bootstrap.php';
+if(PHP_SAPI!=='cli')header('Cache-Control: no-store, private');
 $admin=require_admin($pdo);if(!account_admin_ready($pdo)){http_response_code(503);exit('Account lifecycle administration requires the latest database upgrade.');}
 $id=trim((string)($_GET['id']??$_POST['id']??''));$account=$id!==''?account_admin_get($pdo,$id):null;if(!$account){http_response_code(404);exit('Account not found.');}
 $success='';$error='';$inviteUrl='';
