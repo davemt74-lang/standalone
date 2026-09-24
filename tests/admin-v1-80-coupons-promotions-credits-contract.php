@@ -8,7 +8,7 @@ foreach(['function commercial_promotion_validate_checkout','function commercial_
 $need('app/commercial-promotions.php',"'promotion'=>['type'=>'coupon','coupon'=>",'Stripe promotion codes must reference a Stripe coupon promotion.');
 $need('app/commercial-promotions.php',"/balance_transactions",'Customer credits must mirror to Stripe customer credit balance transactions.');
 $need('app/commercial-promotions.php','idempotency_key','Credit adjustments must persist idempotency keys.');
-$need('app/stripe-billing.php',"$params['discounts']=[['promotion_code'=>",'Checkout must attach the validated Stripe promotion code.');
+$need('app/stripe-billing.php',"\$params['discounts']=[['promotion_code'=>",'Checkout must attach the validated Stripe promotion code.');
 $need('app/stripe-billing.php','commercial_promotion_reserve_attempt','Checkout must reserve local promotion redemption before Stripe execution.');
 $need('app/stripe-billing.php','commercial_promotion_void_checkout','Expired or replaced Checkout sessions must release pending promotion reservations.');
 $need('app/stripe-billing.php','commercial_promotion_handle_invoice','Stripe invoice webhooks must reconcile actual discount amounts.');
