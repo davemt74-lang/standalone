@@ -83,6 +83,7 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
         'failed_source_jobs'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM source_monitor_jobs WHERE status='failed'"),
         'suspended_accounts'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM accounts WHERE status='suspended'"),
         'paused_subscriptions'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM accounts WHERE subscription_status='paused' AND status<>'closed'"),
+        'past_due_subscriptions'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM accounts WHERE subscription_status='past_due' AND status<>'closed'"),
     ];
     $usage=['used_tokens'=>0,'capped_accounts'=>0,'exhausted_accounts'=>0,'system_tokens'=>0,'admin_tokens'=>0];
     if(function_exists('ai_usage_ready')&&ai_usage_ready($pdo)){
@@ -101,6 +102,7 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
     $add('Accounts with exhausted AI allowance',(int)$usage['exhausted_accounts'],'/admin/usage.php','warn');
     $add('Suspended commercial accounts',(int)$counts['suspended_accounts'],'/admin/accounts.php?status=suspended','warn');
     $add('Paused subscriptions',(int)$counts['paused_subscriptions'],'/admin/accounts.php?subscription_status=paused','warn');
+    $add('Past-due Stripe subscriptions',(int)$counts['past_due_subscriptions'],'/admin/accounts.php?subscription_status=past_due','warn');
     $add('Failed AI jobs',(int)$counts['failed_ai_jobs'],'/admin/system-health.php','danger');
     $add('Failed source-monitor jobs',(int)$counts['failed_source_jobs'],'/admin/source-monitor.php','danger');
     $add('Open moderation reports',(int)$counts['open_reports'],'/admin/moderation.php','warn');
@@ -114,7 +116,7 @@ function admin_ui_account_rows(PDO $pdo,array $filters=[],int $limit=250): array
     $where=[];$params=[];$q=trim((string)($filters['q']??''));$status=trim((string)($filters['status']??''));$subscription=trim((string)($filters['subscription_status']??''));$package=trim((string)($filters['package']??''));
     if($q!==''){$where[]='(a.name LIKE ? OR a.public_id LIKE ? OR u.username LIKE ? OR u.display_name LIKE ? OR u.email LIKE ?)';$needle='%'.$q.'%';array_push($params,$needle,$needle,$needle,$needle,$needle);}
     if(in_array($status,['active','suspended','closed'],true)){$where[]='a.status=?';$params[]=$status;}
-    if(in_array($subscription,['trialing','active','paused','canceled'],true)){$where[]='a.subscription_status=?';$params[]=$subscription;}
+    if(in_array($subscription,['trialing','active','past_due','paused','canceled'],true)){$where[]='a.subscription_status=?';$params[]=$subscription;}
     if($package!==''){$where[]='p.public_id=?';$params[]=$package;}
     $sql="SELECT a.*,u.username,u.display_name,u.email,owner.username owner_username,owner.display_name owner_display_name,owner.email owner_email,p.public_id package_public_id,p.slug package_slug,p.name package_name,p.monthly_ai_token_allowance,p.member_limit,
       (SELECT COUNT(*) FROM account_members am WHERE am.account_id=a.id) member_count
