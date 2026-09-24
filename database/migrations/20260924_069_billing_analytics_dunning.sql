@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS billing_dunning_cases (
   next_review_at DATETIME NULL,
   suspended_by_dunning TINYINT(1) NOT NULL DEFAULT 0,
   suspended_at DATETIME NULL,
+  suspension_lifecycle_event_id BIGINT UNSIGNED NULL,
   recovered_at DATETIME NULL,
   closed_at DATETIME NULL,
   last_event_id VARCHAR(255) NULL,
@@ -97,7 +98,9 @@ CREATE TABLE IF NOT EXISTS billing_dunning_cases (
   UNIQUE KEY uq_billing_dunning_invoice(stripe_mode,stripe_invoice_id),
   INDEX idx_billing_dunning_account(account_id,status,updated_at,id),
   INDEX idx_billing_dunning_review(status,next_review_at,id),
-  CONSTRAINT fk_billing_dunning_account FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+  INDEX idx_billing_dunning_lifecycle_event(suspension_lifecycle_event_id),
+  CONSTRAINT fk_billing_dunning_account FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_billing_dunning_lifecycle_event FOREIGN KEY(suspension_lifecycle_event_id) REFERENCES account_admin_events(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS billing_dunning_events (
