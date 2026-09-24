@@ -151,6 +151,11 @@ jobs:
           test -f package-website/tests/admin-ai-usage-v1-db.php
           test -f package-website/tests/ci/ai-usage-v1-upgrade-from-062.php
           test -f package-website/docs/admin-ai-usage-v1.md
+          test -f package-website/app/admin-ui.php
+          test -f package-website/admin/accounts.php
+          test -f package-website/tests/admin-v1-20-information-architecture-contract.php
+          test -f package-website/tests/admin-v1-20-dashboard-db.php
+          test -f package-website/docs/admin-v1-20-information-architecture-dashboard.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
