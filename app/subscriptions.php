@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 function subscriptions_ready(PDO $pdo): bool {
-    try{return installer_table_exists($pdo,'subscription_packages')&&installer_table_exists($pdo,'accounts')&&installer_table_exists($pdo,'account_members')&&installer_table_exists($pdo,'subscription_package_events');}
+    try{return installer_table_exists($pdo,'subscription_packages')&&installer_table_exists($pdo,'subscription_package_admin_events')&&installer_table_exists($pdo,'accounts')&&installer_table_exists($pdo,'account_members')&&installer_table_exists($pdo,'subscription_package_events');}
     catch(Throwable $e){return false;}
 }
 function subscription_packages(PDO $pdo,bool $activeOnly=false): array {
@@ -63,15 +63,35 @@ function subscription_assign_user_package(PDO $pdo,array $admin,int $userId,stri
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     return subscription_user_account($pdo,$userId,true)??throw new RuntimeException('Updated package could not be loaded.');
 }
+function subscription_package_create(PDO $pdo,array $admin,array $input): array {
+    if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
+    $name=trim((string)($input['name']??''));if($name==='')throw new InvalidArgumentException('Package name is required.');
+    $slug=strtolower(trim((string)($input['slug']??'')));$slug=preg_replace('/[^a-z0-9]+/','-',$slug)?:'';$slug=trim($slug,'-');if($slug===''||strlen($slug)>80)throw new InvalidArgumentException('Enter a valid package slug.');
+    if(subscription_package($pdo,$slug))throw new RuntimeException('That package slug already exists.');
+    $description=trim((string)($input['description']??''));$legacy=($input['legacy_plan_tier']??'free')==='pro'?'pro':'free';$price=max(0,(int)round(((float)($input['monthly_price']??0))*100));$tokens=trim((string)($input['monthly_ai_token_allowance']??''));$tokenValue=$tokens===''?null:max(0,(int)$tokens);$members=max(1,min(100000,(int)($input['member_limit']??1)));$trial=max(0,min(3650,(int)($input['trial_days']??0)));$sort=(int)($input['sort_order']??100);
+    $pdo->beginTransaction();try{
+        $public=ulid_like();$pdo->prepare("INSERT INTO subscription_packages(public_id,slug,name,description,status,is_public,legacy_plan_tier,monthly_price_cents,monthly_ai_token_allowance,member_limit,trial_days,sort_order) VALUES(?,?,?,?,'active',1,?,?,?,?,?,?)")
+          ->execute([$public,$slug,$name,$description!==''?$description:null,$legacy,$price,$tokenValue,$members,$trial,$sort]);$id=(int)$pdo->lastInsertId();
+        $after=subscription_package($pdo,$id);$pdo->prepare("INSERT INTO subscription_package_admin_events(public_id,package_id,actor_user_id,event_type,after_json,reason) VALUES(?,?,?,'created',?,?)")
+          ->execute([ulid_like(),$id,(int)$admin['id'],json_encode($after,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),'Admin created package.']);$pdo->commit();
+        return $after?:throw new RuntimeException('Package creation failed.');
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+}
 function subscription_package_update(PDO $pdo,array $admin,string $publicId,array $input): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
     $p=subscription_package($pdo,$publicId);if(!$p)throw new RuntimeException('Package not found.');
     $name=trim((string)($input['name']??''));if($name==='')throw new InvalidArgumentException('Package name is required.');
     $description=trim((string)($input['description']??''));$status=($input['status']??'active')==='archived'?'archived':'active';$isPublic=!empty($input['is_public'])?1:0;$legacy=($input['legacy_plan_tier']??'free')==='pro'?'pro':'free';
     $price=max(0,(int)round(((float)($input['monthly_price']??0))*100));$tokens=trim((string)($input['monthly_ai_token_allowance']??''));$tokenValue=$tokens===''?null:max(0,(int)$tokens);$members=max(1,min(100000,(int)($input['member_limit']??1)));$trial=max(0,min(3650,(int)($input['trial_days']??0)));$sort=(int)($input['sort_order']??0);
-    $pdo->prepare('UPDATE subscription_packages SET name=?,description=?,status=?,is_public=?,legacy_plan_tier=?,monthly_price_cents=?,monthly_ai_token_allowance=?,member_limit=?,trial_days=?,sort_order=? WHERE id=?')
-      ->execute([$name,$description!==''?$description:null,$status,$isPublic,$legacy,$price,$tokenValue,$members,$trial,$sort,(int)$p['id']]);
-    return subscription_package($pdo,$publicId)??throw new RuntimeException('Package update failed.');
+    $before=$p;$pdo->beginTransaction();try{
+        $pdo->prepare('UPDATE subscription_packages SET name=?,description=?,status=?,is_public=?,legacy_plan_tier=?,monthly_price_cents=?,monthly_ai_token_allowance=?,member_limit=?,trial_days=?,sort_order=? WHERE id=?')
+          ->execute([$name,$description!==''?$description:null,$status,$isPublic,$legacy,$price,$tokenValue,$members,$trial,$sort,(int)$p['id']]);
+        if($legacy!==(string)$p['legacy_plan_tier']){$pdo->prepare('UPDATE users u JOIN accounts a ON a.personal_user_id=u.id SET u.plan_tier=? WHERE a.package_id=?')->execute([$legacy,(int)$p['id']]);}
+        $after=subscription_package($pdo,$publicId);$event=$status!==$p['status']?($status==='archived'?'archived':'reactivated'):'updated';
+        $pdo->prepare('INSERT INTO subscription_package_admin_events(public_id,package_id,actor_user_id,event_type,before_json,after_json,reason) VALUES(?,?,?,?,?,?,?)')
+          ->execute([ulid_like(),(int)$p['id'],(int)$admin['id'],$event,json_encode($before,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($after,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),'Admin updated package definition.']);
+        $pdo->commit();return $after?:throw new RuntimeException('Package update failed.');
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 function subscription_package_account_count(PDO $pdo,int $packageId): int {
     $q=$pdo->prepare("SELECT COUNT(*) FROM accounts WHERE package_id=? AND status='active'");$q->execute([$packageId]);return (int)$q->fetchColumn();
@@ -81,5 +101,11 @@ function subscription_recent_events(PDO $pdo,int $limit=50): array {
     $q=$pdo->query("SELECT e.*,a.public_id account_public_id,a.name account_name,u.username,u.display_name,actor.username actor_username,op.name old_package_name,np.name new_package_name
       FROM subscription_package_events e JOIN accounts a ON a.id=e.account_id LEFT JOIN users u ON u.id=e.user_id LEFT JOIN users actor ON actor.id=e.actor_user_id
       LEFT JOIN subscription_packages op ON op.id=e.previous_package_id LEFT JOIN subscription_packages np ON np.id=e.new_package_id ORDER BY e.created_at DESC,e.id DESC LIMIT ".$limit);
+    return $q->fetchAll()?:[];
+}
+
+function subscription_package_admin_events(PDO $pdo,int $limit=50): array {
+    if(!subscriptions_ready($pdo))return [];$limit=max(1,min(250,$limit));
+    $q=$pdo->query("SELECT e.*,p.name package_name,p.slug package_slug,u.username actor_username FROM subscription_package_admin_events e JOIN subscription_packages p ON p.id=e.package_id LEFT JOIN users u ON u.id=e.actor_user_id ORDER BY e.created_at DESC,e.id DESC LIMIT ".$limit);
     return $q->fetchAll()?:[];
 }
