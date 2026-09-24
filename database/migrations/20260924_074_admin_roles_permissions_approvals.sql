@@ -75,6 +75,8 @@ ALTER TABLE admin_action_records
   MODIFY COLUMN status ENUM('previewed','pending_approval','approved','executing','executed','failed','cancelled','rejected') NOT NULL DEFAULT 'previewed',
   ADD COLUMN approval_policy_id BIGINT UNSIGNED NULL AFTER risk_level,
   ADD COLUMN required_approvals TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER approval_policy_id,
+  ADD COLUMN approval_distinct_from_requester TINYINT(1) NOT NULL DEFAULT 0 AFTER required_approvals,
+  ADD COLUMN approval_approver_capability VARCHAR(128) NULL AFTER approval_distinct_from_requester,
   ADD COLUMN approval_requested_at DATETIME NULL AFTER previewed_at,
   ADD COLUMN approved_at DATETIME NULL AFTER approval_requested_at,
   ADD COLUMN rejected_at DATETIME NULL AFTER approved_at,
