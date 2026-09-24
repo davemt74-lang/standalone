@@ -19,7 +19,7 @@ $need('app/admin-ui.php',"'overage_billing'=>",'Admin IA must expose AI Overage 
 $need('app/stripe-billing.php','ai_overage_handle_stripe_invoice','Stripe invoice synchronization must reconcile overage batches.');
 $need('bin/billing-operations.php','ai_overage_report_pending','Daily billing operations must report pending overage.');
 $need('app/agent-chat.php','ai_overage_agent_context','Admin Agent must receive read-only AI overage intelligence.');
-$need('app/agent-chat.php','AI overage billing context are read-only','Admin Agent must not gain autonomous financial mutation authority.');
+$need('app/agent-chat.php','AI overage billing context is also read-only','Admin Agent must not gain autonomous financial mutation authority.');
 $need('tests/ci/run-full-regression.sh','tests/admin-v1-70-ai-overage-billing-db.php','Full regression must execute V1.70 overage database journey.');
 $need('.github/workflows/full-regression.yml','admin-v1-70-upgrade-from-069.php','Phase gate must rehearse migration 070 from 069.');
 $need('.github/workflows/package-two-zips.yml','20260924_070_ai_overage_billing_usage_plans.sql','Production package must include migration 070.');
