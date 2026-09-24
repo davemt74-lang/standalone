@@ -101,8 +101,8 @@ function account_membership_deliver_invitation(PDO $pdo,array $config,array $inv
         if(!filter_var($mail['from_email'],FILTER_VALIDATE_EMAIL)){$status='failed';$error='Configured invitation from_email is invalid.';}
         else{
             $fromName=str_replace(["\r","\n"],' ',mb_substr($mail['from_name']?:'Annotated',0,120));$to=account_membership_email((string)$invite['invited_email']);
-            $subject='You are invited to '.(string)$invite['account_name'].' on Annotated';
-            $body="You have been invited to join ".(string)$invite['account_name']." as ".str_replace('_',' ',(string)$invite['account_role']).".\n\nAccept invitation:\n".$url."\n\nThis link expires ".(string)$invite['expires_at']." UTC.\n";
+            $accountName=str_replace(["\r","\n"],' ',mb_substr((string)$invite['account_name'],0,190));$subject='You are invited to '.$accountName.' on Annotated';
+            $body="You have been invited to join ".$accountName." as ".str_replace('_',' ',(string)$invite['account_role']).".\n\nAccept invitation:\n".$url."\n\nThis link expires ".(string)$invite['expires_at']." UTC.\n";
             $headers=['Content-Type: text/plain; charset=UTF-8','From: '.$fromName.' <'.$mail['from_email'].'>'];
             $sent=@mail($to,$subject,$body,implode("\r\n",$headers));$status=$sent?'sent':'failed';if(!$sent)$error='PHP mail transport did not accept the invitation message.';
         }
@@ -135,8 +135,7 @@ function account_membership_resend_invitation(PDO $pdo,array $config,array $acto
     return commercial_account_with_lock($pdo,(int)$account['id'],function()use($pdo,$config,$actor,$invite,$account,$expiresDays,$reason){
         $fresh=account_membership_invitation_by_public($pdo,(string)$invite['public_id']);if(!$fresh||$fresh['status']!=='pending')throw new RuntimeException('Only pending invitations can be resent.');if($account['status']!=='active')throw new RuntimeException('Only active accounts can send invitations.');
         $token=bin2hex(random_bytes(32));$expires=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+'.$expiresDays.' days')->format('Y-m-d H:i:s');
-        $pdo->prepare("UPDATE account_invitations SET token_hash=?,expires_at=?,delivery_status='link_only',last_delivery_error=NULL WHERE id=?")->execute([hash('sha256',$token),$expires,(int)$fresh['id']]);
-        account_membership_event($pdo,(int)$account['id'],(int)$actor['id'],null,(int)$fresh['id'],'invitation_resent',['expires_at'=>$fresh['expires_at']],['expires_at'=>$expires],$reason);
+        $pdo->beginTransaction();try{$pdo->prepare("UPDATE account_invitations SET token_hash=?,expires_at=?,delivery_status='link_only',last_delivery_error=NULL WHERE id=?")->execute([hash('sha256',$token),$expires,(int)$fresh['id']]);account_membership_event($pdo,(int)$account['id'],(int)$actor['id'],null,(int)$fresh['id'],'invitation_resent',['expires_at'=>$fresh['expires_at']],['expires_at'=>$expires],$reason);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         $fresh=account_membership_invitation_by_public($pdo,(string)$fresh['public_id'])??$fresh;return account_membership_deliver_invitation($pdo,$config,$fresh,$token);
     });
 }
@@ -144,8 +143,7 @@ function account_membership_revoke_invitation(PDO $pdo,array $actor,string $invi
     $invite=account_membership_invitation_by_public($pdo,$invitationPublicId);if(!$invite)throw new RuntimeException('Invitation not found.');$account=account_admin_get($pdo,(int)$invite['account_id'])??throw new RuntimeException('Account not found.');account_membership_require_manage($pdo,$actor,$account);$reason=account_membership_reason($reason,'Revoke account invitation.');
     return commercial_account_with_lock($pdo,(int)$account['id'],function()use($pdo,$actor,$invite,$account,$reason){
         $fresh=account_membership_invitation_by_public($pdo,(string)$invite['public_id']);if(!$fresh||$fresh['status']!=='pending')throw new RuntimeException('Only pending invitations can be revoked.');
-        $pdo->prepare("UPDATE account_invitations SET status='revoked',revoked_by_user_id=?,revoked_at=NOW() WHERE id=?")->execute([(int)$actor['id'],(int)$fresh['id']]);
-        account_membership_event($pdo,(int)$account['id'],(int)$actor['id'],null,(int)$fresh['id'],'invitation_revoked',['status'=>'pending'],['status'=>'revoked'],$reason);
+        $pdo->beginTransaction();try{$pdo->prepare("UPDATE account_invitations SET status='revoked',revoked_by_user_id=?,revoked_at=NOW() WHERE id=?")->execute([(int)$actor['id'],(int)$fresh['id']]);account_membership_event($pdo,(int)$account['id'],(int)$actor['id'],null,(int)$fresh['id'],'invitation_revoked',['status'=>'pending'],['status'=>'revoked'],$reason);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         return account_membership_invitation_by_public($pdo,(string)$fresh['public_id'])??$fresh;
     });
 }
@@ -186,7 +184,7 @@ function account_membership_decline_invitation(PDO $pdo,array $user,string $toke
     if(strtolower((string)$user['email'])!==strtolower((string)$invite['invited_email']))throw new RuntimeException('Sign in with the email address this invitation was sent to.');
     return commercial_account_with_lock($pdo,(int)$invite['account_id'],function()use($pdo,$user,$invite){
         $fresh=account_membership_invitation_by_public($pdo,(string)$invite['public_id']);if(!$fresh||$fresh['status']!=='pending')throw new RuntimeException('This invitation is no longer available.');
-        $pdo->prepare("UPDATE account_invitations SET status='declined' WHERE id=?")->execute([(int)$fresh['id']]);account_membership_event($pdo,(int)$fresh['account_id'],(int)$user['id'],(int)$user['id'],(int)$fresh['id'],'invitation_declined',['status'=>'pending'],['status'=>'declined'],'Invitation declined.');
+        $pdo->beginTransaction();try{$pdo->prepare("UPDATE account_invitations SET status='declined' WHERE id=?")->execute([(int)$fresh['id']]);account_membership_event($pdo,(int)$fresh['account_id'],(int)$user['id'],(int)$user['id'],(int)$fresh['id'],'invitation_declined',['status'=>'pending'],['status'=>'declined'],'Invitation declined.');$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         account_membership_clear_pending_session();return account_membership_invitation_by_public($pdo,(string)$fresh['public_id'])??$fresh;
     });
 }
@@ -194,14 +192,14 @@ function account_membership_update_role(PDO $pdo,array $actor,string $accountPub
     $account=account_admin_get($pdo,$accountPublicId)??throw new RuntimeException('Account not found.');account_membership_require_manage($pdo,$actor,$account);$newRole=in_array($role,['admin','member'],true)?$role:'member';$reason=account_membership_reason($reason,'Update account member role.');
     return commercial_account_with_lock($pdo,(int)$account['id'],function()use($pdo,$actor,$account,$userId,$newRole,$reason){
         $q=$pdo->prepare('SELECT account_role FROM account_members WHERE account_id=? AND user_id=?');$q->execute([(int)$account['id'],$userId]);$old=$q->fetchColumn();if($old===false)throw new RuntimeException('Account member not found.');if($old==='owner')throw new RuntimeException('Transfer ownership before changing the owner role.');if($old===$newRole)return account_admin_members($pdo,(int)$account['id']);
-        $pdo->prepare('UPDATE account_members SET account_role=? WHERE account_id=? AND user_id=?')->execute([$newRole,(int)$account['id'],$userId]);account_membership_event($pdo,(int)$account['id'],(int)$actor['id'],$userId,null,'member_role_changed',['account_role'=>$old],['account_role'=>$newRole],$reason);if(function_exists('account_admin_event'))account_admin_event($pdo,(int)$account['id'],(int)$actor['id'],$userId,'member_role_changed',['account_role'=>$old],['account_role'=>$newRole],$reason);return account_admin_members($pdo,(int)$account['id']);
+        $pdo->beginTransaction();try{$pdo->prepare('UPDATE account_members SET account_role=? WHERE account_id=? AND user_id=?')->execute([$newRole,(int)$account['id'],$userId]);account_membership_event($pdo,(int)$account['id'],(int)$actor['id'],$userId,null,'member_role_changed',['account_role'=>$old],['account_role'=>$newRole],$reason);if(function_exists('account_admin_event'))account_admin_event($pdo,(int)$account['id'],(int)$actor['id'],$userId,'member_role_changed',['account_role'=>$old],['account_role'=>$newRole],$reason);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}return account_admin_members($pdo,(int)$account['id']);
     });
 }
 function account_membership_remove_member(PDO $pdo,array $actor,string $accountPublicId,int $userId,string $reason='Remove account member.'): array {
     $account=account_admin_get($pdo,$accountPublicId)??throw new RuntimeException('Account not found.');account_membership_require_manage($pdo,$actor,$account);$reason=account_membership_reason($reason,'Remove account member.');
     return commercial_account_with_lock($pdo,(int)$account['id'],function()use($pdo,$actor,$account,$userId,$reason){
         $q=$pdo->prepare('SELECT account_role FROM account_members WHERE account_id=? AND user_id=?');$q->execute([(int)$account['id'],$userId]);$role=$q->fetchColumn();if($role===false)throw new RuntimeException('Account member not found.');if($role==='owner'||(int)$account['owner_user_id']===$userId)throw new RuntimeException('The account owner cannot be removed.');
-        $pdo->prepare('DELETE FROM account_members WHERE account_id=? AND user_id=?')->execute([(int)$account['id'],$userId]);account_membership_event($pdo,(int)$account['id'],(int)$actor['id'],$userId,null,'member_removed',['account_role'=>$role],null,$reason);if(function_exists('account_admin_event'))account_admin_event($pdo,(int)$account['id'],(int)$actor['id'],$userId,'member_removed',['account_role'=>$role],null,$reason);return account_admin_members($pdo,(int)$account['id']);
+        $pdo->beginTransaction();try{$pdo->prepare('DELETE FROM account_members WHERE account_id=? AND user_id=?')->execute([(int)$account['id'],$userId]);account_membership_event($pdo,(int)$account['id'],(int)$actor['id'],$userId,null,'member_removed',['account_role'=>$role],null,$reason);if(function_exists('account_admin_event'))account_admin_event($pdo,(int)$account['id'],(int)$actor['id'],$userId,'member_removed',['account_role'=>$role],null,$reason);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}return account_admin_members($pdo,(int)$account['id']);
     });
 }
 function account_membership_transfer_owner(PDO $pdo,array $actor,string $accountPublicId,int $newOwnerUserId,string $reason='Transfer account ownership.'): array {
@@ -221,8 +219,8 @@ function account_membership_transfer_owner(PDO $pdo,array $actor,string $account
     });
 }
 function account_membership_revoke_all_pending(PDO $pdo,int $accountId,?int $actorUserId,string $reason): int {
-    if(!account_membership_ready($pdo))return 0;$pending=account_membership_invitations($pdo,$accountId,true,500);if(!$pending)return 0;
-    $q=$pdo->prepare("UPDATE account_invitations SET status='revoked',revoked_by_user_id=?,revoked_at=NOW() WHERE account_id=? AND status='pending'");$q->execute([$actorUserId,$accountId]);foreach($pending as $invite)account_membership_event($pdo,$accountId,$actorUserId,null,(int)$invite['id'],'invitation_revoked',['status'=>'pending'],['status'=>'revoked'],$reason);return $q->rowCount();
+    if(!account_membership_ready($pdo))return 0;$pending=account_membership_invitations($pdo,$accountId,true,500);if(!$pending)return 0;$ownTx=!$pdo->inTransaction();if($ownTx)$pdo->beginTransaction();
+    try{$q=$pdo->prepare("UPDATE account_invitations SET status='revoked',revoked_by_user_id=?,revoked_at=NOW() WHERE account_id=? AND status='pending'");$q->execute([$actorUserId,$accountId]);$count=$q->rowCount();foreach($pending as $invite)account_membership_event($pdo,$accountId,$actorUserId,null,(int)$invite['id'],'invitation_revoked',['status'=>'pending'],['status'=>'revoked'],$reason);if($ownTx)$pdo->commit();return $count;}catch(Throwable $e){if($ownTx&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 function account_membership_agent_context(PDO $pdo,array $viewer): string {
     if(!account_membership_ready($pdo))return '';$rows=account_membership_accounts_for_user($pdo,$viewer,false);if(!$rows)return '';
