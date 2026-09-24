@@ -17,7 +17,11 @@ SELECT x.account_id,x.mode,MAX(x.last_event_created_at),NULL,'migration_backfill
 FROM (
   SELECT account_id,mode,last_event_created_at FROM stripe_subscriptions WHERE last_event_created_at IS NOT NULL
   UNION ALL
-  SELECT account_id,mode,last_event_created_at FROM stripe_invoices WHERE last_event_created_at IS NOT NULL
+  SELECT i.account_id,i.mode,i.last_event_created_at
+  FROM stripe_invoices i
+  JOIN stripe_webhook_events w ON w.mode=i.mode AND w.stripe_event_id=i.last_event_id
+  WHERE i.last_event_created_at IS NOT NULL
+    AND w.event_type IN ('invoice.paid','invoice.payment_failed','invoice.payment_action_required','invoice.marked_uncollectible')
 ) x
 GROUP BY x.account_id,x.mode
 ON DUPLICATE KEY UPDATE
