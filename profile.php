@@ -47,7 +47,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }catch(Throwable $e){$profileError=$e->getMessage();}
 }
 
-$researchAgents=$viewer?research_agent_list($pdo,$viewer,50):[];
+$researchAgents=$viewer&&!$viewAsPublic?research_agent_list($pdo,$viewer,50):[];
 $collections=!empty($prefs['profile_show_collections'])||$ownerControls?profile_showcase_public_collections($pdo,(int)$p['id'],30):[];
 $showResearch=!empty($prefs['profile_show_research'])||$ownerControls;
 $showCollections=!empty($prefs['profile_show_collections'])||$ownerControls;
