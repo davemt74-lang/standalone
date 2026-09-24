@@ -150,6 +150,7 @@ function normalize_match_text(string $text): string { return mb_strtolower(trim(
 function require_admin(PDO $pdo): array {
     $u=require_user($pdo);
     if(($u['role']??'')!=='admin'){http_response_code(403);exit('Administrator access required.');}
+    if(function_exists('admin_access_authorize_request'))admin_access_authorize_request($pdo,$u);
     return $u;
 }
 function user_plan(PDO $pdo,array $user): string {
