@@ -1,9 +1,11 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
+if(PHP_SAPI!=='cli'){header('Cache-Control: no-store, private');header('Referrer-Policy: no-referrer');}
 if(!account_membership_ready($pdo)){http_response_code(503);exit('Account invitations require the latest database upgrade.');}
-$error='';$success='';$token=trim((string)($_GET['token']??$_POST['token']??''));
-if($token!==''){$invite=account_membership_remember_invite_token($pdo,$token);}else{$invite=account_membership_pending_session_invite($pdo);$token=(string)($_SESSION['pending_account_invite_token']??'');}
+$error='';$success='';$queryToken=trim((string)($_GET['token']??''));
+if($_SERVER['REQUEST_METHOD']==='GET'&&$queryToken!==''){account_membership_remember_invite_token($pdo,$queryToken);header('Location: /account-invite.php',true,303);exit;}
+$token=trim((string)($_POST['token']??($_SESSION['pending_account_invite_token']??'')));$invite=$token!==''?account_membership_invitation_by_token($pdo,$token):null;
 $user=current_user($pdo);
 if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
     if(!$user)throw new RuntimeException('Sign in to respond to this invitation.');
