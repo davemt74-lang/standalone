@@ -49,6 +49,7 @@ require_once __DIR__ . '/subscriptions.php';
 require_once __DIR__ . '/account-admin.php';
 require_once __DIR__ . '/account-membership.php';
 require_once __DIR__ . '/stripe-billing.php';
+require_once __DIR__ . '/billing-operations.php';
 require_once __DIR__ . '/ai-usage.php';
 require_once __DIR__ . '/admin-ui.php';
 require_once __DIR__ . '/shell.php';
