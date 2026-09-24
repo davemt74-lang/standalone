@@ -32,7 +32,7 @@ If V1.60 itself suspends an account, a later successful payment can restore it o
 2. no other open dunning case exists, and
 3. no later lifecycle decision superseded the dunning suspension.
 
-That prevents payment recovery from undoing a manual/security suspension. Granting billing grace uses the same protection: grace can clear V1.60's dunning ownership without reactivating an account that a later lifecycle decision intentionally kept suspended.
+V1.60 stores the exact account-lifecycle audit event ID created by its suspension and treats that ID as an ownership watermark. Payment recovery or Admin billing grace may restore access only when no later lifecycle event exists. This avoids second-level timestamp ambiguity and prevents billing recovery from undoing a later manual/security/compliance suspension. Granting grace can still clear V1.60's dunning ownership without reactivating an account that another lifecycle decision intentionally keeps suspended.
 
 Voided invoices, canceled/non-billable Stripe subscriptions, and explicit commercial-account closure close remaining open dunning cases so stale payment alerts cannot survive the billing lifecycle that created them.
 
