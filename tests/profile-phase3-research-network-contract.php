@@ -10,8 +10,8 @@ $need('app/profile-network.php','search_visibility,1)=1','People discovery must 
 $need('app/profile-network.php','NOT EXISTS(SELECT 1 FROM blocks','People discovery/following activity must preserve block boundaries.');
 $need('app/profile-network.php',"'research_followed_publication'","Follower Research notifications must route through the existing research notification preference.");
 $need('app/profile-network.php',"'origin'=>'annotated_public_research'","Published Research handoff must preserve source provenance.");
-$need('app/profile-network.php',"'report_snapshot_hash'=>$snapshotHash",'Published Research handoff must preserve the immutable publication snapshot hash separately from Source-Version content hashing.');
-$need('app/profile-network.php',"hash('sha256',$text)",'Imported public Research Source Versions must hash their extracted evidence text.');
+$need('app/profile-network.php',"'report_snapshot_hash'=>\$snapshotHash",'Published Research handoff must preserve the immutable publication snapshot hash separately from Source-Version content hashing.');
+$need('app/profile-network.php',"hash('sha256',\$text)",'Imported public Research Source Versions must hash their extracted evidence text.');
 
 $need('people.php',"\$GLOBALS['annotated_shell_disabled']=true;",'People discovery must be a standalone public surface.');
 foreach(['Suggested people','Explainable recommendations','Search people or public Research','profilePeopleDiscoveryGrid'] as $needle)$need('people.php',$needle,'People discovery UI missing: '.$needle);
