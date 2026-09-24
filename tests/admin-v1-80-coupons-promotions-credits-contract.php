@@ -1,0 +1,26 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$message;};
+$m='database/migrations/20260924_071_coupons_promotions_credits.sql';
+foreach(['commercial_promotions','commercial_promotion_stripe_mappings','commercial_promotion_redemptions','commercial_discount_events','commercial_credit_adjustments','commercial_audit_events'] as $n)$need($m,$n,'Migration 071 missing '.$n);
+foreach(['function commercial_promotion_validate_checkout','function commercial_promotion_sync_stripe','function commercial_promotion_reserve_attempt','function commercial_promotion_apply_checkout','function commercial_promotion_handle_invoice','function commercial_credit_adjust','function commercial_credit_reverse','function commercial_revenue_adjustment_summary','function commercial_promotions_agent_context'] as $n)$need('app/commercial-promotions.php',$n,'V1.80 runtime missing '.$n);
+$need('app/commercial-promotions.php',"'promotion'=>['type'=>'coupon','coupon'=>",'Stripe promotion codes must reference a Stripe coupon promotion.');
+$need('app/commercial-promotions.php',"/balance_transactions",'Customer credits must mirror to Stripe customer credit balance transactions.');
+$need('app/commercial-promotions.php','idempotency_key','Credit adjustments must persist idempotency keys.');
+$need('app/stripe-billing.php',"\$params['discounts']=[['promotion_code'=>",'Checkout must attach the validated Stripe promotion code.');
+$need('app/stripe-billing.php','commercial_promotion_reserve_attempt','Checkout must reserve local promotion redemption before Stripe execution.');
+$need('app/stripe-billing.php','commercial_promotion_void_checkout','Expired or replaced Checkout sessions must release pending promotion reservations.');
+$need('app/stripe-billing.php','commercial_promotion_handle_invoice','Stripe invoice webhooks must reconcile actual discount amounts.');
+$need('billing.php','Promotion code','Customer billing must accept an optional promotion code.');
+$need('billing.php','PROMOTIONS & CREDITS','Customer billing must show recorded promotion and credit benefits.');
+$need('admin/promotions.php','Coupons, promotions & credits','Admin promotion workspace is required.');
+$need('app/admin-ui.php',"'promotions'=>",'Admin navigation must expose Promotions & Credits.');
+$need('admin/billing-analytics.php','COMMERCIAL ADJUSTMENTS · 30D','Billing analytics must separate gross, discount, credit and net commercial adjustments.');
+$need('app/agent-chat.php','commercial_promotions_agent_context','Admin Agent must receive read-only promotions intelligence.');
+$need('app/agent-chat.php','Promotions and credits context is read-only','Admin Agent must not gain autonomous promotion or credit mutation authority.');
+$need('tests/ci/run-full-regression.sh','tests/admin-v1-80-coupons-promotions-credits-db.php','Full regression must execute V1.80 database journey.');
+$need('.github/workflows/full-regression.yml','admin-v1-80-upgrade-from-070.php','Phase gate must rehearse migration 071 from 070.');
+$need('.github/workflows/package-two-zips.yml','20260924_071_coupons_promotions_credits.sql','Production package must include migration 071.');
+$need('tests/ci/package-smoke.sh','admin-v1-80-coupons-promotions-credits.md','Release smoke must require V1.80 files.');
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Admin V1.80 coupons, promotions & credits static contract passed.\n";
