@@ -84,6 +84,7 @@ db_tests=(
   tests/admin-subscriptions-packages-v1-db.php
   tests/admin-ai-usage-v1-db.php
   tests/admin-v1-20-dashboard-db.php
+  tests/admin-v1-30-account-lifecycle-db.php
 )
 
 for test_file in "${db_tests[@]}"; do
