@@ -60,6 +60,7 @@ function admin_ui_nav_sections(): array {
                 'moderation'=>['label'=>'Moderation & Rights','url'=>'/admin/moderation.php'],
                 'system_health'=>['label'=>'System Health','url'=>'/admin/system-health.php'],
                 'release_audit'=>['label'=>'Release Audit','url'=>'/admin/intelligence-release-audit.php'],
+                'platform_governance'=>['label'=>'Platform Governance','url'=>'/admin/platform-governance.php'],
             ],
         ],
     ];
@@ -75,7 +76,7 @@ function admin_ui_sidebar(string $active='dashboard'): string {
         $out.='</div></details>';
     }
     $roleLabel=$profile!==null?' · '.h((string)($profile['role_name']??$profile['role_key']??'')):'';
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V2.50 · Admin V2.40 · Admin V2.30 · Admin V2.20 · Admin V2.10 · Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90'.$roleLabel.'</span><a href="/logout.php">Sign out</a></div></aside>';
+    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V2.60 · Admin V2.50 · Admin V2.40 · Admin V2.30 · Admin V2.20 · Admin V2.10 · Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90'.$roleLabel.'</span><a href="/logout.php">Sign out</a></div></aside>';
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}
