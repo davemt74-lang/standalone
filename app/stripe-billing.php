@@ -165,6 +165,11 @@ function stripe_billing_absolute_url(array $config,string $path): string {
     if(!str_starts_with($path,'/')||str_starts_with($path,'//'))throw new RuntimeException('Invalid Stripe return path.');
     return $base.$path;
 }
+function stripe_billing_hosted_url(string $url): string {
+    $parts=parse_url($url);$host=strtolower((string)($parts['host']??''));$scheme=strtolower((string)($parts['scheme']??''));
+    if($scheme!=='https'||($host!=='stripe.com'&&!str_ends_with($host,'.stripe.com')))throw new RuntimeException('Stripe returned an invalid hosted redirect URL.');
+    return $url;
+}
 function stripe_billing_create_checkout(PDO $pdo,array $config,array $user,string $packagePublicId): array {
     if(!stripe_billing_configured($pdo,$config))throw new RuntimeException('Stripe billing is not configured.');
     $account=subscription_user_account($pdo,(int)$user['id'],true);if(!$account)throw new RuntimeException('Personal account is unavailable.');
@@ -177,13 +182,13 @@ function stripe_billing_create_checkout(PDO $pdo,array $config,array $user,strin
     $params=['mode'=>'subscription','customer'=>(string)$customer['stripe_customer_id'],'client_reference_id'=>(string)$account['public_id'],'line_items'=>[['price'=>(string)$price['stripe_price_id'],'quantity'=>1]],'success_url'=>stripe_billing_absolute_url($config,(string)$settings['checkout_success_path']),'cancel_url'=>stripe_billing_absolute_url($config,(string)$settings['checkout_cancel_path']),'metadata'=>['annotated_account_id'=>(string)$account['public_id'],'annotated_package_id'=>(string)$package['public_id']],'subscription_data'=>['metadata'=>['annotated_account_id'=>(string)$account['public_id'],'annotated_package_id'=>(string)$package['public_id']]]];
     if((int)$package['trial_days']>0)$params['subscription_data']['trial_period_days']=(int)$package['trial_days'];
     $session=stripe_billing_api_request($config,$settings,'POST','checkout/sessions',$params,'annotated-checkout-'.ulid_like());
-    if(empty($session['url']))throw new RuntimeException('Stripe Checkout did not return a redirect URL.');return $session;
+    if(empty($session['url']))throw new RuntimeException('Stripe Checkout did not return a redirect URL.');$session['url']=stripe_billing_hosted_url((string)$session['url']);return $session;
 }
 function stripe_billing_create_portal(PDO $pdo,array $config,array $user): array {
     if(!stripe_billing_configured($pdo,$config))throw new RuntimeException('Stripe billing is not configured.');
     $account=subscription_user_account($pdo,(int)$user['id'],true);if(!$account)throw new RuntimeException('Personal account is unavailable.');$settings=stripe_billing_settings($pdo);$customer=stripe_billing_customer_ensure($pdo,$config,$account);
     $session=stripe_billing_api_request($config,$settings,'POST','billing_portal/sessions',['customer'=>(string)$customer['stripe_customer_id'],'return_url'=>stripe_billing_absolute_url($config,(string)$settings['portal_return_path'])]);
-    if(empty($session['url']))throw new RuntimeException('Stripe Customer Portal did not return a redirect URL.');return $session;
+    if(empty($session['url']))throw new RuntimeException('Stripe Customer Portal did not return a redirect URL.');$session['url']=stripe_billing_hosted_url((string)$session['url']);return $session;
 }
 function stripe_billing_verify_signature(string $payload,string $signatureHeader,string $secret,int $tolerance=300): array {
     if($payload===''||$signatureHeader===''||$secret==='')throw new RuntimeException('Stripe webhook signature is unavailable.');
