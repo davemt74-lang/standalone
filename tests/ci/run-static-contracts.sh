@@ -9,6 +9,7 @@ php tests/home-render-integrity-contract.php
 php tests/home-agent-feed-contract.php
 php tests/profile-standalone-ui-contract.php
 php tests/profile-phase2-showcase-contract.php
+php tests/profile-phase3-research-network-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
