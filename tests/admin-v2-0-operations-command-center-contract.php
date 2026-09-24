@@ -6,7 +6,7 @@ $m='database/migrations/20260924_073_admin_v2_operations_command_center.sql';
 foreach(['admin_operator_profiles','admin_operations_alerts','admin_saved_views','admin_action_records','correlation_id','last_scan_token'] as $n)$need($m,$n,'Migration 073 missing '.$n);
 foreach(['function admin_ops_refresh_alerts','function admin_ops_alert_update','function admin_ops_saved_view_save','function admin_ops_record_action','function admin_ops_action_preview','function admin_ops_action_execute','function admin_ops_global_search','function admin_ops_account_timeline','function admin_ops_account_360','function admin_ops_operator_profile','function admin_ops_agent_context'] as $n)$need('app/admin-operations.php',$n,'Admin V2.0 runtime missing '.$n);
 $need('app/admin-operations.php',"status='executing'",'Governed execution must claim a preview before external side effects.');
-$need('app/admin-operations.php',"actor_user_id']!==(int)\$admin['id']", 'Governed previews must be executable only by their creating administrator.');
+$need('app/admin-operations.php',"(int)\$record['actor_user_id']!==(int)\$admin['id']", 'Governed previews must be executable only by their creating administrator.');
 $need('app/admin-operations.php','source condition is no longer active','Operations alerts must auto-resolve only when their source condition disappears.');
 $need('app/admin-operations.php','admin.*','V2.0 capability groundwork must preserve super-admin authority.');
 foreach(['ADMIN V2.0 · ADMIN CONTROL CENTER','GLOBAL OPERATIONS SEARCH','NEEDS ATTENTION','Save this view','GOVERNED ACTIONS'] as $n)$need('admin/index.php',$n,'Command Center missing '.$n);
