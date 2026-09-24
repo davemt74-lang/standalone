@@ -230,9 +230,14 @@ function stripe_billing_create_checkout_for_account(PDO $pdo,array $config,array
                 }else{$pdo->prepare("UPDATE stripe_checkout_sessions SET status='expired' WHERE id=?")->execute([(int)$pending['id']]);}
                 $pending=null;
             }elseif($pending['status']==='creating'){
-                if((int)$pending['package_id']!==(int)$package['id']&&strtotime((string)$pending['updated_at'])>time()-300)throw new RuntimeException('Another Stripe Checkout is already being prepared for this account.');
-                if((int)$pending['package_id']===(int)$package['id']){$attemptPublic=(string)$pending['public_id'];$stored=json_decode((string)($pending['request_json']??''),true);if(is_array($stored)&&$stored)$params=$stored;}
-                else{$pdo->prepare("UPDATE stripe_checkout_sessions SET status='expired' WHERE id=?")->execute([(int)$pending['id']]);$pending=null;}
+                $attemptPublic=(string)$pending['public_id'];$stored=json_decode((string)($pending['request_json']??''),true);if(!is_array($stored)||!$stored)throw new RuntimeException('Pending Stripe Checkout cannot be safely recovered.');
+                $recovered=stripe_billing_api_request($config,$settings,'POST','checkout/sessions',$stored,'annotated-checkout-'.$mode.'-'.$attemptPublic);
+                $recoveredId=(string)($recovered['id']??'');$recoveredUrl=!empty($recovered['url'])?stripe_billing_hosted_url((string)$recovered['url']):'';if($recoveredId===''||$recoveredUrl==='')throw new RuntimeException('Pending Stripe Checkout could not be recovered safely.');
+                $recoveredStatus=(string)($recovered['status']??'open');$recoveredExpires=stripe_billing_datetime($recovered['expires_at']??null);$pdo->prepare("UPDATE stripe_checkout_sessions SET stripe_checkout_session_id=?,checkout_url=?,status='open',expires_at=? WHERE id=?")->execute([$recoveredId,$recoveredUrl,$recoveredExpires,(int)$pending['id']]);
+                if($recoveredStatus==='complete'){stripe_billing_checkout_set_status($pdo,$mode,$recoveredId,'completed');throw new RuntimeException('Checkout already completed; billing is synchronizing.');}
+                if((int)$pending['package_id']===(int)$package['id'])return ['id'=>$recoveredId,'url'=>$recoveredUrl,'status'=>'open','reused'=>true];
+                if($recoveredStatus==='open')stripe_billing_api_request($config,$settings,'POST','checkout/sessions/'.rawurlencode($recoveredId).'/expire');
+                stripe_billing_checkout_set_status($pdo,$mode,$recoveredId,'expired');$pending=null;$attemptPublic='';
             }
         }
         if($attemptPublic===''){
