@@ -25,7 +25,7 @@ $useStatus=$selected&&$selected['status']==='frozen'?data_dataset_current_use_st
 $items=$selected&&in_array($selected['status'],['frozen','retired'],true)?data_dataset_items($pdo,$id,100,0):[];
 $events=$selected?data_dataset_events($pdo,$id,50):[];
 $purposeOptions=data_dataset_purposes();
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dataset Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dataset Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('datasets')?>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">DATASET REGISTRY</span><h1>Frozen dataset manifests</h1><p>Create reproducible dataset snapshots only from the governed Phase 37 corpus. Freezing preserves the exact selected text and hashes; current rights and consent are revalidated before data can be reused.</p></div>
   <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Open Evaluation Harness</a><a class="button secondary" href="/admin/training.php">Training Registry</a></div>

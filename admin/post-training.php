@@ -40,7 +40,7 @@ $planJob=$plan?data_training_job_get($pdo,$plan['training_job_public_id']):null;
 $lineage=$plan&&$planJob?data_post_training_lineage($pdo,$planJob,$plan):null;
 $latestPacket=$packets[0]??null;
 $latestPacketIntegrity=$latestPacket?data_post_training_packet_integrity($latestPacket):null;
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Post-Training Readiness · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Post-Training Readiness · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('post_training')?>
 <main class="panel article">
   <div class="pageTitle">
     <span class="eyebrow">POST-TRAINING READINESS</span>

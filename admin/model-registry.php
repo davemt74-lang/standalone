@@ -89,7 +89,7 @@ if($version){
         default=>[],
     };
 }
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Registry · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('model_registry')?>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">MODEL REGISTRY</span><h1>Candidate lifecycle & release governance</h1><p>Register model versions, attach integrity-valid Phase 39 evidence, apply explicit release gates, record approval receipts, activate governed versions, and roll back prior active versions. Registry status never silently rewrites AI task routing.</p></div>
   <div class="inlineActions"><a class="button secondary" href="/admin/evaluations.php">Evaluation Harness</a><a class="button secondary" href="/admin/ai.php">AI routing & providers</a><a class="button secondary" href="/admin/training.php">Training Registry</a><a class="button secondary" href="/admin/post-training.php">Post-Training Readiness</a><a class="button secondary" href="/admin/model-release.php">Release Decisions</a><a class="button secondary" href="/admin/model-deployment.php">Model Deployments</a><a class="button secondary" href="/admin/model-observability.php">Model Health</a><a class="button secondary" href="/admin/model-improvements.php">Model Improvements</a><a class="button secondary" href="/admin/model-campaigns.php">Improvement Campaigns</a></div>

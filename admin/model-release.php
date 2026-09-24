@@ -46,7 +46,7 @@ $reviewSummary=$decision?data_model_release_review_summary($pdo,$decision):null;
 $subjectHash=$decision?data_model_release_subject_hash($pdo,$decision):null;
 $integrity=$decision&&in_array($decision['status'],['decision_recorded','archived'],true)?data_model_release_decision_integrity($pdo,$decision):null;
 $finalProceed=$decision&&$decision['status']==='in_review'?data_model_release_finalize_checks($pdo,$decision,'proceed_to_governed_release'):null;
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Release Decision · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Model Release Decision · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('model_release')?>
 <main class="panel article">
   <div class="pageTitle">
     <span class="eyebrow">MODEL RELEASE DECISION</span>
