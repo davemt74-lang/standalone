@@ -1,0 +1,29 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
+$pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
+foreach(['installer','functions','subscriptions','account-admin','ai-usage'] as $lib)require_once $root.'/app/'.$lib.'.php';
+function av130(bool $ok,string $m):void{if(!$ok)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}function av130throws(callable $f,string $m):void{try{$f();}catch(Throwable $e){echo "PASS: $m\n";return;}throw new RuntimeException('FAIL: '.$m);}
+av130(account_admin_ready($pdo),'Migration 064 account administration schema is ready.');
+$run='av130'.substr(bin2hex(random_bytes(5)),0,10);$seq=0;$pub=function(string $p)use($run,&$seq){$seq++;return $p.'-'.$run.'-'.$seq;};
+$mk=function(string $name,string $role='user')use($pdo,$run,$pub){$u=strtolower($name).'_'.$run;$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,status,role,plan_tier,live_presence_mode) VALUES(?,?,?,?, 'active',?,'free','cloaked')")->execute([$pub('u'),$u,$name,$u.'@example.test',$role]);$id=(int)$pdo->lastInsertId();$q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$id]);return $q->fetch();};
+$admin=$mk('AcctAdmin','admin');$owner=$mk('OrgOwner');$member=$mk('OrgMember');$third=$mk('OrgThird');
+$teamBefore=(int)$pdo->query('SELECT COUNT(*) FROM teams')->fetchColumn();$pkg=subscription_package($pdo,'team-builder');
+$acct=account_admin_create($pdo,$admin,['name'=>'V130 Organization','account_type'=>'organization','owner'=>$owner['username'],'package_id'=>$pkg['public_id'],'reason'=>'Create V1.30 organization fixture.']);
+av130($acct['account_type']==='organization','Admin can create governed organization account.');
+av130(count(account_admin_members($pdo,(int)$acct['id']))===1,'Organization owner is inserted as first account member.');
+account_admin_add_member($pdo,$admin,$acct['public_id'],$member['username'],'member','Add initial organization member.');
+av130(count(account_admin_members($pdo,(int)$acct['id']))===2,'Admin can add existing user to commercial account.');
+account_admin_update_member_role($pdo,$admin,$acct['public_id'],(int)$member['id'],'admin','Promote account member.');
+$members=account_admin_members($pdo,(int)$acct['id']);$roles=array_column($members,'account_role','user_id');av130(($roles[$member['id']]??'')==='admin','Admin can update account member role.');
+account_admin_set_override($pdo,$admin,$acct['public_id'],'member_limit',2,null,'Cap organization at two members.');av130(account_admin_effective_member_limit($pdo,(int)$acct['id'])===2,'Member-limit override replaces package baseline.');
+av130throws(fn()=>account_admin_add_member($pdo,$admin,$acct['public_id'],$third['username'],'member','Attempt over limit.'),'Effective member limit blocks additional membership.');
+account_admin_set_override($pdo,$admin,$acct['public_id'],'monthly_ai_token_allowance',777,null,'Custom monthly AI allowance.');$usage=ai_usage_account_summary($pdo,(int)$acct['id']);av130((int)$usage['base_allowance']===777&&$usage['entitlement_source']==='override','Canonical AI usage honors account token override.');
+$basic=subscription_package($pdo,'basic-user');av130throws(fn()=>account_admin_change_package($pdo,$admin,$acct['public_id'],(string)$basic['public_id'],'Too small.'),'Package change cannot undercut current membership.');
+account_admin_transfer_owner($pdo,$admin,$acct['public_id'],(int)$member['id'],'Transfer organization ownership.');$acct=account_admin_get($pdo,(int)$acct['id']);av130((int)$acct['owner_user_id']===(int)$member['id'],'Organization ownership can transfer to existing member.');
+account_admin_remove_member($pdo,$admin,$acct['public_id'],(int)$owner['id'],'Remove former owner after transfer.');av130(count(account_admin_members($pdo,(int)$acct['id']))===1,'Former owner can be removed after governed transfer.');
+account_admin_revoke_override($pdo,$admin,$acct['public_id'],'member_limit','Return member limit to package.');av130(account_admin_effective_member_limit($pdo,(int)$acct['id'])===(int)$pkg['member_limit'],'Revoking override restores package member limit.');
+$acct=account_admin_update_lifecycle($pdo,$admin,$acct['public_id'],['name'=>'V130 Organization','status'=>'suspended','subscription_status'=>'paused','reason'=>'Support hold.']);av130($acct['status']==='suspended'&&$acct['subscription_status']==='paused','Admin can suspend account and pause subscription.');
+$q=$pdo->prepare('SELECT COUNT(*) FROM account_admin_events WHERE account_id=? AND actor_user_id=?');$q->execute([(int)$acct['id'],(int)$admin['id']]);av130((int)$q->fetchColumn()>=7,'Lifecycle, membership and entitlement changes are audited.');
+av130((int)$pdo->query('SELECT COUNT(*) FROM teams')->fetchColumn()===$teamBefore,'Commercial account administration never creates or changes Research Teams.');
+echo "Admin V1.30 account lifecycle database journey passed.\n";
