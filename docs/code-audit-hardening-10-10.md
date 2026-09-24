@@ -8,7 +8,7 @@ This hardening pass audits the merged Admin V1.40 development tree rather than a
 - Commercial account locking remains separate from Research Teams and does not alter research permissions.
 
 ## Stripe ordering and durability
-Migration 066 adds a test/live-scoped account state watermark plus a durable Checkout-attempt ledger. Subscription and payment events retain their object ledgers, but an older event cannot overwrite account state established by a newer Stripe event—even when the events refer to different invoices.
+Migration 066 remains the shipped test/live-scoped Stripe account-state watermark. Migration 067 adds the durable Checkout-attempt ledger and AI quota reservations; 066 is intentionally left byte-for-byte immutable. Subscription and payment events retain their object ledgers, but an older event cannot overwrite account state established by a newer Stripe event—even when the events refer to different invoices.
 - New local Stripe Price mappings are committed before the previous remote Price is archived.
 - Failure to archive an old remote Price is a visible non-blocking cleanup warning; the newly mapped Price remains usable.
 - Stripe continues to own Stripe-managed billing periods.
@@ -26,4 +26,4 @@ Public HTTP retrieval now resolves and validates a destination once, then pins t
 Research Agent load errors are rendered with DOM text nodes rather than injecting API error text through innerHTML.
 
 ## Release proof
-The phase gate includes a dedicated static/runtime contract, database journey, MariaDB/PHP 8.1+8.3 validation, MySQL 8 validation, migration 065→066 rehearsal, historical regression, and production package smoke testing.
+The phase gate includes a dedicated static/runtime contract, database journey, MariaDB/PHP 8.1+8.3 validation, MySQL 8 validation, migration 065→current plus an explicit installed-066→067 rehearsal, historical regression, and production package smoke testing.
