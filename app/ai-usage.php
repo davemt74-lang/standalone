@@ -53,9 +53,10 @@ function ai_usage_account_summary(PDO $pdo,int $accountId): array {
         $q=$pdo->prepare('SELECT COALESCE(SUM(token_delta),0) FROM ai_usage_adjustments WHERE account_id=? AND period_start=? AND period_end=?');
         $q->execute([(int)$account['id'],$account['period_start'],$account['period_end']]);$adjustment=(int)$q->fetchColumn();
     }
-    $base=$account['monthly_ai_token_allowance']===null?null:(int)$account['monthly_ai_token_allowance'];
-    $effective=$base===null?null:max(0,$base+$adjustment);$remaining=$effective===null?null:max(0,$effective-$used);$overage=$effective===null?0:max(0,$used-$effective);
-    return ['account'=>$account,'base_allowance'=>$base,'adjustment_tokens'=>$adjustment,'effective_allowance'=>$effective,'used_tokens'=>$used,'remaining_tokens'=>$remaining,'overage_tokens'=>$overage,'system_tokens'=>$system,'admin_tokens'=>$admin];
+    $packageBase=$account['monthly_ai_token_allowance']===null?null:(int)$account['monthly_ai_token_allowance'];$entitlementBase=$packageBase;$entitlementSource='package';
+    if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$ent=account_admin_effective_entitlements($pdo,(int)$account['id']);$entitlementBase=$ent['values']['monthly_ai_token_allowance'];$entitlementSource=$ent['sources']['monthly_ai_token_allowance']??'package';}catch(Throwable $e){}}
+    $effective=$entitlementBase===null?null:max(0,(int)$entitlementBase+$adjustment);$remaining=$effective===null?null:max(0,$effective-$used);$overage=$effective===null?0:max(0,$used-$effective);
+    return ['account'=>$account,'package_allowance'=>$packageBase,'base_allowance'=>$entitlementBase,'entitlement_source'=>$entitlementSource,'adjustment_tokens'=>$adjustment,'effective_allowance'=>$effective,'used_tokens'=>$used,'remaining_tokens'=>$remaining,'overage_tokens'=>$overage,'system_tokens'=>$system,'admin_tokens'=>$admin];
 }
 function ai_usage_summary_for_user(PDO $pdo,int $userId): ?array {
     $account=ai_usage_account_for_user($pdo,$userId);return $account?ai_usage_account_summary($pdo,(int)$account['id']):null;
