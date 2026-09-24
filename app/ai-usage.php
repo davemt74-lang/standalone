@@ -86,7 +86,7 @@ function ai_usage_reserve_run(PDO $pdo,int $runId,?array $user,string $initiated
         $summary=ai_usage_account_summary($pdo,$accountId);$account=$summary['account'];
         if(($account['status']??'active')!=='active'||in_array((string)($account['subscription_status']??''),['paused','canceled'],true))throw new RuntimeException('This account is not active for AI usage.');
         $inputUpper=max(1,strlen($system."\n".$prompt)+64);
-        $providerMax=max(256,min(16384,$modelMaxOutputTokens>0?$modelMaxOutputTokens:16384));
+        $providerMax=max(256,min(16384,$modelMaxOutputTokens));
         $maxOutput=$providerMax;$effective=$summary['effective_allowance'];
         if($effective!==null){
             $remaining=(int)$summary['remaining_tokens'];
