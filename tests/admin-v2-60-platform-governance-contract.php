@@ -18,7 +18,7 @@ $need('admin/system-health.php','Platform Governance','System Health must link V
 $need('app/admin-security-compliance.php',"'platform'=>'admin.platform.view'",'Security audit must permission-gate the platform source domain.');
 $need('app/agent-chat.php','admin_platform_agent_context','Agent Chat must receive V2.60 context.');
 $need('app/agent-chat.php','Admin V2.60 Platform Governance context is read-only','Agent prompt must deny V2.60 mutation claims.');
-$need('admin/action-center.php',"($meta['surface']??'account')!=='account'",'Account Action Center form must not route platform actions through account preview.');
+$need('admin/action-center.php',"surface']??'account'",'Account Action Center form must not route platform actions through account preview.');
 $web=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');if($web!==$ext)$fail[]='Extension landing base CSS must remain exactly synchronized with website base CSS.';
 $need('tests/ci/run-full-regression.sh','tests/admin-v2-60-platform-governance-db.php','Full regression must execute V2.60 database journey.');
 $need('.github/workflows/full-regression.yml','admin-v2-60-upgrade-from-078.php','Phase gate must rehearse migration 079 from 078.');
