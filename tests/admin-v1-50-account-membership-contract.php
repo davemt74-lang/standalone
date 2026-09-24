@@ -12,6 +12,9 @@ $need('app/account-membership.php','FOR UPDATE','Invitation expiry must row-lock
 $need('app/account-membership.php',"account['status']!=='active'",'Inactive accounts must not accept/send membership invitations.');
 $need('app/account-membership.php','str_replace(["\r","\n"]','Invitation mail headers must sanitize account-controlled text.');
 $need('account-invite.php','require_csrf()','Invitation acceptance/decline must be CSRF protected.');
+$need('account-invite.php',"header('Location: /account-invite.php',true,303)",'Invitation token landing must immediately redirect to a clean URL.');
+$need('account-invite.php','Cache-Control: no-store','Invitation token pages must not be cached.');
+$need('account-invite.php','account_membership_clear_pending_session','Invalid token landing must clear stale pending invitation session state.');
 $need('account-invite.php','Commercial account membership is separate from Research Teams','Invitation UX must preserve Research Team separation.');
 $need('register.php','account_membership_pending_session_invite','Registration must preserve invitation email binding.');
 $need('register.php',"Use the email address this account invitation was sent to.",'Registration must reject a different invited email.');
