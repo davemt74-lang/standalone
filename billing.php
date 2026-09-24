@@ -3,7 +3,7 @@ declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
 $user=require_user($pdo);$error='';$notice='';
 if(!subscriptions_ready($pdo)){http_response_code(503);exit('Billing requires the latest database upgrade.');}
-$billingAccounts=stripe_billing_user_accounts($pdo,$user);$requestedAccount=trim((string)($_GET['account']??$_POST['account']??''));$account=stripe_billing_account_for_user($pdo,$user,$requestedAccount!==''?$requestedAccount:null);
+$requestedAccount=trim((string)($_GET['account']??$_POST['account']??''));$account=stripe_billing_account_for_user($pdo,$user,$requestedAccount!==''?$requestedAccount:null);$billingAccounts=stripe_billing_user_accounts($pdo,$user);
 if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
     $op=(string)($_POST['op']??'');
     if($op==='checkout'){$session=stripe_billing_create_checkout_for_account($pdo,$config,$user,$account,(string)($_POST['package_id']??''));header('Location: '.(string)$session['url'],true,303);exit;}
