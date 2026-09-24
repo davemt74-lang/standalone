@@ -216,6 +216,13 @@ jobs:
           test -f package-website/tests/admin-v1-90-tax-invoices-commercial-billing-db.php
           test -f package-website/tests/ci/admin-v1-90-upgrade-from-071.php
           test -f package-website/docs/admin-v1-90-tax-invoices-commercial-billing.md
+          test -f package-website/database/migrations/20260924_073_admin_v2_operations_command_center.sql
+          test -f package-website/app/admin-operations.php
+          test -f package-website/admin/action-center.php
+          test -f package-website/tests/admin-v2-0-operations-command-center-contract.php
+          test -f package-website/tests/admin-v2-0-operations-command-center-db.php
+          test -f package-website/tests/ci/admin-v2-0-upgrade-from-072.php
+          test -f package-website/docs/admin-v2-0-operations-command-center.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
