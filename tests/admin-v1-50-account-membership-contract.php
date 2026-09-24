@@ -5,7 +5,7 @@ $need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=
 foreach(['account_invitations','account_membership_events','token_hash','reserves_seat','actor_ip_hash','actor_user_agent_hash'] as $n)$need('database/migrations/20260924_068_account_invitations_membership_seats.sql',$n,'Migration 068 missing '.$n);
 $migration=(string)file_get_contents($root.'/database/migrations/20260924_068_account_invitations_membership_seats.sql');if(preg_match('/\btoken\s+VARCHAR/i',$migration))$fail[]='Invitation plaintext tokens must never be persisted.';
 foreach(['function account_membership_create_invitation','function account_membership_accept_invitation','function account_membership_resend_invitation','function account_membership_revoke_invitation','function account_membership_seat_summary','function account_membership_transfer_owner','function account_membership_agent_context'] as $n)$need('app/account-membership.php',$n,'Membership runtime missing '.$n);
-$need('app/account-membership.php',"hash('sha256',$token)",'Invitation tokens must be stored as SHA-256 hashes.');
+$need('app/account-membership.php',"hash('sha256',\$token)",'Invitation tokens must be stored as SHA-256 hashes.');
 $need('app/account-membership.php','commercial_account_with_lock','Membership mutations must serialize on the commercial account.');
 $need('app/account-membership.php',"'account-invite-create'",'Invitation creation must be rate limited.');
 $need('app/account-membership.php','FOR UPDATE','Invitation expiry must row-lock pending records before transition.');
