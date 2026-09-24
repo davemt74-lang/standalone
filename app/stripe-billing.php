@@ -172,25 +172,47 @@ function stripe_billing_hosted_url(string $url): string {
     if($scheme!=='https'||($host!=='stripe.com'&&!str_ends_with($host,'.stripe.com')))throw new RuntimeException('Stripe returned an invalid hosted redirect URL.');
     return $url;
 }
-function stripe_billing_create_checkout(PDO $pdo,array $config,array $user,string $packagePublicId): array {
+function stripe_billing_user_accounts(PDO $pdo,array $user): array {
+    if(!subscriptions_ready($pdo))return [];$q=$pdo->prepare("SELECT a.*,am.account_role,p.public_id package_public_id,p.slug package_slug,p.name package_name,p.description package_description,p.status package_status,p.is_public,p.legacy_plan_tier,p.billing_interval,p.monthly_price_cents,p.monthly_ai_token_allowance,p.member_limit,p.trial_days,p.feature_json
+      FROM account_members am JOIN accounts a ON a.id=am.account_id JOIN subscription_packages p ON p.id=a.package_id
+      WHERE am.user_id=? AND am.account_role IN ('owner','admin') AND a.status<>'closed'
+      ORDER BY (a.personal_user_id=? ) DESC,a.name,a.id");$q->execute([(int)$user['id'],(int)$user['id']]);return $q->fetchAll()?:[];
+}
+function stripe_billing_account_for_user(PDO $pdo,array $user,?string $accountPublicId=null): array {
+    if($accountPublicId===null||trim($accountPublicId)==='')return subscription_user_account($pdo,(int)$user['id'],true)??throw new RuntimeException('Personal account is unavailable.');
+    $q=$pdo->prepare("SELECT a.*,am.account_role,p.public_id package_public_id,p.slug package_slug,p.name package_name,p.description package_description,p.status package_status,p.is_public,p.legacy_plan_tier,p.billing_interval,p.monthly_price_cents,p.monthly_ai_token_allowance,p.member_limit,p.trial_days,p.feature_json
+      FROM account_members am JOIN accounts a ON a.id=am.account_id JOIN subscription_packages p ON p.id=a.package_id
+      WHERE am.user_id=? AND a.public_id=? AND am.account_role IN ('owner','admin') LIMIT 1");$q->execute([(int)$user['id'],trim($accountPublicId)]);$account=$q->fetch();if(!$account)throw new RuntimeException('You do not have billing administration access to that account.');return $account;
+}
+function stripe_billing_checkout_member_limit(PDO $pdo,array $account,array $package): void {
+    $limit=(int)$package['member_limit'];
+    if(function_exists('account_admin_overrides')&&account_admin_ready($pdo)){foreach(account_admin_overrides($pdo,(int)$account['id'],true) as $o)if($o['entitlement_key']==='member_limit'){$limit=max(1,(int)json_decode((string)$o['value_json'],true));break;}}
+    $q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$account['id']]);if((int)$q->fetchColumn()>$limit)throw new RuntimeException('This package member limit is below the account’s current membership.');
+}
+function stripe_billing_create_checkout_for_account(PDO $pdo,array $config,array $user,array $account,string $packagePublicId): array {
     if(!stripe_billing_configured($pdo,$config))throw new RuntimeException('Stripe billing is not configured.');
-    $account=subscription_user_account($pdo,(int)$user['id'],true);if(!$account)throw new RuntimeException('Personal account is unavailable.');
     if(($account['status']??'active')!=='active')throw new RuntimeException('This account is not active.');
     if(stripe_billing_current_subscription($pdo,(int)$account['id']))throw new RuntimeException('This account already has a Stripe subscription. Use Manage billing to change it.');
     $package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active'||!(int)$package['is_public'])throw new RuntimeException('That subscription package is unavailable.');
-    if((int)$package['monthly_price_cents']<=0)throw new RuntimeException('Free packages do not require Stripe Checkout.');
+    if((int)$package['monthly_price_cents']<=0)throw new RuntimeException('Free packages do not require Stripe Checkout.');stripe_billing_checkout_member_limit($pdo,$account,$package);
     $settings=stripe_billing_settings($pdo);$price=stripe_billing_active_price($pdo,(int)$package['id'],(string)$settings['mode']);if(!$price)throw new RuntimeException('This package is not connected to Stripe yet.');
     $customer=stripe_billing_customer_ensure($pdo,$config,$account);
-    $params=['mode'=>'subscription','customer'=>(string)$customer['stripe_customer_id'],'client_reference_id'=>(string)$account['public_id'],'line_items'=>[['price'=>(string)$price['stripe_price_id'],'quantity'=>1]],'success_url'=>stripe_billing_absolute_url($config,(string)$settings['checkout_success_path']),'cancel_url'=>stripe_billing_absolute_url($config,(string)$settings['checkout_cancel_path']),'metadata'=>['annotated_account_id'=>(string)$account['public_id'],'annotated_package_id'=>(string)$package['public_id']],'subscription_data'=>['metadata'=>['annotated_account_id'=>(string)$account['public_id'],'annotated_package_id'=>(string)$package['public_id']]]];
+    $params=['mode'=>'subscription','customer'=>(string)$customer['stripe_customer_id'],'client_reference_id'=>(string)$account['public_id'],'line_items'=>[['price'=>(string)$price['stripe_price_id'],'quantity'=>1]],'success_url'=>stripe_billing_absolute_url($config,(string)$settings['checkout_success_path']),'cancel_url'=>stripe_billing_absolute_url($config,(string)$settings['checkout_cancel_path']),'metadata'=>['annotated_account_id'=>(string)$account['public_id'],'annotated_package_id'=>(string)$package['public_id'],'requested_by_user_id'=>(string)$user['public_id']],'subscription_data'=>['metadata'=>['annotated_account_id'=>(string)$account['public_id'],'annotated_package_id'=>(string)$package['public_id']]]];
     if((int)$package['trial_days']>0)$params['subscription_data']['trial_period_days']=(int)$package['trial_days'];
     $session=stripe_billing_api_request($config,$settings,'POST','checkout/sessions',$params,'annotated-checkout-'.ulid_like());
     if(empty($session['url']))throw new RuntimeException('Stripe Checkout did not return a redirect URL.');$session['url']=stripe_billing_hosted_url((string)$session['url']);return $session;
 }
-function stripe_billing_create_portal(PDO $pdo,array $config,array $user): array {
-    if(!stripe_billing_configured($pdo,$config))throw new RuntimeException('Stripe billing is not configured.');
-    $account=subscription_user_account($pdo,(int)$user['id'],true);if(!$account)throw new RuntimeException('Personal account is unavailable.');$settings=stripe_billing_settings($pdo);$customer=stripe_billing_customer_ensure($pdo,$config,$account);
-    $session=stripe_billing_api_request($config,$settings,'POST','billing_portal/sessions',['customer'=>(string)$customer['stripe_customer_id'],'return_url'=>stripe_billing_absolute_url($config,(string)$settings['portal_return_path'])]);
+function stripe_billing_create_portal_for_account(PDO $pdo,array $config,array $user,array $account): array {
+    if(!stripe_billing_configured($pdo,$config))throw new RuntimeException('Stripe billing is not configured.');$settings=stripe_billing_settings($pdo);$customer=stripe_billing_customer_ensure($pdo,$config,$account);
+    $returnPath=(string)$settings['portal_return_path'];$sep=str_contains($returnPath,'?')?'&':'?';$returnPath.=$sep.'account='.rawurlencode((string)$account['public_id']);
+    $session=stripe_billing_api_request($config,$settings,'POST','billing_portal/sessions',['customer'=>(string)$customer['stripe_customer_id'],'return_url'=>stripe_billing_absolute_url($config,$returnPath)]);
     if(empty($session['url']))throw new RuntimeException('Stripe Customer Portal did not return a redirect URL.');$session['url']=stripe_billing_hosted_url((string)$session['url']);return $session;
+}
+function stripe_billing_create_checkout(PDO $pdo,array $config,array $user,string $packagePublicId): array {
+    $account=stripe_billing_account_for_user($pdo,$user,null);return stripe_billing_create_checkout_for_account($pdo,$config,$user,$account,$packagePublicId);
+}
+function stripe_billing_create_portal(PDO $pdo,array $config,array $user): array {
+    $account=stripe_billing_account_for_user($pdo,$user,null);return stripe_billing_create_portal_for_account($pdo,$config,$user,$account);
 }
 function stripe_billing_verify_signature(string $payload,string $signatureHeader,string $secret,int $tolerance=300): array {
     if($payload===''||$signatureHeader===''||$secret==='')throw new RuntimeException('Stripe webhook signature is unavailable.');
