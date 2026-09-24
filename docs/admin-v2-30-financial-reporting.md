@@ -34,8 +34,8 @@ The Finance workspace reports a selected date range across synchronized source l
 - discounts;
 - tax;
 - invoiced total;
-- collected amount;
-- outstanding receivables;
+- collected amount measured by Stripe payment timestamp;
+- current outstanding receivables;
 - refunds where recorded in Stripe billing events;
 - applied customer credits and debits;
 - AI-overage reported amount and accrued amount;
@@ -43,7 +43,7 @@ The Finance workspace reports a selected date range across synchronized source l
 - open dunning count;
 - revenue by package.
 
-Stripe-synchronized invoice and billing ledgers remain payment truth.
+Stripe-synchronized invoice and billing ledgers remain payment truth. The dashboard's “net collection position” is an operational collections measure (collected minus recorded refunds and credits plus debits), not a GAAP revenue-recognition statement.
 
 ## Reconciliation engine
 
