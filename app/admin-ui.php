@@ -130,7 +130,8 @@ function admin_ui_account_rows(PDO $pdo,array $filters=[],int $limit=250): array
     foreach($rows as &$row){
         $row['effective_member_limit']=(int)$row['member_limit'];$row['override_count']=0;
         if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$ent=account_admin_effective_entitlements($pdo,(int)$row['id']);$row['effective_member_limit']=(int)$ent['values']['member_limit'];$row['override_count']=count($ent['overrides']);}catch(Throwable $e){}}
-        $row['over_capacity']=(int)$row['member_count']>(int)$row['effective_member_limit'];
+        $row['pending_reserved']=0;$row['seat_used']=(int)$row['member_count'];$row['over_capacity']=(int)$row['member_count']>(int)$row['effective_member_limit'];$row['over_reserved']=false;
+        if(function_exists('account_membership_ready')&&account_membership_ready($pdo)){try{$seat=account_membership_seat_summary($pdo,(int)$row['id']);$row['pending_reserved']=(int)$seat['pending_reserved'];$row['seat_used']=(int)$seat['used_seats'];$row['over_capacity']=!empty($seat['over_capacity']);$row['over_reserved']=!empty($seat['over_reserved']);}catch(Throwable $e){}}
         if(function_exists('ai_usage_ready')&&ai_usage_ready($pdo))$row['usage']=ai_usage_account_summary($pdo,(int)$row['id']);
     }unset($row);
     return $rows;
