@@ -236,8 +236,9 @@ function stripe_billing_account_by_public(PDO $pdo,string $publicId): ?array {
 }
 function stripe_billing_event(PDO $pdo,int $accountId,string $source,string $eventType,string $reason,?string $stripeEventId=null,?int $actorUserId=null,mixed $before=null,mixed $after=null): void {
     $enc=fn(mixed $v)=>$v===null?null:json_encode($v,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);$stripeMode=null;if($source==='stripe'&&$stripeEventId!==null)$stripeMode=(string)(stripe_billing_settings($pdo)['mode']??'test');
-    $pdo->prepare("INSERT INTO account_billing_events(public_id,account_id,actor_user_id,source,event_type,stripe_mode,stripe_event_id,before_json,after_json,reason) VALUES(?,?,?,?,?,?,?,?,?,?)")
-      ->execute([ulid_like(),$accountId,$actorUserId,$source,$eventType,$stripeMode,$stripeEventId,$enc($before),$enc($after),mb_substr($reason,0,500)]);
+    try{$pdo->prepare("INSERT INTO account_billing_events(public_id,account_id,actor_user_id,source,event_type,stripe_mode,stripe_event_id,before_json,after_json,reason) VALUES(?,?,?,?,?,?,?,?,?,?)")
+      ->execute([ulid_like(),$accountId,$actorUserId,$source,$eventType,$stripeMode,$stripeEventId,$enc($before),$enc($after),mb_substr($reason,0,500)]);}
+    catch(PDOException $e){if((string)$e->getCode()!=='23000')throw $e;}
 }
 function stripe_billing_subscription_status(string $stripeStatus): string {
     return match($stripeStatus){
