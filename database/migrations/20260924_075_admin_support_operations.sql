@@ -111,3 +111,34 @@ SET capabilities_json=JSON_ARRAY(
   'admin.actions.view','admin.roles.view'
 )
 WHERE role_key='read_only_auditor';
+
+UPDATE admin_roles
+SET capabilities_json=JSON_ARRAY(
+  'admin.operations.view','admin.support.view',
+  'admin.accounts.view','admin.billing.view','admin.billing.manage',
+  'admin.billing.sync','admin.billing.overage','admin.billing.tax','admin.ai_usage.view',
+  'admin.actions.view','admin.actions.request','admin.actions.approve','admin.actions.execute'
+)
+WHERE role_key='billing_admin';
+
+UPDATE admin_roles
+SET capabilities_json=JSON_ARRAY(
+  'admin.operations.view','admin.support.view',
+  'admin.ai_usage.view','admin.ai_usage.manage','admin.models.view','admin.models.manage',
+  'admin.actions.view'
+)
+WHERE role_key='ai_models_admin';
+
+UPDATE admin_roles
+SET capabilities_json=JSON_ARRAY(
+  'admin.operations.view','admin.support.view',
+  'admin.research_data.view','admin.research_data.manage','admin.actions.view'
+)
+WHERE role_key='research_data_admin';
+
+UPDATE admin_roles
+SET capabilities_json=JSON_ARRAY(
+  'admin.operations.view','admin.operations.manage','admin.support.view',
+  'admin.trust.view','admin.trust.manage','admin.actions.view'
+)
+WHERE role_key='trust_ops_admin';
