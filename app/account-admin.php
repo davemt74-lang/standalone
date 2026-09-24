@@ -141,6 +141,7 @@ function account_admin_set_override(PDO $pdo,array $admin,string $accountPublicI
 function account_admin_revoke_override(PDO $pdo,array $admin,string $accountPublicId,string $key,string $reason): array {
     account_admin_require_admin($admin);$account=account_admin_get($pdo,$accountPublicId);if(!$account)throw new RuntimeException('Account not found.');$reason=account_admin_reason($reason);
     $q=$pdo->prepare("SELECT * FROM account_entitlement_overrides WHERE account_id=? AND entitlement_key=? AND status='active' LIMIT 1");$q->execute([(int)$account['id'],$key]);$before=$q->fetch();if(!$before)throw new RuntimeException('Active entitlement override not found.');
+    if($key==='member_limit'){$q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$account['id']]);if((int)$q->fetchColumn()>(int)$account['member_limit'])throw new RuntimeException('Reduce membership to the package member limit before revoking this override.');}
     $pdo->beginTransaction();try{$pdo->prepare("UPDATE account_entitlement_overrides SET status='revoked',updated_by_user_id=? WHERE id=?")->execute([(int)$admin['id'],(int)$before['id']]);account_admin_event($pdo,(int)$account['id'],(int)$admin['id'],null,'entitlement_override_revoked',$before,['entitlement_key'=>$key,'status'=>'revoked'],$reason);$pdo->commit();return account_admin_effective_entitlements($pdo,(int)$account['id']);}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 function account_admin_events(PDO $pdo,int $accountId,int $limit=100): array {
