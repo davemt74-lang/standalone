@@ -7,7 +7,7 @@ foreach(['subtotal_cents','tax_amount_cents','commercial_billing_settings','acco
 foreach(['function commercial_billing_save_settings','function commercial_billing_profile_save','function commercial_billing_checkout_policy_hash','function commercial_billing_checkout_params','function commercial_billing_prepare_draft_invoice','function commercial_billing_sync_subscription_policy','function commercial_billing_handle_invoice','function commercial_billing_reconcile_invoice','function commercial_billing_tax_summary','function commercial_billing_agent_context'] as $n)$need('app/commercial-billing.php',$n,'V1.90 runtime missing '.$n);
 $need('app/commercial-billing.php',"['automatic_tax']=['enabled'=>'true']", 'Checkout tax policy must support Stripe automatic tax.');
 $need('app/commercial-billing.php',"['tax_id_collection']=['enabled'=>'true']", 'Checkout tax policy must support Stripe tax-ID collection.');
-$need('app/commercial-billing.php',"'value_last4'",'Tax ID snapshots must avoid storing full tax-ID values.');
+$need('app/commercial-billing.php','value_last4','Tax ID snapshots must persist only the minimized tax-ID suffix.');
 $need('app/commercial-billing.php','drift_detected','Finalized invoice evidence must detect financial snapshot drift.');
 $need('app/stripe-billing.php','annotated_billing_policy_hash','Checkout reuse must be bound to the V1.90 billing policy fingerprint.');
 $need('app/stripe-billing.php','commercial_billing_checkout_params','Checkout must apply V1.90 billing and tax policy.');
