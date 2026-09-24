@@ -10,7 +10,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
     else throw new RuntimeException('Unknown package action.');
 }catch(Throwable $e){$error=$e->getMessage();}}
 $packages=subscription_packages($pdo,false);$events=subscription_recent_events($pdo,30);$packageEvents=subscription_package_admin_events($pdo,30);
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packages · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packages · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('packages')?>
 <header class="topbar"><a class="brand" href="/admin/">Annotated Admin</a><nav><a href="/admin/users.php">Users</a><a class="active" href="/admin/packages.php">Packages</a><a href="/admin/ai.php">AI</a><a href="/home.php">Site</a></nav></header>
 <main class="panel adminPackagesPage"><div class="pageTitle"><span class="eyebrow">USERS & ACCOUNTS</span><h1>Subscription Packages</h1><p>Manage the package catalog used by Annotated accounts. Commercial accounts are separate from manually managed Research Teams.</p></div>
 <?php if($success):?><div class="success"><?=h($success)?></div><?php endif?><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>
