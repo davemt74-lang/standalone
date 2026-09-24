@@ -20,6 +20,7 @@ php tests/admin-v1-50-account-membership-contract.php
 php tests/admin-v1-60-billing-analytics-contract.php
 php tests/admin-v1-70-ai-overage-billing-contract.php
 php tests/admin-v1-80-coupons-promotions-credits-contract.php
+php tests/admin-v1-90-tax-invoices-commercial-billing-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
