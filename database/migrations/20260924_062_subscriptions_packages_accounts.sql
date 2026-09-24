@@ -29,6 +29,22 @@ VALUES
 ('pkg-team-builder','team-builder','Team Builder','Multi-member account package. Account membership is separate from manually managed Research Teams.','active',1,'pro','monthly',0,NULL,5,0,'{"package_family":"organization","research_teams":"manual"}',30)
 ON DUPLICATE KEY UPDATE name=VALUES(name);
 
+CREATE TABLE IF NOT EXISTS subscription_package_admin_events (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  package_id BIGINT UNSIGNED NOT NULL,
+  actor_user_id BIGINT UNSIGNED NULL,
+  event_type ENUM('created','updated','archived','reactivated') NOT NULL,
+  before_json JSON NULL,
+  after_json JSON NULL,
+  reason VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_subscription_package_admin_event(package_id,created_at,id),
+  INDEX idx_subscription_package_admin_actor(actor_user_id,created_at,id),
+  CONSTRAINT fk_subscription_package_admin_package FOREIGN KEY(package_id) REFERENCES subscription_packages(id) ON DELETE CASCADE,
+  CONSTRAINT fk_subscription_package_admin_actor FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS accounts (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   public_id VARCHAR(40) NOT NULL UNIQUE,
