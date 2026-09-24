@@ -11,7 +11,7 @@ $need('app/commercial-billing.php',"'value_last4'",'Tax ID snapshots must avoid 
 $need('app/commercial-billing.php','drift_detected','Finalized invoice evidence must detect financial snapshot drift.');
 $need('app/stripe-billing.php','annotated_billing_policy_hash','Checkout reuse must be bound to the V1.90 billing policy fingerprint.');
 $need('app/stripe-billing.php','commercial_billing_checkout_params','Checkout must apply V1.90 billing and tax policy.');
-$need('app/stripe-billing.php',"$eventType==='invoice.created'",'Stripe webhook flow must prepare draft invoices.');
+$need('app/stripe-billing.php',"\$eventType==='invoice.created'",'Stripe webhook flow must prepare draft invoices.');
 $need('app/stripe-billing.php','commercial_billing_handle_invoice','Stripe invoice webhooks must record V1.90 invoice evidence.');
 $need('billing.php','BILLING PROFILE','Customer billing must expose governed billing profile fields.');
 $need('billing.php','discount_amount_cents','Customer invoice history must separate discounts.');
