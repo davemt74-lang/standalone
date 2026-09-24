@@ -100,7 +100,7 @@ A Stripe mode + date range can only be closed once. Repeating the same close ret
 
 Finance export supports:
 
-- invoice ledger for a date range, optionally scoped to an account;
+- combined finance ledger for a date range, optionally scoped to an account, covering invoices, credits/debits, discounts and AI-overage report records;
 - receivables;
 - reconciliation exceptions;
 - period-close ledger.
