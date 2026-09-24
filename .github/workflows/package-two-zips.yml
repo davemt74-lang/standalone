@@ -144,6 +144,13 @@ jobs:
           test -f package-website/tests/admin-subscriptions-packages-v1-db.php
           test -f package-website/tests/ci/subscriptions-v1-upgrade-from-061.php
           test -f package-website/docs/admin-subscriptions-packages-v1.md
+          test -f package-website/database/migrations/20260924_063_ai_usage_metering.sql
+          test -f package-website/app/ai-usage.php
+          test -f package-website/admin/usage.php
+          test -f package-website/tests/admin-ai-usage-v1-contract.php
+          test -f package-website/tests/admin-ai-usage-v1-db.php
+          test -f package-website/tests/ci/ai-usage-v1-upgrade-from-062.php
+          test -f package-website/docs/admin-ai-usage-v1.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
