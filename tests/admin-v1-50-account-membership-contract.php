@@ -11,7 +11,7 @@ $need('app/account-membership.php',"account['status']!=='active'",'Inactive acco
 $need('app/account-membership.php','str_replace(["\r","\n"]','Invitation mail headers must sanitize account-controlled text.');
 $need('account-invite.php','require_csrf()','Invitation acceptance/decline must be CSRF protected.');
 $need('account-invite.php','Commercial account membership is separate from Research Teams','Invitation UX must preserve Research Team separation.');
-$need('register.php','pending_account_invite','Registration must preserve invitation email binding.');
+$need('register.php','account_membership_pending_session_invite','Registration must preserve invitation email binding.');
 $need('register.php',"Use the email address this account invitation was sent to.",'Registration must reject a different invited email.');
 $need('login.php','pending account invitation','Login must preserve invitation intent.');
 $need('account-members.php','Members & seats','Self-service commercial membership workspace is required.');
@@ -19,7 +19,7 @@ $need('account-members.php','Reserve a seat while pending','Self-service must ex
 $need('admin/account.php','INVITATIONS & SEATS','Admin account detail must expose invitation/seat administration.');
 $need('app/account-admin.php','reserved invitations','Privileged account/package/member-limit operations must honor reserved seats.');
 $need('app/stripe-billing.php','account_membership_pending_reserved_count','Stripe package preflight must honor reserved invitations.');
-$need('app/agent-chat.php','COMMERCIAL ACCOUNT MEMBERSHIP','Agent Chat must receive read-only commercial membership context.');
+$need('app/agent-chat.php','account_membership_agent_context','Agent Chat must receive read-only commercial membership context.');
 $need('app/agent-chat.php','cannot add, remove, invite, or transfer account members','Agent must not gain autonomous membership authority.');
 $need('app/shell.php','/account-members.php','User menu must expose account member administration.');
 $need('tests/ci/run-full-regression.sh','tests/admin-v1-50-account-membership-db.php','Full regression must execute V1.50 membership journey.');
