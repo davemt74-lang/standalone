@@ -255,6 +255,7 @@ function research_publication_publish(PDO $pdo,array $viewer,string $publicId): 
     $fresh=research_publication_workflow_access($pdo,$viewer,$publicId);if(!$fresh||$fresh['status']!=='published')throw new RuntimeException('Publication transaction did not finalize the workflow.');
     try{$distribution=research_publication_distribute($pdo,$viewer,$fresh,$publish);}catch(Throwable $e){error_log('[Annotated publication distribution] '.$e->getMessage());$distribution=['sent'=>0,'skipped'=>0,'failed'=>1,'error'=>'Publication succeeded; one or more distribution operations need attention.'];}
     if(function_exists('research_intelligence_portfolio_publication_distributed')){try{research_intelligence_portfolio_publication_distributed($pdo,$viewer,$fresh,$publish,$distribution);}catch(Throwable $e){error_log('[Annotated portfolio publication continuity] '.$e->getMessage());}}
+    if(function_exists('profile_network_notify_followers_report')){try{$distribution['followers_notified']=profile_network_notify_followers_report($pdo,$viewer,$publish);}catch(Throwable $e){error_log('[Annotated profile-network publication notification] '.$e->getMessage());}}
     return array_merge($publish,['distribution'=>$distribution,'workflow'=>$fresh]);
 }
 
