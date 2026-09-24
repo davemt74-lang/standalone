@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/annotation-ui.php';require_once __DIR__.'/app/cognitive-feed-ui.php';require_once __DIR__.'/app/research-agent-workspace-ui.php';require_once __DIR__.'/app/action-center.php';require_once __DIR__.'/app/schema-health.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/public-discovery.php';require_once __DIR__.'/app/annotation-ui.php';require_once __DIR__.'/app/cognitive-feed-ui.php';require_once __DIR__.'/app/research-agent-workspace-ui.php';require_once __DIR__.'/app/action-center.php';require_once __DIR__.'/app/schema-health.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
 
 $schemaStatus=app_schema_runtime_status($pdo,__DIR__.'/database/migrations');
