@@ -36,7 +36,7 @@ function admin_moderation_target_url(PDO $pdo,array $r): ?string {
         default=>null
     };
 }
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Moderation · Annotated Admin</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Moderation · Annotated Admin</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('moderation')?>
 <header class="topbar"><a class="brand" href="/admin/">Annotated Admin</a><nav><a href="/admin/ai.php">AI</a><a href="/admin/source-monitor.php">Sources</a><a href="/admin/users.php">Users</a></nav></header>
 <main class="panel moderationConsole"><div class="pageTitle"><span class="eyebrow">HUMAN REVIEW REQUIRED</span><h1>Moderation & rights</h1><p>AI triage is advisory only. Final restrictions, removals, restorations, and claim decisions require an admin action and are written to the moderation audit trail.</p></div>
 <?php if($success):?><div class="success"><?=h($success)?></div><?php endif?><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>
