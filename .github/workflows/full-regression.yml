@@ -170,6 +170,13 @@ jobs:
           DB_PASS: root
           ADMIN_V200_RESET_DB: '1'
         run: php tests/ci/admin-v2-0-upgrade-from-072.php
+      - name: Admin V2.10 delegated access upgrade rehearsal from migration 073 through 074
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v210_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V210_RESET_DB: '1'
+        run: php tests/ci/admin-v2-10-upgrade-from-073.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -227,6 +234,7 @@ jobs:
           php tests/admin-v1-80-coupons-promotions-credits-db.php
           php tests/admin-v1-90-tax-invoices-commercial-billing-db.php
           php tests/admin-v2-0-operations-command-center-db.php
+          php tests/admin-v2-10-roles-permissions-approvals-db.php
       - name: MySQL 8 upgrade rehearsal from migration 056 through 059
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
@@ -346,6 +354,13 @@ jobs:
           DB_PASS: root
           ADMIN_V200_RESET_DB: '1'
         run: php tests/ci/admin-v2-0-upgrade-from-072.php
+      - name: MySQL 8 Admin V2.10 delegated access upgrade rehearsal from migration 073 through 074
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v210_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V210_RESET_DB: '1'
+        run: php tests/ci/admin-v2-10-upgrade-from-073.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
