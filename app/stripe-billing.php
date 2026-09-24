@@ -208,9 +208,9 @@ function stripe_billing_checkout_set_status(PDO $pdo,string $mode,string $sessio
     $sql=$status==='completed'?"UPDATE stripe_checkout_sessions SET status='completed',completed_at=NOW() WHERE mode=? AND stripe_checkout_session_id=?":"UPDATE stripe_checkout_sessions SET status=? WHERE mode=? AND stripe_checkout_session_id=?";
     if($status==='completed')$pdo->prepare($sql)->execute([$mode,$sessionId]);else $pdo->prepare($sql)->execute([$status,$mode,$sessionId]);
 }
-function stripe_billing_create_checkout_for_account(PDO $pdo,array $config,array $user,array $account,string $packagePublicId): array {
+function stripe_billing_create_checkout_for_account(PDO $pdo,array $config,array $user,array $account,string $packagePublicId,?string $promotionCode=null): array {
     if(!stripe_billing_configured($pdo,$config))throw new RuntimeException('Stripe billing is not configured.');
-    return commercial_account_with_lock($pdo,(int)$account['id'],function()use($pdo,$config,$user,$account,$packagePublicId){
+    return commercial_account_with_lock($pdo,(int)$account['id'],function()use($pdo,$config,$user,$account,$packagePublicId,$promotionCode){
         $fresh=stripe_billing_account_by_public($pdo,(string)$account['public_id']);if(!$fresh)throw new RuntimeException('Billing account is unavailable.');
         if(($fresh['status']??'active')!=='active')throw new RuntimeException('This account is not active.');
         if(stripe_billing_current_subscription($pdo,(int)$fresh['id']))throw new RuntimeException('This account already has a Stripe subscription. Use Manage billing to change it.');
@@ -218,43 +218,57 @@ function stripe_billing_create_checkout_for_account(PDO $pdo,array $config,array
         if((int)$package['monthly_price_cents']<=0)throw new RuntimeException('Free packages do not require Stripe Checkout.');stripe_billing_checkout_member_limit($pdo,$fresh,$package);
         $settings=stripe_billing_settings($pdo);$mode=(string)$settings['mode'];$price=stripe_billing_active_price($pdo,(int)$package['id'],$mode);if(!$price)throw new RuntimeException('This package is not connected to Stripe yet.');
         $customer=stripe_billing_customer_ensure($pdo,$config,$fresh);
-        $withAccount=function(string $path)use($fresh): string {$sep=str_contains($path,'?')?'&':'?';return $path.$sep.'account='.rawurlencode((string)$fresh['public_id']);};
-        $params=['mode'=>'subscription','customer'=>(string)$customer['stripe_customer_id'],'client_reference_id'=>(string)$fresh['public_id'],'line_items'=>[['price'=>(string)$price['stripe_price_id'],'quantity'=>1]],'success_url'=>stripe_billing_absolute_url($config,$withAccount((string)$settings['checkout_success_path'])),'cancel_url'=>stripe_billing_absolute_url($config,$withAccount((string)$settings['checkout_cancel_path'])),'metadata'=>['annotated_account_id'=>(string)$fresh['public_id'],'annotated_package_id'=>(string)$package['public_id'],'requested_by_user_id'=>(string)$user['public_id']],'subscription_data'=>['metadata'=>['annotated_account_id'=>(string)$fresh['public_id'],'annotated_package_id'=>(string)$package['public_id']]]];
-        if((int)$package['trial_days']>0)$params['subscription_data']['trial_period_days']=(int)$package['trial_days'];
+        $promotion=null;$promotionMapping=null;$promotionCode=trim((string)$promotionCode);
+        if($promotionCode!==''){
+            if(!function_exists('commercial_promotions_ready')||!commercial_promotions_ready($pdo))throw new RuntimeException('Promotion codes require the latest database upgrade.');
+            $promotion=commercial_promotion_by_code($pdo,$promotionCode);if(!$promotion)throw new RuntimeException('Promotion code not found.');
+            commercial_promotion_validate_checkout($pdo,$promotion,$fresh,$package,$mode);
+            $promotionMapping=commercial_promotion_sync_stripe($pdo,$config,$user,$promotion);
+        }
+        $desiredPromotionPublic=$promotion?(string)$promotion['public_id']:'';
+        $storedPromotion=function(array $row): string {$stored=json_decode((string)($row['request_json']??''),true);return is_array($stored)?(string)($stored['metadata']['annotated_promotion_id']??''):'';};
         $pending=stripe_billing_checkout_pending($pdo,(int)$fresh['id'],$mode);$attemptPublic='';
         if($pending){
+            $promoMatches=$storedPromotion($pending)===$desiredPromotionPublic;
             if($pending['status']==='open'){
                 $notExpired=empty($pending['expires_at'])||strtotime((string)$pending['expires_at'])>time();
-                if((int)$pending['package_id']===(int)$package['id']&&$notExpired&&!empty($pending['checkout_url']))return ['id'=>$pending['stripe_checkout_session_id'],'url'=>stripe_billing_hosted_url((string)$pending['checkout_url']),'status'=>'open','reused'=>true];
+                if((int)$pending['package_id']===(int)$package['id']&&$promoMatches&&$notExpired&&!empty($pending['checkout_url'])){if(function_exists('commercial_promotion_bind_session')&&!empty($pending['stripe_checkout_session_id']))commercial_promotion_bind_session($pdo,$mode,(string)$pending['public_id'],(string)$pending['stripe_checkout_session_id']);return ['id'=>$pending['stripe_checkout_session_id'],'url'=>stripe_billing_hosted_url((string)$pending['checkout_url']),'status'=>'open','reused'=>true];}
                 if(!empty($pending['stripe_checkout_session_id'])){
                     $remote=stripe_billing_api_request($config,$settings,'GET','checkout/sessions/'.rawurlencode((string)$pending['stripe_checkout_session_id']));$remoteStatus=(string)($remote['status']??'');
-                    if($remoteStatus==='complete'){stripe_billing_checkout_set_status($pdo,$mode,(string)$pending['stripe_checkout_session_id'],'completed');throw new RuntimeException('Checkout already completed; billing is synchronizing.');}
-                    if($remoteStatus==='open'&&(int)$pending['package_id']===(int)$package['id']&&!empty($remote['url'])){$url=stripe_billing_hosted_url((string)$remote['url']);$expires=stripe_billing_datetime($remote['expires_at']??null);$pdo->prepare("UPDATE stripe_checkout_sessions SET checkout_url=?,expires_at=?,status='open' WHERE id=?")->execute([$url,$expires,(int)$pending['id']]);return ['id'=>$pending['stripe_checkout_session_id'],'url'=>$url,'status'=>'open','reused'=>true];}
+                    if($remoteStatus==='complete'){stripe_billing_checkout_set_status($pdo,$mode,(string)$pending['stripe_checkout_session_id'],'completed');if(function_exists('commercial_promotion_apply_checkout'))commercial_promotion_apply_checkout($pdo,$remote,$mode);throw new RuntimeException('Checkout already completed; billing is synchronizing.');}
+                    if($remoteStatus==='open'&&(int)$pending['package_id']===(int)$package['id']&&$promoMatches&&!empty($remote['url'])){$url=stripe_billing_hosted_url((string)$remote['url']);$expires=stripe_billing_datetime($remote['expires_at']??null);$pdo->prepare("UPDATE stripe_checkout_sessions SET checkout_url=?,expires_at=?,status='open' WHERE id=?")->execute([$url,$expires,(int)$pending['id']]);if(function_exists('commercial_promotion_bind_session'))commercial_promotion_bind_session($pdo,$mode,(string)$pending['public_id'],(string)$pending['stripe_checkout_session_id']);return ['id'=>$pending['stripe_checkout_session_id'],'url'=>$url,'status'=>'open','reused'=>true];}
                     if($remoteStatus==='open')stripe_billing_api_request($config,$settings,'POST','checkout/sessions/'.rawurlencode((string)$pending['stripe_checkout_session_id']).'/expire');
-                    stripe_billing_checkout_set_status($pdo,$mode,(string)$pending['stripe_checkout_session_id'],'expired');
-                }else{$pdo->prepare("UPDATE stripe_checkout_sessions SET status='expired' WHERE id=?")->execute([(int)$pending['id']]);}
+                    stripe_billing_checkout_set_status($pdo,$mode,(string)$pending['stripe_checkout_session_id'],'expired');if(function_exists('commercial_promotion_void_checkout'))commercial_promotion_void_checkout($pdo,$mode,(string)$pending['public_id'],(string)$pending['stripe_checkout_session_id']);
+                }else{$pdo->prepare("UPDATE stripe_checkout_sessions SET status='expired' WHERE id=?")->execute([(int)$pending['id']]);if(function_exists('commercial_promotion_void_checkout'))commercial_promotion_void_checkout($pdo,$mode,(string)$pending['public_id'],null);}
                 $pending=null;
             }elseif($pending['status']==='creating'){
                 $attemptPublic=(string)$pending['public_id'];$stored=json_decode((string)($pending['request_json']??''),true);if(!is_array($stored)||!$stored)throw new RuntimeException('Pending Stripe Checkout cannot be safely recovered.');
                 $recovered=stripe_billing_api_request($config,$settings,'POST','checkout/sessions',$stored,'annotated-checkout-'.$mode.'-'.$attemptPublic);
                 $recoveredId=(string)($recovered['id']??'');$recoveredUrl=!empty($recovered['url'])?stripe_billing_hosted_url((string)$recovered['url']):'';if($recoveredId===''||$recoveredUrl==='')throw new RuntimeException('Pending Stripe Checkout could not be recovered safely.');
-                $recoveredStatus=(string)($recovered['status']??'open');$recoveredExpires=stripe_billing_datetime($recovered['expires_at']??null);$pdo->prepare("UPDATE stripe_checkout_sessions SET stripe_checkout_session_id=?,checkout_url=?,status='open',expires_at=? WHERE id=?")->execute([$recoveredId,$recoveredUrl,$recoveredExpires,(int)$pending['id']]);
-                if($recoveredStatus==='complete'){stripe_billing_checkout_set_status($pdo,$mode,$recoveredId,'completed');throw new RuntimeException('Checkout already completed; billing is synchronizing.');}
-                if((int)$pending['package_id']===(int)$package['id'])return ['id'=>$recoveredId,'url'=>$recoveredUrl,'status'=>'open','reused'=>true];
+                $recoveredStatus=(string)($recovered['status']??'open');$recoveredExpires=stripe_billing_datetime($recovered['expires_at']??null);$pdo->prepare("UPDATE stripe_checkout_sessions SET stripe_checkout_session_id=?,checkout_url=?,status='open',expires_at=? WHERE id=?")->execute([$recoveredId,$recoveredUrl,$recoveredExpires,(int)$pending['id']]);if(function_exists('commercial_promotion_bind_session'))commercial_promotion_bind_session($pdo,$mode,$attemptPublic,$recoveredId);
+                if($recoveredStatus==='complete'){stripe_billing_checkout_set_status($pdo,$mode,$recoveredId,'completed');if(function_exists('commercial_promotion_apply_checkout'))commercial_promotion_apply_checkout($pdo,$recovered,$mode);throw new RuntimeException('Checkout already completed; billing is synchronizing.');}
+                if((int)$pending['package_id']===(int)$package['id']&&$promoMatches)return ['id'=>$recoveredId,'url'=>$recoveredUrl,'status'=>'open','reused'=>true];
                 if($recoveredStatus==='open')stripe_billing_api_request($config,$settings,'POST','checkout/sessions/'.rawurlencode($recoveredId).'/expire');
-                stripe_billing_checkout_set_status($pdo,$mode,$recoveredId,'expired');$pending=null;$attemptPublic='';
+                stripe_billing_checkout_set_status($pdo,$mode,$recoveredId,'expired');if(function_exists('commercial_promotion_void_checkout'))commercial_promotion_void_checkout($pdo,$mode,$attemptPublic,$recoveredId);$pending=null;$attemptPublic='';
             }
         }
-        if($attemptPublic===''){
-            $attemptPublic=ulid_like();$pdo->prepare("INSERT INTO stripe_checkout_sessions(public_id,account_id,package_id,created_by_user_id,mode,stripe_customer_id,stripe_price_id,request_json,status) VALUES(?,?,?,?,?,?,?,?, 'creating')")
-              ->execute([$attemptPublic,(int)$fresh['id'],(int)$package['id'],(int)$user['id'],$mode,(string)$customer['stripe_customer_id'],(string)$price['stripe_price_id'],json_encode($params,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)]);
-        }
+        $attemptPublic=ulid_like();
+        $withAccount=function(string $path)use($fresh): string {$sep=str_contains($path,'?')?'&':'?';return $path.$sep.'account='.rawurlencode((string)$fresh['public_id']);};
+        $metadata=['annotated_account_id'=>(string)$fresh['public_id'],'annotated_package_id'=>(string)$package['public_id'],'requested_by_user_id'=>(string)$user['public_id'],'annotated_checkout_attempt'=>$attemptPublic];
+        $subscriptionMetadata=['annotated_account_id'=>(string)$fresh['public_id'],'annotated_package_id'=>(string)$package['public_id']];
+        if($promotion){$metadata['annotated_promotion_id']=(string)$promotion['public_id'];$subscriptionMetadata['annotated_promotion_id']=(string)$promotion['public_id'];}
+        $params=['mode'=>'subscription','customer'=>(string)$customer['stripe_customer_id'],'client_reference_id'=>(string)$fresh['public_id'],'line_items'=>[['price'=>(string)$price['stripe_price_id'],'quantity'=>1]],'success_url'=>stripe_billing_absolute_url($config,$withAccount((string)$settings['checkout_success_path'])),'cancel_url'=>stripe_billing_absolute_url($config,$withAccount((string)$settings['checkout_cancel_path'])),'metadata'=>$metadata,'subscription_data'=>['metadata'=>$subscriptionMetadata]];
+        if((int)$package['trial_days']>0)$params['subscription_data']['trial_period_days']=(int)$package['trial_days'];
+        if($promotion){$promoStripeId=(string)($promotionMapping['stripe_promotion_code_id']??'');if($promoStripeId==='')throw new RuntimeException('Promotion is not synchronized to Stripe.');$params['discounts']=[['promotion_code'=>$promoStripeId]];commercial_promotion_reserve_attempt($pdo,$promotion,$fresh,$package,$user,$mode,$attemptPublic,$promotionMapping);}
+        $pdo->prepare("INSERT INTO stripe_checkout_sessions(public_id,account_id,package_id,created_by_user_id,mode,stripe_customer_id,stripe_price_id,request_json,status) VALUES(?,?,?,?,?,?,?,?, 'creating')")
+          ->execute([$attemptPublic,(int)$fresh['id'],(int)$package['id'],(int)$user['id'],$mode,(string)$customer['stripe_customer_id'],(string)$price['stripe_price_id'],json_encode($params,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)]);
         $session=stripe_billing_api_request($config,$settings,'POST','checkout/sessions',$params,'annotated-checkout-'.$mode.'-'.$attemptPublic);
         $sessionId=(string)($session['id']??'');$url=!empty($session['url'])?stripe_billing_hosted_url((string)$session['url']):'';if($sessionId===''||$url==='')throw new RuntimeException('Stripe Checkout did not return a valid hosted session.');
-        $expires=stripe_billing_datetime($session['expires_at']??null);$pdo->prepare("UPDATE stripe_checkout_sessions SET stripe_checkout_session_id=?,checkout_url=?,status='open',expires_at=? WHERE public_id=?")->execute([$sessionId,$url,$expires,$attemptPublic]);
+        $expires=stripe_billing_datetime($session['expires_at']??null);$pdo->prepare("UPDATE stripe_checkout_sessions SET stripe_checkout_session_id=?,checkout_url=?,status='open',expires_at=? WHERE public_id=?")->execute([$sessionId,$url,$expires,$attemptPublic]);if(function_exists('commercial_promotion_bind_session'))commercial_promotion_bind_session($pdo,$mode,$attemptPublic,$sessionId);
         $session['url']=$url;return $session;
     },10);
 }
+
 function stripe_billing_create_portal_for_account(PDO $pdo,array $config,array $user,array $account): array {
     if(!stripe_billing_configured($pdo,$config))throw new RuntimeException('Stripe billing is not configured.');$settings=stripe_billing_settings($pdo);$customer=stripe_billing_customer_ensure($pdo,$config,$account);
     $returnPath=(string)$settings['portal_return_path'];$sep=str_contains($returnPath,'?')?'&':'?';$returnPath.=$sep.'account='.rawurlencode((string)$account['public_id']);
@@ -415,13 +429,14 @@ function stripe_billing_process_webhook(PDO $pdo,array $config,string $payload,s
             $accountPublic=(string)($object['metadata']['annotated_account_id']??$object['client_reference_id']??'');$customerId=is_string($object['customer']??null)?(string)$object['customer']:'';$account=$accountPublic!==''?stripe_billing_account_by_public($pdo,$accountPublic):null;$checkoutId=(string)($object['id']??'');
             if($account&&$customerId!==''){commercial_account_with_lock($pdo,(int)$account['id'],function()use($pdo,$account,$mode,$customerId,$eventId,$object,$checkoutId){stripe_billing_link_customer($pdo,(int)$account['id'],$mode,$customerId,null,(string)$account['name'],['annotated_account_id'=>$account['public_id']]);if($checkoutId!=='')stripe_billing_checkout_set_status($pdo,$mode,$checkoutId,'completed');stripe_billing_event($pdo,(int)$account['id'],'stripe','checkout_completed','Stripe Checkout completed.',$eventId,null,null,['stripe_checkout_session_id'=>$checkoutId,'stripe_subscription_id'=>$object['subscription']??null]);});}
             elseif($checkoutId!=='')stripe_billing_checkout_set_status($pdo,$mode,$checkoutId,'completed');
+            if(function_exists('commercial_promotion_apply_checkout'))commercial_promotion_apply_checkout($pdo,$object,$mode);
             if(is_string($object['subscription']??null)&&$object['subscription']!==''){$sub=stripe_billing_api_request($config,$settings,'GET','subscriptions/'.rawurlencode((string)$object['subscription']));stripe_billing_sync_subscription($pdo,$sub,$mode,$eventId,$eventCreatedAt);}
         }elseif($eventType==='checkout.session.expired'){
-            $checkoutId=(string)($object['id']??'');if($checkoutId!=='')stripe_billing_checkout_set_status($pdo,$mode,$checkoutId,'expired');
+            $checkoutId=(string)($object['id']??'');if($checkoutId!==''){stripe_billing_checkout_set_status($pdo,$mode,$checkoutId,'expired');if(function_exists('commercial_promotion_void_checkout'))commercial_promotion_void_checkout($pdo,$mode,null,$checkoutId);}
         }elseif(in_array($eventType,['customer.subscription.created','customer.subscription.updated','customer.subscription.deleted','customer.subscription.paused','customer.subscription.resumed','customer.subscription.trial_will_end'],true)){
             stripe_billing_sync_subscription($pdo,$object,$mode,$eventId,$eventCreatedAt);
         }elseif(in_array($eventType,['invoice.finalized','invoice.paid','invoice.payment_failed','invoice.payment_action_required','invoice.voided','invoice.marked_uncollectible'],true)){
-            stripe_billing_sync_invoice($pdo,$object,$eventType,$mode,$eventId,$eventCreatedAt);if(function_exists('ai_overage_handle_stripe_invoice'))ai_overage_handle_stripe_invoice($pdo,$object,$mode);
+            stripe_billing_sync_invoice($pdo,$object,$eventType,$mode,$eventId,$eventCreatedAt);if(function_exists('ai_overage_handle_stripe_invoice'))ai_overage_handle_stripe_invoice($pdo,$object,$mode);if(function_exists('commercial_promotion_handle_invoice'))commercial_promotion_handle_invoice($pdo,$object,$mode);
         }elseif(in_array($eventType,['charge.refunded','charge.dispute.created','charge.dispute.closed'],true)){
             stripe_billing_record_customer_event($pdo,$config,$settings,$object,$eventType,$eventId);
         }else{stripe_billing_finish_webhook($pdo,$mode,$eventId,'ignored');return ['ok'=>true,'ignored'=>true,'event_id'=>$eventId,'type'=>$eventType];}
