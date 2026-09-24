@@ -7,7 +7,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();try{$rights=data_source_rights_set($pdo,$u,$sourceId,$_POST);$success='Source rights classification saved.';}catch(Throwable $e){$error=$e->getMessage();}
 }
 $stats=data_global_summary($pdo);
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Governance · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data Governance · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('data_attribution')?>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">DATA GOVERNANCE</span><h1>Data & Attribution</h1><p>Govern source rights, corpus eligibility, contribution lineage, and response attribution without changing authoritative Annotated objects.</p></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
