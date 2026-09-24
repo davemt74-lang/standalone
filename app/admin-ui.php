@@ -106,7 +106,7 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
     $add('Paused subscriptions',(int)$counts['paused_subscriptions'],'/admin/accounts.php?subscription_status=paused','warn');
     $add('Past-due Stripe subscriptions',(int)$counts['past_due_subscriptions'],'/admin/accounts.php?subscription_status=past_due','warn');
     $add('Failed Stripe webhook events',(int)$counts['failed_stripe_webhooks'],'/admin/billing.php','danger');
-    $add('Accounts over effective member limit',(int)$counts['over_capacity_accounts'],'/admin/accounts.php','warn');
+    $add('Accounts over seat capacity',(int)$counts['over_capacity_accounts'],'/admin/accounts.php','warn');
     $add('Failed AI jobs',(int)$counts['failed_ai_jobs'],'/admin/system-health.php','danger');
     $add('Failed source-monitor jobs',(int)$counts['failed_source_jobs'],'/admin/source-monitor.php','danger');
     $add('Open moderation reports',(int)$counts['open_reports'],'/admin/moderation.php','warn');
