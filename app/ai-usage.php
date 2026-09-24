@@ -119,7 +119,7 @@ function ai_usage_record_completed_run(PDO $pdo,int $runId,?array $user,string $
     if(!ai_usage_ready($pdo))return null;
     $q=$pdo->prepare("SELECT r.id,r.public_id,r.user_id,r.task_type,r.model_id,r.scope_type,r.scope_public_id,m.provider_id,m.input_cost_per_million_usd,m.output_cost_per_million_usd
       FROM ai_runs r LEFT JOIN ai_models m ON m.id=r.model_id WHERE r.id=? LIMIT 1");$q->execute([$runId]);$run=$q->fetch();if(!$run)throw new RuntimeException('AI run is unavailable for usage metering.');
-    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);if($existing=$q->fetch()){ai_usage_settle_run($pdo,$runId,(int)$existing['total_tokens']);return $existing;}
+    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);if($existing=$q->fetch()){ai_usage_settle_run($pdo,$runId,(int)$existing['total_tokens']);if(function_exists('ai_overage_record_usage_event')&&ai_overage_ready($pdo))ai_overage_record_usage_event($pdo,(int)$existing['id']);return $existing;}
     [$class,$chargeable]=ai_usage_classification($user,$initiatedBy,(string)$run['task_type']);
     $account=null;if(!empty($run['user_id']))$account=ai_usage_account_for_user($pdo,(int)$run['user_id']);
     $providerIn=$generated['input_tokens']??null;$providerOut=$generated['output_tokens']??null;
