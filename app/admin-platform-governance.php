@@ -82,12 +82,26 @@ function admin_platform_snapshot_payload(PDO $pdo,array $config,string $root): a
     return ['config'=>$cfg,'modules'=>$modules,'integrations'=>$integrations,'features'=>$features];
 }
 function admin_platform_drift_material(array $payload): array {
-    $copy=$payload;
-    // Overall release readiness contains worker-heartbeat freshness and other intentionally
-    // time-varying operational state. It remains visible in readiness metrics/snapshots but
-    // must not make a stable configuration drift baseline change solely as time passes.
-    if(isset($copy['config']['release'])&&is_array($copy['config']['release']))unset($copy['config']['release']['ready']);
-    return $copy;
+    $cfg=(array)($payload['config']??[]);$release=(array)($cfg['release']??[]);
+    $stable=[
+      'config'=>[
+        'app'=>(array)($cfg['app']??[]),
+        'database'=>(array)($cfg['database']??[]),
+        'storage'=>(array)($cfg['storage']??[]),
+        'release'=>[
+          'release'=>$release['release']??null,'version'=>$release['version']??null,'phase'=>$release['phase']??null,
+          'channel'=>$release['channel']??null,'extension_version'=>$release['extension_version']??null,
+          'latest_migration'=>$release['latest_migration']??null,'package_fingerprint'=>$release['package_fingerprint']??null,
+          'build_sha'=>$release['build_sha']??null,'manifest_present'=>$release['manifest_present']??null,
+        ],
+      ],
+      'modules'=>[],
+      'integrations'=>[],
+      'features'=>(array)($payload['features']??[]),
+    ];
+    foreach((array)($payload['modules']??[]) as $key=>$row)$stable['modules'][(string)$key]=['desired_state'=>$row['desired_state']??null,'version_label'=>$row['version_label']??null];
+    foreach((array)($payload['integrations']??[]) as $key=>$row)$stable['integrations'][(string)$key]=['desired_state'=>$row['desired_state']??null];
+    return $stable;
 }
 function admin_platform_fingerprint(array $payload): string {return hash('sha256',json_encode(admin_platform_drift_material($payload),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));}
 function admin_platform_capture_snapshot(PDO $pdo,array $config,array $admin,string $type='release_readiness',string $reason='Capture platform readiness snapshot.'): array {
