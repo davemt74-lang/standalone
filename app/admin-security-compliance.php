@@ -89,7 +89,7 @@ function admin_security_source_events(PDO $pdo,array $viewer,array $filters=[],i
     return $out;
 }
 function admin_security_legacy_events(PDO $pdo,array $viewer,int $limit=250): array {
-    if(!admin_security_ready($pdo))return [];$rows=array_merge(admin_security_events($pdo,$viewer,[],$limit),admin_security_source_events($pdo,$viewer,[],$limit));usort($rows,fn($a,$b)=>strcmp((string)$b['created_at'],(string)$a['created_at']));return array_slice($rows,0,$limit);
+    return admin_security_ready($pdo)?admin_security_events($pdo,$viewer,[],$limit):[];
 }
 function admin_security_permission_review(PDO $pdo): array {
     if(!admin_access_ready($pdo))return ['operators'=>[],'issues'=>[]];$operators=admin_access_admin_operators($pdo);$issues=[];
