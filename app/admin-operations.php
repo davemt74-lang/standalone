@@ -122,9 +122,10 @@ function admin_ops_record_action(PDO $pdo,array $admin,?int $accountId,string $a
 }
 function admin_ops_action_catalog(): array {
     return [
-        'resync_stripe_subscription'=>['label'=>'Resync Stripe subscription','risk'=>'routine','capability'=>'admin.billing.sync','description'=>'Read the linked Stripe subscription and resynchronize Annotated billing state.'],
-        'reconcile_ai_overage'=>['label'=>'Reconcile AI overage','risk'=>'elevated','capability'=>'admin.billing.overage','description'=>'Report/retry this account’s pending billable AI overage according to existing V1.70 policy.'],
-        'sync_tax_policy'=>['label'=>'Sync billing profile + tax policy','risk'=>'elevated','capability'=>'admin.billing.tax','description'=>'Synchronize the account billing profile and current automatic-tax policy to its linked Stripe subscription.'],
+        'resync_stripe_subscription'=>['label'=>'Resync Stripe subscription','risk'=>'routine','capability'=>'admin.billing.sync','surface'=>'account','description'=>'Read the linked Stripe subscription and resynchronize Annotated billing state.'],
+        'reconcile_ai_overage'=>['label'=>'Reconcile AI overage','risk'=>'elevated','capability'=>'admin.billing.overage','surface'=>'account','description'=>'Report/retry this account’s pending billable AI overage according to existing V1.70 policy.'],
+        'sync_tax_policy'=>['label'=>'Sync billing profile + tax policy','risk'=>'elevated','capability'=>'admin.billing.tax','surface'=>'account','description'=>'Synchronize the account billing profile and current automatic-tax policy to its linked Stripe subscription.'],
+        'change_platform_feature'=>['label'=>'Change platform feature rollout','risk'=>'elevated','capability'=>'admin.platform.manage','surface'=>'platform','description'=>'Apply an approved feature lifecycle, enforcement, eligibility or rollout change through Admin V2.60.'],
     ];
 }
 function admin_ops_action_preview(PDO $pdo,array $admin,string $actionType,string $accountPublicId,string $reason): array {
@@ -150,8 +151,9 @@ function admin_ops_action_execute(PDO $pdo,array $config,array $admin,string $re
         if($action==='resync_stripe_subscription')$result=billing_operations_resync_account($pdo,$config,$admin,$accountPublic);
         elseif($action==='reconcile_ai_overage')$result=ai_overage_reconcile_account($pdo,$config,$admin,$accountPublic);
         elseif($action==='sync_tax_policy')$result=commercial_billing_sync_subscription_policy($pdo,$config,$admin,$accountPublic);
+        elseif($action==='change_platform_feature'){if(!function_exists('admin_platform_execute_feature_action'))throw new RuntimeException('Admin V2.60 platform governance is unavailable.');$result=admin_platform_execute_feature_action($pdo,$admin,$record);}
         else throw new RuntimeException('Unsupported governed action.');
-        $safe=['ok'=>true,'action_type'=>$action,'account_public_id'=>$accountPublic];if(is_array($result)){foreach(['public_id','subscription_status','status','report'] as $key)if(array_key_exists($key,$result))$safe[$key]=$result[$key];}
+        $safe=['ok'=>true,'action_type'=>$action];if($accountPublic!=='')$safe['account_public_id']=$accountPublic;if(is_array($result)){foreach(['public_id','feature_key','subscription_status','status','enforcement_mode','rollout_percent','report'] as $key)if(array_key_exists($key,$result))$safe[$key]=$result[$key];}
         $pdo->prepare("UPDATE admin_action_records SET status='executed',result_json=?,executed_at=NOW() WHERE id=?")->execute([json_encode($safe,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),(int)$record['id']]);if(function_exists('admin_access_security_audit')&&admin_access_ready($pdo))admin_access_security_audit($pdo,$admin,'action',$recordPublicId,'action_executed',['status'=>$expected],['status'=>'executed'],$record['reason']);admin_ops_refresh_alerts($pdo);return admin_ops_action_record($pdo,$recordPublicId)??$record;
     }catch(Throwable $e){$pdo->prepare("UPDATE admin_action_records SET status='failed',result_json=?,executed_at=NOW() WHERE id=?")->execute([json_encode(['ok'=>false,'error'=>mb_substr($e->getMessage(),0,1000)],JSON_UNESCAPED_SLASHES),(int)$record['id']]);if(function_exists('admin_access_security_audit')&&admin_access_ready($pdo))admin_access_security_audit($pdo,$admin,'action',$recordPublicId,'action_failed',['status'=>'executing'],['status'=>'failed','error'=>mb_substr($e->getMessage(),0,500)],$record['reason']);throw $e;}
 }

@@ -24,6 +24,7 @@ function admin_security_domain_capability(string $domain): ?string {
         'customer_success'=>'admin.customer_success.view',
         'accounts','membership'=>'admin.accounts.view',
         'trust'=>'admin.trust.view',
+        'platform'=>'admin.platform.view',
         'actions'=>'admin.actions.view',
         'security','privacy'=>null,
         default=>null,

@@ -60,6 +60,7 @@ require_once __DIR__ . '/admin-support.php';
 require_once __DIR__ . '/admin-finance.php';
 require_once __DIR__ . '/admin-customer-success.php';
 require_once __DIR__ . '/admin-security-compliance.php';
+require_once __DIR__ . '/admin-platform-governance.php';
 require_once __DIR__ . '/admin-ui.php';
 require_once __DIR__ . '/shell.php';
 require_once __DIR__ . '/access.php';
