@@ -10,6 +10,8 @@ $need('stripe/webhook.php','stripe_billing_process_webhook','Stripe webhook endp
 $need('stripe/webhook.php',"REQUEST_METHOD']??'GET')!=='POST'",'Stripe webhook endpoint must reject non-POST requests.');
 $need('stripe/webhook.php',"'Webhook rejected.'",'Stripe webhook endpoint must return a generic public error.');
 $need('app/stripe-billing.php','function stripe_billing_hosted_url','Hosted Stripe redirects must be validated before browser redirect.');
+$need('app/stripe-billing.php',"Authorization: Basic ",'Stripe v1 requests must use documented HTTP Basic API-key authentication.');
+$need('billing.php','billingAccountSwitcher','Self-service billing must support commercial accounts the user owns/administers.');
 $need('app/shell.php','/billing.php','User menu must expose Billing.');
 $need('app/admin-ui.php',"/admin/billing.php",'Admin IA must expose Billing & Stripe.');
 $need('admin/billing.php',"admin_ui_sidebar('billing')",'Stripe Admin page must use the shared Admin sidebar.');
