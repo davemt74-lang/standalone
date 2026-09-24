@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS billing_dunning_cases (
   grace_until DATETIME NULL,
   next_review_at DATETIME NULL,
   suspended_by_dunning TINYINT(1) NOT NULL DEFAULT 0,
+  suspended_at DATETIME NULL,
   recovered_at DATETIME NULL,
   closed_at DATETIME NULL,
   last_event_id VARCHAR(255) NULL,
