@@ -238,6 +238,14 @@ jobs:
           test -f package-website/tests/admin-v2-20-support-operations-db.php
           test -f package-website/tests/ci/admin-v2-20-upgrade-from-074.php
           test -f package-website/docs/admin-v2-20-support-operations.md
+          test -f package-website/database/migrations/20260924_076_admin_financial_reporting_reconciliation.sql
+          test -f package-website/app/admin-finance.php
+          test -f package-website/admin/financial-reporting.php
+          test -f package-website/admin/financial-export.php
+          test -f package-website/tests/admin-v2-30-financial-reporting-contract.php
+          test -f package-website/tests/admin-v2-30-financial-reporting-db.php
+          test -f package-website/tests/ci/admin-v2-30-upgrade-from-075.php
+          test -f package-website/docs/admin-v2-30-financial-reporting.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

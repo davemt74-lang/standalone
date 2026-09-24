@@ -57,6 +57,7 @@ require_once __DIR__ . '/commercial-billing.php';
 require_once __DIR__ . '/admin-operations.php';
 require_once __DIR__ . '/admin-access.php';
 require_once __DIR__ . '/admin-support.php';
+require_once __DIR__ . '/admin-finance.php';
 require_once __DIR__ . '/admin-ui.php';
 require_once __DIR__ . '/shell.php';
 require_once __DIR__ . '/access.php';
