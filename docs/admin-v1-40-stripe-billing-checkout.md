@@ -46,8 +46,14 @@ Migration 065 adds:
 - `accounts.billing_source`
 - `past_due` to account subscription status
 
-Secret and webhook keys are encrypted at rest with `app.encryption_key`.
+Secret/restricted API keys and webhook signing secrets are encrypted at rest with `app.encryption_key`. Stripe v1 requests use API-key HTTP Basic authentication. The optional publishable key is retained for future client-side Stripe surfaces but is not required for hosted Checkout or Customer Portal.
 
 ## Administrative safety
 
 Manual Admin package assignment is blocked while an account has an active Stripe-managed subscription. Manual, complimentary and internal account workflows remain separate from Stripe. Stripe synchronization never creates or changes Research Teams.
+
+
+## Test/live isolation
+Stripe Customer, Price, Subscription, Invoice and webhook event identities are scoped by Stripe mode. Test history can coexist with live history without assuming provider IDs are globally unique across modes.
+
+Any subscription Price received from Stripe must be mapped to an Annotated package in the same mode. Package changes that would violate the account's effective member limit fail synchronization and surface as failed webhook events for administrator resolution.
