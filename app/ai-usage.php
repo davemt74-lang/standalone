@@ -8,6 +8,10 @@ function ai_usage_ready(PDO $pdo): bool {
             && installer_table_exists($pdo,'ai_usage_adjustments');
     }catch(Throwable $e){return false;}
 }
+function ai_usage_reservations_ready(PDO $pdo): bool {
+    try{return ai_usage_ready($pdo)&&installer_table_exists($pdo,'ai_usage_reservations');}
+    catch(Throwable $e){return false;}
+}
 function ai_usage_estimate_tokens(string $text): int {
     if($text==='')return 0;
     return max(1,(int)ceil(mb_strlen($text,'UTF-8')/4));
@@ -42,7 +46,7 @@ function ai_usage_classification(?array $user,string $initiatedBy,string $taskTy
 }
 function ai_usage_account_summary(PDO $pdo,int $accountId): array {
     $account=ai_usage_account_by_id($pdo,$accountId);if(!$account)throw new RuntimeException('Account not found.');
-    $used=0;$system=0;$admin=0;$adjustment=0;
+    $used=0;$system=0;$admin=0;$adjustment=0;$reserved=0;
     if(ai_usage_ready($pdo)){
         $q=$pdo->prepare("SELECT
           COALESCE(SUM(CASE WHEN chargeable=1 THEN total_tokens ELSE 0 END),0) billable_tokens,
@@ -53,11 +57,15 @@ function ai_usage_account_summary(PDO $pdo,int $accountId): array {
         $used=(int)($r['billable_tokens']??0);$system=(int)($r['system_tokens']??0);$admin=(int)($r['admin_tokens']??0);
         $q=$pdo->prepare('SELECT COALESCE(SUM(token_delta),0) FROM ai_usage_adjustments WHERE account_id=? AND period_start=? AND period_end=?');
         $q->execute([(int)$account['id'],$account['period_start'],$account['period_end']]);$adjustment=(int)$q->fetchColumn();
+        if(ai_usage_reservations_ready($pdo)){
+            $q=$pdo->prepare("SELECT COALESCE(SUM(reserved_tokens),0) FROM ai_usage_reservations WHERE account_id=? AND period_start=? AND period_end=? AND status='reserved' AND expires_at>NOW()");
+            $q->execute([(int)$account['id'],$account['period_start'],$account['period_end']]);$reserved=(int)$q->fetchColumn();
+        }
     }
     $packageBase=$account['monthly_ai_token_allowance']===null?null:(int)$account['monthly_ai_token_allowance'];$entitlementBase=$packageBase;$entitlementSource='package';
     if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$ent=account_admin_effective_entitlements($pdo,(int)$account['id']);$entitlementBase=$ent['values']['monthly_ai_token_allowance'];$entitlementSource=$ent['sources']['monthly_ai_token_allowance']??'package';}catch(Throwable $e){}}
-    $effective=$entitlementBase===null?null:max(0,(int)$entitlementBase+$adjustment);$remaining=$effective===null?null:max(0,$effective-$used);$overage=$effective===null?0:max(0,$used-$effective);
-    return ['account'=>$account,'package_allowance'=>$packageBase,'base_allowance'=>$entitlementBase,'entitlement_source'=>$entitlementSource,'adjustment_tokens'=>$adjustment,'effective_allowance'=>$effective,'used_tokens'=>$used,'remaining_tokens'=>$remaining,'overage_tokens'=>$overage,'system_tokens'=>$system,'admin_tokens'=>$admin];
+    $effective=$entitlementBase===null?null:max(0,(int)$entitlementBase+$adjustment);$remaining=$effective===null?null:max(0,$effective-$used-$reserved);$overage=$effective===null?0:max(0,$used-$effective);
+    return ['account'=>$account,'package_allowance'=>$packageBase,'base_allowance'=>$entitlementBase,'entitlement_source'=>$entitlementSource,'adjustment_tokens'=>$adjustment,'effective_allowance'=>$effective,'used_tokens'=>$used,'reserved_tokens'=>$reserved,'remaining_tokens'=>$remaining,'overage_tokens'=>$overage,'system_tokens'=>$system,'admin_tokens'=>$admin];
 }
 function ai_usage_summary_for_user(PDO $pdo,int $userId): ?array {
     $account=ai_usage_account_for_user($pdo,$userId);return $account?ai_usage_account_summary($pdo,(int)$account['id']):null;
@@ -69,6 +77,39 @@ function ai_usage_assert_can_run(PDO $pdo,?array $user,string $initiatedBy,strin
     if(($account['status']??'active')!=='active'||in_array((string)($account['subscription_status']??''),['paused','canceled'],true))throw new RuntimeException('This account is not active for AI usage.');
     if($summary['effective_allowance']!==null&&$summary['remaining_tokens']<=0)throw new RuntimeException('This account has used its monthly AI token allowance. An administrator can change the package or add an account credit.');
 }
+function ai_usage_reserve_run(PDO $pdo,int $runId,?array $user,string $initiatedBy,string $taskType,string $system,string $prompt,int $modelMaxOutputTokens): ?array {
+    if(!ai_usage_reservations_ready($pdo))return null;
+    [$class,$chargeable]=ai_usage_classification($user,$initiatedBy,$taskType);if(!$chargeable||!$user)return null;
+    $account=ai_usage_account_for_user($pdo,(int)$user['id']);if(!$account)return null;$accountId=(int)$account['id'];
+    return app_with_advisory_lock($pdo,'ai-usage-account',$accountId,function()use($pdo,$runId,$user,$accountId,$system,$prompt,$modelMaxOutputTokens){
+        $q=$pdo->prepare('SELECT * FROM ai_usage_reservations WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);if($existing=$q->fetch())return $existing;
+        $summary=ai_usage_account_summary($pdo,$accountId);$account=$summary['account'];
+        if(($account['status']??'active')!=='active'||in_array((string)($account['subscription_status']??''),['paused','canceled'],true))throw new RuntimeException('This account is not active for AI usage.');
+        $inputUpper=max(1,strlen($system."\n".$prompt)+64);
+        $providerMax=max(256,min(16384,$modelMaxOutputTokens>0?$modelMaxOutputTokens:16384));
+        $maxOutput=$providerMax;$effective=$summary['effective_allowance'];
+        if($effective!==null){
+            $remaining=(int)$summary['remaining_tokens'];
+            if($remaining<=$inputUpper+64)throw new RuntimeException('This account does not have enough remaining AI tokens for this request.');
+            $maxOutput=min($providerMax,$remaining-$inputUpper);
+            if($maxOutput<64)throw new RuntimeException('This account does not have enough remaining AI tokens for this request.');
+        }
+        $reserved=$inputUpper+$maxOutput;$expires=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+2 hours')->format('Y-m-d H:i:s');
+        $pdo->prepare("INSERT INTO ai_usage_reservations(public_id,ai_run_id,account_id,user_id,period_start,period_end,reserved_tokens,max_output_tokens,status,expires_at) VALUES(?,?,?,?,?,?,?,?, 'reserved',?)")
+          ->execute([ulid_like(),$runId,$accountId,(int)$user['id'],$account['period_start'],$account['period_end'],$reserved,$maxOutput,$expires]);
+        $q=$pdo->prepare('SELECT * FROM ai_usage_reservations WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);return $q->fetch()?:throw new RuntimeException('AI usage reservation could not be loaded.');
+    },5);
+}
+function ai_usage_release_run(PDO $pdo,int $runId,string $reason='provider_failed'): void {
+    if(!ai_usage_reservations_ready($pdo))return;
+    $pdo->prepare("UPDATE ai_usage_reservations SET status='released',released_at=NOW(),release_reason=? WHERE ai_run_id=? AND status='reserved'")
+      ->execute([mb_substr(trim($reason)?:'released',0,120),$runId]);
+}
+function ai_usage_settle_run(PDO $pdo,int $runId,int $actualTokens): void {
+    if(!ai_usage_reservations_ready($pdo))return;
+    $pdo->prepare("UPDATE ai_usage_reservations SET status='settled',actual_tokens=?,settled_at=NOW(),release_reason=NULL WHERE ai_run_id=? AND status='reserved'")
+      ->execute([max(0,$actualTokens),$runId]);
+}
 function ai_usage_cost_micros(array $model,int $inputTokens,int $outputTokens): ?int {
     $in=$model['input_cost_per_million_usd']??null;$out=$model['output_cost_per_million_usd']??null;
     if($in===null&&$out===null)return null;
@@ -78,7 +119,7 @@ function ai_usage_record_completed_run(PDO $pdo,int $runId,?array $user,string $
     if(!ai_usage_ready($pdo))return null;
     $q=$pdo->prepare("SELECT r.id,r.public_id,r.user_id,r.task_type,r.model_id,r.scope_type,r.scope_public_id,m.provider_id,m.input_cost_per_million_usd,m.output_cost_per_million_usd
       FROM ai_runs r LEFT JOIN ai_models m ON m.id=r.model_id WHERE r.id=? LIMIT 1");$q->execute([$runId]);$run=$q->fetch();if(!$run)throw new RuntimeException('AI run is unavailable for usage metering.');
-    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);if($existing=$q->fetch())return $existing;
+    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);if($existing=$q->fetch()){ai_usage_settle_run($pdo,$runId,(int)$existing['total_tokens']);return $existing;}
     [$class,$chargeable]=ai_usage_classification($user,$initiatedBy,(string)$run['task_type']);
     $account=null;if(!empty($run['user_id']))$account=ai_usage_account_for_user($pdo,(int)$run['user_id']);
     $providerIn=$generated['input_tokens']??null;$providerOut=$generated['output_tokens']??null;
@@ -87,17 +128,20 @@ function ai_usage_record_completed_run(PDO $pdo,int $runId,?array $user,string $
     $output=$providerOut===null?ai_usage_estimate_tokens((string)($generated['text']??'')):max(0,(int)$providerOut);
     $tokenSource=$providerIn!==null&&$providerOut!==null?'provider':(($providerIn===null&&$providerOut===null)?'estimated':'mixed');
     $cost=ai_usage_cost_micros($run,$input,$output);$meta=['scope_type'=>$run['scope_type'],'scope_public_id'=>$run['scope_public_id'],'token_source'=>$tokenSource];
-    try{
-        $pdo->prepare("INSERT INTO ai_usage_events(public_id,ai_run_id,account_id,user_id,provider_id,model_id,initiated_by,usage_class,chargeable,task_type,token_source,input_tokens,output_tokens,total_tokens,estimated_cost_micros,period_start,period_end,metadata_json)
-          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([
-            ulid_like(),$runId,$account?(int)$account['id']:null,$run['user_id']?(int)$run['user_id']:null,$run['provider_id']?(int)$run['provider_id']:null,$run['model_id']?(int)$run['model_id']:null,
-            $initiatedBy,$class,$chargeable,(string)$run['task_type'],$tokenSource,$input,$output,$input+$output,$cost,$account['period_start']??null,$account['period_end']??null,json_encode($meta,JSON_UNESCAPED_SLASHES)
-          ]);
-    }catch(PDOException $e){
-        $driver=(int)($e->errorInfo[1]??0);if((string)$e->getCode()!=='23000'||$driver!==1062)throw $e;
-        $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);return $q->fetch()?:throw $e;
-    }
-    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE id=?');$q->execute([(int)$pdo->lastInsertId()]);return $q->fetch()?:null;
+    $pdo->beginTransaction();try{
+        try{
+            $pdo->prepare("INSERT INTO ai_usage_events(public_id,ai_run_id,account_id,user_id,provider_id,model_id,initiated_by,usage_class,chargeable,task_type,token_source,input_tokens,output_tokens,total_tokens,estimated_cost_micros,period_start,period_end,metadata_json)
+              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([
+                ulid_like(),$runId,$account?(int)$account['id']:null,$run['user_id']?(int)$run['user_id']:null,$run['provider_id']?(int)$run['provider_id']:null,$run['model_id']?(int)$run['model_id']:null,
+                $initiatedBy,$class,$chargeable,(string)$run['task_type'],$tokenSource,$input,$output,$input+$output,$cost,$account['period_start']??null,$account['period_end']??null,json_encode($meta,JSON_UNESCAPED_SLASHES)
+              ]);$eventId=(int)$pdo->lastInsertId();
+        }catch(PDOException $e){
+            $driver=(int)($e->errorInfo[1]??0);if((string)$e->getCode()!=='23000'||$driver!==1062)throw $e;
+            $q=$pdo->prepare('SELECT id FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);$eventId=(int)($q->fetchColumn()?:0);if(!$eventId)throw $e;
+        }
+        ai_usage_settle_run($pdo,$runId,$input+$output);$pdo->commit();
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE id=?');$q->execute([$eventId]);return $q->fetch()?:null;
 }
 function ai_usage_admin_adjust(PDO $pdo,array $admin,string $accountPublicId,int $tokenDelta,string $reason): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
