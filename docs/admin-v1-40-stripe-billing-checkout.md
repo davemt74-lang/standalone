@@ -16,7 +16,7 @@ Stripe Prices remain immutable. When an Annotated package price changes, synchro
 
 ## Checkout and customer portal
 
-Users without an active Stripe subscription can start Stripe Checkout from `/billing.php`. Existing Stripe subscribers are sent to Stripe Customer Portal for payment methods, invoices, cancellation and any subscription changes enabled in the Stripe portal configuration.
+Users without an active Stripe subscription can start Stripe Checkout from `/billing.php`. A user can administer billing for their personal account and for organization accounts where their commercial account role is `owner` or `admin`; ordinary account members have no billing authority. Existing Stripe subscribers are sent to Stripe Customer Portal for payment methods, invoices, cancellation and any subscription changes enabled in the Stripe portal configuration.
 
 Checkout return pages never provision access directly. Stripe webhook events synchronize confirmed subscription state.
 
@@ -24,7 +24,7 @@ Checkout return pages never provision access directly. Stripe webhook events syn
 
 `/stripe/webhook.php` verifies the Stripe-Signature HMAC with a timestamp tolerance before parsing or applying an event. Each Stripe event ID is claimed in `stripe_webhook_events`; processed or in-flight duplicates do not apply account changes twice.
 
-Handled events include checkout completion, subscription create/update/delete/pause/resume, invoice finalized/paid/payment failed/voided/uncollectible, refunds and disputes.
+Handled events include checkout completion, subscription create/update/delete/pause/resume/trial-will-end, invoice finalized/paid/payment-failed/payment-action-required/voided/uncollectible, refunds and disputes. Dispute events can resolve their associated Charge when the customer is not present directly on the dispute object.
 
 ## Subscription state
 
