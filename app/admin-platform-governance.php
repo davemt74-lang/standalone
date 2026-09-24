@@ -43,7 +43,7 @@ function admin_platform_modules(PDO $pdo): array {
 function admin_platform_module_observed(PDO $pdo,array $module): array {
     $key=(string)$module['module_key'];$available=match($key){
         'core'=>installer_table_exists($pdo,'users')&&installer_table_exists($pdo,'annotations'),
-        'research'=>installer_table_exists($pdo,'research_projects')&&function_exists('research_retrieval_search'),
+        'research'=>installer_table_exists($pdo,'research_projects'),
         'ai'=>installer_table_exists($pdo,'ai_providers')&&function_exists('ai_run'),
         'commerce'=>function_exists('subscriptions_ready')&&subscriptions_ready($pdo),
         'admin'=>admin_access_ready($pdo)&&admin_platform_ready($pdo),
@@ -67,12 +67,12 @@ function admin_platform_integrations(PDO $pdo,array $config): array {
     }unset($r);return $rows;
 }
 function admin_platform_safe_config_summary(PDO $pdo,array $config,string $root): array {
-    $base=(string)($config['app']['base_url']??'');$storage=(string)($config['storage']['private_root']??'');$release=function_exists('release_operational_audit')?release_operational_audit($pdo,$config,$root):null;$schema=function_exists('app_schema_runtime_status')?app_schema_runtime_status($pdo,$root.'/database/migrations'):null;
+    $base=(string)($config['app']['base_url']??'');$storage=(string)($config['storage']['private_root']??'');$schema=function_exists('app_schema_runtime_status')?app_schema_runtime_status($pdo,$root.'/database/migrations'):null;$environment=function_exists('release_environment_checks')?release_environment_checks($pdo,$config):null;$manifest=null;$manifestPath=rtrim($root,'/').'/RELEASE-MANIFEST.json';if(is_file($manifestPath))try{$manifest=json_decode((string)file_get_contents($manifestPath),true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){$manifest=null;}$latest=function_exists('release_latest_migration')?release_latest_migration($root):null;
     return [
       'app'=>['base_url'=>$base,'https'=>strtolower((string)(parse_url($base,PHP_URL_SCHEME)?:''))==='https','session_name'=>(string)($config['app']['session_name']??'annotated_session'),'encryption_key_configured'=>strlen((string)($config['app']['encryption_key']??''))>=32],
       'database'=>['driver'=>(string)$pdo->getAttribute(PDO::ATTR_DRIVER_NAME),'pending_migrations'=>$schema['pending']??[],'changed_migrations'=>$schema['changed']??[],'schema_ready'=>$schema['ready']??false],
       'storage'=>['configured'=>$storage!=='','exists'=>$storage!==''&&is_dir($storage),'writable'=>$storage!==''&&is_writable($storage),'basename'=>$storage!==''?basename(rtrim($storage,'/')):null],
-      'release'=>['release'=>$release['release']['release']??(defined('ANNOTATED_RELEASE')?ANNOTATED_RELEASE:null),'version'=>$release['release']['version']??(defined('ANNOTATED_RELEASE_VERSION')?ANNOTATED_RELEASE_VERSION:null),'phase'=>$release['release']['phase']??(defined('ANNOTATED_RELEASE_PHASE')?ANNOTATED_RELEASE_PHASE:null),'channel'=>$release['release']['channel']??null,'extension_version'=>$release['release']['extension_version']??null,'latest_migration'=>$release['release']['latest_migration']??null,'package_fingerprint'=>$release['release']['package_fingerprint']??null,'build_sha'=>$release['installed_manifest']['manifest']['build_sha']??null,'ready'=>$release['ready']??false],
+      'release'=>['release'=>$manifest['release']??(defined('ANNOTATED_RELEASE')?ANNOTATED_RELEASE:null),'version'=>$manifest['version']??(defined('ANNOTATED_RELEASE_VERSION')?ANNOTATED_RELEASE_VERSION:null),'phase'=>$manifest['phase']??(defined('ANNOTATED_RELEASE_PHASE')?ANNOTATED_RELEASE_PHASE:null),'channel'=>$manifest['channel']??(defined('ANNOTATED_RELEASE_CHANNEL')?ANNOTATED_RELEASE_CHANNEL:null),'extension_version'=>$manifest['extension_version']??(defined('ANNOTATED_EXTENSION_VERSION')?ANNOTATED_EXTENSION_VERSION:null),'latest_migration'=>$manifest['latest_migration']??$latest,'package_fingerprint'=>$manifest['package_fingerprint']??null,'build_sha'=>$manifest['build_sha']??null,'manifest_present'=>$manifest!==null,'ready'=>!empty($environment['ready'])&&!empty($schema['ready'])],
     ];
 }
 function admin_platform_snapshot_payload(PDO $pdo,array $config,string $root): array {
