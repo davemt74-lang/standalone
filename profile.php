@@ -29,20 +29,25 @@ $ownerControls=$owner&&!$viewAsPublic;
 $prefs=profile_showcase_preferences($pdo,(int)$p['id']);
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
-    if(!$owner){http_response_code(403);exit('Profile owner access required.');}
+    if(!$viewer){http_response_code(403);exit('Sign in required.');}
     require_csrf();
     try{
-        $action=(string)($_POST['action']??'');
-        if($action==='profile_pin'){
-            profile_showcase_pin_set($pdo,$viewer,(string)($_POST['object_type']??''),(string)($_POST['object_id']??''),true);
-        }elseif($action==='profile_unpin'){
-            profile_showcase_pin_set($pdo,$viewer,(string)($_POST['object_type']??''),(string)($_POST['object_id']??''),false);
-        }else throw new RuntimeException('Unknown profile action.');
-        $returnTab=preg_replace('/[^a-z_]/','',(string)($_POST['return_tab']??'activity'))?:'activity';
-        header('Location: '.profile_path((string)$p['username']).'?tab='.rawurlencode($returnTab).'&profile_updated=1');exit;
+        $action=(string)($_POST['action']??'');$returnTab=preg_replace('/[^a-z_]/','',(string)($_POST['return_tab']??'activity'))?:'activity';
+        if($action==='profile_pin'||$action==='profile_unpin'){
+            if(!$owner)throw new RuntimeException('Profile owner access required.');
+            profile_showcase_pin_set($pdo,$viewer,(string)($_POST['object_type']??''),(string)($_POST['object_id']??''),$action==='profile_pin');
+            header('Location: '.profile_path((string)$p['username']).'?tab='.rawurlencode($returnTab).'&profile_updated=1');exit;
+        }
+        if(in_array($action,['network_add_research','network_research_this'],true)){
+            $agentPublic=trim((string)($_POST['agent_id']??''));$result=profile_network_add_to_agent($pdo,$config,$viewer,$agentPublic,(string)($_POST['object_type']??''),(string)($_POST['object_id']??''));
+            if($action==='network_research_this'){$agent=research_agent_access($pdo,$viewer,$agentPublic);if($agent&&!empty($agent['conversation_public_id'])){header('Location: /home.php?agent='.rawurlencode((string)$agent['conversation_public_id']));exit;}}
+            header('Location: '.profile_path((string)$p['username']).'?tab='.rawurlencode($returnTab).'&research_added=1');exit;
+        }
+        throw new RuntimeException('Unknown profile action.');
     }catch(Throwable $e){$profileError=$e->getMessage();}
 }
 
+$researchAgents=$viewer?research_agent_list($pdo,$viewer,50):[];
 $collections=!empty($prefs['profile_show_collections'])||$ownerControls?profile_showcase_public_collections($pdo,(int)$p['id'],30):[];
 $showResearch=!empty($prefs['profile_show_research'])||$ownerControls;
 $showCollections=!empty($prefs['profile_show_collections'])||$ownerControls;
@@ -76,9 +81,14 @@ $renderPinControl=function(string $type,string $publicId,string $returnTab)use($
     $key=$type.'|'.$publicId;$isPinned=!empty($pinMap[$key]);
     return '<form method="post" class="profilePinForm"><input type="hidden" name="csrf" value="'.h(csrf_token()).'"><input type="hidden" name="action" value="'.($isPinned?'profile_unpin':'profile_pin').'"><input type="hidden" name="object_type" value="'.h($type).'"><input type="hidden" name="object_id" value="'.h($publicId).'"><input type="hidden" name="return_tab" value="'.h($returnTab).'"><button class="profilePinButton" type="submit">'.($isPinned?'Unpin':'Pin to profile').'</button></form>';
 };
-$renderResearchCard=function(array $r,string $returnTab='research')use($renderPinControl): string{
+$renderNetworkAction=function(string $type,string $publicId,string $returnTab)use($viewer,$researchAgents): string{
+    if(!$viewer||!$researchAgents)return '';
+    $options='';foreach($researchAgents as $agent)$options.='<option value="'.h((string)$agent['public_id']).'">'.h((string)$agent['name']).'</option>';
+    return '<details class="profileResearchHandoff"><summary>Research this</summary><form method="post"><input type="hidden" name="csrf" value="'.h(csrf_token()).'"><input type="hidden" name="object_type" value="'.h($type).'"><input type="hidden" name="object_id" value="'.h($publicId).'"><input type="hidden" name="return_tab" value="'.h($returnTab).'"><select name="agent_id" aria-label="Research Agent">'.$options.'</select><button name="action" value="network_add_research">Add</button><button name="action" value="network_research_this">Add & open Agent</button></form></details>';
+};
+$renderResearchCard=function(array $r,string $returnTab='research')use($renderPinControl,$renderNetworkAction): string{
     $url='/research-report.php?id='.rawurlencode((string)$r['public_id']);
-    return '<article class="profileShowcaseCard profileResearchCard"><div class="profileShowcaseCardTop"><span class="profileObjectType">PUBLISHED RESEARCH</span>'. $renderPinControl('research_report',(string)$r['public_id'],$returnTab).'</div><h3><a href="'.h($url).'">'.h((string)$r['title']).'</a></h3>'.(!empty($r['summary'])?'<p>'.nl2br(h((string)$r['summary'])).'</p>':'').'<footer><span>Version '.h((string)$r['version_number']).'</span><time>'.h((string)$r['published_at']).'</time></footer></article>';
+    return '<article class="profileShowcaseCard profileResearchCard"><div class="profileShowcaseCardTop"><span class="profileObjectType">PUBLISHED RESEARCH</span>'. $renderPinControl('research_report',(string)$r['public_id'],$returnTab).'</div><h3><a href="'.h($url).'">'.h((string)$r['title']).'</a></h3>'.(!empty($r['summary'])?'<p>'.nl2br(h((string)$r['summary'])).'</p>':'').$renderNetworkAction('research_report',(string)$r['public_id'],$returnTab).'<footer><span>Version '.h((string)$r['version_number']).'</span><time>'.h((string)$r['published_at']).'</time></footer></article>';
 };
 $renderCollectionCard=function(array $c,string $returnTab='collections')use($renderPinControl): string{
     $url='/collection.php?id='.rawurlencode((string)$c['public_id']);
@@ -99,13 +109,13 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
 <meta property="og:description" content="<?=h($desc)?>">
 <meta property="og:url" content="<?=h($canonical)?>">
 <?php endif?>
-<link rel="stylesheet" href="/assets/css/app.css?v=profile-200">
+<link rel="stylesheet" href="/assets/css/app.css?v=profile-300">
 </head>
 <body class="profileStandaloneBody">
 <main class="profileStandalonePage">
     <?php if($viewAsPublic):?><div class="profileViewAsBanner"><span>You are viewing your profile as the public sees it.</span><a href="<?=h(profile_path((string)$p['username']))?>">Exit public view</a></div><?php endif?>
     <?php if(!empty($profileError)):?><div class="error profilePageNotice"><?=h($profileError)?></div><?php endif?>
-    <?php if(isset($_GET['profile_updated'])):?><div class="success profilePageNotice">Profile showcase updated.</div><?php endif?>
+    <?php if(isset($_GET['profile_updated'])):?><div class="success profilePageNotice">Profile showcase updated.</div><?php endif?><?php if(isset($_GET['research_added'])):?><div class="success profilePageNotice">Added to your Research Agent with the original public object preserved as provenance.</div><?php endif?>
 
     <section class="profileHero" aria-labelledby="profileName">
         <div class="profileHeroBackdrop" aria-hidden="true"></div>
@@ -157,7 +167,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
         <div class="profileActivityStream">
             <?php if(!$activity):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">✦</div><h3>No public activity yet</h3><p><?= $ownerControls?'Publish an annotation, Research report, or public collection and it will appear here.':'This profile has not shared public activity yet.' ?></p></div><?php endif?>
             <?php foreach($activity as $row):?>
-                <?php if($row['type']==='annotation'):?><div class="profileActivityObject"><?=$renderPinControl('annotation',(string)$row['item']['public_id'],'activity')?><?=annotation_ui_card($row['item'],$viewer,['show_author'=>false])?></div>
+                <?php if($row['type']==='annotation'):?><div class="profileActivityObject"><?=$renderPinControl('annotation',(string)$row['item']['public_id'],'activity')?><?=$renderNetworkAction('annotation',(string)$row['item']['public_id'],'activity')?><?=annotation_ui_card($row['item'],$viewer,['show_author'=>false])?></div>
                 <?php elseif($row['type']==='research_report'):?><?=$renderResearchCard($row['item'],'activity')?>
                 <?php elseif($row['type']==='collection'):?><?=$renderCollectionCard($row['item'],'activity')?><?php endif?>
             <?php endforeach?>
@@ -166,7 +176,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
     <?php elseif($tab==='annotations'):?>
     <section class="profileContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">ANNOTATIONS</span><h2>Public annotations</h2></div><span class="profileActivityCount"><?=h((string)count($p['annotations']))?> shown</span></header><div class="profileFeed">
         <?php if(!$p['annotations']):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">✎</div><h3>No public annotations yet</h3><p><?= $ownerControls?'Annotations you make public will appear here.':'This profile has not shared any public annotations yet.' ?></p></div><?php endif?>
-        <?php foreach($p['annotations'] as $a):?><div class="profileActivityObject"><?=$renderPinControl('annotation',(string)$a['public_id'],'annotations')?><?=annotation_ui_card($a,$viewer,['show_author'=>false])?></div><?php endforeach?>
+        <?php foreach($p['annotations'] as $a):?><div class="profileActivityObject"><?=$renderPinControl('annotation',(string)$a['public_id'],'annotations')?><?=$renderNetworkAction('annotation',(string)$a['public_id'],'annotations')?><?=annotation_ui_card($a,$viewer,['show_author'=>false])?></div><?php endforeach?>
     </div></section>
     <?php elseif($tab==='research'&&$showResearch):?>
     <section class="profileContent profileWideContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH</span><h2>Published Research</h2></div><span class="profileActivityCount"><?=h((string)$reportCount)?> public</span></header><div class="profileShowcaseGrid">
