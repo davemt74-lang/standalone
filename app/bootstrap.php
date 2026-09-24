@@ -55,6 +55,7 @@ require_once __DIR__ . '/ai-overage-billing.php';
 require_once __DIR__ . '/commercial-promotions.php';
 require_once __DIR__ . '/commercial-billing.php';
 require_once __DIR__ . '/admin-operations.php';
+require_once __DIR__ . '/admin-access.php';
 require_once __DIR__ . '/admin-ui.php';
 require_once __DIR__ . '/shell.php';
 require_once __DIR__ . '/access.php';

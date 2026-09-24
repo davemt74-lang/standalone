@@ -223,6 +223,13 @@ jobs:
           test -f package-website/tests/admin-v2-0-operations-command-center-db.php
           test -f package-website/tests/ci/admin-v2-0-upgrade-from-072.php
           test -f package-website/docs/admin-v2-0-operations-command-center.md
+          test -f package-website/database/migrations/20260924_074_admin_roles_permissions_approvals.sql
+          test -f package-website/app/admin-access.php
+          test -f package-website/admin/roles-permissions.php
+          test -f package-website/tests/admin-v2-10-roles-permissions-approvals-contract.php
+          test -f package-website/tests/admin-v2-10-roles-permissions-approvals-db.php
+          test -f package-website/tests/ci/admin-v2-10-upgrade-from-073.php
+          test -f package-website/docs/admin-v2-10-roles-permissions-approvals.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

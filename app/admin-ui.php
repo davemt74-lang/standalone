@@ -8,6 +8,7 @@ function admin_ui_nav_sections(): array {
             'items'=>[
                 'dashboard'=>['label'=>'Command Center','url'=>'/admin/'],
                 'action_center'=>['label'=>'Action Center','url'=>'/admin/action-center.php'],
+                'roles_permissions'=>['label'=>'Roles & Permissions','url'=>'/admin/roles-permissions.php'],
                 'assistant'=>['label'=>'Admin Assistant','url'=>'/admin/assistant.php'],
             ],
         ],
@@ -60,16 +61,17 @@ function admin_ui_nav_sections(): array {
     ];
 }
 function admin_ui_sidebar(string $active='dashboard'): string {
+    $profile=null;global $pdo;if(isset($pdo)&&$pdo instanceof PDO&&function_exists('admin_access_ready')&&admin_access_ready($pdo)){try{$viewer=current_user($pdo);if($viewer&&($viewer['role']??'')==='admin')$profile=admin_access_profile($pdo,$viewer);}catch(Throwable $e){}}
     $out='<aside class="adminSidebar" aria-label="Admin navigation"><div class="adminSidebarHead"><a class="adminSidebarBrand" href="/admin/">Annotated <span>Admin</span></a><a class="adminSidebarSite" href="/home.php">Open site</a></div><nav class="adminSidebarNav">';
     foreach(admin_ui_nav_sections() as $section){
-        $contains=array_key_exists($active,$section['items']);
+        $items=$section['items'];if($profile!==null)$items=array_filter($items,fn($item,$key)=>admin_ops_has_capability($profile,admin_access_nav_capability((string)$key)),ARRAY_FILTER_USE_BOTH);if(!$items)continue;
+        $contains=array_key_exists($active,$items);
         $out.='<details class="adminNavGroup"'.($contains?' open':'').'><summary>'.h((string)$section['label']).'</summary><div class="adminNavGroupLinks">';
-        foreach($section['items'] as $key=>$item){
-            $out.='<a class="adminNavLink'.($active===$key?' active':'').'" href="'.h((string)$item['url']).'">'.h((string)$item['label']).'</a>';
-        }
+        foreach($items as $key=>$item)$out.='<a class="adminNavLink'.($active===$key?' active':'').'" href="'.h((string)$item['url']).'">'.h((string)$item['label']).'</a>';
         $out.='</div></details>';
     }
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90</span><a href="/logout.php">Sign out</a></div></aside>';
+    $roleLabel=$profile!==null?' · '.h((string)($profile['role_name']??$profile['role_key']??'')):'';
+    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V2.10 · Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90'.$roleLabel.'</span><a href="/logout.php">Sign out</a></div></aside>';
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}
