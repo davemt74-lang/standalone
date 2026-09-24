@@ -144,7 +144,7 @@ function stripe_billing_link_customer(PDO $pdo,int $accountId,string $mode,strin
     $q=$pdo->prepare('SELECT account_id,mode FROM stripe_customers WHERE stripe_customer_id=? LIMIT 1');$q->execute([$customerId]);$existingByStripe=$q->fetch();
     if($existingByStripe&&((int)$existingByStripe['account_id']!==$accountId||(string)$existingByStripe['mode']!==$mode))throw new RuntimeException('Stripe Customer is already linked to a different Annotated account or mode.');
     $existing=stripe_billing_customer($pdo,$accountId,$mode);
-    if($existing){$pdo->prepare('UPDATE stripe_customers SET stripe_customer_id=?,email_snapshot=?,name_snapshot=?,metadata_json=?,last_synced_at=NOW() WHERE id=?')->execute([$customerId,$email,$name,json_encode($metadata,JSON_UNESCAPED_SLASHES),(int)$existing['id']]);}
+    if($existing){$pdo->prepare('UPDATE stripe_customers SET stripe_customer_id=?,email_snapshot=COALESCE(?,email_snapshot),name_snapshot=COALESCE(?,name_snapshot),metadata_json=?,last_synced_at=NOW() WHERE id=?')->execute([$customerId,$email,$name,json_encode($metadata,JSON_UNESCAPED_SLASHES),(int)$existing['id']]);}
     else{$pdo->prepare("INSERT INTO stripe_customers(public_id,account_id,mode,stripe_customer_id,email_snapshot,name_snapshot,metadata_json,last_synced_at) VALUES(?,?,?,?,?,?,?,NOW())")->execute([ulid_like(),$accountId,$mode,$customerId,$email,$name,json_encode($metadata,JSON_UNESCAPED_SLASHES)]);}
     return stripe_billing_customer($pdo,$accountId,$mode)??throw new RuntimeException('Stripe Customer mapping could not be saved.');
 }
@@ -232,7 +232,7 @@ function stripe_billing_apply_package_and_state(PDO $pdo,array $account,?array $
 }
 function stripe_billing_sync_subscription(PDO $pdo,array $object,string $mode,?string $eventId=null): ?array {
     $subscriptionId=(string)($object['id']??'');$customerId=is_string($object['customer']??null)?(string)$object['customer']:'';if($subscriptionId===''||$customerId==='')return null;
-    $metadata=is_array($object['metadata']??null)?$object['metadata']:[];$accountPublic=(string)($metadata['annotated_account_id']??'');$account=$accountPublic!==''?stripe_billing_account_by_public($pdo,$accountPublic):null;if(!$account)$account=stripe_billing_account_by_customer($pdo,$customerId);if(!$account)throw new RuntimeException('Stripe subscription could not be matched to an Annotated account.');
+    $metadata=is_array($object['metadata']??null)?$object['metadata']:[];$accountPublic=(string)($metadata['annotated_account_id']??'');$account=$accountPublic!==''?stripe_billing_account_by_public($pdo,$accountPublic):null;if(!$account)$account=stripe_billing_account_by_customer($pdo,$customerId);if(!$account)throw new RuntimeException('Stripe subscription could not be matched to an Annotated account.');stripe_billing_link_customer($pdo,(int)$account['id'],$mode,$customerId,null,(string)$account['name'],$metadata);
     $first=$object['items']['data'][0]??[];$priceId=(string)($first['price']['id']??$object['plan']['id']??'');$priceMap=$priceId!==''?stripe_billing_price_for_stripe_id($pdo,$priceId):null;
     $status=(string)($object['status']??'incomplete');$periodStart=stripe_billing_datetime($object['current_period_start']??$first['current_period_start']??null);$periodEnd=stripe_billing_datetime($object['current_period_end']??$first['current_period_end']??null);$trialEnd=stripe_billing_datetime($object['trial_end']??null);
     $pdo->beginTransaction();try{
