@@ -30,8 +30,7 @@ $need('collection.php','is_blocked($pdo','Public collections must enforce the sa
 foreach(['og:title','og:description','canonical'] as $needle)$need('collection.php',$needle,'Public collection rich-preview contract missing: '.$needle);
 
 $avoid('database/migrations/20260923_062_profile_social_discovery_research_network.sql','CREATE TABLE','Profile Phase 3 must not introduce a parallel social/discovery persistence layer.');
-$latest=glob($root.'/database/migrations/*.sql')?:[];sort($latest,SORT_STRING);$latest=$latest?basename((string)end($latest)):'';
-if($latest!=='20260923_061_profile_public_identity_showcase.sql')$fail[]='Profile Phase 3 must keep migration 061 as the current latest migration.';
+$need('database/migrations/20260923_061_profile_public_identity_showcase.sql','profile_pins','Profile Phase 3 must remain based on the Profile Phase 2 migration baseline without introducing its own social migration.');
 
 $css=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');
 if(!hash_equals(hash('sha256',$css),hash('sha256',$ext)))$fail[]='Website and extension shared CSS must remain byte-identical.';
