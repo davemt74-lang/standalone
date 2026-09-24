@@ -156,6 +156,13 @@ jobs:
           test -f package-website/tests/admin-v1-20-information-architecture-contract.php
           test -f package-website/tests/admin-v1-20-dashboard-db.php
           test -f package-website/docs/admin-v1-20-information-architecture-dashboard.md
+          test -f package-website/database/migrations/20260924_064_account_lifecycle_membership_entitlements.sql
+          test -f package-website/app/account-admin.php
+          test -f package-website/admin/account.php
+          test -f package-website/tests/admin-v1-30-account-lifecycle-contract.php
+          test -f package-website/tests/admin-v1-30-account-lifecycle-db.php
+          test -f package-website/tests/ci/admin-v1-30-upgrade-from-063.php
+          test -f package-website/docs/admin-v1-30-account-lifecycle-membership-entitlements.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
