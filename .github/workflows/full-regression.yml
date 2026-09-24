@@ -114,13 +114,20 @@ jobs:
           DB_PASS: root
           ADMIN_V140_RESET_DB: '1'
         run: php tests/ci/admin-v1-40-upgrade-from-064.php
-      - name: Code audit hardening upgrade rehearsal from migration 065 through 066
+      - name: Code audit hardening upgrade rehearsal from migration 065 through current
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_code_audit_upgrade;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
           CODE_AUDIT_RESET_DB: '1'
         run: php tests/ci/code-audit-upgrade-from-065.php
+      - name: Code audit continuation upgrade rehearsal from migration 066 through 067
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_code_audit_067_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          CODE_AUDIT_067_RESET_DB: '1'
+        run: php tests/ci/code-audit-upgrade-from-066.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -235,13 +242,20 @@ jobs:
           DB_PASS: root
           ADMIN_V140_RESET_DB: '1'
         run: php tests/ci/admin-v1-40-upgrade-from-064.php
-      - name: MySQL 8 code audit hardening upgrade rehearsal from migration 065 through 066
+      - name: MySQL 8 code audit hardening upgrade rehearsal from migration 065 through current
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_code_audit_upgrade;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
           CODE_AUDIT_RESET_DB: '1'
         run: php tests/ci/code-audit-upgrade-from-065.php
+      - name: MySQL 8 code audit continuation upgrade rehearsal from migration 066 through 067
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_code_audit_067_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          CODE_AUDIT_067_RESET_DB: '1'
+        run: php tests/ci/code-audit-upgrade-from-066.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
