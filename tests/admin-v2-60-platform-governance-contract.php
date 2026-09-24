@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$message;};
+$m='database/migrations/20260924_079_admin_platform_configuration_governance.sql';
+foreach(['admin_platform_features','admin_platform_modules','admin_platform_integrations','admin_platform_snapshots','admin_platform_events','platform_operations_admin','change_platform_feature','admin.platform.view','admin.platform.manage','admin.platform.release'] as $n)$need($m,$n,'Migration 079 missing '.$n);
+foreach(['function admin_platform_ready','function admin_platform_feature_effective','function admin_platform_account_features','function admin_platform_integrations','function admin_platform_safe_config_summary','function admin_platform_capture_snapshot','function admin_platform_drift','function admin_platform_feature_action_preview','function admin_platform_execute_feature_action','function admin_platform_validate_feature_targets','function admin_platform_agent_context'] as $n)$need('app/admin-platform-governance.php',$n,'V2.60 runtime missing '.$n);
+$need('app/admin-operations.php',"'change_platform_feature'",'Action catalog must include governed platform feature changes.');
+$need('app/admin-operations.php','admin_platform_execute_feature_action','Action execution must route approved platform feature changes to V2.60.');
+foreach(["'admin.platform.view'","'admin.platform.manage'","'admin.platform.release'","'/admin/platform-governance.php'=>['admin.platform.view','admin.platform.manage']","'platform_governance'=>'admin.platform.view'"] as $n)$need('app/admin-access.php',$n,'Admin access registry missing '.$n);
+$need('app/admin-ui.php',"'platform_governance'=>['label'=>'Platform Governance'",'Admin navigation must include Platform Governance.');
+$need('app/admin-ui.php','Admin V2.60','Admin shell must identify V2.60.');
+foreach(['ADMIN V2.60 · PLATFORM CONFIGURATION, FEATURE GOVERNANCE & RELEASE OPERATIONS','FEATURE GOVERNANCE','MODULE REGISTRY','INTEGRATION REGISTRY','PLATFORM CHANGE LEDGER','Preview → Approve → Execute'] as $n)$need('admin/platform-governance.php',$n,'Platform Governance workspace missing '.$n);
+$need('admin/index.php','Platform readiness','Command Center must surface platform readiness.');
+$need('admin/index.php','PLATFORM GOVERNANCE','Command Center must link Platform Governance.');
+$need('admin/account.php','ADMIN V2.60 · PLATFORM FEATURES','Account 360 must expose feature eligibility.');
+$need('admin/system-health.php','Platform Governance','System Health must link V2.60.');
+$need('app/admin-security-compliance.php',"'platform'=>'admin.platform.view'",'Security audit must permission-gate the platform source domain.');
+$need('app/agent-chat.php','admin_platform_agent_context','Agent Chat must receive V2.60 context.');
+$need('app/agent-chat.php','Admin V2.60 Platform Governance context is read-only','Agent prompt must deny V2.60 mutation claims.');
+$need('admin/action-center.php',"($meta['surface']??'account')!=='account'",'Account Action Center form must not route platform actions through account preview.');
+$web=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');if($web!==$ext)$fail[]='Extension landing base CSS must remain exactly synchronized with website base CSS.';
+$need('tests/ci/run-full-regression.sh','tests/admin-v2-60-platform-governance-db.php','Full regression must execute V2.60 database journey.');
+$need('.github/workflows/full-regression.yml','admin-v2-60-upgrade-from-078.php','Phase gate must rehearse migration 079 from 078.');
+$need('.github/workflows/package-two-zips.yml','20260924_079_admin_platform_configuration_governance.sql','Production package must include migration 079.');
+$need('tests/ci/package-smoke.sh','admin-v2-60-platform-configuration-governance.md','Release smoke must require V2.60 files.');
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Admin V2.60 Platform Configuration, Feature Governance & Release Operations static contract passed.\n";
