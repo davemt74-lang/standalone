@@ -63,7 +63,7 @@ function admin_ui_sidebar(string $active='dashboard'): string {
         }
         $out.='</div></details>';
     }
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.20</span><a href="/logout.php">Sign out</a></div></aside>';
+    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.30</span><a href="/logout.php">Sign out</a></div></aside>';
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}
@@ -80,6 +80,8 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
         'failed_ai_jobs'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM ai_jobs WHERE status='failed'"),
         'queued_ai_jobs'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM ai_jobs WHERE status='queued'"),
         'failed_source_jobs'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM source_monitor_jobs WHERE status='failed'"),
+        'suspended_accounts'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM accounts WHERE status='suspended'"),
+        'paused_subscriptions'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM accounts WHERE subscription_status='paused' AND status<>'closed'"),
     ];
     $usage=['used_tokens'=>0,'capped_accounts'=>0,'exhausted_accounts'=>0,'system_tokens'=>0,'admin_tokens'=>0];
     if(function_exists('ai_usage_ready')&&ai_usage_ready($pdo)){
@@ -96,6 +98,8 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
     $attention=[];
     $add=function(string $label,int $count,string $url,string $severity='warn')use(&$attention){if($count>0)$attention[]=['label'=>$label,'count'=>$count,'url'=>$url,'severity'=>$severity];};
     $add('Accounts with exhausted AI allowance',(int)$usage['exhausted_accounts'],'/admin/usage.php','warn');
+    $add('Suspended commercial accounts',(int)$counts['suspended_accounts'],'/admin/accounts.php?status=suspended','warn');
+    $add('Paused subscriptions',(int)$counts['paused_subscriptions'],'/admin/accounts.php?subscription_status=paused','warn');
     $add('Failed AI jobs',(int)$counts['failed_ai_jobs'],'/admin/system-health.php','danger');
     $add('Failed source-monitor jobs',(int)$counts['failed_source_jobs'],'/admin/source-monitor.php','danger');
     $add('Open moderation reports',(int)$counts['open_reports'],'/admin/moderation.php','warn');
@@ -111,11 +115,15 @@ function admin_ui_account_rows(PDO $pdo,array $filters=[],int $limit=250): array
     if(in_array($status,['active','suspended','closed'],true)){$where[]='a.status=?';$params[]=$status;}
     if(in_array($subscription,['trialing','active','paused','canceled'],true)){$where[]='a.subscription_status=?';$params[]=$subscription;}
     if($package!==''){$where[]='p.public_id=?';$params[]=$package;}
-    $sql="SELECT a.*,u.username,u.display_name,u.email,p.public_id package_public_id,p.slug package_slug,p.name package_name,p.monthly_ai_token_allowance,p.member_limit,
+    $sql="SELECT a.*,u.username,u.display_name,u.email,owner.username owner_username,owner.display_name owner_display_name,owner.email owner_email,p.public_id package_public_id,p.slug package_slug,p.name package_name,p.monthly_ai_token_allowance,p.member_limit,
       (SELECT COUNT(*) FROM account_members am WHERE am.account_id=a.id) member_count
-      FROM accounts a JOIN subscription_packages p ON p.id=a.package_id LEFT JOIN users u ON u.id=a.personal_user_id";
+      FROM accounts a JOIN subscription_packages p ON p.id=a.package_id LEFT JOIN users u ON u.id=a.personal_user_id LEFT JOIN users owner ON owner.id=a.owner_user_id";
     if($where)$sql.=' WHERE '.implode(' AND ',$where);$sql.=' ORDER BY a.updated_at DESC,a.id DESC LIMIT '.$limit;
     $stmt=$pdo->prepare($sql);$stmt->execute($params);$rows=$stmt->fetchAll()?:[];
-    if(function_exists('ai_usage_ready')&&ai_usage_ready($pdo))foreach($rows as &$row)$row['usage']=ai_usage_account_summary($pdo,(int)$row['id']);unset($row);
+    foreach($rows as &$row){
+        $row['effective_member_limit']=(int)$row['member_limit'];$row['override_count']=0;
+        if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$ent=account_admin_effective_entitlements($pdo,(int)$row['id']);$row['effective_member_limit']=(int)$ent['values']['member_limit'];$row['override_count']=count($ent['overrides']);}catch(Throwable $e){}}
+        if(function_exists('ai_usage_ready')&&ai_usage_ready($pdo))$row['usage']=ai_usage_account_summary($pdo,(int)$row['id']);
+    }unset($row);
     return $rows;
 }
