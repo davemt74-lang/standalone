@@ -64,7 +64,7 @@ function ai_usage_account_summary(PDO $pdo,int $accountId): array {
     }
     $packageBase=$account['monthly_ai_token_allowance']===null?null:(int)$account['monthly_ai_token_allowance'];$entitlementBase=$packageBase;$entitlementSource='package';
     if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$ent=account_admin_effective_entitlements($pdo,(int)$account['id']);$entitlementBase=$ent['values']['monthly_ai_token_allowance'];$entitlementSource=$ent['sources']['monthly_ai_token_allowance']??'package';}catch(Throwable $e){}}
-    $effective=$entitlementBase===null?null:max(0,(int)$entitlementBase+$adjustment);if(function_exists('ai_overage_period_allowance'))$effective=ai_overage_period_allowance($pdo,$account,$effective);$remaining=$effective===null?null:max(0,$effective-$used-$reserved);$overage=$effective===null?0:max(0,$used-$effective);
+    $periodBase=$entitlementBase;if(function_exists('ai_overage_period_allowance'))$periodBase=ai_overage_period_allowance($pdo,$account,$entitlementBase);$effective=$periodBase===null?null:max(0,(int)$periodBase+$adjustment);$remaining=$effective===null?null:max(0,$effective-$used-$reserved);$overage=$effective===null?0:max(0,$used-$effective);
     return ['account'=>$account,'package_allowance'=>$packageBase,'base_allowance'=>$entitlementBase,'entitlement_source'=>$entitlementSource,'adjustment_tokens'=>$adjustment,'effective_allowance'=>$effective,'used_tokens'=>$used,'reserved_tokens'=>$reserved,'remaining_tokens'=>$remaining,'overage_tokens'=>$overage,'system_tokens'=>$system,'admin_tokens'=>$admin];
 }
 function ai_usage_summary_for_user(PDO $pdo,int $userId): ?array {
