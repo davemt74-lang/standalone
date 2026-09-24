@@ -191,6 +191,13 @@ jobs:
           DB_PASS: root
           ADMIN_V230_RESET_DB: '1'
         run: php tests/ci/admin-v2-30-upgrade-from-075.php
+      - name: Admin V2.40 Customer Success upgrade rehearsal from migration 076 through 077
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v240_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V240_RESET_DB: '1'
+        run: php tests/ci/admin-v2-40-upgrade-from-076.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -251,6 +258,7 @@ jobs:
           php tests/admin-v2-10-roles-permissions-approvals-db.php
           php tests/admin-v2-20-support-operations-db.php
           php tests/admin-v2-30-financial-reporting-db.php
+          php tests/admin-v2-40-customer-success-db.php
       - name: MySQL 8 upgrade rehearsal from migration 056 through 059
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
@@ -391,6 +399,13 @@ jobs:
           DB_PASS: root
           ADMIN_V230_RESET_DB: '1'
         run: php tests/ci/admin-v2-30-upgrade-from-075.php
+      - name: MySQL 8 Admin V2.40 Customer Success upgrade rehearsal from migration 076 through 077
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v240_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V240_RESET_DB: '1'
+        run: php tests/ci/admin-v2-40-upgrade-from-076.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
