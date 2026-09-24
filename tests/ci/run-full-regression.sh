@@ -81,6 +81,7 @@ db_tests=(
   tests/phase63-vp3-connection-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
+  tests/admin-subscriptions-packages-v1-db.php
 )
 
 for test_file in "${db_tests[@]}"; do
