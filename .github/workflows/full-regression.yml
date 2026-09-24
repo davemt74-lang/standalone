@@ -131,6 +131,7 @@ jobs:
           php tests/phase62-v1-1-soak-db.php
           php tests/phase63-vp3-connection-db.php
           php tests/profile-phase2-showcase-db.php
+          php tests/profile-phase3-research-network-db.php
       - name: MySQL 8 upgrade rehearsal from migration 056 through 059
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
