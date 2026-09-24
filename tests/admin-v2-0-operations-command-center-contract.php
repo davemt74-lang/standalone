@@ -1,0 +1,23 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$message;};
+$m='database/migrations/20260924_073_admin_v2_operations_command_center.sql';
+foreach(['admin_operator_profiles','admin_operations_alerts','admin_saved_views','admin_action_records','correlation_id','last_scan_token'] as $n)$need($m,$n,'Migration 073 missing '.$n);
+foreach(['function admin_ops_refresh_alerts','function admin_ops_alert_update','function admin_ops_saved_view_save','function admin_ops_record_action','function admin_ops_action_preview','function admin_ops_action_execute','function admin_ops_global_search','function admin_ops_account_timeline','function admin_ops_account_360','function admin_ops_operator_profile','function admin_ops_agent_context'] as $n)$need('app/admin-operations.php',$n,'Admin V2.0 runtime missing '.$n);
+$need('app/admin-operations.php',"status='executing'",'Governed execution must claim a preview before external side effects.');
+$need('app/admin-operations.php',"actor_user_id']!==(int)\$admin['id']", 'Governed previews must be executable only by their creating administrator.');
+$need('app/admin-operations.php','source condition is no longer active','Operations alerts must auto-resolve only when their source condition disappears.');
+$need('app/admin-operations.php','admin.*','V2.0 capability groundwork must preserve super-admin authority.');
+foreach(['ADMIN V2.0 · ADMIN CONTROL CENTER','GLOBAL OPERATIONS SEARCH','NEEDS ATTENTION','Save this view','GOVERNED ACTIONS'] as $n)$need('admin/index.php',$n,'Command Center missing '.$n);
+foreach(['Governed action center','Preview governed action','Execute reviewed action','ACTION LEDGER'] as $n)$need('admin/action-center.php',$n,'Action Center missing '.$n);
+foreach(['ADMIN V2.0 · ACCOUNT 360','Unified commercial account','UNIFIED AUDIT TIMELINE','Account 360 history'] as $n)$need('admin/account.php',$n,'Account 360 missing '.$n);
+$need('app/admin-ui.php',"'action_center'=>",'Admin navigation must expose Action Center.');
+$need('app/admin-ui.php','Admin V2.0','Shared Admin shell must identify V2.0.');
+$need('app/agent-chat.php','admin_ops_agent_context','Admin Agent must receive read-only V2.0 operational context.');
+$need('app/agent-chat.php','Admin V2.0 operations context is read-only','Admin Agent must not gain operations mutation authority.');
+$need('tests/ci/run-full-regression.sh','tests/admin-v2-0-operations-command-center-db.php','Full regression must execute V2.0 database journey.');
+$need('.github/workflows/full-regression.yml','admin-v2-0-upgrade-from-072.php','Phase gate must rehearse migration 073 from 072.');
+$need('.github/workflows/package-two-zips.yml','20260924_073_admin_v2_operations_command_center.sql','Production package must include migration 073.');
+$need('tests/ci/package-smoke.sh','admin-v2-0-operations-command-center.md','Release smoke must require V2.0 files.');
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Admin V2.0 unified operations command center static contract passed.\n";
