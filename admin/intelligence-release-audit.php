@@ -3,7 +3,7 @@ declare(strict_types=1);
 require dirname(__DIR__).'/app/bootstrap.php';
 $u=require_admin($pdo);
 $audit=intelligence_release_audit($pdo,dirname(__DIR__));
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Intelligence Release Audit · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Intelligence Release Audit · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('release_audit')?>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">PHASE 48 · END-TO-END CLOSED LOOP AUDIT</span><h1>Intelligence release readiness</h1><p>Read-only release hardening across the Phase 37–47 intelligence lifecycle. This page verifies migrations, governance integrity, locked campaign current-use state, and one closed-loop lineage sample. It does not change datasets, evaluations, training, model lifecycle, deployment, or AI routing.</p></div>
   <div class="inlineActions"><a class="button secondary" href="/admin/model-campaigns.php">Improvement Campaigns</a><a class="button secondary" href="/admin/model-registry.php">Model Registry</a><a class="button secondary" href="/admin/model-release.php">Release Decisions</a><a class="button secondary" href="/admin/model-deployment.php">Deployments</a><a class="button secondary" href="/admin/model-observability.php">Model Health</a><a class="button secondary" href="/upgrade.php">Database Upgrade</a></div>
