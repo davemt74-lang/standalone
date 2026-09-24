@@ -21,7 +21,7 @@ $need('app/ai.php','ai_usage_reserve_run','AI provider execution must reserve qu
 $need('app/ai.php',"'provider_failed'",'Failed provider calls must release unused quota reservations.');
 $need('app/ai-usage.php','$driver!==1062','AI usage insert idempotency must recover only from duplicate-key races.');
 $checkoutStart=strpos($stripe,'function stripe_billing_create_checkout_for_account');$checkoutEnd=strpos($stripe,"\nfunction ",$checkoutStart+1);$checkout=substr($stripe,$checkoutStart,$checkoutEnd-$checkoutStart);
-foreach(['commercial_account_with_lock','stripe_checkout_sessions','annotated-checkout-'.$mode.'-'.$attemptPublic,'request_json'] as $n)if(!str_contains($checkout,$n))$fail[]='Stripe Checkout creation missing duplicate-prevention contract: '.$n;
+foreach(['commercial_account_with_lock','stripe_checkout_sessions','annotated-checkout-','attemptPublic','request_json'] as $n)if(!str_contains($checkout,$n))$fail[]='Stripe Checkout creation missing duplicate-prevention contract: '.$n;
 $need('app/stripe-billing.php',"checkout.session.expired",'Stripe Checkout expiry must reconcile the local Checkout ledger.');
 $need('app/stripe-billing.php',"stripe_billing_checkout_set_status",'Stripe Checkout completion/expiry must update the durable local ledger.');
 $need('app/functions.php','function public_http_url_resolve','Public source HTTP must validate and return the exact DNS resolution it pins.');
