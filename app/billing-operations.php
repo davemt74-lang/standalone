@@ -149,25 +149,28 @@ function billing_operations_price(PDO $pdo,?int $packageId): int {
 }
 function billing_operations_current_metrics(PDO $pdo,?string $mode=null): array {
     if(!billing_operations_ready($pdo))return [];$mode=$mode?:((string)(stripe_billing_settings($pdo)['mode']??'test'));
-    $q=$pdo->query("SELECT
-      COALESCE(SUM(CASE WHEN a.status<>'closed' AND a.subscription_status IN ('active','past_due') AND a.billing_source IN ('stripe','manual') THEN p.monthly_price_cents ELSE 0 END),0) mrr_cents,
-      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='active' THEN 1 ELSE 0 END) active_subscriptions,
-      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='trialing' THEN 1 ELSE 0 END) trialing_subscriptions,
-      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='past_due' THEN 1 ELSE 0 END) past_due_subscriptions,
-      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='paused' THEN 1 ELSE 0 END) paused_subscriptions,
-      SUM(CASE WHEN a.subscription_status='canceled' THEN 1 ELSE 0 END) canceled_subscriptions
-      FROM accounts a JOIN subscription_packages p ON p.id=a.package_id");$m=$q->fetch()?:[];
+    $visible="(a.billing_source<>'stripe' OR EXISTS(SELECT 1 FROM stripe_subscriptions sx WHERE sx.account_id=a.id AND sx.mode=?))";
+    $sql="SELECT
+      COALESCE(SUM(CASE WHEN a.status<>'closed' AND a.subscription_status IN ('active','past_due') AND a.billing_source IN ('stripe','manual') AND ".$visible." THEN p.monthly_price_cents ELSE 0 END),0) mrr_cents,
+      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='active' AND ".$visible." THEN 1 ELSE 0 END) active_subscriptions,
+      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='trialing' AND ".$visible." THEN 1 ELSE 0 END) trialing_subscriptions,
+      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='past_due' AND ".$visible." THEN 1 ELSE 0 END) past_due_subscriptions,
+      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='paused' AND ".$visible." THEN 1 ELSE 0 END) paused_subscriptions,
+      SUM(CASE WHEN a.subscription_status='canceled' AND ".$visible." THEN 1 ELSE 0 END) canceled_subscriptions
+      FROM accounts a JOIN subscription_packages p ON p.id=a.package_id";
+    $q=$pdo->prepare($sql);$q->execute(array_fill(0,6,$mode));$m=$q->fetch()?:[];
     $q=$pdo->prepare("SELECT COALESCE(SUM(amount_paid_cents),0) FROM stripe_invoices WHERE mode=? AND status='paid' AND paid_at>=DATE_SUB(UTC_TIMESTAMP(),INTERVAL 30 DAY)");$q->execute([$mode]);$collected=(int)$q->fetchColumn();
     $q=$pdo->prepare("SELECT COUNT(*) FROM billing_dunning_cases WHERE stripe_mode=? AND status IN ('open','action_required','grace','suspended')");$q->execute([$mode]);$open=(int)$q->fetchColumn();
     $mrr=(int)($m['mrr_cents']??0);return ['mode'=>$mode,'mrr_cents'=>$mrr,'arr_cents'=>$mrr*12,'active_subscriptions'=>(int)($m['active_subscriptions']??0),'trialing_subscriptions'=>(int)($m['trialing_subscriptions']??0),'past_due_subscriptions'=>(int)($m['past_due_subscriptions']??0),'paused_subscriptions'=>(int)($m['paused_subscriptions']??0),'canceled_subscriptions'=>(int)($m['canceled_subscriptions']??0),'collected_30d_cents'=>$collected,'open_dunning_cases'=>$open];
 }
-function billing_operations_revenue_by_package(PDO $pdo): array {
-    if(!billing_operations_ready($pdo))return [];$sql="SELECT p.public_id package_public_id,p.name package_name,p.monthly_price_cents,
-      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status IN ('active','past_due') AND a.billing_source IN ('stripe','manual') THEN 1 ELSE 0 END) billable_accounts,
-      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status IN ('active','past_due') AND a.billing_source IN ('stripe','manual') THEN p.monthly_price_cents ELSE 0 END) mrr_cents,
-      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='trialing' THEN 1 ELSE 0 END) trialing_accounts,
-      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='past_due' THEN 1 ELSE 0 END) past_due_accounts
-      FROM subscription_packages p LEFT JOIN accounts a ON a.package_id=p.id GROUP BY p.id,p.public_id,p.name,p.monthly_price_cents ORDER BY mrr_cents DESC,p.name";return $pdo->query($sql)->fetchAll()?:[];
+function billing_operations_revenue_by_package(PDO $pdo,?string $mode=null): array {
+    if(!billing_operations_ready($pdo))return [];$mode=$mode?:((string)(stripe_billing_settings($pdo)['mode']??'test'));$visible="(a.billing_source<>'stripe' OR EXISTS(SELECT 1 FROM stripe_subscriptions sx WHERE sx.account_id=a.id AND sx.mode=?))";
+    $sql="SELECT p.public_id package_public_id,p.name package_name,p.monthly_price_cents,
+      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status IN ('active','past_due') AND a.billing_source IN ('stripe','manual') AND ".$visible." THEN 1 ELSE 0 END) billable_accounts,
+      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status IN ('active','past_due') AND a.billing_source IN ('stripe','manual') AND ".$visible." THEN p.monthly_price_cents ELSE 0 END) mrr_cents,
+      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='trialing' AND ".$visible." THEN 1 ELSE 0 END) trialing_accounts,
+      SUM(CASE WHEN a.status<>'closed' AND a.subscription_status='past_due' AND ".$visible." THEN 1 ELSE 0 END) past_due_accounts
+      FROM subscription_packages p LEFT JOIN accounts a ON a.package_id=p.id GROUP BY p.id,p.public_id,p.name,p.monthly_price_cents ORDER BY mrr_cents DESC,p.name";$q=$pdo->prepare($sql);$q->execute(array_fill(0,4,$mode));return $q->fetchAll()?:[];
 }
 function billing_operations_snapshot_day(PDO $pdo,?string $date=null,?string $mode=null): array {
     if(!billing_operations_ready($pdo))throw new RuntimeException('Billing operations require the latest database upgrade.');$date=$date?:gmdate('Y-m-d');if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date))throw new InvalidArgumentException('Snapshot date must be YYYY-MM-DD.');$mode=$mode?:((string)(stripe_billing_settings($pdo)['mode']??'test'));$start=$date.' 00:00:00';$end=gmdate('Y-m-d H:i:s',strtotime($date.' 00:00:00 UTC')+86400);$metrics=billing_operations_current_metrics($pdo,$mode);
@@ -179,7 +182,7 @@ function billing_operations_snapshot_day(PDO $pdo,?string $date=null,?string $mo
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON DUPLICATE KEY UPDATE mrr_cents=VALUES(mrr_cents),arr_cents=VALUES(arr_cents),active_subscriptions=VALUES(active_subscriptions),trialing_subscriptions=VALUES(trialing_subscriptions),past_due_subscriptions=VALUES(past_due_subscriptions),paused_subscriptions=VALUES(paused_subscriptions),canceled_subscriptions=VALUES(canceled_subscriptions),new_mrr_cents=VALUES(new_mrr_cents),expansion_mrr_cents=VALUES(expansion_mrr_cents),contraction_mrr_cents=VALUES(contraction_mrr_cents),churned_mrr_cents=VALUES(churned_mrr_cents),recovered_mrr_cents=VALUES(recovered_mrr_cents),gross_collected_cents=VALUES(gross_collected_cents),failed_amount_cents=VALUES(failed_amount_cents),refunded_amount_cents=VALUES(refunded_amount_cents),disputed_amount_cents=VALUES(disputed_amount_cents),open_dunning_cases=VALUES(open_dunning_cases),over_capacity_accounts=VALUES(over_capacity_accounts),generated_at=NOW()")
           ->execute([ulid_like(),$date,$mode,$metrics['mrr_cents'],$metrics['arr_cents'],$metrics['active_subscriptions'],$metrics['trialing_subscriptions'],$metrics['past_due_subscriptions'],$metrics['paused_subscriptions'],$metrics['canceled_subscriptions'],$new,$expansion,$contraction,$churn,$recovered,$gross,$failed,$refunded,$disputed,$open,$over]);
-        $accounts=$pdo->query("SELECT a.*,p.monthly_price_cents FROM accounts a JOIN subscription_packages p ON p.id=a.package_id WHERE a.status<>'closed' ORDER BY a.id")->fetchAll()?:[];
+        $aq=$pdo->prepare("SELECT a.*,p.monthly_price_cents FROM accounts a JOIN subscription_packages p ON p.id=a.package_id WHERE a.status<>'closed' AND (a.billing_source<>'stripe' OR EXISTS(SELECT 1 FROM stripe_subscriptions sx WHERE sx.account_id=a.id AND sx.mode=?)) ORDER BY a.id");$aq->execute([$mode]);$accounts=$aq->fetchAll()?:[];
         $up=$pdo->prepare("INSERT INTO billing_account_snapshots(public_id,snapshot_date,stripe_mode,account_id,package_id,billing_source,account_status,subscription_status,monthly_price_cents,member_count,seat_limit,pending_reserved_seats,trial_ends_at,period_end,stripe_subscription_id,cancel_at_period_end,dunning_status)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON DUPLICATE KEY UPDATE package_id=VALUES(package_id),billing_source=VALUES(billing_source),account_status=VALUES(account_status),subscription_status=VALUES(subscription_status),monthly_price_cents=VALUES(monthly_price_cents),member_count=VALUES(member_count),seat_limit=VALUES(seat_limit),pending_reserved_seats=VALUES(pending_reserved_seats),trial_ends_at=VALUES(trial_ends_at),period_end=VALUES(period_end),stripe_subscription_id=VALUES(stripe_subscription_id),cancel_at_period_end=VALUES(cancel_at_period_end),dunning_status=VALUES(dunning_status),generated_at=NOW()");
