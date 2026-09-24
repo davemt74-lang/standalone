@@ -37,7 +37,7 @@ function admin_ops_alert_fingerprint(string $sourceType,?string $sourceId,?strin
     return hash('sha256',implode('|',[$sourceType,(string)$sourceId,(string)$accountPublicId,$title]));
 }
 function admin_ops_emit_alert(PDO $pdo,string $scanToken,array $alert): void {
-    $severity=in_array((string)($alert['severity']??'warn'),['info','warn','danger'],true)?(string)$alert['severity']:'warn';
+    $severityRaw=(string)($alert['severity']??'warn');$severity=in_array($severityRaw,['info','warn','danger'],true)?$severityRaw:'warn';
     $category=mb_substr(trim((string)($alert['category']??'operations')),0,80);if($category==='')$category='operations';
     $sourceType=mb_substr(trim((string)($alert['source_type']??$category)),0,80);if($sourceType==='')$sourceType=$category;
     $sourceId=trim((string)($alert['source_public_id']??''));$sourceId=$sourceId===''?null:mb_substr($sourceId,0,255);
