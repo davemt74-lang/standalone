@@ -52,7 +52,7 @@ if($selected&&$selected['status']==='draft'){
     $sql.=' ORDER BY position LIMIT 200';$q=$pdo->prepare($sql);$q->execute($params);$itemRows=$q->fetchAll();
 }
 $types=data_evaluation_types();
-?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Evaluation Harness · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Evaluation Harness · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('evaluations')?>
 <main class="panel article">
   <div class="pageTitle"><span class="eyebrow">EVALUATION HARNESS</span><h1>Dataset benchmarks & regression baselines</h1><p>Evaluate retrieval and configured inference models against frozen, rights-valid evaluation datasets. Automated scores are diagnostic; human review remains authoritative for quality judgments.</p></div>
   <?php if($error):?><div class="notice error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="notice success"><?=h($success)?></div><?php endif?>
