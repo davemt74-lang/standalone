@@ -45,7 +45,7 @@ function commercial_promotion_values(PDO $pdo,array $input,?array $current=null)
     $status=in_array((string)($input['status']??($current['status']??'draft')),['draft','active','archived'],true)?(string)($input['status']??$current['status']):'draft';
     $maxRaw=trim((string)($input['max_redemptions']??($current['max_redemptions']??'')));$max=$maxRaw===''?null:max(1,(int)$maxRaw);
     $limit=max(1,min(100,(int)($input['per_account_limit']??($current['per_account_limit']??1))));
-    $minRaw=trim((string)($input['minimum_package_dollars']??($current['minimum_package_amount_cents']===null?'':((int)$current['minimum_package_amount_cents'])/100)));$minimum=$minRaw===''?null:max(0,(int)round(((float)$minRaw)*100));
+    $currentMinimum=$current['minimum_package_amount_cents']??null;$minRaw=trim((string)($input['minimum_package_dollars']??($currentMinimum===null?'':((int)$currentMinimum)/100)));$minimum=$minRaw===''?null:max(0,(int)round(((float)$minRaw)*100));
     $packages=array_key_exists('package_ids',$input)?commercial_promotion_package_ids($pdo,$input):(json_decode((string)($current['eligible_package_ids_json']??'[]'),true)?:[]);
     return ['status'=>$status,'discount_type'=>$type,'percent_basis_points'=>$percent,'amount_off_cents'=>$amount,'duration'=>$duration,'duration_months'=>$months,'customer_scope'=>$scope,'eligible_package_ids_json'=>json_encode(array_values(array_map('intval',$packages)),JSON_UNESCAPED_SLASHES),'minimum_package_amount_cents'=>$minimum,'starts_at'=>commercial_datetime_or_null($input['starts_at']??($current['starts_at']??null)),'ends_at'=>commercial_datetime_or_null($input['ends_at']??($current['ends_at']??null)),'max_redemptions'=>$max,'per_account_limit'=>$limit];
 }
