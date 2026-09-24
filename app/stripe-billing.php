@@ -54,6 +54,7 @@ function stripe_billing_save_settings(PDO $pdo,array $config,array $admin,array 
     if($webhook!==''&&!str_starts_with($webhook,'whsec_'))throw new InvalidArgumentException('Webhook signing secret must begin with whsec_.');
     $secretCipher=$secret!==''?stripe_billing_encrypt_secret($config,$secret):($current['secret_key_ciphertext']??null);
     $webhookCipher=$webhook!==''?stripe_billing_encrypt_secret($config,$webhook):($current['webhook_secret_ciphertext']??null);
+    if($secretCipher){$resolved=stripe_billing_decrypt_secret($config,$secretCipher);if($resolved!==''&&!str_starts_with($resolved,$mode==='live'?'sk_live_':'sk_test_'))throw new InvalidArgumentException('Configured Stripe secret key does not match the selected mode.');}
     $cleanPath=function(mixed $value,string $fallback): string {$v=trim((string)$value);return $v!==''&&str_starts_with($v,'/')&&!str_starts_with($v,'//')?mb_substr($v,0,255):$fallback;};
     $success=$cleanPath($input['checkout_success_path']??null,'/billing.php?checkout=success');
     $cancel=$cleanPath($input['checkout_cancel_path']??null,'/billing.php?checkout=cancelled');
@@ -140,9 +141,11 @@ function stripe_billing_customer(PDO $pdo,int $accountId,?string $mode=null): ?a
     if(!stripe_billing_ready($pdo))return null;$mode=$mode?:((string)(stripe_billing_settings($pdo)['mode']??'test'));$q=$pdo->prepare('SELECT * FROM stripe_customers WHERE account_id=? AND mode=? LIMIT 1');$q->execute([$accountId,$mode]);return $q->fetch()?:null;
 }
 function stripe_billing_link_customer(PDO $pdo,int $accountId,string $mode,string $customerId,?string $email=null,?string $name=null,array $metadata=[]): array {
-    $pdo->prepare("INSERT INTO stripe_customers(public_id,account_id,mode,stripe_customer_id,email_snapshot,name_snapshot,metadata_json,last_synced_at) VALUES(?,?,?,?,?,?,?,NOW())
-      ON DUPLICATE KEY UPDATE stripe_customer_id=VALUES(stripe_customer_id),email_snapshot=VALUES(email_snapshot),name_snapshot=VALUES(name_snapshot),metadata_json=VALUES(metadata_json),last_synced_at=NOW()")
-      ->execute([ulid_like(),$accountId,$mode,$customerId,$email,$name,json_encode($metadata,JSON_UNESCAPED_SLASHES)]);
+    $q=$pdo->prepare('SELECT account_id,mode FROM stripe_customers WHERE stripe_customer_id=? LIMIT 1');$q->execute([$customerId]);$existingByStripe=$q->fetch();
+    if($existingByStripe&&((int)$existingByStripe['account_id']!==$accountId||(string)$existingByStripe['mode']!==$mode))throw new RuntimeException('Stripe Customer is already linked to a different Annotated account or mode.');
+    $existing=stripe_billing_customer($pdo,$accountId,$mode);
+    if($existing){$pdo->prepare('UPDATE stripe_customers SET stripe_customer_id=?,email_snapshot=?,name_snapshot=?,metadata_json=?,last_synced_at=NOW() WHERE id=?')->execute([$customerId,$email,$name,json_encode($metadata,JSON_UNESCAPED_SLASHES),(int)$existing['id']]);}
+    else{$pdo->prepare("INSERT INTO stripe_customers(public_id,account_id,mode,stripe_customer_id,email_snapshot,name_snapshot,metadata_json,last_synced_at) VALUES(?,?,?,?,?,?,?,NOW())")->execute([ulid_like(),$accountId,$mode,$customerId,$email,$name,json_encode($metadata,JSON_UNESCAPED_SLASHES)]);}
     return stripe_billing_customer($pdo,$accountId,$mode)??throw new RuntimeException('Stripe Customer mapping could not be saved.');
 }
 function stripe_billing_customer_ensure(PDO $pdo,array $config,array $account): array {
@@ -216,8 +219,9 @@ function stripe_billing_apply_package_and_state(PDO $pdo,array $account,?array $
     $before=['package_id'=>(int)$account['package_id'],'subscription_status'=>(string)$account['subscription_status'],'period_start'=>$account['period_start'],'period_end'=>$account['period_end'],'billing_source'=>$account['billing_source']??'manual'];
     $packageId=$priceMap?(int)$priceMap['package_id']:(int)$account['package_id'];$status=stripe_billing_subscription_status($stripeStatus);
     $start=$periodStart?substr($periodStart,0,10):(string)$account['period_start'];$end=$periodEnd?substr($periodEnd,0,10):(string)$account['period_end'];
-    $pdo->prepare("UPDATE accounts SET package_id=?,subscription_status=?,billing_source='stripe',period_start=?,period_end=?,trial_ends_at=?,package_assigned_at=IF(package_id<>?,NOW(),package_assigned_at) WHERE id=?")
-      ->execute([$packageId,$status,$start,$end,$trialEnd,$packageId,(int)$account['id']]);
+    $packageChanged=$packageId!==(int)$account['package_id'];
+    $pdo->prepare("UPDATE accounts SET package_id=?,subscription_status=?,billing_source='stripe',period_start=?,period_end=?,trial_ends_at=?,package_assigned_at=IF(?,NOW(),package_assigned_at) WHERE id=?")
+      ->execute([$packageId,$status,$start,$end,$trialEnd,$packageChanged?1:0,(int)$account['id']]);
     if($priceMap&&$packageId!==(int)$account['package_id']){
         $package=subscription_package($pdo,$packageId);
         if(($account['account_type']??'')==='personal'&&!empty($account['personal_user_id'])&&$package)$pdo->prepare('UPDATE users SET plan_tier=?,pro_expires_at=NULL WHERE id=?')->execute([(string)$package['legacy_plan_tier'],(int)$account['personal_user_id']]);
