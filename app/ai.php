@@ -41,14 +41,17 @@ function ai_generate(PDO $pdo,array $config,int $modelId,string $system,string $
 function ai_run(PDO $pdo,array $config,?array $user,string $initiatedBy,string $taskType,int $modelId,string $system,string $prompt,array $refs=[],?string $scopeType=null,?string $scopePublicId=null): array {
     if(function_exists('ai_usage_assert_can_run'))ai_usage_assert_can_run($pdo,$user,$initiatedBy,$taskType);
     $started=microtime(true);$public=ulid_like();$q=$pdo->prepare("INSERT INTO ai_runs(public_id,user_id,initiated_by,task_type,model_id,prompt_version,scope_type,scope_public_id,input_refs_json,status) VALUES(?,?,?,?,?,'v1',?,?,?,'processing')");$q->execute([$public,$user['id']??null,$initiatedBy,$taskType,$modelId,$scopeType,$scopePublicId,json_encode($refs,JSON_UNESCAPED_SLASHES)]);$id=(int)$pdo->lastInsertId();
+    $reservation=null;$providerConsumed=false;
     try{
-        $r=ai_generate($pdo,$config,$modelId,$system,$prompt);$pdo->prepare("UPDATE ai_runs SET output_text=?,status='completed',input_tokens=?,output_tokens=?,completed_at=NOW() WHERE id=?")->execute([$r['text'],$r['input_tokens'],$r['output_tokens'],$id]);
+        if(function_exists('ai_usage_reserve_run')){$model=ai_model_record($pdo,$modelId);$reservation=ai_usage_reserve_run($pdo,$id,$user,$initiatedBy,$taskType,$system,$prompt,(int)($model['max_output_tokens']??16384));}
+        $maxTokens=$reservation?(int)$reservation['max_output_tokens']:null;
+        $r=ai_generate($pdo,$config,$modelId,$system,$prompt,$maxTokens);$providerConsumed=true;$pdo->prepare("UPDATE ai_runs SET output_text=?,status='completed',input_tokens=?,output_tokens=?,completed_at=NOW() WHERE id=?")->execute([$r['text'],$r['input_tokens'],$r['output_tokens'],$id]);
         if(function_exists('ai_usage_record_completed_run'))ai_usage_record_completed_run($pdo,$id,$user,$initiatedBy,$r,$system,$prompt);
         if(function_exists('data_model_observability_record_ai_run')){try{data_model_observability_record_ai_run($pdo,$id,(int)round((microtime(true)-$started)*1000));}catch(Throwable $ignored){}}
         $lineage=$taskType==='deployment_shadow'?null:(function_exists('data_response_try_record')?data_response_try_record($pdo,$id,$public,$user,(string)$r['text'],$refs):null);
         if($taskType!=='deployment_shadow'&&function_exists('data_model_deployment_queue_shadow'))data_model_deployment_queue_shadow($pdo,$user,$taskType,$modelId,$system,$prompt,$refs,$scopeType,$scopePublicId);
         return ['public_id'=>$public,'text'=>$r['text'],'model'=>$r['model'],'lineage'=>$lineage];
-    }catch(Throwable $e){$pdo->prepare("UPDATE ai_runs SET status='failed',error_text=?,completed_at=NOW() WHERE id=?")->execute([substr($e->getMessage(),0,1000),$id]);if(function_exists('data_model_observability_record_ai_run')){try{data_model_observability_record_ai_run($pdo,$id,(int)round((microtime(true)-$started)*1000));}catch(Throwable $ignored){}}throw $e;}
+    }catch(Throwable $e){if($reservation&&!$providerConsumed&&function_exists('ai_usage_release_run'))ai_usage_release_run($pdo,$id,'provider_failed');$pdo->prepare("UPDATE ai_runs SET status='failed',error_text=?,completed_at=NOW() WHERE id=?")->execute([substr($e->getMessage(),0,1000),$id]);if(function_exists('data_model_observability_record_ai_run')){try{data_model_observability_record_ai_run($pdo,$id,(int)round((microtime(true)-$started)*1000));}catch(Throwable $ignored){}}throw $e;}
 }
 function ai_queue_job(PDO $pdo,?int $userId,string $taskType,?int $modelId,string $objectType,string $objectPublicId,array $input=[],int $priority=5): string {
     $public=ulid_like();$q=$pdo->prepare('INSERT INTO ai_jobs(public_id,requested_by_user_id,task_type,model_id,object_type,object_public_id,input_json,priority) VALUES(?,?,?,?,?,?,?,?)');$q->execute([$public,$userId,$taskType,$modelId?:null,$objectType,$objectPublicId,json_encode($input,JSON_UNESCAPED_SLASHES),max(1,min(9,$priority))]);return $public;

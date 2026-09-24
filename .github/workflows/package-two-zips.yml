@@ -173,6 +173,8 @@ jobs:
           test -f package-website/tests/ci/admin-v1-40-upgrade-from-064.php
           test -f package-website/docs/admin-v1-40-stripe-billing-checkout.md
           test -f package-website/database/migrations/20260924_066_code_audit_hardening.sql
+          test -f package-website/database/migrations/20260924_067_ai_quota_checkout_idempotency.sql
+          test -f package-website/tests/ci/code-audit-upgrade-from-066.php
           test -f package-website/tests/code-audit-hardening-contract.php
           test -f package-website/tests/code-audit-hardening-db.php
           test -f package-website/tests/ci/code-audit-upgrade-from-065.php
