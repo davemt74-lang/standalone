@@ -50,7 +50,7 @@ Secret/restricted API keys and webhook signing secrets are encrypted at rest wit
 
 ## Administrative safety
 
-Manual Admin package assignment is blocked while an account has an active Stripe-managed subscription. Manual, complimentary and internal account workflows remain separate from Stripe. Stripe synchronization never creates or changes Research Teams.
+Manual Admin package assignment is blocked while an account has an active Stripe-managed subscription. Checkout refuses a package whose effective member limit is below current membership. If Stripe later reports a valid subscription change that lowers the package below current membership, Annotated still synchronizes Stripe's billing/package truth, preserves existing members, blocks future over-limit additions through the existing account rules, and flags the account for Admin attention rather than rejecting the webhook. Manual, complimentary and internal account workflows remain separate from Stripe. Stripe synchronization never creates or changes Research Teams.
 
 
 ## Test/live isolation
