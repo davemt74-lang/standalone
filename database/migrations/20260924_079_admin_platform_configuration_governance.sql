@@ -152,38 +152,15 @@ VALUES(
 ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),capabilities_json=VALUES(capabilities_json),is_system=1,status='active';
 
 UPDATE admin_roles
-SET capabilities_json=JSON_ARRAY(
-  'admin.operations.view','admin.operations.manage',
-  'admin.support.view','admin.support.manage',
-  'admin.customer_success.view',
-  'admin.security.view','admin.privacy.view',
-  'admin.platform.view','admin.platform.release',
-  'admin.actions.view','admin.actions.request','admin.actions.approve','admin.actions.execute',
-  'admin.accounts.view','admin.billing.view','admin.ai_usage.view',
-  'admin.finance.view',
-  'admin.models.view','admin.research_data.view','admin.trust.view'
-)
-WHERE role_key='operations_admin';
+SET capabilities_json=CASE
+  WHEN JSON_CONTAINS(capabilities_json,JSON_QUOTE('admin.platform.view'),'$') THEN capabilities_json
+  ELSE JSON_ARRAY_APPEND(capabilities_json,'$','admin.platform.view')
+END
+WHERE role_key IN ('operations_admin','read_only_auditor','trust_ops_admin');
 
 UPDATE admin_roles
-SET capabilities_json=JSON_ARRAY(
-  'admin.operations.view','admin.support.view',
-  'admin.customer_success.view',
-  'admin.security.view','admin.privacy.view',
-  'admin.platform.view',
-  'admin.accounts.view','admin.billing.view','admin.ai_usage.view',
-  'admin.finance.view',
-  'admin.models.view','admin.research_data.view','admin.trust.view',
-  'admin.actions.view','admin.roles.view'
-)
-WHERE role_key='read_only_auditor';
-
-UPDATE admin_roles
-SET capabilities_json=JSON_ARRAY(
-  'admin.operations.view','admin.operations.manage',
-  'admin.security.view',
-  'admin.platform.view','admin.platform.release',
-  'admin.trust.view','admin.trust.manage',
-  'admin.actions.view'
-)
-WHERE role_key='trust_ops_admin';
+SET capabilities_json=CASE
+  WHEN JSON_CONTAINS(capabilities_json,JSON_QUOTE('admin.platform.release'),'$') THEN capabilities_json
+  ELSE JSON_ARRAY_APPEND(capabilities_json,'$','admin.platform.release')
+END
+WHERE role_key IN ('operations_admin','trust_ops_admin');
