@@ -195,6 +195,13 @@ jobs:
           test -f package-website/tests/admin-v1-60-billing-analytics-db.php
           test -f package-website/tests/ci/admin-v1-60-upgrade-from-068.php
           test -f package-website/docs/admin-v1-60-billing-analytics-revenue-dunning.md
+          test -f package-website/database/migrations/20260924_070_ai_overage_billing_usage_plans.sql
+          test -f package-website/app/ai-overage-billing.php
+          test -f package-website/admin/overage-billing.php
+          test -f package-website/tests/admin-v1-70-ai-overage-billing-contract.php
+          test -f package-website/tests/admin-v1-70-ai-overage-billing-db.php
+          test -f package-website/tests/ci/admin-v1-70-upgrade-from-069.php
+          test -f package-website/docs/admin-v1-70-ai-overage-billing.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

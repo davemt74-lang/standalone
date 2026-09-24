@@ -89,6 +89,7 @@ db_tests=(
   tests/code-audit-hardening-db.php
   tests/admin-v1-50-account-membership-db.php
   tests/admin-v1-60-billing-analytics-db.php
+  tests/admin-v1-70-ai-overage-billing-db.php
 )
 
 for test_file in "${db_tests[@]}"; do

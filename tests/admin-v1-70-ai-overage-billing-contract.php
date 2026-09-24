@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$message;};
+$m='database/migrations/20260924_070_ai_overage_billing_usage_plans.sql';
+foreach(['ai_overage_policy','ai_overage_account_settings','ai_overage_period_entitlements','ai_overage_usage_ledger','ai_overage_report_batches','ai_overage_threshold_events','ai_overage_audit_events',"DEFAULT 'hard_limit'"] as $n)$need($m,$n,'Migration 070 missing '.$n);
+foreach(['function ai_overage_policy','function ai_overage_period_allowance','function ai_overage_assert_projected_request','function ai_overage_record_usage_event','function ai_overage_customer_save','function ai_overage_admin_update_package','function ai_overage_report_pending','function ai_overage_reconcile_account','function ai_overage_agent_context'] as $n)$need('app/ai-overage-billing.php',$n,'Overage runtime missing '.$n);
+$need('app/ai-overage-billing.php',"'subscription'=>",'Stripe invoice-item reporting must attach charges to the specific subscription.');
+$need('app/ai-overage-billing.php','idempotency_key','Stripe overage reporting must persist idempotency keys.');
+$need('app/ai-overage-billing.php','amount_micros','Overage accounting must retain sub-cent precision locally.');
+$need('app/ai-usage.php','ai_overage_assert_projected_request','AI reservation path must enforce projected overage cap before provider execution.');
+$need('app/ai-usage.php','ai_overage_record_usage_event','Completed usage must flow into the immutable overage ledger.');
+$need('app/ai-usage.php','ai_overage_period_allowance','Current-period package allowance changes must support proration.');
+$need('billing.php','Enable AI overage billing','Customer billing must expose explicit overage opt-in.');
+$need('billing.php','Monthly maximum overage','Customer billing must expose an overage cap.');
+$need('admin/packages.php','ai_overage_policy','Packages must expose overage policy and pricing.');
+$need('admin/overage-billing.php','AI overage billing & usage plans','Admin overage workspace is required.');
+$need('app/admin-ui.php',"'overage_billing'=>",'Admin IA must expose AI Overage Billing.');
+$need('app/stripe-billing.php','ai_overage_handle_stripe_invoice','Stripe invoice synchronization must reconcile overage batches.');
+$need('bin/billing-operations.php','ai_overage_report_pending','Daily billing operations must report pending overage.');
+$need('app/agent-chat.php','ai_overage_agent_context','Admin Agent must receive read-only AI overage intelligence.');
+$need('app/agent-chat.php','AI overage billing context is also read-only','Admin Agent must not gain autonomous financial mutation authority.');
+$need('tests/ci/run-full-regression.sh','tests/admin-v1-70-ai-overage-billing-db.php','Full regression must execute V1.70 overage database journey.');
+$need('.github/workflows/full-regression.yml','admin-v1-70-upgrade-from-069.php','Phase gate must rehearse migration 070 from 069.');
+$need('.github/workflows/package-two-zips.yml','20260924_070_ai_overage_billing_usage_plans.sql','Production package must include migration 070.');
+$need('tests/ci/package-smoke.sh','admin-v1-70-ai-overage-billing.md','Release smoke must require V1.70 files.');
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Admin V1.70 AI overage billing static contract passed.\n";

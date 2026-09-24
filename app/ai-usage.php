@@ -64,7 +64,7 @@ function ai_usage_account_summary(PDO $pdo,int $accountId): array {
     }
     $packageBase=$account['monthly_ai_token_allowance']===null?null:(int)$account['monthly_ai_token_allowance'];$entitlementBase=$packageBase;$entitlementSource='package';
     if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$ent=account_admin_effective_entitlements($pdo,(int)$account['id']);$entitlementBase=$ent['values']['monthly_ai_token_allowance'];$entitlementSource=$ent['sources']['monthly_ai_token_allowance']??'package';}catch(Throwable $e){}}
-    $effective=$entitlementBase===null?null:max(0,(int)$entitlementBase+$adjustment);$remaining=$effective===null?null:max(0,$effective-$used-$reserved);$overage=$effective===null?0:max(0,$used-$effective);
+    $periodBase=$entitlementBase;if(function_exists('ai_overage_period_allowance'))$periodBase=ai_overage_period_allowance($pdo,$account,$entitlementBase);$effective=$periodBase===null?null:max(0,(int)$periodBase+$adjustment);$remaining=$effective===null?null:max(0,$effective-$used-$reserved);$overage=$effective===null?0:max(0,$used-$effective);
     return ['account'=>$account,'package_allowance'=>$packageBase,'base_allowance'=>$entitlementBase,'entitlement_source'=>$entitlementSource,'adjustment_tokens'=>$adjustment,'effective_allowance'=>$effective,'used_tokens'=>$used,'reserved_tokens'=>$reserved,'remaining_tokens'=>$remaining,'overage_tokens'=>$overage,'system_tokens'=>$system,'admin_tokens'=>$admin];
 }
 function ai_usage_summary_for_user(PDO $pdo,int $userId): ?array {
@@ -75,7 +75,7 @@ function ai_usage_assert_can_run(PDO $pdo,?array $user,string $initiatedBy,strin
     [$class,$chargeable]=ai_usage_classification($user,$initiatedBy,$taskType);if(!$chargeable||!$user)return;
     $summary=ai_usage_summary_for_user($pdo,(int)$user['id']);if(!$summary)return;$account=$summary['account'];
     if(($account['status']??'active')!=='active'||in_array((string)($account['subscription_status']??''),['paused','canceled'],true))throw new RuntimeException('This account is not active for AI usage.');
-    if($summary['effective_allowance']!==null&&$summary['remaining_tokens']<=0)throw new RuntimeException('This account has used its monthly AI token allowance. An administrator can change the package or add an account credit.');
+    if($summary['effective_allowance']!==null&&$summary['remaining_tokens']<=0){if(function_exists('ai_overage_assert_account_can_run')&&ai_overage_ready($pdo)){ai_overage_assert_account_can_run($pdo,(int)$account['id']);return;}throw new RuntimeException('This account has used its monthly AI token allowance. An administrator can change the package or add an account credit.');}
 }
 function ai_usage_reserve_run(PDO $pdo,int $runId,?array $user,string $initiatedBy,string $taskType,string $system,string $prompt,int $modelMaxOutputTokens): ?array {
     if(!ai_usage_reservations_ready($pdo))return null;
@@ -89,10 +89,10 @@ function ai_usage_reserve_run(PDO $pdo,int $runId,?array $user,string $initiated
         $providerMax=max(256,min(16384,$modelMaxOutputTokens));
         $maxOutput=$providerMax;$effective=$summary['effective_allowance'];
         if($effective!==null){
-            $remaining=(int)$summary['remaining_tokens'];
-            if($remaining<=$inputUpper+64)throw new RuntimeException('This account does not have enough remaining AI tokens for this request.');
-            $maxOutput=min($providerMax,$remaining-$inputUpper);
-            if($maxOutput<64)throw new RuntimeException('This account does not have enough remaining AI tokens for this request.');
+            $remaining=(int)$summary['remaining_tokens'];$overageEnabled=false;
+            if(function_exists('ai_overage_policy')&&ai_overage_ready($pdo)){try{$overageEnabled=!empty(ai_overage_policy($pdo,$accountId)['enabled']);}catch(Throwable $ignored){}}
+            if($overageEnabled){ai_overage_assert_projected_request($pdo,$accountId,$inputUpper,$providerMax,$remaining);}
+            else{if($remaining<=$inputUpper+64)throw new RuntimeException('This account does not have enough remaining AI tokens for this request.');$maxOutput=min($providerMax,$remaining-$inputUpper);if($maxOutput<64)throw new RuntimeException('This account does not have enough remaining AI tokens for this request.');}
         }
         $reserved=$inputUpper+$maxOutput;$expires=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+2 hours')->format('Y-m-d H:i:s');
         $pdo->prepare("INSERT INTO ai_usage_reservations(public_id,ai_run_id,account_id,user_id,period_start,period_end,reserved_tokens,max_output_tokens,status,expires_at) VALUES(?,?,?,?,?,?,?,?, 'reserved',?)")
@@ -119,7 +119,7 @@ function ai_usage_record_completed_run(PDO $pdo,int $runId,?array $user,string $
     if(!ai_usage_ready($pdo))return null;
     $q=$pdo->prepare("SELECT r.id,r.public_id,r.user_id,r.task_type,r.model_id,r.scope_type,r.scope_public_id,m.provider_id,m.input_cost_per_million_usd,m.output_cost_per_million_usd
       FROM ai_runs r LEFT JOIN ai_models m ON m.id=r.model_id WHERE r.id=? LIMIT 1");$q->execute([$runId]);$run=$q->fetch();if(!$run)throw new RuntimeException('AI run is unavailable for usage metering.');
-    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);if($existing=$q->fetch()){ai_usage_settle_run($pdo,$runId,(int)$existing['total_tokens']);return $existing;}
+    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);if($existing=$q->fetch()){ai_usage_settle_run($pdo,$runId,(int)$existing['total_tokens']);if(function_exists('ai_overage_record_usage_event')&&ai_overage_ready($pdo))ai_overage_record_usage_event($pdo,(int)$existing['id']);return $existing;}
     [$class,$chargeable]=ai_usage_classification($user,$initiatedBy,(string)$run['task_type']);
     $account=null;if(!empty($run['user_id']))$account=ai_usage_account_for_user($pdo,(int)$run['user_id']);
     $providerIn=$generated['input_tokens']??null;$providerOut=$generated['output_tokens']??null;
@@ -141,7 +141,7 @@ function ai_usage_record_completed_run(PDO $pdo,int $runId,?array $user,string $
         }
         ai_usage_settle_run($pdo,$runId,$input+$output);$pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE id=?');$q->execute([$eventId]);return $q->fetch()?:null;
+    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE id=?');$q->execute([$eventId]);$event=$q->fetch()?:null;if($event&&function_exists('ai_overage_record_usage_event')&&ai_overage_ready($pdo))ai_overage_record_usage_event($pdo,(int)$event['id']);return $event;
 }
 function ai_usage_admin_adjust(PDO $pdo,array $admin,string $accountPublicId,int $tokenDelta,string $reason): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');

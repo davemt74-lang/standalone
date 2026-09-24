@@ -18,6 +18,7 @@ function admin_ui_nav_sections(): array {
                 'packages'=>['label'=>'Packages','url'=>'/admin/packages.php'],
                 'billing'=>['label'=>'Billing & Stripe','url'=>'/admin/billing.php'],
                 'billing_analytics'=>['label'=>'Billing Analytics','url'=>'/admin/billing-analytics.php'],
+                'overage_billing'=>['label'=>'AI Overage Billing','url'=>'/admin/overage-billing.php'],
                 'usage'=>['label'=>'AI Usage','url'=>'/admin/usage.php'],
             ],
         ],
@@ -65,7 +66,7 @@ function admin_ui_sidebar(string $active='dashboard'): string {
         }
         $out.='</div></details>';
     }
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.30 · V1.40 · V1.50 · V1.60</span><a href="/logout.php">Sign out</a></div></aside>';
+    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70</span><a href="/logout.php">Sign out</a></div></aside>';
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}
@@ -88,6 +89,7 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
         'failed_stripe_webhooks'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM stripe_webhook_events WHERE status='failed'"),
         'over_capacity_accounts'=>function_exists('stripe_billing_over_capacity_account_ids')?count(stripe_billing_over_capacity_account_ids($pdo)):0,
         'open_dunning_cases'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM billing_dunning_cases WHERE status IN ('open','action_required','grace','suspended')"),
+        'overage_failed_batches'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM ai_overage_report_batches WHERE status='failed'"),
         'trials_ending'=>function_exists('billing_operations_ready')&&billing_operations_ready($pdo)?count(billing_operations_trial_accounts($pdo)):0,
     ];
     $usage=['used_tokens'=>0,'capped_accounts'=>0,'exhausted_accounts'=>0,'system_tokens'=>0,'admin_tokens'=>0];
@@ -111,6 +113,7 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
     $add('Failed Stripe webhook events',(int)$counts['failed_stripe_webhooks'],'/admin/billing.php','danger');
     $add('Accounts over seat capacity',(int)$counts['over_capacity_accounts'],'/admin/accounts.php','warn'); // V1.40 contract lineage: Accounts over effective member limit
     $add('Open billing dunning cases',(int)$counts['open_dunning_cases'],'/admin/billing-analytics.php','danger');
+    $add('Failed AI overage reporting batches',(int)$counts['overage_failed_batches'],'/admin/overage-billing.php','danger');
     $add('Trials ending soon',(int)$counts['trials_ending'],'/admin/billing-analytics.php','warn');
     $add('Failed AI jobs',(int)$counts['failed_ai_jobs'],'/admin/system-health.php','danger');
     $add('Failed source-monitor jobs',(int)$counts['failed_source_jobs'],'/admin/source-monitor.php','danger');

@@ -1,0 +1,136 @@
+<?php
+declare(strict_types=1);
+
+function ai_overage_ready(PDO $pdo): bool {
+    try{return ai_usage_ready($pdo)&&stripe_billing_ready($pdo)
+        &&installer_table_exists($pdo,'ai_overage_billing_settings')
+        &&installer_table_exists($pdo,'ai_overage_account_settings')
+        &&installer_table_exists($pdo,'ai_overage_period_entitlements')
+        &&installer_table_exists($pdo,'ai_overage_usage_ledger')
+        &&installer_table_exists($pdo,'ai_overage_report_batches')
+        &&installer_table_exists($pdo,'ai_overage_threshold_events')
+        &&installer_table_exists($pdo,'ai_overage_audit_events');
+    }catch(Throwable $e){return false;}
+}
+function ai_overage_audit(PDO $pdo,?int $accountId,?int $packageId,?int $actorUserId,string $type,?array $before,?array $after,string $reason): void {
+    if(!ai_overage_ready($pdo))return;
+    $pdo->prepare('INSERT INTO ai_overage_audit_events(public_id,account_id,package_id,actor_user_id,event_type,before_json,after_json,reason) VALUES(?,?,?,?,?,?,?,?)')
+      ->execute([ulid_like(),$accountId,$packageId,$actorUserId,mb_substr($type,0,80),$before===null?null:json_encode($before,JSON_UNESCAPED_SLASHES),$after===null?null:json_encode($after,JSON_UNESCAPED_SLASHES),mb_substr(trim($reason),0,500)]);
+}
+function ai_overage_settings(PDO $pdo): array {
+    if(!ai_overage_ready($pdo))return ['id'=>1,'stripe_reporting_enabled'=>1,'usage_thresholds_json'=>'[50,75,90,100]','cap_thresholds_json'=>'[75,90,100]'];
+    return $pdo->query('SELECT * FROM ai_overage_billing_settings WHERE id=1')->fetch()?:['id'=>1,'stripe_reporting_enabled'=>1,'usage_thresholds_json'=>'[50,75,90,100]','cap_thresholds_json'=>'[75,90,100]'];
+}
+function ai_overage_threshold_list(mixed $value,array $fallback): array {
+    if(is_string($value)){$decoded=json_decode($value,true);$value=is_array($decoded)?$decoded:(preg_split('/[^0-9]+/',$value,-1,PREG_SPLIT_NO_EMPTY)?:[]);}
+    $out=[];foreach((array)$value as $v){$n=(int)$v;if($n>=1&&$n<=100)$out[$n]=$n;}ksort($out);return $out?array_values($out):$fallback;
+}
+function ai_overage_save_settings(PDO $pdo,array $admin,array $input): array {
+    if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
+    $usage=ai_overage_threshold_list($input['usage_thresholds']??[],[50,75,90,100]);$cap=ai_overage_threshold_list($input['cap_thresholds']??[],[75,90,100]);$enabled=!empty($input['stripe_reporting_enabled'])?1:0;
+    $pdo->prepare('UPDATE ai_overage_billing_settings SET stripe_reporting_enabled=?,usage_thresholds_json=?,cap_thresholds_json=?,updated_by_user_id=? WHERE id=1')->execute([$enabled,json_encode($usage),json_encode($cap),(int)$admin['id']]);
+    ai_overage_audit($pdo,null,null,(int)$admin['id'],'settings_updated',null,['stripe_reporting_enabled'=>$enabled,'usage_thresholds'=>$usage,'cap_thresholds'=>$cap],'Administrator updated AI overage billing settings.');
+    return ai_overage_settings($pdo);
+}
+function ai_overage_account_setting(PDO $pdo,int $accountId): array {
+    $q=$pdo->prepare('SELECT * FROM ai_overage_account_settings WHERE account_id=? LIMIT 1');$q->execute([$accountId]);
+    return $q->fetch()?:['account_id'=>$accountId,'enabled'=>0,'monthly_cap_cents'=>null,'pricing_source'=>'package','custom_input_micros_per_million'=>null,'custom_output_micros_per_million'=>null,'opted_in_at'=>null];
+}
+function ai_overage_account_row(PDO $pdo,int $accountId): ?array {
+    $q=$pdo->prepare("SELECT a.*,p.public_id package_public_id,p.name package_name,p.ai_overage_policy,p.ai_overage_input_micros_per_million,p.ai_overage_output_micros_per_million,p.ai_overage_default_cap_cents
+      FROM accounts a JOIN subscription_packages p ON p.id=a.package_id WHERE a.id=? LIMIT 1");$q->execute([$accountId]);return $q->fetch()?:null;
+}
+function ai_overage_policy(PDO $pdo,int $accountId): array {
+    $account=ai_overage_account_row($pdo,$accountId);if(!$account)throw new RuntimeException('Account not found.');$setting=ai_overage_account_setting($pdo,$accountId);
+    $packagePolicy=(string)$account['ai_overage_policy'];$pricingSource=(string)$setting['pricing_source'];$inputRate=(int)$account['ai_overage_input_micros_per_million'];$outputRate=(int)$account['ai_overage_output_micros_per_million'];
+    if($packagePolicy==='admin_defined'&&$pricingSource==='custom'){$inputRate=(int)($setting['custom_input_micros_per_million']??$inputRate);$outputRate=(int)($setting['custom_output_micros_per_million']??$outputRate);}else{$pricingSource='package';}
+    $cap=$setting['monthly_cap_cents']!==null?(int)$setting['monthly_cap_cents']:($account['ai_overage_default_cap_cents']!==null?(int)$account['ai_overage_default_cap_cents']:null);
+    return ['account'=>$account,'setting'=>$setting,'package_policy'=>$packagePolicy,'enabled'=>(int)$setting['enabled']===1&&$packagePolicy!=='hard_limit','input_rate_micros_per_million'=>$inputRate,'output_rate_micros_per_million'=>$outputRate,'monthly_cap_cents'=>$cap,'pricing_source'=>$pricingSource];
+}
+function ai_overage_period_allowance(PDO $pdo,array $account,?int $sourceAllowance): ?int {
+    if(!ai_overage_ready($pdo))return $sourceAllowance;$id=(int)$account['id'];$start=(string)$account['period_start'];$end=(string)$account['period_end'];$package=(int)$account['package_id'];
+    $pdo->prepare('INSERT IGNORE INTO ai_overage_period_entitlements(account_id,period_start,period_end,package_id,source_allowance_tokens,allowance_tokens) VALUES(?,?,?,?,?,?)')->execute([$id,$start,$end,$package,$sourceAllowance,$sourceAllowance]);
+    $q=$pdo->prepare('SELECT * FROM ai_overage_period_entitlements WHERE account_id=? AND period_start=? AND period_end=?');$q->execute([$id,$start,$end]);$row=$q->fetch();if(!$row)return $sourceAllowance;
+    $oldSource=$row['source_allowance_tokens']===null?null:(int)$row['source_allowance_tokens'];$oldAllowance=$row['allowance_tokens']===null?null:(int)$row['allowance_tokens'];
+    if((int)$row['package_id']===$package&&$oldSource===$sourceAllowance)return $oldAllowance;
+    $s=strtotime($start.' UTC')?:time();$e=strtotime($end.' UTC')?:time();$fraction=max(0,min(1,($e-time())/max(1,$e-$s)));
+    if($sourceAllowance===null)$next=null;elseif($oldSource===null)$next=max(0,(int)round($sourceAllowance*$fraction));else $next=max(0,(int)round((int)($oldAllowance??0)+($sourceAllowance-$oldSource)*$fraction));
+    $pdo->prepare('UPDATE ai_overage_period_entitlements SET package_id=?,source_allowance_tokens=?,allowance_tokens=?,last_recalculated_at=NOW() WHERE id=?')->execute([$package,$sourceAllowance,$next,(int)$row['id']]);
+    ai_overage_audit($pdo,$id,$package,null,'allowance_prorated',['source'=>$oldSource,'allowance'=>$oldAllowance],['source'=>$sourceAllowance,'allowance'=>$next,'remaining_fraction'=>$fraction],'AI allowance prorated after package or entitlement change.');
+    return $next;
+}
+function ai_overage_micros_for_tokens(int $tokens,int $rate): int {return $tokens<=0||$rate<=0?0:intdiv(($tokens*$rate)+500000,1000000);}
+function ai_overage_accrued_micros(PDO $pdo,int $accountId,string $mode,string $start,string $end): int {$q=$pdo->prepare('SELECT COALESCE(SUM(amount_micros),0) FROM ai_overage_usage_ledger WHERE account_id=? AND stripe_mode=? AND period_start=? AND period_end=? AND billable=1');$q->execute([$accountId,$mode,$start,$end]);return (int)$q->fetchColumn();}
+function ai_overage_reported_micros(PDO $pdo,int $accountId,string $mode,string $start,string $end): int {$q=$pdo->prepare("SELECT COALESCE(SUM(amount_micros),0) FROM ai_overage_report_batches WHERE account_id=? AND stripe_mode=? AND period_start=? AND period_end=? AND status IN ('reported','invoiced')");$q->execute([$accountId,$mode,$start,$end]);return (int)$q->fetchColumn();}
+function ai_overage_assert_account_can_run(PDO $pdo,int $accountId): void {
+    $p=ai_overage_policy($pdo,$accountId);if(!$p['enabled'])throw new RuntimeException('This account has used its monthly AI token allowance. Enable AI overage billing or change the package to continue.');
+    if($p['input_rate_micros_per_million']<=0&&$p['output_rate_micros_per_million']<=0)throw new RuntimeException('AI overage billing is enabled, but this package has no valid overage pricing.');
+    $a=$p['account'];$mode=(string)stripe_billing_settings($pdo)['mode'];if($p['monthly_cap_cents']!==null&&ai_overage_accrued_micros($pdo,$accountId,$mode,(string)$a['period_start'],(string)$a['period_end'])>=$p['monthly_cap_cents']*10000)throw new RuntimeException('This account has reached its monthly AI overage cap.');
+}
+function ai_overage_assert_projected_request(PDO $pdo,int $accountId,int $inputTokens,int $outputTokens,int $remainingIncluded): void {
+    $overIn=max(0,$inputTokens-max(0,$remainingIncluded));$afterIn=max(0,$remainingIncluded-$inputTokens);$overOut=max(0,$outputTokens-$afterIn);if($overIn+$overOut<=0)return;
+    ai_overage_assert_account_can_run($pdo,$accountId);$p=ai_overage_policy($pdo,$accountId);if($p['monthly_cap_cents']===null)return;
+    $projected=ai_overage_micros_for_tokens($overIn,(int)$p['input_rate_micros_per_million'])+ai_overage_micros_for_tokens($overOut,(int)$p['output_rate_micros_per_million']);$a=$p['account'];$mode=(string)stripe_billing_settings($pdo)['mode'];
+    if(ai_overage_accrued_micros($pdo,$accountId,$mode,(string)$a['period_start'],(string)$a['period_end'])+$projected>$p['monthly_cap_cents']*10000)throw new RuntimeException('This request could exceed the monthly AI overage cap.');
+}
+function ai_overage_refresh_thresholds(PDO $pdo,int $accountId): void {
+    $s=ai_usage_account_summary($pdo,$accountId);$a=$s['account'];$settings=ai_overage_settings($pdo);$record=function(string $type,int $pct,int $value,int $limit)use($pdo,$accountId,$a){$pdo->prepare('INSERT IGNORE INTO ai_overage_threshold_events(public_id,account_id,period_start,period_end,threshold_type,threshold_percent,observed_value,observed_limit) VALUES(?,?,?,?,?,?,?,?)')->execute([ulid_like(),$accountId,$a['period_start'],$a['period_end'],$type,$pct,$value,$limit]);};
+    if($s['effective_allowance']!==null&&(int)$s['effective_allowance']>0){$v=(int)$s['used_tokens'];$l=(int)$s['effective_allowance'];$pct=(int)floor($v*100/$l);foreach(ai_overage_threshold_list($settings['usage_thresholds_json'],[50,75,90,100]) as $t)if($pct>=$t)$record('allowance',$t,$v,$l);}
+    $p=ai_overage_policy($pdo,$accountId);if($p['monthly_cap_cents']){$mode=(string)stripe_billing_settings($pdo)['mode'];$v=ai_overage_accrued_micros($pdo,$accountId,$mode,(string)$a['period_start'],(string)$a['period_end']);$l=(int)$p['monthly_cap_cents']*10000;$pct=(int)floor($v*100/$l);foreach(ai_overage_threshold_list($settings['cap_thresholds_json'],[75,90,100]) as $t)if($pct>=$t)$record('cap',$t,$v,$l);}
+}
+function ai_overage_record_usage_event(PDO $pdo,int $usageEventId): ?array {
+    if(!ai_overage_ready($pdo))return null;$q=$pdo->prepare('SELECT * FROM ai_overage_usage_ledger WHERE ai_usage_event_id=?');$q->execute([$usageEventId]);if($x=$q->fetch())return $x;
+    $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE id=?');$q->execute([$usageEventId]);$e=$q->fetch();if(!$e||(int)$e['chargeable']!==1||!$e['account_id']||!$e['period_start'])return null;$accountId=(int)$e['account_id'];
+    return commercial_account_with_lock($pdo,$accountId,function()use($pdo,$usageEventId,$e,$accountId){
+        $q=$pdo->prepare('SELECT * FROM ai_overage_usage_ledger WHERE ai_usage_event_id=?');$q->execute([$usageEventId]);if($x=$q->fetch())return $x;
+        $p=ai_overage_policy($pdo,$accountId);$usage=ai_usage_account_summary($pdo,$accountId);$allow=$usage['effective_allowance'];$q=$pdo->prepare('SELECT COALESCE(SUM(total_tokens),0) FROM ai_usage_events WHERE account_id=? AND period_start=? AND period_end=? AND chargeable=1 AND id<?');$q->execute([$accountId,$e['period_start'],$e['period_end'],$usageEventId]);$prior=(int)$q->fetchColumn();
+        $remaining=$allow===null?PHP_INT_MAX:max(0,(int)$allow-$prior);$in=(int)$e['input_tokens'];$out=(int)$e['output_tokens'];$incIn=min($in,$remaining);$remaining=max(0,$remaining-$incIn);$incOut=min($out,$remaining);$overIn=$in-$incIn;$overOut=$out-$incOut;$over=$overIn+$overOut;
+        $mode=(string)stripe_billing_settings($pdo)['mode'];$sub=stripe_billing_current_subscription($pdo,$accountId,$mode);$billable=$over>0&&$p['enabled']&&(($p['account']['billing_source']??'manual')==='stripe')&&$sub;
+        $inRate=$billable?(int)$p['input_rate_micros_per_million']:0;$outRate=$billable?(int)$p['output_rate_micros_per_million']:0;$raw=$billable?ai_overage_micros_for_tokens($overIn,$inRate)+ai_overage_micros_for_tokens($overOut,$outRate):0;$amount=$raw;$limited=0;
+        if($billable&&$p['monthly_cap_cents']!==null){$left=max(0,$p['monthly_cap_cents']*10000-ai_overage_accrued_micros($pdo,$accountId,$mode,(string)$e['period_start'],(string)$e['period_end']));if($amount>$left){$amount=$left;$limited=1;}}
+        $meta=['stripe_subscription_id'=>$sub['stripe_subscription_id']??null,'package_policy'=>$p['package_policy'],'token_source'=>$e['token_source']];
+        $pdo->prepare("INSERT INTO ai_overage_usage_ledger(public_id,ai_usage_event_id,account_id,user_id,provider_id,model_id,period_start,period_end,stripe_mode,allowance_snapshot_tokens,prior_used_tokens,included_input_tokens,included_output_tokens,overage_input_tokens,overage_output_tokens,overage_tokens,billable,input_rate_micros_per_million,output_rate_micros_per_million,raw_amount_micros,amount_micros,cap_limited,pricing_source,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+          ->execute([ulid_like(),$usageEventId,$accountId,$e['user_id']?:null,$e['provider_id']?:null,$e['model_id']?:null,$e['period_start'],$e['period_end'],$mode,$allow,$prior,$incIn,$incOut,$overIn,$overOut,$over,$billable?1:0,$inRate,$outRate,$raw,$amount,$limited,$billable?$p['pricing_source']:'none',json_encode($meta,JSON_UNESCAPED_SLASHES)]);
+        $id=(int)$pdo->lastInsertId();ai_overage_refresh_thresholds($pdo,$accountId);$q=$pdo->prepare('SELECT * FROM ai_overage_usage_ledger WHERE id=?');$q->execute([$id]);return $q->fetch()?:null;
+    },10);
+}
+function ai_overage_customer_save(PDO $pdo,array $user,int $accountId,bool $enabled,?int $capCents): array {
+    $q=$pdo->prepare("SELECT 1 FROM account_members WHERE account_id=? AND user_id=? AND account_role IN ('owner','admin')");$q->execute([$accountId,(int)$user['id']]);if(!$q->fetchColumn())throw new RuntimeException('You do not have billing administration access to that account.');
+    $p=ai_overage_policy($pdo,$accountId);if($enabled&&$p['package_policy']==='hard_limit')throw new RuntimeException('This package is configured as a hard AI usage limit.');
+    if($enabled){if($capCents===null||$capCents<100)throw new InvalidArgumentException('Choose a monthly overage cap of at least $1.00.');if($capCents>1000000)throw new InvalidArgumentException('Monthly overage cap is too large.');if(!stripe_billing_current_subscription($pdo,$accountId))throw new RuntimeException('A Stripe subscription is required before enabling AI overage billing.');if($p['input_rate_micros_per_million']<=0&&$p['output_rate_micros_per_million']<=0)throw new RuntimeException('This package has no valid overage pricing.');}
+    $before=ai_overage_account_setting($pdo,$accountId);$pdo->prepare("INSERT INTO ai_overage_account_settings(account_id,enabled,monthly_cap_cents,pricing_source,opted_in_at,updated_by_user_id) VALUES(?,?,?,'package',IF(?=1,NOW(),NULL),?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),monthly_cap_cents=VALUES(monthly_cap_cents),opted_in_at=IF(VALUES(enabled)=1,COALESCE(opted_in_at,NOW()),opted_in_at),updated_by_user_id=VALUES(updated_by_user_id)")->execute([$accountId,$enabled?1:0,$capCents,$enabled?1:0,(int)$user['id']]);
+    $after=ai_overage_account_setting($pdo,$accountId);ai_overage_audit($pdo,$accountId,(int)$p['account']['package_id'],(int)$user['id'],$enabled?'customer_opt_in':'customer_opt_out',$before,$after,$enabled?'Customer explicitly enabled AI overage billing.':'Customer disabled AI overage billing.');return ai_overage_account_summary($pdo,$accountId);
+}
+function ai_overage_admin_update_package(PDO $pdo,array $admin,string $packagePublicId,array $input): array {
+    if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');$p=subscription_package($pdo,$packagePublicId);if(!$p)throw new RuntimeException('Package not found.');
+    $policy=in_array((string)($input['ai_overage_policy']??''),['hard_limit','allow_overage','admin_defined'],true)?(string)$input['ai_overage_policy']:'hard_limit';$in=max(0,(int)round(((float)($input['ai_overage_input_dollars_per_million']??0))*1000000));$out=max(0,(int)round(((float)($input['ai_overage_output_dollars_per_million']??0))*1000000));$capRaw=trim((string)($input['ai_overage_default_cap_dollars']??''));$cap=$capRaw===''?null:max(100,(int)round((float)$capRaw*100));if($policy!=='hard_limit'&&$in<=0&&$out<=0)throw new InvalidArgumentException('Overage-enabled packages need an input and/or output price.');
+    $before=$p;$pdo->prepare('UPDATE subscription_packages SET ai_overage_policy=?,ai_overage_input_micros_per_million=?,ai_overage_output_micros_per_million=?,ai_overage_default_cap_cents=? WHERE id=?')->execute([$policy,$in,$out,$cap,(int)$p['id']]);$after=subscription_package($pdo,$packagePublicId);
+    $pdo->prepare("INSERT INTO subscription_package_admin_events(public_id,package_id,actor_user_id,event_type,before_json,after_json,reason) VALUES(?,?,?,'updated',?,?,?)")->execute([ulid_like(),(int)$p['id'],(int)$admin['id'],json_encode($before,JSON_UNESCAPED_SLASHES),json_encode($after,JSON_UNESCAPED_SLASHES),'Admin updated AI overage policy and pricing.']);ai_overage_audit($pdo,null,(int)$p['id'],(int)$admin['id'],'package_policy_updated',$before,$after,'Administrator updated package AI overage policy.');return $after?:throw new RuntimeException('Package update failed.');
+}
+function ai_overage_account_summary(PDO $pdo,int $accountId): array {
+    $p=ai_overage_policy($pdo,$accountId);$usage=ai_usage_account_summary($pdo,$accountId);$a=$usage['account'];$mode=(string)stripe_billing_settings($pdo)['mode'];$q=$pdo->prepare('SELECT COALESCE(SUM(overage_tokens),0) overage_tokens,COALESCE(SUM(amount_micros),0) accrued_micros,COALESCE(SUM(cap_limited),0) cap_limited_events FROM ai_overage_usage_ledger WHERE account_id=? AND stripe_mode=? AND period_start=? AND period_end=?');$q->execute([$accountId,$mode,$a['period_start'],$a['period_end']]);$x=$q->fetch()?:[];$reported=ai_overage_reported_micros($pdo,$accountId,$mode,(string)$a['period_start'],(string)$a['period_end']);$cap=$p['monthly_cap_cents']===null?null:$p['monthly_cap_cents']*10000;
+    return ['policy'=>$p,'usage'=>$usage,'stripe_mode'=>$mode,'overage_tokens'=>(int)($x['overage_tokens']??0),'accrued_micros'=>(int)($x['accrued_micros']??0),'reported_micros'=>$reported,'unreported_micros'=>max(0,(int)($x['accrued_micros']??0)-$reported),'cap_micros'=>$cap,'remaining_cap_micros'=>$cap===null?null:max(0,$cap-(int)($x['accrued_micros']??0)),'cap_limited_events'=>(int)($x['cap_limited_events']??0)];
+}
+function ai_overage_retry_batch(PDO $pdo,array $config,array $b): bool {
+    $settings=stripe_billing_settings($pdo);if((string)$settings['mode']!==(string)$b['stripe_mode'])return false;
+    try{$params=['customer'=>(string)$b['stripe_customer_id'],'subscription'=>(string)$b['stripe_subscription_id'],'amount'=>(int)$b['amount_cents'],'currency'=>'usd','description'=>'Annotated AI overage · '.$b['period_start'].' to '.$b['period_end'],'period'=>['start'=>strtotime($b['period_start'].' UTC'),'end'=>strtotime($b['period_end'].' UTC')],'metadata'=>['annotated_overage_batch_id'=>$b['public_id'],'period_start'=>$b['period_start'],'period_end'=>$b['period_end']]];$item=stripe_billing_api_request($config,$settings,'POST','invoiceitems',$params,(string)$b['idempotency_key']);$itemId=(string)($item['id']??'');if($itemId==='')throw new RuntimeException('Stripe did not return an invoice item ID.');$invoice=is_string($item['invoice']??null)?(string)$item['invoice']:null;$status=$invoice?'invoiced':'reported';$pdo->prepare("UPDATE ai_overage_report_batches SET stripe_invoice_item_id=?,stripe_invoice_id=?,status=?,last_error=NULL,reported_at=COALESCE(reported_at,NOW()),invoiced_at=IF(?='invoiced',COALESCE(invoiced_at,NOW()),invoiced_at) WHERE id=?")->execute([$itemId,$invoice,$status,$status,(int)$b['id']]);return true;}catch(Throwable $e){$pdo->prepare("UPDATE ai_overage_report_batches SET status='failed',last_error=? WHERE id=?")->execute([mb_substr($e->getMessage(),0,1000),(int)$b['id']]);return false;}
+}
+function ai_overage_report_pending(PDO $pdo,array $config,?int $onlyAccountId=null,int $limit=100): array {
+    if(!ai_overage_ready($pdo)||empty(ai_overage_settings($pdo)['stripe_reporting_enabled'])||!stripe_billing_configured($pdo,$config))return ['reported'=>0,'failed'=>0,'skipped'=>1,'amount_cents'=>0];
+    $mode=(string)stripe_billing_settings($pdo)['mode'];$where='stripe_mode=? AND billable=1';$params=[$mode];if($onlyAccountId!==null){$where.=' AND account_id=?';$params[]=$onlyAccountId;}$q=$pdo->prepare("SELECT account_id,period_start,period_end,MAX(id) source_id,SUM(amount_micros) accrued FROM ai_overage_usage_ledger WHERE $where GROUP BY account_id,period_start,period_end ORDER BY period_end,account_id LIMIT ".max(1,min(500,$limit)));$q->execute($params);$reported=0;$failed=0;$skipped=0;$amountCents=0;
+    foreach($q->fetchAll()?:[] as $g){$aid=(int)$g['account_id'];$start=(string)$g['period_start'];$end=(string)$g['period_end'];$fq=$pdo->prepare("SELECT * FROM ai_overage_report_batches WHERE account_id=? AND stripe_mode=? AND period_start=? AND period_end=? AND status IN ('creating','failed') ORDER BY id LIMIT 1");$fq->execute([$aid,$mode,$start,$end]);if($b=$fq->fetch()){if(ai_overage_retry_batch($pdo,$config,$b)){$reported++;$amountCents+=(int)$b['amount_cents'];}else $failed++;continue;}$already=ai_overage_reported_micros($pdo,$aid,$mode,$start,$end);$delta=max(0,(int)$g['accrued']-$already);$cents=intdiv($delta,10000);if($cents<1){$skipped++;continue;}$sub=stripe_billing_current_subscription($pdo,$aid,$mode);$customer=stripe_billing_customer($pdo,$aid,$mode);if(!$sub||!$customer||in_array((string)$sub['status'],['canceled','unpaid','incomplete_expired','paused'],true)){$skipped++;continue;}$public=ulid_like();$idem='annotated-ai-overage-'.hash('sha256',$mode.'|'.$aid.'|'.$start.'|'.$end.'|'.$g['source_id'].'|'.$cents);$pdo->prepare("INSERT INTO ai_overage_report_batches(public_id,account_id,stripe_mode,period_start,period_end,source_through_usage_id,source_accrued_micros,amount_micros,amount_cents,idempotency_key,stripe_subscription_id,stripe_customer_id,status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,'creating')")->execute([$public,$aid,$mode,$start,$end,(int)$g['source_id'],(int)$g['accrued'],$cents*10000,$cents,$idem,$sub['stripe_subscription_id'],$customer['stripe_customer_id']]);$bq=$pdo->prepare('SELECT * FROM ai_overage_report_batches WHERE id=?');$bq->execute([(int)$pdo->lastInsertId()]);$b=$bq->fetch();if($b&&ai_overage_retry_batch($pdo,$config,$b)){$reported++;$amountCents+=$cents;}else $failed++;}
+    return ['reported'=>$reported,'failed'=>$failed,'skipped'=>$skipped,'amount_cents'=>$amountCents];
+}
+function ai_overage_handle_stripe_invoice(PDO $pdo,array $invoice,string $mode): void {
+    if(!ai_overage_ready($pdo))return;$invoiceId=(string)($invoice['id']??'');if($invoiceId==='')return;foreach((array)($invoice['lines']['data']??[]) as $line){$invoiceItem=$line['parent']['invoice_item_details']['invoice_item']??$line['invoice_item']??null;$batch=(string)($line['metadata']['annotated_overage_batch_id']??'');if(is_string($invoiceItem)&&$invoiceItem!=='')$pdo->prepare("UPDATE ai_overage_report_batches SET stripe_invoice_id=?,status='invoiced',invoiced_at=COALESCE(invoiced_at,NOW()) WHERE stripe_mode=? AND stripe_invoice_item_id=?")->execute([$invoiceId,$mode,$invoiceItem]);if($batch!=='')$pdo->prepare("UPDATE ai_overage_report_batches SET stripe_invoice_id=?,status='invoiced',invoiced_at=COALESCE(invoiced_at,NOW()) WHERE stripe_mode=? AND public_id=?")->execute([$invoiceId,$mode,$batch]);}
+}
+function ai_overage_reconcile_account(PDO $pdo,array $config,array $admin,string $accountPublicId): array {
+    if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');$q=$pdo->prepare('SELECT id FROM accounts WHERE public_id=?');$q->execute([$accountPublicId]);$id=(int)($q->fetchColumn()?:0);if(!$id)throw new RuntimeException('Account not found.');$report=ai_overage_report_pending($pdo,$config,$id,20);ai_overage_audit($pdo,$id,null,(int)$admin['id'],'stripe_reconciled',null,$report,'Administrator reconciled AI overage billing with Stripe.');return ['report'=>$report,'summary'=>ai_overage_account_summary($pdo,$id)];
+}
+function ai_overage_admin_accounts(PDO $pdo,int $limit=250): array {$rows=$pdo->query("SELECT a.id,a.public_id,a.name,p.name package_name FROM accounts a JOIN subscription_packages p ON p.id=a.package_id WHERE a.status<>'closed' ORDER BY a.updated_at DESC,a.id DESC LIMIT ".max(1,min(500,$limit)))->fetchAll()?:[];foreach($rows as &$r)$r['overage']=ai_overage_account_summary($pdo,(int)$r['id']);unset($r);return $rows;}
+function ai_overage_recent_ledger(PDO $pdo,int $limit=100): array {return $pdo->query("SELECT l.*,a.public_id account_public_id,a.name account_name,m.display_name model_name FROM ai_overage_usage_ledger l JOIN accounts a ON a.id=l.account_id LEFT JOIN ai_models m ON m.id=l.model_id ORDER BY l.id DESC LIMIT ".max(1,min(500,$limit)))->fetchAll()?:[];}
+function ai_overage_recent_batches(PDO $pdo,int $limit=100): array {return $pdo->query("SELECT b.*,a.public_id account_public_id,a.name account_name FROM ai_overage_report_batches b JOIN accounts a ON a.id=b.account_id ORDER BY b.id DESC LIMIT ".max(1,min(500,$limit)))->fetchAll()?:[];}
+function ai_overage_recent_thresholds(PDO $pdo,int $limit=100): array {return $pdo->query("SELECT t.*,a.public_id account_public_id,a.name account_name FROM ai_overage_threshold_events t JOIN accounts a ON a.id=t.account_id ORDER BY t.id DESC LIMIT ".max(1,min(500,$limit)))->fetchAll()?:[];}
+function ai_overage_agent_context(PDO $pdo,array $viewer): string {
+    if(($viewer['role']??'')!=='admin'||!ai_overage_ready($pdo))return '';$mode=(string)stripe_billing_settings($pdo)['mode'];$enabled=(int)$pdo->query('SELECT COUNT(*) FROM ai_overage_account_settings WHERE enabled=1')->fetchColumn();$q=$pdo->prepare('SELECT COALESCE(SUM(amount_micros),0) FROM ai_overage_usage_ledger WHERE stripe_mode=? AND billable=1');$q->execute([$mode]);$accrued=(int)$q->fetchColumn();$q=$pdo->prepare("SELECT COALESCE(SUM(amount_micros),0) FROM ai_overage_report_batches WHERE stripe_mode=? AND status IN ('reported','invoiced')");$q->execute([$mode]);$reported=(int)$q->fetchColumn();return "Admin AI overage billing context (read-only). Stripe mode: {$mode}. Accounts opted in: {$enabled}. Accrued billable overage: $".number_format($accrued/1000000,6).". Reported to Stripe: $".number_format($reported/1000000,6).". Local usage ledger is authoritative.";
+}

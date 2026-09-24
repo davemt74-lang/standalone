@@ -421,7 +421,7 @@ function stripe_billing_process_webhook(PDO $pdo,array $config,string $payload,s
         }elseif(in_array($eventType,['customer.subscription.created','customer.subscription.updated','customer.subscription.deleted','customer.subscription.paused','customer.subscription.resumed','customer.subscription.trial_will_end'],true)){
             stripe_billing_sync_subscription($pdo,$object,$mode,$eventId,$eventCreatedAt);
         }elseif(in_array($eventType,['invoice.finalized','invoice.paid','invoice.payment_failed','invoice.payment_action_required','invoice.voided','invoice.marked_uncollectible'],true)){
-            stripe_billing_sync_invoice($pdo,$object,$eventType,$mode,$eventId,$eventCreatedAt);
+            stripe_billing_sync_invoice($pdo,$object,$eventType,$mode,$eventId,$eventCreatedAt);if(function_exists('ai_overage_handle_stripe_invoice'))ai_overage_handle_stripe_invoice($pdo,$object,$mode);
         }elseif(in_array($eventType,['charge.refunded','charge.dispute.created','charge.dispute.closed'],true)){
             stripe_billing_record_customer_event($pdo,$config,$settings,$object,$eventType,$eventId);
         }else{stripe_billing_finish_webhook($pdo,$mode,$eventId,'ignored');return ['ok'=>true,'ignored'=>true,'event_id'=>$eventId,'type'=>$eventType];}
