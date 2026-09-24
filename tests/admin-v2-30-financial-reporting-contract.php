@@ -6,6 +6,7 @@ $m='database/migrations/20260924_076_admin_financial_reporting_reconciliation.sq
 foreach(['admin_finance_reconciliation_exceptions','admin_finance_reconciliation_events','admin_finance_period_closes','admin_finance_exports','admin.finance.view','admin.finance.manage','admin.finance.export'] as $n)$need($m,$n,'Migration 076 missing '.$n);
 foreach(['function admin_finance_ready','function admin_finance_metrics','function admin_finance_receivables','function admin_finance_scan','function admin_finance_exception_update','function admin_finance_period_close','function admin_finance_account_ledger','function admin_finance_export','function admin_finance_agent_context'] as $n)$need('app/admin-finance.php',$n,'Admin V2.30 finance runtime missing '.$n);
 $need('app/admin-finance.php',"in_array($v[0],['=','+','-','@'],true)",'Finance CSV export must neutralize spreadsheet formula injection.');
+$need('app/admin-finance.php','subtotal_cents=0 AND amount_due_cents<>0','Finance reporting must preserve invoice value for pre-V1.90 rows awaiting enrichment.');
 $need('app/admin-access.php',"'admin.finance.view'",'Finance view capability must be registered.');
 $need('app/admin-access.php',"'admin.finance.manage'",'Finance manage capability must be registered.');
 $need('app/admin-access.php',"'admin.finance.export'",'Finance export capability must be registered.');
