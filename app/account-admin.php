@@ -88,6 +88,9 @@ function account_admin_update_lifecycle(PDO $pdo,array $admin,string $accountPub
     $name=trim((string)($input['name']??$account['name']));if($name==='')throw new InvalidArgumentException('Account name is required.');
     $status=(string)($input['status']??$account['status']);if(!in_array($status,['active','suspended','closed'],true))throw new InvalidArgumentException('Invalid account status.');
     $sub=(string)($input['subscription_status']??$account['subscription_status']);if(!in_array($sub,['trialing','active','past_due','paused','canceled'],true))throw new InvalidArgumentException('Invalid subscription status.');
+    $stripeManaged=($account['billing_source']??'manual')==='stripe'&&function_exists('stripe_billing_current_subscription')&&stripe_billing_current_subscription($pdo,(int)$account['id']);
+    if($stripeManaged&&$sub!==(string)$account['subscription_status'])throw new RuntimeException('Stripe-managed subscription state is controlled by Stripe webhooks.');
+    if($stripeManaged&&$status==='closed')throw new RuntimeException('Cancel the Stripe subscription before closing this account.');
     if($status==='closed')$sub='canceled';
     $before=['name'=>$account['name'],'status'=>$account['status'],'subscription_status'=>$account['subscription_status']];
     $after=['name'=>mb_substr($name,0,190),'status'=>$status,'subscription_status'=>$sub];if($before===$after)return $account;
