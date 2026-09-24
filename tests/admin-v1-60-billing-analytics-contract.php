@@ -2,10 +2,11 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$fail=[];
 $need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$message;};
-foreach(['billing_operations_settings','billing_daily_snapshots','billing_account_snapshots','billing_dunning_cases','billing_dunning_events','billing_notes','billing_cancellation_feedback','suspend_after_grace TINYINT(1) NOT NULL DEFAULT 0','suspended_by_dunning','suspended_at'] as $n)$need('database/migrations/20260924_069_billing_analytics_dunning.sql',$n,'Migration 069 missing billing-operations contract: '.$n);
+foreach(['billing_operations_settings','billing_daily_snapshots','billing_account_snapshots','billing_dunning_cases','billing_dunning_events','billing_notes','billing_cancellation_feedback','suspend_after_grace TINYINT(1) NOT NULL DEFAULT 0','suspended_by_dunning','suspended_at','suspension_lifecycle_event_id'] as $n)$need('database/migrations/20260924_069_billing_analytics_dunning.sql',$n,'Migration 069 missing billing-operations contract: '.$n);
 foreach(['function billing_operations_current_metrics','function billing_operations_snapshot_day','function billing_operations_handle_stripe_event','function billing_operations_process_due_dunning','function billing_operations_grant_grace','function billing_operations_extend_trial','function billing_operations_resync_account','function billing_operations_alerts','function billing_operations_account_timeline','function billing_operations_agent_context'] as $n)$need('app/billing-operations.php',$n,'Billing operations runtime missing '.$n);
 $need('app/billing-operations.php','FOR UPDATE','Dunning review/grace paths must row-lock mutable cases.');
-$need('app/billing-operations.php',"reason<>'Billing dunning grace expired.'",'Payment recovery must respect later lifecycle decisions.');
+$need('app/billing-operations.php','function billing_operations_lifecycle_superseded','Dunning restoration must use one deterministic lifecycle-supersession guard.');
+$need('app/billing-operations.php','suspension_lifecycle_event_id','Dunning suspension ownership must persist the exact lifecycle event watermark.');
 $need('app/billing-operations.php',"'suspend_after_grace'",'Automatic suspension must remain a configurable policy.');
 $need('app/billing-operations.php',"'restore_after_payment'",'Payment recovery restoration must remain configurable.');
 $need('app/billing-operations.php','invoice.voided','Voided Stripe invoices must reconcile open dunning.');
