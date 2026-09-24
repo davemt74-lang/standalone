@@ -1,0 +1,58 @@
+-- Admin V1.50 — Account Invitations, Membership & Seat Management
+-- Commercial account seats remain separate from Research Team membership and permissions.
+
+CREATE TABLE IF NOT EXISTS account_invitations (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  account_id BIGINT UNSIGNED NOT NULL,
+  invited_email VARCHAR(255) NOT NULL,
+  account_role ENUM('admin','member') NOT NULL DEFAULT 'member',
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  status ENUM('pending','accepted','declined','revoked','expired') NOT NULL DEFAULT 'pending',
+  reserves_seat TINYINT(1) NOT NULL DEFAULT 1,
+  expires_at DATETIME NOT NULL,
+  invited_by_user_id BIGINT UNSIGNED NULL,
+  accepted_by_user_id BIGINT UNSIGNED NULL,
+  accepted_at DATETIME NULL,
+  revoked_by_user_id BIGINT UNSIGNED NULL,
+  revoked_at DATETIME NULL,
+  reason VARCHAR(500) NOT NULL,
+  delivery_status ENUM('link_only','sent','failed') NOT NULL DEFAULT 'link_only',
+  send_count INT UNSIGNED NOT NULL DEFAULT 0,
+  last_sent_at DATETIME NULL,
+  last_delivery_error VARCHAR(1000) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_account_invite_account(account_id,status,expires_at,id),
+  INDEX idx_account_invite_email(invited_email,status,expires_at,id),
+  INDEX idx_account_invite_actor(invited_by_user_id,created_at,id),
+  CONSTRAINT fk_account_invite_account FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_account_invite_inviter FOREIGN KEY(invited_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_account_invite_acceptor FOREIGN KEY(accepted_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_account_invite_revoker FOREIGN KEY(revoked_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS account_membership_events (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  account_id BIGINT UNSIGNED NOT NULL,
+  actor_user_id BIGINT UNSIGNED NULL,
+  subject_user_id BIGINT UNSIGNED NULL,
+  invitation_id BIGINT UNSIGNED NULL,
+  event_type VARCHAR(80) NOT NULL,
+  before_json JSON NULL,
+  after_json JSON NULL,
+  reason VARCHAR(500) NOT NULL,
+  actor_ip_hash CHAR(64) NULL,
+  actor_user_agent_hash CHAR(64) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_membership_event_account(account_id,created_at,id),
+  INDEX idx_membership_event_actor(actor_user_id,created_at,id),
+  INDEX idx_membership_event_subject(subject_user_id,created_at,id),
+  INDEX idx_membership_event_invitation(invitation_id,created_at,id),
+  INDEX idx_membership_event_type(event_type,created_at,id),
+  CONSTRAINT fk_membership_event_account FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_membership_event_actor FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_membership_event_subject FOREIGN KEY(subject_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_membership_event_invitation FOREIGN KEY(invitation_id) REFERENCES account_invitations(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
