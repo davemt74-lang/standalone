@@ -69,6 +69,18 @@ function account_admin_create(PDO $pdo,array $admin,array $input): array {
         $pdo->commit();return account_admin_get($pdo,$id)?:throw new RuntimeException('Created account could not be loaded.');
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
+function account_admin_change_package(PDO $pdo,array $admin,string $accountPublicId,string $packagePublicId,string $reason): array {
+    account_admin_require_admin($admin);$account=account_admin_get($pdo,$accountPublicId);if(!$account)throw new RuntimeException('Account not found.');$package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active')throw new RuntimeException('Choose an active package.');$reason=account_admin_reason($reason);if((int)$account['package_id']===(int)$package['id'])return $account;
+    $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));[$start,$end]=subscription_period_from($now);$trial=(int)$package['trial_days'];$trialEnds=$trial>0?$now->modify('+'.$trial.' days')->format('Y-m-d H:i:s'):null;$sub=$trialEnds?'trialing':'active';$before=['package_id'=>$account['package_id'],'package_public_id'=>$account['package_public_id'],'package_name'=>$account['package_name'],'subscription_status'=>$account['subscription_status']];
+    $pdo->beginTransaction();try{
+        $pdo->prepare('UPDATE accounts SET package_id=?,subscription_status=?,period_start=?,period_end=?,trial_ends_at=?,package_assigned_at=NOW() WHERE id=?')->execute([(int)$package['id'],$sub,$start,$end,$trialEnds,(int)$account['id']]);
+        if($account['account_type']==='personal'&&!empty($account['personal_user_id']))$pdo->prepare('UPDATE users SET plan_tier=?,pro_expires_at=NULL WHERE id=?')->execute([(string)$package['legacy_plan_tier'],(int)$account['personal_user_id']]);
+        $pdo->prepare("INSERT INTO subscription_package_events(public_id,account_id,user_id,previous_package_id,new_package_id,actor_user_id,event_type,reason,metadata_json) VALUES(?,?,?,?,?,?,'package_changed',?,?)")
+          ->execute([ulid_like(),(int)$account['id'],$account['personal_user_id']?(int)$account['personal_user_id']:null,(int)$account['package_id'],(int)$package['id'],(int)$admin['id'],$reason,json_encode(['source'=>'admin_account'],JSON_UNESCAPED_SLASHES)]);
+        account_admin_event($pdo,(int)$account['id'],(int)$admin['id'],null,'package_changed',$before,['package_id'=>(int)$package['id'],'package_public_id'=>$package['public_id'],'package_name'=>$package['name'],'subscription_status'=>$sub],$reason);
+        $pdo->commit();return account_admin_get($pdo,(int)$account['id'])?:throw new RuntimeException('Updated account could not be loaded.');
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+}
 function account_admin_update_lifecycle(PDO $pdo,array $admin,string $accountPublicId,array $input): array {
     account_admin_require_admin($admin);$account=account_admin_get($pdo,$accountPublicId);if(!$account)throw new RuntimeException('Account not found.');$reason=account_admin_reason((string)($input['reason']??''));
     $name=trim((string)($input['name']??$account['name']));if($name==='')throw new InvalidArgumentException('Account name is required.');
@@ -119,7 +131,7 @@ function account_admin_set_override(PDO $pdo,array $admin,string $accountPublicI
     $q=$pdo->prepare('SELECT * FROM account_entitlement_overrides WHERE account_id=? AND entitlement_key=? LIMIT 1');$q->execute([(int)$account['id'],$key]);$before=$q->fetch()?:null;$json=json_encode($value,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
     if($key==='member_limit'){$countQ=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$countQ->execute([(int)$account['id']]);if((int)$value<(int)$countQ->fetchColumn())throw new RuntimeException('Member limit cannot be set below the current member count.');}
     $pdo->beginTransaction();try{
-        $pdo->prepare("INSERT INTO account_entitlement_overrides(public_id,account_id,entitlement_key,value_json,status,expires_at,reason,created_by_user_id,updated_by_user_id) VALUES(?,?,?,?,'active',?,?,?,?,?) ON DUPLICATE KEY UPDATE value_json=VALUES(value_json),status='active',expires_at=VALUES(expires_at),reason=VALUES(reason),updated_by_user_id=VALUES(updated_by_user_id)")
+        $pdo->prepare("INSERT INTO account_entitlement_overrides(public_id,account_id,entitlement_key,value_json,status,expires_at,reason,created_by_user_id,updated_by_user_id) VALUES(?,?,?,?,'active',?,?,?,?) ON DUPLICATE KEY UPDATE value_json=VALUES(value_json),status='active',expires_at=VALUES(expires_at),reason=VALUES(reason),updated_by_user_id=VALUES(updated_by_user_id)")
           ->execute([ulid_like(),(int)$account['id'],$key,$json,$expires,$reason,(int)$admin['id'],(int)$admin['id']]);
         $after=account_admin_effective_entitlements($pdo,(int)$account['id']);account_admin_event($pdo,(int)$account['id'],(int)$admin['id'],null,'entitlement_override_set',$before,['entitlement_key'=>$key,'value'=>$value,'expires_at'=>$expires],$reason);$pdo->commit();return $after;
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
