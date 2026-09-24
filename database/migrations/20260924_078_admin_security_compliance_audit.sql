@@ -3,6 +3,8 @@
 
 ALTER TABLE admin_security_audit_events
   MODIFY COLUMN subject_type VARCHAR(80) NOT NULL,
+  MODIFY COLUMN subject_public_id VARCHAR(255) NULL,
+  MODIFY COLUMN reason VARCHAR(1000) NOT NULL,
   ADD COLUMN account_id BIGINT UNSIGNED NULL AFTER actor_user_id,
   ADD COLUMN source_domain VARCHAR(64) NOT NULL DEFAULT 'security' AFTER event_type,
   ADD COLUMN source_event_public_id VARCHAR(128) NULL AFTER source_domain,
