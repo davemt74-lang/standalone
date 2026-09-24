@@ -65,6 +65,8 @@ function account_admin_create(PDO $pdo,array $admin,array $input): array {
         $public=ulid_like();$pdo->prepare("INSERT INTO accounts(public_id,account_type,name,owner_user_id,personal_user_id,package_id,subscription_status,billing_source,period_start,period_end,trial_ends_at,status) VALUES(?,?,?,?,NULL,?,?,?,?,?,?,'active')")
           ->execute([$public,$type,mb_substr($name,0,190),(int)$owner['id'],(int)$package['id'],$sub,$type==='internal'?'internal':'manual',$start,$end,$trialEnds]);$id=(int)$pdo->lastInsertId();
         $pdo->prepare("INSERT INTO account_members(account_id,user_id,account_role) VALUES(?,?,'owner')")->execute([$id,(int)$owner['id']]);
+        $pdo->prepare("INSERT INTO subscription_package_events(public_id,account_id,user_id,previous_package_id,new_package_id,actor_user_id,event_type,reason,metadata_json) VALUES(?,?,NULL,NULL,?,?, 'account_created',?,?)")
+          ->execute([ulid_like(),$id,(int)$package['id'],(int)$admin['id'],$reason,json_encode(['source'=>'admin_account_create'],JSON_UNESCAPED_SLASHES)]);
         account_admin_event($pdo,$id,(int)$admin['id'],(int)$owner['id'],'account_created',null,['name'=>$name,'account_type'=>$type,'package_id'=>$package['public_id'],'subscription_status'=>$sub],$reason);
         $pdo->commit();return account_admin_get($pdo,$id)?:throw new RuntimeException('Created account could not be loaded.');
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
