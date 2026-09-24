@@ -30,6 +30,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $q->execute([ulid_like(),$username,$name,$email,password_hash($password,PASSWORD_DEFAULT)]);
             $uid=(int)$pdo->lastInsertId();
             try{$pdo->prepare('INSERT IGNORE INTO user_preferences(user_id) VALUES(?)')->execute([$uid]);}catch(PDOException $e){}
+            subscription_ensure_user_account($pdo,$uid,$uid);
             onboarding_ensure($pdo,$uid);
             session_regenerate_id(true);
             $_SESSION['user_id']=$uid;
