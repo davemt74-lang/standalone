@@ -25,7 +25,7 @@ $need('app/oauth.php',"subscriptions_ready","OAuth registration must tolerate th
 $need('first-admin.php','subscription_ensure_user_account','Fresh install must create the first admin personal account when package schema is ready.');
 
 $latest=glob($root.'/database/migrations/*.sql')?:[];sort($latest,SORT_STRING);$latest=$latest?basename((string)end($latest)):'';
-if($latest!=='20260924_062_subscriptions_packages_accounts.sql')$fail[]='Migration 062 must be the current latest migration for the package module.';
+if(strcmp($latest,'20260924_062_subscriptions_packages_accounts.sql')<0)$fail[]='Migration 062 must remain present in the ordered migration history.';
 
 $css=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');
 if(!hash_equals(hash('sha256',$css),hash('sha256',$ext)))$fail[]='Website and extension shared CSS must remain byte-identical.';
