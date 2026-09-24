@@ -9,6 +9,8 @@ foreach(['Subscription & billing','Manage billing in Stripe','Choose a paid pack
 $need('stripe/webhook.php','stripe_billing_process_webhook','Stripe webhook endpoint must use canonical signed/idempotent processor.');
 $need('app/shell.php','/billing.php','User menu must expose Billing.');
 $need('app/admin-ui.php',"/admin/billing.php",'Admin IA must expose Billing & Stripe.');
+$need('admin/billing.php',"admin_ui_sidebar('billing')",'Stripe Admin page must use the shared Admin sidebar.');
+$need('admin/account.php','Stripe webhooks control subscription state.','Stripe-managed Account Admin must render subscription state as webhook-authoritative.');
 $need('app/functions.php',"['paused','canceled']", 'Legacy Pro gate must keep past_due in grace while blocking paused/canceled.');
 $need('app/account-admin.php','Stripe-managed accounts must change packages through Stripe billing.','Account Admin must block manual package drift for Stripe subscriptions.');
 $need('app/subscriptions.php','Stripe-managed accounts must change packages through Stripe billing.','Admin Users package assignment must block Stripe package drift.');
