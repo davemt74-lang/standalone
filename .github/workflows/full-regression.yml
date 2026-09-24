@@ -121,13 +121,20 @@ jobs:
           DB_PASS: root
           CODE_AUDIT_RESET_DB: '1'
         run: php tests/ci/code-audit-upgrade-from-065.php
-      - name: Code audit continuation upgrade rehearsal from migration 066 through 067
+      - name: Code audit continuation upgrade rehearsal from migration 066 through current
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_code_audit_067_upgrade;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
           CODE_AUDIT_067_RESET_DB: '1'
         run: php tests/ci/code-audit-upgrade-from-066.php
+      - name: Admin V1.50 membership upgrade rehearsal from migration 067 through 068
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v150_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V150_RESET_DB: '1'
+        run: php tests/ci/admin-v1-50-upgrade-from-067.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -249,13 +256,20 @@ jobs:
           DB_PASS: root
           CODE_AUDIT_RESET_DB: '1'
         run: php tests/ci/code-audit-upgrade-from-065.php
-      - name: MySQL 8 code audit continuation upgrade rehearsal from migration 066 through 067
+      - name: MySQL 8 code audit continuation upgrade rehearsal from migration 066 through current
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_code_audit_067_upgrade;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
           CODE_AUDIT_067_RESET_DB: '1'
         run: php tests/ci/code-audit-upgrade-from-066.php
+      - name: MySQL 8 Admin V1.50 membership upgrade rehearsal from migration 067 through 068
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v150_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V150_RESET_DB: '1'
+        run: php tests/ci/admin-v1-50-upgrade-from-067.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
