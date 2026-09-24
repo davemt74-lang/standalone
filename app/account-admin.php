@@ -62,8 +62,8 @@ function account_admin_create(PDO $pdo,array $admin,array $input): array {
     $package=subscription_package($pdo,(string)($input['package_id']??''));if(!$package||$package['status']!=='active')throw new RuntimeException('Choose an active package.');
     $reason=account_admin_reason((string)($input['reason']??''));$now=new DateTimeImmutable('now',new DateTimeZone('UTC'));[$start,$end]=subscription_period_from($now);$trial=(int)$package['trial_days'];$trialEnds=$trial>0?$now->modify('+'.$trial.' days')->format('Y-m-d H:i:s'):null;$sub=$trialEnds?'trialing':'active';
     $pdo->beginTransaction();try{
-        $public=ulid_like();$pdo->prepare("INSERT INTO accounts(public_id,account_type,name,owner_user_id,personal_user_id,package_id,subscription_status,period_start,period_end,trial_ends_at,status) VALUES(?,?,?,?,NULL,?,?,?,?,?,'active')")
-          ->execute([$public,$type,mb_substr($name,0,190),(int)$owner['id'],(int)$package['id'],$sub,$start,$end,$trialEnds]);$id=(int)$pdo->lastInsertId();
+        $public=ulid_like();$pdo->prepare("INSERT INTO accounts(public_id,account_type,name,owner_user_id,personal_user_id,package_id,subscription_status,billing_source,period_start,period_end,trial_ends_at,status) VALUES(?,?,?,?,NULL,?,?,?,?,?,?,'active')")
+          ->execute([$public,$type,mb_substr($name,0,190),(int)$owner['id'],(int)$package['id'],$sub,$type==='internal'?'internal':'manual',$start,$end,$trialEnds]);$id=(int)$pdo->lastInsertId();
         $pdo->prepare("INSERT INTO account_members(account_id,user_id,account_role) VALUES(?,?,'owner')")->execute([$id,(int)$owner['id']]);
         account_admin_event($pdo,$id,(int)$admin['id'],(int)$owner['id'],'account_created',null,['name'=>$name,'account_type'=>$type,'package_id'=>$package['public_id'],'subscription_status'=>$sub],$reason);
         $pdo->commit();return account_admin_get($pdo,$id)?:throw new RuntimeException('Created account could not be loaded.');
@@ -87,7 +87,7 @@ function account_admin_update_lifecycle(PDO $pdo,array $admin,string $accountPub
     account_admin_require_admin($admin);$account=account_admin_get($pdo,$accountPublicId);if(!$account)throw new RuntimeException('Account not found.');$reason=account_admin_reason((string)($input['reason']??''));
     $name=trim((string)($input['name']??$account['name']));if($name==='')throw new InvalidArgumentException('Account name is required.');
     $status=(string)($input['status']??$account['status']);if(!in_array($status,['active','suspended','closed'],true))throw new InvalidArgumentException('Invalid account status.');
-    $sub=(string)($input['subscription_status']??$account['subscription_status']);if(!in_array($sub,['trialing','active','paused','canceled'],true))throw new InvalidArgumentException('Invalid subscription status.');
+    $sub=(string)($input['subscription_status']??$account['subscription_status']);if(!in_array($sub,['trialing','active','past_due','paused','canceled'],true))throw new InvalidArgumentException('Invalid subscription status.');
     if($status==='closed')$sub='canceled';
     $before=['name'=>$account['name'],'status'=>$account['status'],'subscription_status'=>$account['subscription_status']];
     $after=['name'=>mb_substr($name,0,190),'status'=>$status,'subscription_status'=>$sub];if($before===$after)return $account;
