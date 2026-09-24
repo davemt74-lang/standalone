@@ -84,6 +84,7 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
         'suspended_accounts'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM accounts WHERE status='suspended'"),
         'paused_subscriptions'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM accounts WHERE subscription_status='paused' AND status<>'closed'"),
         'past_due_subscriptions'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM accounts WHERE subscription_status='past_due' AND status<>'closed'"),
+        'failed_stripe_webhooks'=>admin_ui_scalar($pdo,"SELECT COUNT(*) FROM stripe_webhook_events WHERE status='failed'"),
     ];
     $usage=['used_tokens'=>0,'capped_accounts'=>0,'exhausted_accounts'=>0,'system_tokens'=>0,'admin_tokens'=>0];
     if(function_exists('ai_usage_ready')&&ai_usage_ready($pdo)){
@@ -103,6 +104,7 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
     $add('Suspended commercial accounts',(int)$counts['suspended_accounts'],'/admin/accounts.php?status=suspended','warn');
     $add('Paused subscriptions',(int)$counts['paused_subscriptions'],'/admin/accounts.php?subscription_status=paused','warn');
     $add('Past-due Stripe subscriptions',(int)$counts['past_due_subscriptions'],'/admin/accounts.php?subscription_status=past_due','warn');
+    $add('Failed Stripe webhook events',(int)$counts['failed_stripe_webhooks'],'/admin/billing.php','danger');
     $add('Failed AI jobs',(int)$counts['failed_ai_jobs'],'/admin/system-health.php','danger');
     $add('Failed source-monitor jobs',(int)$counts['failed_source_jobs'],'/admin/source-monitor.php','danger');
     $add('Open moderation reports',(int)$counts['open_reports'],'/admin/moderation.php','warn');
