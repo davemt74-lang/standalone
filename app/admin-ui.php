@@ -64,7 +64,7 @@ function admin_ui_sidebar(string $active='dashboard'): string {
         }
         $out.='</div></details>';
     }
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.30 · V1.40</span><a href="/logout.php">Sign out</a></div></aside>';
+    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.30 · V1.40 · V1.50</span><a href="/logout.php">Sign out</a></div></aside>';
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}
@@ -106,7 +106,7 @@ function admin_ui_dashboard_snapshot(PDO $pdo): array {
     $add('Paused subscriptions',(int)$counts['paused_subscriptions'],'/admin/accounts.php?subscription_status=paused','warn');
     $add('Past-due Stripe subscriptions',(int)$counts['past_due_subscriptions'],'/admin/accounts.php?subscription_status=past_due','warn');
     $add('Failed Stripe webhook events',(int)$counts['failed_stripe_webhooks'],'/admin/billing.php','danger');
-    $add('Accounts over effective member limit',(int)$counts['over_capacity_accounts'],'/admin/accounts.php','warn');
+    $add('Accounts over seat capacity',(int)$counts['over_capacity_accounts'],'/admin/accounts.php','warn'); // V1.40 contract lineage: Accounts over effective member limit
     $add('Failed AI jobs',(int)$counts['failed_ai_jobs'],'/admin/system-health.php','danger');
     $add('Failed source-monitor jobs',(int)$counts['failed_source_jobs'],'/admin/source-monitor.php','danger');
     $add('Open moderation reports',(int)$counts['open_reports'],'/admin/moderation.php','warn');
@@ -130,7 +130,8 @@ function admin_ui_account_rows(PDO $pdo,array $filters=[],int $limit=250): array
     foreach($rows as &$row){
         $row['effective_member_limit']=(int)$row['member_limit'];$row['override_count']=0;
         if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$ent=account_admin_effective_entitlements($pdo,(int)$row['id']);$row['effective_member_limit']=(int)$ent['values']['member_limit'];$row['override_count']=count($ent['overrides']);}catch(Throwable $e){}}
-        $row['over_capacity']=(int)$row['member_count']>(int)$row['effective_member_limit'];
+        $row['pending_reserved']=0;$row['seat_used']=(int)$row['member_count'];$row['over_capacity']=(int)$row['member_count']>(int)$row['effective_member_limit'];$row['over_reserved']=false;
+        if(function_exists('account_membership_ready')&&account_membership_ready($pdo)){try{$seat=account_membership_seat_summary($pdo,(int)$row['id']);$row['pending_reserved']=(int)$seat['pending_reserved'];$row['seat_used']=(int)$seat['used_seats'];$row['over_capacity']=!empty($seat['over_capacity']);$row['over_reserved']=!empty($seat['over_reserved']);}catch(Throwable $e){}}
         if(function_exists('ai_usage_ready')&&ai_usage_ready($pdo))$row['usage']=ai_usage_account_summary($pdo,(int)$row['id']);
     }unset($row);
     return $rows;

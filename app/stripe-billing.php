@@ -198,7 +198,7 @@ function stripe_billing_account_for_user(PDO $pdo,array $user,?string $accountPu
 function stripe_billing_checkout_member_limit(PDO $pdo,array $account,array $package): void {
     $limit=(int)$package['member_limit'];
     if(function_exists('account_admin_overrides')&&account_admin_ready($pdo)){foreach(account_admin_overrides($pdo,(int)$account['id'],true) as $o)if($o['entitlement_key']==='member_limit'){$limit=max(1,(int)json_decode((string)$o['value_json'],true));break;}}
-    $q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$account['id']]);if((int)$q->fetchColumn()>$limit)throw new RuntimeException('This package member limit is below the account’s current membership.');
+    $q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$account['id']]);$occupied=(int)$q->fetchColumn();$reserved=function_exists('account_membership_pending_reserved_count')?account_membership_pending_reserved_count($pdo,(int)$account['id']):0;if($occupied+$reserved>$limit)throw new RuntimeException('This package member limit is below current members plus reserved invitations.');
 }
 function stripe_billing_checkout_pending(PDO $pdo,int $accountId,string $mode): ?array {
     $q=$pdo->prepare("SELECT * FROM stripe_checkout_sessions WHERE account_id=? AND mode=? AND status IN ('creating','open') ORDER BY id DESC LIMIT 1");$q->execute([$accountId,$mode]);return $q->fetch()?:null;
@@ -433,7 +433,8 @@ function stripe_billing_over_capacity_account_ids(PDO $pdo): array {
     foreach($rows as $row){
         $limit=(int)$row['member_limit'];
         if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$limit=account_admin_effective_member_limit($pdo,(int)$row['id']);}catch(Throwable $e){}}
-        $q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$row['id']]);if((int)$q->fetchColumn()>$limit)$ids[]=(int)$row['id'];
+        if(function_exists('account_membership_ready')&&account_membership_ready($pdo)){$seat=account_membership_seat_summary($pdo,(int)$row['id']);if($seat['over_capacity']||$seat['over_reserved'])$ids[]=(int)$row['id'];}
+        else{$q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$row['id']]);if((int)$q->fetchColumn()>$limit)$ids[]=(int)$row['id'];}
     }
     return $ids;
 }

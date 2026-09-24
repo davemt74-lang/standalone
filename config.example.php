@@ -12,6 +12,13 @@ return [
         'user' => 'annotated',
         'pass' => 'change-me',
     ],
+    'mail' => [
+        // Optional invitation email delivery using the server's configured PHP mail transport.
+        // Leave disabled to use secure copyable invitation links only.
+        'enabled' => false,
+        'from_email' => 'no-reply@annotated.example.com',
+        'from_name' => 'Annotated',
+    ],
     'storage' => [
         // Keep evidence outside the public web root. Ensure the PHP/worker user can read/write this directory.
         'private_root' => dirname(__DIR__) . '/annotated-private',
