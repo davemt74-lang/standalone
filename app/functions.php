@@ -170,25 +170,35 @@ function project_access(PDO $pdo,int $userId,string $publicId): ?array {
     $q=$pdo->prepare("SELECT DISTINCT rp.*,CASE WHEN rp.owner_user_id=? THEN 'owner' ELSE COALESCE(tm.role,'viewer') END access_role FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.public_id=? AND (rp.owner_user_id=? OR tm.user_id=?) LIMIT 1");
     $q->execute([$userId,$userId,$publicId,$userId,$userId]);return $q->fetch()?:null;
 }
+function public_http_url_resolve(string $url): ?array {
+    $parts=parse_url($url);$scheme=strtolower((string)($parts['scheme']??''));$host=strtolower((string)($parts['host']??''));
+    if(!$parts||!in_array($scheme,['http','https'],true)||$host===''||isset($parts['user'])||isset($parts['pass']))return null;
+    if($host==='localhost'||str_ends_with($host,'.localhost')||str_ends_with($host,'.local'))return null;
+    $ips=[];if(filter_var($host,FILTER_VALIDATE_IP))$ips[]=$host;else{$resolved=gethostbynamel($host);if(is_array($resolved))$ips=array_values(array_unique($resolved));}
+    if(!$ips)return null;
+    foreach($ips as $ip)if(!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE))return null;
+    $port=(int)($parts['port']??($scheme==='https'?443:80));if($port<1||$port>65535)return null;
+    return ['parts'=>$parts,'scheme'=>$scheme,'host'=>$host,'port'=>$port,'ips'=>$ips];
+}
 function public_http_url_allowed(string $url): bool {
-    $parts=parse_url($url);if(!$parts||!in_array(strtolower((string)($parts['scheme']??'')),['http','https'],true)||empty($parts['host']))return false;
-    $host=strtolower((string)$parts['host']);if($host==='localhost'||str_ends_with($host,'.localhost')||str_ends_with($host,'.local'))return false;
-    $ips=[];
-    if(filter_var($host,FILTER_VALIDATE_IP))$ips[]=$host;else{$resolved=gethostbynamel($host);if(is_array($resolved))$ips=$resolved;}
-    if(!$ips)return false;
-    foreach($ips as $ip){if(!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE))return false;}
-    return true;
+    return public_http_url_resolve($url)!==null;
 }
 function fetch_public_url(string $url,int $maxBytes=3145728): array {
     $current=$url;
     for($hop=0;$hop<4;$hop++){
-        if(!public_http_url_allowed($current))throw new RuntimeException('Source URL is not a permitted public HTTP(S) destination.');
-        $parts=parse_url($current);$host=(string)$parts['host'];$port=(int)($parts['port']??(strtolower((string)$parts['scheme'])==='https'?443:80));$resolved=gethostbynamel($host);$pin=is_array($resolved)?($resolved[0]??null):null;if(!$pin)throw new RuntimeException('Unable to resolve public source host.');
+        $resolved=public_http_url_resolve($current);if(!$resolved)throw new RuntimeException('Source URL is not a permitted public HTTP(S) destination.');
+        $parts=$resolved['parts'];$host=(string)$resolved['host'];$port=(int)$resolved['port'];$pin=(string)$resolved['ips'][0];
         $ch=curl_init($current);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HEADER=>true,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_TIMEOUT=>20,CURLOPT_CONNECTTIMEOUT=>8,CURLOPT_USERAGENT=>'AnnotatedSourceMonitor/1.0',CURLOPT_HTTPHEADER=>['Accept: text/html,application/xhtml+xml;q=0.9,text/plain;q=0.8'],CURLOPT_PROTOCOLS=>CURLPROTO_HTTP|CURLPROTO_HTTPS,CURLOPT_RESOLVE=>[$host.':'.$port.':'.$pin]]);
         $raw=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);$headerSize=(int)curl_getinfo($ch,CURLINFO_HEADER_SIZE);$contentType=(string)curl_getinfo($ch,CURLINFO_CONTENT_TYPE);$err=curl_error($ch);curl_close($ch);
         if($raw===false)throw new RuntimeException('Source request failed'.($err?': '.$err:''));
         $headers=substr($raw,0,$headerSize);$body=substr($raw,$headerSize);
-        if(in_array($status,[301,302,303,307,308],true)&&preg_match('/^Location:\s*(.+)$/mi',$headers,$m)){$loc=trim($m[1]);if(!preg_match('#^https?://#i',$loc)){$p=parse_url($current);$base=($p['scheme']??'https').'://'.($p['host']??'');if(str_starts_with($loc,'/'))$loc=$base.$loc;else{$dir=dirname($p['path']??'/');$dir=$dir==='.'?'':'/'.trim($dir,'/');$loc=$base.$dir.'/'.ltrim($loc,'/');}}$current=$loc;continue;}
+        if(in_array($status,[301,302,303,307,308],true)&&preg_match('/^Location:\s*(.+)$/mi',$headers,$m)){
+            $loc=trim($m[1]);if(!preg_match('#^https?://#i',$loc)){
+                $authority=$parts['scheme'].'://'.$parts['host'].(isset($parts['port'])?':'.(int)$parts['port']:'');
+                if(str_starts_with($loc,'/'))$loc=$authority.$loc;else{$dir=dirname((string)($parts['path']??'/'));$dir=$dir==='.'?'':'/'.trim($dir,'/');$loc=$authority.$dir.'/'.ltrim($loc,'/');}
+            }
+            $current=$loc;continue;
+        }
         if(strlen($body)>$maxBytes)$body=substr($body,0,$maxBytes);
         return ['url'=>$current,'status'=>$status,'content_type'=>$contentType,'body'=>$body];
     }
