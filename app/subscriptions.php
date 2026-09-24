@@ -22,6 +22,9 @@ function subscription_default_package(PDO $pdo): array {
 function subscription_period_from(DateTimeImmutable $start): array {
     return [$start->format('Y-m-d'),$start->modify('+1 month')->format('Y-m-d')];
 }
+function commercial_account_with_lock(PDO $pdo,int $accountId,callable $callback,int $timeoutSeconds=10): mixed {
+    return app_with_advisory_lock($pdo,'commercial-account',$accountId,$callback,$timeoutSeconds);
+}
 function subscription_ensure_user_account(PDO $pdo,int $userId,?int $actorUserId=null): array {
     if(!subscriptions_ready($pdo))throw new RuntimeException('Subscriptions & Packages requires the latest database upgrade.');
     $q=$pdo->prepare("SELECT a.*,p.public_id package_public_id,p.slug package_slug,p.name package_name,p.legacy_plan_tier,p.monthly_price_cents,p.monthly_ai_token_allowance,p.member_limit,p.trial_days
@@ -51,19 +54,23 @@ function subscription_user_account(PDO $pdo,int $userId,bool $ensure=true): ?arr
 }
 function subscription_assign_user_package(PDO $pdo,array $admin,int $userId,string $packagePublicId,string $reason=''): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
-    $package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active')throw new RuntimeException('Select an active subscription package.');
-    $account=subscription_ensure_user_account($pdo,$userId,(int)$admin['id']);if(($account['billing_source']??'manual')==='stripe'&&function_exists('stripe_billing_current_subscription')&&stripe_billing_current_subscription($pdo,(int)$account['id']))throw new RuntimeException('Stripe-managed accounts must change packages through Stripe billing.');$oldId=(int)$account['package_id'];$now=new DateTimeImmutable('now',new DateTimeZone('UTC'));[$start,$end]=subscription_period_from($now);$trialEnds=(int)$package['trial_days']>0?$now->modify('+'.(int)$package['trial_days'].' days')->format('Y-m-d H:i:s'):null;$status=$trialEnds?'trialing':'active';
-    if($oldId===(int)$package['id'])return subscription_user_account($pdo,$userId,true)??$account;
-    $pdo->beginTransaction();try{
-        $pdo->prepare('UPDATE accounts SET package_id=?,subscription_status=?,period_start=?,period_end=?,trial_ends_at=?,package_assigned_at=NOW() WHERE id=?')->execute([(int)$package['id'],$status,$start,$end,$trialEnds,(int)$account['id']]);
-        $pdo->prepare('UPDATE users SET plan_tier=?,pro_expires_at=NULL WHERE id=?')->execute([(string)$package['legacy_plan_tier'],$userId]);
-        $pdo->prepare("INSERT INTO subscription_package_events(public_id,account_id,user_id,previous_package_id,new_package_id,actor_user_id,event_type,reason,metadata_json) VALUES(?,?,?,?,?,?,'package_changed',?,?)")
-          ->execute([ulid_like(),(int)$account['id'],$userId,$oldId,(int)$package['id'],(int)$admin['id'],trim($reason)!==''?trim($reason):'Admin changed user package.',json_encode(['source'=>'admin_users'],JSON_UNESCAPED_SLASHES)]);
-        $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    return subscription_user_account($pdo,$userId,true)??throw new RuntimeException('Updated package could not be loaded.');
-}
-function subscription_package_create(PDO $pdo,array $admin,array $input): array {
+    $seed=subscription_ensure_user_account($pdo,$userId,(int)$admin['id']);
+    return commercial_account_with_lock($pdo,(int)$seed['id'],function()use($pdo,$admin,$userId,$packagePublicId,$reason){
+        $package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active')throw new RuntimeException('Select an active subscription package.');
+        $account=subscription_user_account($pdo,$userId,false);if(!$account)throw new RuntimeException('Personal account is unavailable.');
+        if(($account['billing_source']??'manual')==='stripe'&&function_exists('stripe_billing_current_subscription')&&stripe_billing_current_subscription($pdo,(int)$account['id']))throw new RuntimeException('Stripe-managed accounts must change packages through Stripe billing.');
+        $oldId=(int)$account['package_id'];if($oldId===(int)$package['id'])return $account;
+        $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));[$start,$end]=subscription_period_from($now);$trialEnds=(int)$package['trial_days']>0?$now->modify('+'.(int)$package['trial_days'].' days')->format('Y-m-d H:i:s'):null;$status=$trialEnds?'trialing':'active';
+        $pdo->beginTransaction();try{
+            $pdo->prepare('UPDATE accounts SET package_id=?,subscription_status=?,period_start=?,period_end=?,trial_ends_at=?,package_assigned_at=NOW() WHERE id=?')->execute([(int)$package['id'],$status,$start,$end,$trialEnds,(int)$account['id']]);
+            $pdo->prepare('UPDATE users SET plan_tier=?,pro_expires_at=NULL WHERE id=?')->execute([(string)$package['legacy_plan_tier'],$userId]);
+            $pdo->prepare("INSERT INTO subscription_package_events(public_id,account_id,user_id,previous_package_id,new_package_id,actor_user_id,event_type,reason,metadata_json) VALUES(?,?,?,?,?,?,'package_changed',?,?)")
+              ->execute([ulid_like(),(int)$account['id'],$userId,$oldId,(int)$package['id'],(int)$admin['id'],trim($reason)!==''?trim($reason):'Admin changed user package.',json_encode(['source'=>'admin_users'],JSON_UNESCAPED_SLASHES)]);
+            $pdo->commit();
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        return subscription_user_account($pdo,$userId,false)??throw new RuntimeException('Updated package could not be loaded.');
+    });
+}function subscription_package_create(PDO $pdo,array $admin,array $input): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
     $name=trim((string)($input['name']??''));if($name==='')throw new InvalidArgumentException('Package name is required.');
     $slug=strtolower(trim((string)($input['slug']??'')));$slug=preg_replace('/[^a-z0-9]+/','-',$slug)?:'';$slug=trim($slug,'-');if($slug===''||strlen($slug)>80)throw new InvalidArgumentException('Enter a valid package slug.');

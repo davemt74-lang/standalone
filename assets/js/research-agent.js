@@ -32,7 +32,7 @@
   }
   async function load(){
     if(!conversation)return;show();messages.innerHTML='<div class="meta">Loading conversation…</div>';
-    try{const d=await request('messages',null,{conversation,limit:60});messages.replaceChildren();(d.messages||[]).forEach(x=>add(x.role==='assistant'||x.sender_type==='agent'?'assistant':'user',x.body,x.action_proposals||[]));}catch(e){messages.innerHTML='<div class="error">'+e.message+'</div>';}
+    try{const d=await request('messages',null,{conversation,limit:60});messages.replaceChildren();(d.messages||[]).forEach(x=>add(x.role==='assistant'||x.sender_type==='agent'?'assistant':'user',x.body,x.action_proposals||[]));}catch(e){messages.replaceChildren();const err=document.createElement('div');err.className='error';err.textContent=e.message||'Agent request failed';messages.appendChild(err);}
   }
   async function send(prompt){
     if(sending||!prompt.trim())return;sending=true;show();add('user',prompt.trim());const thinking=add('assistant','Thinking…');thinking.classList.add('is-thinking');input.value='';resize();

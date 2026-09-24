@@ -15,6 +15,7 @@ php tests/admin-ai-usage-v1-contract.php
 php tests/admin-v1-20-information-architecture-contract.php
 php tests/admin-v1-30-account-lifecycle-contract.php
 php tests/admin-v1-40-stripe-billing-contract.php
+php tests/code-audit-hardening-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php

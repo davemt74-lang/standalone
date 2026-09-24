@@ -7,7 +7,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
     $op=(string)($_POST['op']??'');
     if($op==='settings'){stripe_billing_save_settings($pdo,$config,$admin,$_POST);$success='Stripe billing settings saved.';}
     elseif($op==='test'){$acct=stripe_billing_test_connection($pdo,$config);$testResult=(string)($acct['business_profile']['name']??$acct['settings']['dashboard']['display_name']??$acct['id']??'Connected');$success='Stripe connection verified.';}
-    elseif($op==='sync_price'){$row=stripe_billing_sync_package_price($pdo,$config,$admin,(string)($_POST['package_id']??''));$success='Stripe Product/Price synchronized: '.(string)$row['stripe_price_id'];}
+    elseif($op==='sync_price'){$row=stripe_billing_sync_package_price($pdo,$config,$admin,(string)($_POST['package_id']??''));$success='Stripe Product/Price synchronized: '.(string)$row['stripe_price_id'].(!empty($row['rotation_warning'])?' · Cleanup warning: '.(string)$row['rotation_warning']:'');}
     elseif($op==='map_price'){$row=stripe_billing_map_existing_price($pdo,$config,$admin,(string)($_POST['package_id']??''),(string)($_POST['stripe_price_id']??''));$success='Existing Stripe Price mapped: '.(string)$row['stripe_price_id'];}
     else throw new RuntimeException('Unknown billing action.');
 }catch(Throwable $e){$error=$e->getMessage();}}

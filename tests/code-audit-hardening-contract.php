@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$path=$root.'/'.$file;if(!is_file($path)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($path),$needle))$fail[]=$message;};
+$avoid=function(string $file,string $needle,string $message)use(&$fail,$root){$path=$root.'/'.$file;if(is_file($path)&&str_contains((string)file_get_contents($path),$needle))$fail[]=$message;};
+$need('database/migrations/20260924_066_code_audit_hardening.sql','stripe_account_state_watermarks','Migration 066 must persist mode-scoped Stripe account-state watermarks.');
+$need('app/subscriptions.php','function commercial_account_with_lock','Commercial account writes need one canonical advisory-lock namespace.');
+$need('app/subscriptions.php',"commercial_account_with_lock(\$pdo,(int)\$seed['id']",'Legacy user package assignment must serialize on the commercial account.');
+$account=(string)file_get_contents($root.'/app/account-admin.php');if(substr_count($account,'commercial_account_with_lock(')<7)$fail[]='All account lifecycle/member/override mutators must serialize on the commercial account.';
+$stripe=(string)file_get_contents($root.'/app/stripe-billing.php');if(substr_count($stripe,'commercial_account_with_lock(')<3)$fail[]='Stripe checkout/subscription/invoice account mutations must serialize on the commercial account.';
+foreach(['function stripe_billing_account_state_is_stale','function stripe_billing_account_state_mark','stripe_account_state_watermarks'] as $n)$need('app/stripe-billing.php',$n,'Stripe runtime missing account-state ordering guard '.$n.'.');
+$start=strpos($stripe,'function stripe_billing_sync_package_price');$end=strpos($stripe,"\nfunction ",$start+1);$sync=substr($stripe,$start,$end-$start);$store=strpos($sync,'$mapped=stripe_billing_store_price_mapping');$deactivate=strpos($sync,"['active'=>'false']");if($store===false||$deactivate===false||$store>$deactivate)$fail[]='Stripe Price rotation must durably activate the new local mapping before remotely archiving the old Price.';
+$need('app/stripe-billing.php','rotation_warning','Stripe Price cleanup failure must be non-destructive and visible to Admin.');
+$need('app/ai-usage.php',"billing_source']??'manual')==='stripe'",'AI usage must not locally roll Stripe-owned billing periods.');
+$need('app/ai-usage.php','$driver!==1062','AI usage insert idempotency must recover only from duplicate-key races.');
+$need('app/functions.php','function public_http_url_resolve','Public source HTTP must validate and return the exact DNS resolution it pins.');
+$start=strpos((string)file_get_contents($root.'/app/functions.php'),'function fetch_public_url');$source=substr((string)file_get_contents($root.'/app/functions.php'),$start);$source=substr($source,0,strpos($source,"\nfunction ",1));if(substr_count($source,'gethostbynamel(')>0)$fail[]='fetch_public_url must not perform a second DNS lookup after public-address validation.';
+$avoid('assets/js/research-agent.js',"innerHTML='<div class=\"error\">'+e.message",'Research Agent errors must not inject API error text through innerHTML.');
+$need('assets/js/research-agent.js',"err.textContent=e.message||'Agent request failed'",'Research Agent load errors must use textContent.');
+require_once $root.'/app/functions.php';
+if(public_http_url_resolve('http://127.0.0.1/')!==null)$fail[]='Loopback source URL must be rejected.';
+if(public_http_url_resolve('http://user:pass@8.8.8.8/')!==null)$fail[]='Credential-bearing public source URLs must be rejected.';
+$resolved=public_http_url_resolve('http://8.8.8.8:8080/example');if(!$resolved||$resolved['host']!=='8.8.8.8'||(int)$resolved['port']!==8080||($resolved['ips'][0]??'')!=='8.8.8.8')$fail[]='Validated public source resolver must preserve the exact public IP and explicit port.';
+$need('tests/ci/run-full-regression.sh','tests/code-audit-hardening-db.php','Full regression must execute the code-audit hardening DB journey.');
+$need('.github/workflows/full-regression.yml','code-audit-upgrade-from-065.php','Phase gate must rehearse migration 066 from migration 065.');
+$need('.github/workflows/package-two-zips.yml','20260924_066_code_audit_hardening.sql','Production package must contain the audit-hardening migration.');
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Code audit hardening static/runtime contract passed.\n";
