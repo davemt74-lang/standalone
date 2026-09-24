@@ -116,31 +116,36 @@ function stripe_billing_sync_package_price(PDO $pdo,array $config,array $admin,s
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
     $package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active')throw new RuntimeException('Choose an active package.');
     $amount=(int)$package['monthly_price_cents'];if($amount<=0)throw new RuntimeException('Stripe recurring prices are only created for paid packages.');
-    $settings=stripe_billing_settings($pdo);$mode=(string)$settings['mode'];$current=stripe_billing_active_price($pdo,(int)$package['id'],$mode);
-    if($current&&(int)$current['unit_amount_cents']===$amount&&strtolower((string)$current['currency'])==='usd'){stripe_billing_api_request($config,$settings,'POST','products/'.rawurlencode((string)$current['stripe_product_id']),['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]]);return $current;}
-    $productId=$current['stripe_product_id']??null;
-    if(!$productId){
-        $product=stripe_billing_api_request($config,$settings,'POST','products',['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]],'annotated-product-'.$mode.'-'.$package['public_id']);
-        $productId=(string)($product['id']??'');if($productId==='')throw new RuntimeException('Stripe did not return a Product ID.');
-    }else{
-        stripe_billing_api_request($config,$settings,'POST','products/'.rawurlencode((string)$productId),['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]]);
-    }
-    $price=stripe_billing_api_request($config,$settings,'POST','prices',['product'=>$productId,'currency'=>'usd','unit_amount'=>$amount,'recurring'=>['interval'=>'month'],'metadata'=>['annotated_package_id'=>(string)$package['public_id']]],'annotated-price-'.$mode.'-'.$package['public_id'].'-'.$amount);
-    $priceId=(string)($price['id']??'');if($priceId==='')throw new RuntimeException('Stripe did not return a Price ID.');
-    $mapped=stripe_billing_store_price_mapping($pdo,(int)$package['id'],$mode,(string)$productId,$priceId,'usd',$amount,(int)$admin['id']);
-    if($current&&(string)$current['stripe_price_id']!==$priceId){
-        try{stripe_billing_api_request($config,$settings,'POST','prices/'.rawurlencode((string)$current['stripe_price_id']),['active'=>'false']);}
-        catch(Throwable $e){$mapped['rotation_warning']='The new Stripe Price is active in Annotated, but the previous Stripe Price could not be archived automatically: '.$e->getMessage();}
-    }
-    return $mapped;
+    $settings=stripe_billing_settings($pdo);$mode=(string)$settings['mode'];$packageId=(int)$package['id'];
+    return app_with_advisory_lock($pdo,'stripe-package-price',$mode.'-'.$packageId,function()use($pdo,$config,$admin,$package,$settings,$mode,$packageId,$amount){
+        $current=stripe_billing_active_price($pdo,$packageId,$mode);
+        if($current&&(int)$current['unit_amount_cents']===$amount&&strtolower((string)$current['currency'])==='usd'){stripe_billing_api_request($config,$settings,'POST','products/'.rawurlencode((string)$current['stripe_product_id']),['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]]);return $current;}
+        $productId=$current['stripe_product_id']??null;
+        if(!$productId){
+            $product=stripe_billing_api_request($config,$settings,'POST','products',['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]],'annotated-product-'.$mode.'-'.$package['public_id']);
+            $productId=(string)($product['id']??'');if($productId==='')throw new RuntimeException('Stripe did not return a Product ID.');
+        }else{
+            stripe_billing_api_request($config,$settings,'POST','products/'.rawurlencode((string)$productId),['name'=>(string)$package['name'],'description'=>(string)($package['description']??''),'metadata'=>['annotated_package_id'=>(string)$package['public_id'],'annotated_package_slug'=>(string)$package['slug']]]);
+        }
+        $price=stripe_billing_api_request($config,$settings,'POST','prices',['product'=>$productId,'currency'=>'usd','unit_amount'=>$amount,'recurring'=>['interval'=>'month'],'metadata'=>['annotated_package_id'=>(string)$package['public_id']]],'annotated-price-'.$mode.'-'.$package['public_id'].'-'.$amount);
+        $priceId=(string)($price['id']??'');if($priceId==='')throw new RuntimeException('Stripe did not return a Price ID.');
+        $mapped=stripe_billing_store_price_mapping($pdo,$packageId,$mode,(string)$productId,$priceId,'usd',$amount,(int)$admin['id']);
+        if($current&&(string)$current['stripe_price_id']!==$priceId){
+            try{stripe_billing_api_request($config,$settings,'POST','prices/'.rawurlencode((string)$current['stripe_price_id']),['active'=>'false']);}
+            catch(Throwable $e){$mapped['rotation_warning']='The new Stripe Price is active in Annotated, but the previous Stripe Price could not be archived automatically: '.$e->getMessage();}
+        }
+        return $mapped;
+    },10);
 }
 function stripe_billing_map_existing_price(PDO $pdo,array $config,array $admin,string $packagePublicId,string $priceId): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
-    $package=subscription_package($pdo,$packagePublicId);if(!$package)throw new RuntimeException('Package not found.');$settings=stripe_billing_settings($pdo);$mode=(string)$settings['mode'];
-    $price=stripe_billing_api_request($config,$settings,'GET','prices/'.rawurlencode(trim($priceId)));$productId=is_string($price['product']??null)?(string)$price['product']:'';
-    if(empty($price['active'])||($price['type']??'')!=='recurring'||($price['recurring']['interval']??'')!=='month'||$productId==='')throw new RuntimeException('Choose an active recurring monthly Stripe Price.');
-    $amount=(int)($price['unit_amount']??0);$currency=strtolower((string)($price['currency']??'usd'));if($currency!=='usd'||$amount!==(int)$package['monthly_price_cents'])throw new RuntimeException('Stripe Price currency/amount must match the Annotated monthly package price.');
-    return stripe_billing_store_price_mapping($pdo,(int)$package['id'],$mode,$productId,(string)$price['id'],$currency,$amount,(int)$admin['id']);
+    $package=subscription_package($pdo,$packagePublicId);if(!$package)throw new RuntimeException('Package not found.');$settings=stripe_billing_settings($pdo);$mode=(string)$settings['mode'];$packageId=(int)$package['id'];
+    return app_with_advisory_lock($pdo,'stripe-package-price',$mode.'-'.$packageId,function()use($pdo,$config,$admin,$package,$settings,$mode,$packageId,$priceId){
+        $price=stripe_billing_api_request($config,$settings,'GET','prices/'.rawurlencode(trim($priceId)));$productId=is_string($price['product']??null)?(string)$price['product']:'';
+        if(empty($price['active'])||($price['type']??'')!=='recurring'||($price['recurring']['interval']??'')!=='month'||$productId==='')throw new RuntimeException('Choose an active recurring monthly Stripe Price.');
+        $amount=(int)($price['unit_amount']??0);$currency=strtolower((string)($price['currency']??'usd'));if($currency!=='usd'||$amount!==(int)$package['monthly_price_cents'])throw new RuntimeException('Stripe Price currency/amount must match the Annotated monthly package price.');
+        return stripe_billing_store_price_mapping($pdo,$packageId,$mode,$productId,(string)$price['id'],$currency,$amount,(int)$admin['id']);
+    },10);
 }
 function stripe_billing_account_owner(PDO $pdo,int $accountId): ?array {
     $q=$pdo->prepare("SELECT u.id,u.public_id,u.username,u.display_name,u.email,u.status FROM accounts a JOIN users u ON u.id=a.owner_user_id WHERE a.id=? LIMIT 1");$q->execute([$accountId]);return $q->fetch()?:null;
