@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$message;};
+$m='database/migrations/20260924_078_admin_security_compliance_audit.sql';
+foreach(['admin_security_cases','admin_security_case_events','admin_privacy_requests','admin_privacy_request_events','admin_audit_exports','security_compliance_admin','admin.security.view','admin.security.manage','admin.security.export','admin.privacy.view','admin.privacy.manage','source_domain','correlation_id','sensitivity'] as $n)$need($m,$n,'Migration 078 missing '.$n);
+foreach(['function admin_security_ready','function admin_security_event_redact','function admin_security_audit_record','function admin_security_events','function admin_security_source_events','function admin_security_permission_review','function admin_security_case_create','function admin_security_case_update','function admin_privacy_create','function admin_privacy_update','function admin_security_export','function admin_security_account_events','function admin_security_agent_context'] as $n)$need('app/admin-security-compliance.php',$n,'Admin V2.50 runtime missing '.$n);
+foreach(["'support'=>'admin.support.view'","'finance'=>'admin.finance.view'","'billing'=>'admin.billing.view'","'research'=>'admin.research_data.view'","'customer_success'=>'admin.customer_success.view'"] as $n)$need('app/admin-security-compliance.php',$n,'Source-domain redaction map missing '.$n);
+foreach(['account_admin_events','account_membership_events','billing_dunning_events','admin_support_case_events','admin_finance_reconciliation_events','admin_customer_success_events','admin_action_records'] as $n)$need('app/admin-security-compliance.php',$n,'Normalized audit ledger missing '.$n);
+$need('app/admin-access.php',"'admin.security.view'",'Security view capability must be registered.');
+$need('app/admin-access.php',"'admin.privacy.manage'",'Privacy manage capability must be registered.');
+$need('app/admin-access.php',"'/admin/security-compliance.php'=>['admin.security.view','admin.security.manage']", 'Security & Compliance route must be permission bounded.');
+$need('app/admin-ui.php',"'security_compliance'=>['label'=>'Security & Compliance'",'Admin navigation must expose Security & Compliance.');
+$need('app/admin-ui.php','Admin V2.50','Admin shell must identify V2.50.');
+foreach(['ADMIN V2.50 · SECURITY, COMPLIANCE & ADMINISTRATIVE AUDIT CENTER','ADMINISTRATIVE AUDIT LEDGER','SECURITY CASES','PERMISSION REVIEW','PRIVACY & COMPLIANCE','Export CSV','Source details redacted'] as $n)$need('admin/security-compliance.php',$n,'Security & Compliance workspace missing '.$n);
+$need('admin/security-export.php','admin_security_export','Security export endpoint must use governed export runtime.');
+$need('admin/index.php','Open security cases','Command Center must surface V2.50 posture.');
+$need('admin/index.php','SECURITY & COMPLIANCE','Command Center must link V2.50 workspace.');
+$need('admin/account.php','ADMIN V2.50 · SECURITY & AUDIT','Account 360 must surface permission-aware security evidence.');
+$need('app/agent-chat.php','admin_security_agent_context','Admin Agent must receive V2.50 context.');
+$need('app/agent-chat.php','Admin V2.50 Security & Compliance context is read-only','Agent prompt must deny V2.50 mutation claims.');
+$web=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');if($web!==$ext)$fail[]='Extension landing base CSS must remain exactly synchronized with website base CSS.';
+$need('tests/ci/run-full-regression.sh','tests/admin-v2-50-security-compliance-db.php','Full regression must execute V2.50 database journey.');
+$need('.github/workflows/full-regression.yml','admin-v2-50-upgrade-from-077.php','Phase gate must rehearse migration 078 from 077.');
+$need('.github/workflows/package-two-zips.yml','20260924_078_admin_security_compliance_audit.sql','Production package must include migration 078.');
+$need('tests/ci/package-smoke.sh','admin-v2-50-security-compliance-audit.md','Release smoke must require V2.50 files.');
+if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Admin V2.50 Security, Compliance & Administrative Audit Center static contract passed.\n";
