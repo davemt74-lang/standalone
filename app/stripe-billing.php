@@ -272,7 +272,7 @@ function stripe_billing_sync_subscription(PDO $pdo,array $object,string $mode,?s
         $pdo->prepare("INSERT INTO stripe_subscriptions(public_id,account_id,mode,stripe_subscription_id,stripe_customer_id,stripe_price_id,status,cancel_at_period_end,current_period_start,current_period_end,trial_end,canceled_at,ended_at,latest_invoice_id,last_event_id,last_event_created_at,metadata_json)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON DUPLICATE KEY UPDATE account_id=VALUES(account_id),stripe_customer_id=VALUES(stripe_customer_id),stripe_price_id=VALUES(stripe_price_id),status=VALUES(status),cancel_at_period_end=VALUES(cancel_at_period_end),current_period_start=VALUES(current_period_start),current_period_end=VALUES(current_period_end),trial_end=VALUES(trial_end),canceled_at=VALUES(canceled_at),ended_at=VALUES(ended_at),latest_invoice_id=VALUES(latest_invoice_id),last_event_id=VALUES(last_event_id),last_event_created_at=COALESCE(VALUES(last_event_created_at),last_event_created_at),metadata_json=VALUES(metadata_json)")
-          ->execute([ulid_like(),(int)$account['id'],$mode,$subscriptionId,$customerId,$priceId!==''?$priceId:null,$status,!empty($object['cancel_at_period_end'])?1:0,$periodStart,$periodEnd,$trialEnd,stripe_billing_datetime($object['canceled_at']??null),stripe_billing_datetime($object['ended_at']??null),is_string($object['latest_invoice']??null)?$object['latest_invoice']:null,$eventId,json_encode($metadata,JSON_UNESCAPED_SLASHES)]);
+          ->execute([ulid_like(),(int)$account['id'],$mode,$subscriptionId,$customerId,$priceId!==''?$priceId:null,$status,!empty($object['cancel_at_period_end'])?1:0,$periodStart,$periodEnd,$trialEnd,stripe_billing_datetime($object['canceled_at']??null),stripe_billing_datetime($object['ended_at']??null),is_string($object['latest_invoice']??null)?$object['latest_invoice']:null,$eventId,$eventCreatedAt,json_encode($metadata,JSON_UNESCAPED_SLASHES)]);
         $after=stripe_billing_apply_package_and_state($pdo,$account,$priceMap,$status,$periodStart,$periodEnd,$trialEnd,$eventId);
         stripe_billing_event($pdo,(int)$account['id'],'stripe','subscription_'.$status,'Stripe subscription synchronized.',$eventId,null,['package_id'=>(int)$account['package_id'],'subscription_status'=>$account['subscription_status']],$after);
         $pdo->commit();
@@ -308,16 +308,16 @@ function stripe_billing_record_customer_event(PDO $pdo,array $config,array $sett
     if($customerId==='')return;$mode=(string)($settings['mode']??'test');$account=stripe_billing_account_by_customer($pdo,$customerId,$mode);if(!$account)return;
     stripe_billing_event($pdo,(int)$account['id'],'stripe',str_replace('.','_',$eventType),'Stripe billing event received.',$eventId,null,null,['stripe_object_id'=>$object['id']??null,'charge_id'=>$object['charge']??null]);
 }
-function stripe_billing_claim_webhook(PDO $pdo,string $eventId,string $mode,string $eventType,?string $objectId,string $hash): array {
+function stripe_billing_claim_webhook(PDO $pdo,string $eventId,string $mode,string $eventType,?string $objectId,string $hash,?string $eventCreatedAt=null): array {
     $q=$pdo->prepare('SELECT * FROM stripe_webhook_events WHERE mode=? AND stripe_event_id=? LIMIT 1');$q->execute([$mode,$eventId]);$existing=$q->fetch();
     if($existing){
         if(!hash_equals((string)$existing['payload_sha256'],$hash))throw new RuntimeException('Stripe event payload changed for an existing event ID.');
         if(in_array((string)$existing['status'],['processed','ignored'],true))return ['claimed'=>false,'row'=>$existing];
         if($existing['status']==='processing'&&strtotime((string)$existing['received_at'])>time()-300)return ['claimed'=>false,'row'=>$existing];
-        $pdo->prepare("UPDATE stripe_webhook_events SET status='processing',attempt_count=attempt_count+1,error_text=NULL,received_at=NOW(),payload_sha256=?,event_type=?,object_id=?,mode=? WHERE id=?")->execute([$hash,$eventType,$objectId,$mode,(int)$existing['id']]);
+        $pdo->prepare("UPDATE stripe_webhook_events SET status='processing',attempt_count=attempt_count+1,error_text=NULL,received_at=NOW(),payload_sha256=?,event_type=?,object_id=?,mode=?,event_created_at=COALESCE(?,event_created_at) WHERE id=?")->execute([$hash,$eventType,$objectId,$mode,$eventCreatedAt,(int)$existing['id']]);
         return ['claimed'=>true,'row'=>$existing];
     }
-    $pdo->prepare("INSERT INTO stripe_webhook_events(stripe_event_id,mode,event_type,object_id,payload_sha256,status) VALUES(?,?,?,?,?,'processing')")->execute([$eventId,$mode,$eventType,$objectId,$hash]);
+    $pdo->prepare("INSERT INTO stripe_webhook_events(stripe_event_id,mode,event_type,object_id,payload_sha256,event_created_at,status) VALUES(?,?,?,?,?,?,'processing')")->execute([$eventId,$mode,$eventType,$objectId,$hash,$eventCreatedAt]);
     return ['claimed'=>true,'row'=>['id'=>(int)$pdo->lastInsertId()]];
 }
 function stripe_billing_finish_webhook(PDO $pdo,string $mode,string $eventId,string $status,?string $error=null): void {
@@ -327,17 +327,17 @@ function stripe_billing_process_webhook(PDO $pdo,array $config,string $payload,s
     if(!stripe_billing_ready($pdo))throw new RuntimeException('Stripe Billing requires the latest database upgrade.');
     $settings=stripe_billing_settings($pdo);$secret=stripe_billing_decrypt_secret($config,$settings['webhook_secret_ciphertext']??null);stripe_billing_verify_signature($payload,$signatureHeader,$secret);
     $event=json_decode($payload,true,512,JSON_THROW_ON_ERROR);$eventId=(string)($event['id']??'');$eventType=(string)($event['type']??'');$object=$event['data']['object']??null;if($eventId===''||$eventType===''||!is_array($object))throw new RuntimeException('Invalid Stripe webhook payload.');
-    $mode=!empty($event['livemode'])?'live':'test';if($mode!==(string)$settings['mode'])throw new RuntimeException('Stripe webhook mode does not match the configured billing mode.');
-    $claim=stripe_billing_claim_webhook($pdo,$eventId,$mode,$eventType,(string)($object['id']??''),hash('sha256',$payload));if(!$claim['claimed'])return ['ok'=>true,'duplicate'=>true,'event_id'=>$eventId,'type'=>$eventType];
+    $mode=!empty($event['livemode'])?'live':'test';if($mode!==(string)$settings['mode'])throw new RuntimeException('Stripe webhook mode does not match the configured billing mode.');$eventCreatedAt=stripe_billing_datetime($event['created']??null);
+    $claim=stripe_billing_claim_webhook($pdo,$eventId,$mode,$eventType,(string)($object['id']??''),hash('sha256',$payload),$eventCreatedAt);if(!$claim['claimed'])return ['ok'=>true,'duplicate'=>true,'event_id'=>$eventId,'type'=>$eventType];
     try{
         if($eventType==='checkout.session.completed'){
             $accountPublic=(string)($object['metadata']['annotated_account_id']??$object['client_reference_id']??'');$customerId=is_string($object['customer']??null)?(string)$object['customer']:'';$account=$accountPublic!==''?stripe_billing_account_by_public($pdo,$accountPublic):null;
             if($account&&$customerId!==''){stripe_billing_link_customer($pdo,(int)$account['id'],$mode,$customerId,null,(string)$account['name'],['annotated_account_id'=>$account['public_id']]);$pdo->prepare("UPDATE accounts SET billing_source='stripe' WHERE id=?")->execute([(int)$account['id']]);stripe_billing_event($pdo,(int)$account['id'],'stripe','checkout_completed','Stripe Checkout completed.',$eventId,null,null,['stripe_subscription_id'=>$object['subscription']??null]);}
             if(is_string($object['subscription']??null)&&$object['subscription']!==''){$sub=stripe_billing_api_request($config,$settings,'GET','subscriptions/'.rawurlencode((string)$object['subscription']));stripe_billing_sync_subscription($pdo,$sub,$mode,$eventId);}
         }elseif(in_array($eventType,['customer.subscription.created','customer.subscription.updated','customer.subscription.deleted','customer.subscription.paused','customer.subscription.resumed','customer.subscription.trial_will_end'],true)){
-            stripe_billing_sync_subscription($pdo,$object,$mode,$eventId);
+            stripe_billing_sync_subscription($pdo,$object,$mode,$eventId,$eventCreatedAt);
         }elseif(in_array($eventType,['invoice.finalized','invoice.paid','invoice.payment_failed','invoice.payment_action_required','invoice.voided','invoice.marked_uncollectible'],true)){
-            stripe_billing_sync_invoice($pdo,$object,$eventType,$mode,$eventId);
+            stripe_billing_sync_invoice($pdo,$object,$eventType,$mode,$eventId,$eventCreatedAt);
         }elseif(in_array($eventType,['charge.refunded','charge.dispute.created','charge.dispute.closed'],true)){
             stripe_billing_record_customer_event($pdo,$config,$settings,$object,$eventType,$eventId);
         }else{stripe_billing_finish_webhook($pdo,$mode,$eventId,'ignored');return ['ok'=>true,'ignored'=>true,'event_id'=>$eventId,'type'=>$eventType];}
