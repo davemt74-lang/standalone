@@ -54,7 +54,7 @@ function billing_operations_handle_invoice_event(PDO $pdo,array $object,string $
         $existing=billing_operations_case($pdo,$mode,$invoiceId);
         if($eventCreatedAt&&$existing&&!empty($existing['last_event_created_at'])&&strcmp((string)$existing['last_event_created_at'],$eventCreatedAt)>0)return;
         $settings=billing_operations_settings($pdo);$now=$eventCreatedAt?:gmdate('Y-m-d H:i:s');$subscriptionId=stripe_billing_invoice_subscription_id($object);
-        $amountDue=(int)($object['amount_due']??0);$remaining=(int)($object['amount_remaining']??0);
+        $amountDue=(int)($object['amount_due']??0);$remaining=(int)($object['amount_remaining']??0);$pdo->beginTransaction();try{
         if(in_array($eventType,['invoice.payment_failed','invoice.payment_action_required'],true)){
             $status=$eventType==='invoice.payment_action_required'?'action_required':'open';$graceUntil=$existing&&!empty($existing['grace_until'])?(string)$existing['grace_until']:(new DateTimeImmutable($now,new DateTimeZone('UTC')))->modify('+'.(int)$settings['dunning_grace_days'].' days')->format('Y-m-d H:i:s');
             $before=$existing?['status'=>$existing['status'],'failure_count'=>(int)$existing['failure_count'],'grace_until'=>$existing['grace_until']]:null;
@@ -83,6 +83,7 @@ function billing_operations_handle_invoice_event(PDO $pdo,array $object,string $
             }
             billing_operations_dunning_event($pdo,(int)$existing['id'],(int)$account['id'],'stripe','payment_recovered','Stripe invoice was paid and the dunning case recovered.',null,$eventId,$before,['status'=>'recovered','account_restored'=>$restored]);
         }
+        $pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     });
 }
 function billing_operations_handle_stripe_event(PDO $pdo,array $object,string $eventType,string $mode,?string $eventId=null,?string $eventCreatedAt=null): void {
@@ -97,22 +98,22 @@ function billing_operations_process_due_dunning(PDO $pdo,?array $admin=null): ar
     if(!billing_operations_ready($pdo))return ['reviewed'=>0,'suspended'=>0,'grace'=>0];$settings=billing_operations_settings($pdo);$reviewed=0;$suspended=0;$grace=0;
     $rows=$pdo->query("SELECT * FROM billing_dunning_cases WHERE status IN ('open','action_required','grace') AND grace_until IS NOT NULL AND grace_until<=NOW() AND (next_review_at IS NULL OR next_review_at<=NOW()) ORDER BY grace_until,id LIMIT 250")->fetchAll()?:[];
     foreach($rows as $row){commercial_account_with_lock($pdo,(int)$row['account_id'],function()use($pdo,$row,$settings,$admin,&$reviewed,&$suspended,&$grace){
-        $q=$pdo->prepare('SELECT * FROM billing_dunning_cases WHERE id=? FOR UPDATE');$q->execute([(int)$row['id']]);$case=$q->fetch();if(!$case||!in_array($case['status'],['open','action_required','grace'],true))return;$reviewed++;
-        $account=account_admin_get($pdo,(int)$case['account_id']);if(!$account)return;$before=['status'=>$case['status'],'account_status'=>$account['status'],'grace_until'=>$case['grace_until']];
+        $pdo->beginTransaction();try{$q=$pdo->prepare('SELECT * FROM billing_dunning_cases WHERE id=? FOR UPDATE');$q->execute([(int)$row['id']]);$case=$q->fetch();if(!$case||!in_array($case['status'],['open','action_required','grace'],true)){$pdo->commit();return;}$reviewed++;
+        $account=account_admin_get($pdo,(int)$case['account_id']);if(!$account){$pdo->commit();return;}$before=['status'=>$case['status'],'account_status'=>$account['status'],'grace_until'=>$case['grace_until']];
         if(!empty($settings['suspend_after_grace'])&&$account['status']==='active'){
-            $pdo->beginTransaction();try{$pdo->prepare("UPDATE accounts SET status='suspended' WHERE id=? AND status='active'")->execute([(int)$account['id']]);$pdo->prepare("UPDATE billing_dunning_cases SET status='suspended',stage=2,suspended_by_dunning=1,suspended_at=NOW(),next_review_at=NULL WHERE id=?")->execute([(int)$case['id']]);billing_operations_dunning_event($pdo,(int)$case['id'],(int)$account['id'],$admin?'admin':'system','dunning_suspended','Dunning grace expired and the configured policy suspended account access.',$admin?(int)$admin['id']:null,null,$before,['status'=>'suspended','account_status'=>'suspended']);if(function_exists('account_admin_event'))account_admin_event($pdo,(int)$account['id'],$admin?(int)$admin['id']:null,null,'lifecycle_changed',['status'=>'active'],['status'=>'suspended'],'Billing dunning grace expired.');$pdo->commit();$suspended++;}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+            $pdo->prepare("UPDATE accounts SET status='suspended' WHERE id=? AND status='active'")->execute([(int)$account['id']]);$pdo->prepare("UPDATE billing_dunning_cases SET status='suspended',stage=2,suspended_by_dunning=1,suspended_at=NOW(),next_review_at=NULL WHERE id=?")->execute([(int)$case['id']]);billing_operations_dunning_event($pdo,(int)$case['id'],(int)$account['id'],$admin?'admin':'system','dunning_suspended','Dunning grace expired and the configured policy suspended account access.',$admin?(int)$admin['id']:null,null,$before,['status'=>'suspended','account_status'=>'suspended']);if(function_exists('account_admin_event'))account_admin_event($pdo,(int)$account['id'],$admin?(int)$admin['id']:null,null,'lifecycle_changed',['status'=>'active'],['status'=>'suspended'],'Billing dunning grace expired.');$suspended++;
         }else{
             $next=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+1 day')->format('Y-m-d H:i:s');$pdo->prepare("UPDATE billing_dunning_cases SET status='grace',stage=2,next_review_at=? WHERE id=?")->execute([$next,(int)$case['id']]);billing_operations_dunning_event($pdo,(int)$case['id'],(int)$account['id'],$admin?'admin':'system','dunning_grace_overdue','Dunning grace has expired; account access was preserved by policy.',$admin?(int)$admin['id']:null,null,$before,['status'=>'grace','next_review_at'=>$next]);$grace++;
-        }
+        }$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     });}
     return ['reviewed'=>$reviewed,'suspended'=>$suspended,'grace'=>$grace];
 }
 function billing_operations_grant_grace(PDO $pdo,array $admin,string $casePublicId,int $days,string $reason): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');$days=max(1,min(60,$days));$q=$pdo->prepare('SELECT * FROM billing_dunning_cases WHERE public_id=? LIMIT 1');$q->execute([trim($casePublicId)]);$seed=$q->fetch();if(!$seed)throw new RuntimeException('Dunning case not found.');
     return commercial_account_with_lock($pdo,(int)$seed['account_id'],function()use($pdo,$admin,$seed,$days,$reason){
-        $q=$pdo->prepare('SELECT * FROM billing_dunning_cases WHERE id=? FOR UPDATE');$q->execute([(int)$seed['id']]);$case=$q->fetch()?:throw new RuntimeException('Dunning case not found.');if(in_array($case['status'],['recovered','uncollectible','closed'],true))throw new RuntimeException('Closed dunning cases cannot receive grace.');
+        $pdo->beginTransaction();try{$q=$pdo->prepare('SELECT * FROM billing_dunning_cases WHERE id=? FOR UPDATE');$q->execute([(int)$seed['id']]);$case=$q->fetch()?:throw new RuntimeException('Dunning case not found.');if(in_array($case['status'],['recovered','uncollectible','closed'],true))throw new RuntimeException('Closed dunning cases cannot receive grace.');
         $base=max(time(),!empty($case['grace_until'])?strtotime((string)$case['grace_until']):0);$until=gmdate('Y-m-d H:i:s',$base+$days*86400);$account=account_admin_get($pdo,(int)$case['account_id'])??throw new RuntimeException('Account not found.');$restored=false;
-        $pdo->beginTransaction();try{if($case['status']==='suspended'&&(int)$case['suspended_by_dunning']===1&&$account['status']==='suspended'){$pdo->prepare("UPDATE accounts SET status='active' WHERE id=?")->execute([(int)$account['id']]);$restored=true;}
+        if($case['status']==='suspended'&&(int)$case['suspended_by_dunning']===1&&$account['status']==='suspended'){$pdo->prepare("UPDATE accounts SET status='active' WHERE id=?")->execute([(int)$account['id']]);$restored=true;}
             $pdo->prepare("UPDATE billing_dunning_cases SET status='grace',stage=2,grace_until=?,next_review_at=?,suspended_by_dunning=0,suspended_at=NULL WHERE id=?")->execute([$until,$until,(int)$case['id']]);billing_operations_dunning_event($pdo,(int)$case['id'],(int)$case['account_id'],'admin','grace_granted',$reason,(int)$admin['id'],null,['status'=>$case['status'],'grace_until'=>$case['grace_until']],['status'=>'grace','grace_until'=>$until,'account_restored'=>$restored]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         $q=$pdo->prepare('SELECT * FROM billing_dunning_cases WHERE id=?');$q->execute([(int)$case['id']]);return $q->fetch();
     });
@@ -205,6 +206,13 @@ function billing_operations_alerts(PDO $pdo,int $limit=100): array {
     foreach(stripe_billing_over_capacity_account_ids($pdo) as $id){$a=account_admin_get($pdo,(int)$id);if($a)$alerts[]=['severity'=>'warn','type'=>'capacity','label'=>$a['name'].' is over seat capacity','detail'=>'Resolve seats or package capacity.','account_public_id'=>$a['public_id']];}
     $openDisputes=[];$q=$pdo->query("SELECT e.*,a.public_id account_public_id,a.name account_name FROM account_billing_events e JOIN accounts a ON a.id=e.account_id WHERE e.event_type IN ('charge_dispute_created','charge_dispute_closed') ORDER BY e.created_at DESC,e.id DESC LIMIT 500");foreach($q->fetchAll()?:[] as $e){$after=json_decode((string)($e['after_json']??''),true)?:[];$key=(string)($after['stripe_object_id']??'');if($key===''||isset($openDisputes[$key]))continue;$openDisputes[$key]=$e['event_type']==='charge_dispute_created'?$e:false;}foreach($openDisputes as $e)if($e)$alerts[]=['severity'=>'danger','type'=>'dispute','label'=>$e['account_name'].' has an unresolved dispute','detail'=>(string)$e['created_at'],'account_public_id'=>$e['account_public_id']];
     return array_slice($alerts,0,max(1,min(300,$limit)));
+}
+function billing_operations_account_timeline(PDO $pdo,int $accountId,int $limit=150): array {
+    if(!billing_operations_ready($pdo))return [];$limit=max(1,min(400,$limit));$sql="SELECT created_at,'billing' source,event_type title,reason detail FROM account_billing_events WHERE account_id=?
+      UNION ALL SELECT created_at,'dunning' source,event_type title,reason detail FROM billing_dunning_events WHERE account_id=?
+      UNION ALL SELECT created_at,'note' source,CONCAT('note_',note_type) title,body detail FROM billing_notes WHERE account_id=?
+      UNION ALL SELECT created_at,'cancellation' source,CONCAT('cancellation_',reason_code) title,COALESCE(feedback_text,'') detail FROM billing_cancellation_feedback WHERE account_id=?
+      ORDER BY created_at DESC LIMIT ".$limit;$q=$pdo->prepare($sql);$q->execute([$accountId,$accountId,$accountId,$accountId]);return $q->fetchAll()?:[];
 }
 function billing_operations_agent_context(PDO $pdo,array $viewer): string {
     if(($viewer['role']??'')!=='admin'||!billing_operations_ready($pdo))return '';$m=billing_operations_current_metrics($pdo);$alerts=billing_operations_alerts($pdo,12);
