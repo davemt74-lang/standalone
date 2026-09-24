@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
+if(PHP_SAPI!=='cli')header('Cache-Control: no-store, private');
 $user=require_user($pdo);if(!account_membership_ready($pdo)){http_response_code(503);exit('Account membership requires the latest database upgrade.');}
 $accountId=trim((string)($_GET['account']??$_POST['account']??''));$accounts=account_membership_accounts_for_user($pdo,$user,false);if(!$accounts){http_response_code(404);exit('No commercial account membership found.');}
 $account=account_membership_account_for_user($pdo,$user,$accountId!==''?$accountId:null,false);$role=account_membership_actor_role($pdo,$user,(int)$account['id']);$canManage=in_array($role,['owner','admin','site_admin'],true);$isOwner=in_array($role,['owner','site_admin'],true);$success='';$error='';$inviteUrl='';
