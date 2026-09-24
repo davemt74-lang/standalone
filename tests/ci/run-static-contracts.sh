@@ -25,6 +25,7 @@ php tests/admin-v2-0-operations-command-center-contract.php
 php tests/admin-v2-10-roles-permissions-approvals-contract.php
 php tests/admin-v2-20-support-operations-contract.php
 php tests/admin-v2-30-financial-reporting-contract.php
+php tests/admin-v2-40-customer-success-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
