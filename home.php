@@ -130,17 +130,19 @@ try{
     $crossResearchAgentHandoff=$reviewAgentHandoff=$impactAgentHandoff=$portfolioAgentHandoff=$directAgentHandoff=null;
 }
 
-$feed=[];$bookmarkFeed=[];$latestFeed=[];
+$feed=[];$bookmarkFeed=[];$networkFeed=[];$latestFeed=[];
 try{
     if($feedMode==='latest'){
         $feed=feed_annotation_rows($pdo,$u,'following',null,null,30)['annotations'];
         if(function_exists('research_agent_workspace_bookmark_feed'))$bookmarkFeed=research_agent_workspace_bookmark_feed($pdo,$u,30);
+        if(function_exists('profile_network_following_activity'))$networkFeed=profile_network_following_activity($pdo,$u,30);
         foreach($feed as $row)$latestFeed[]=['kind'=>'annotation','created_at'=>(string)($row['published_at']??$row['created_at']??''),'row'=>$row];
         foreach($bookmarkFeed as $row)$latestFeed[]=['kind'=>'bookmark','created_at'=>(string)($row['created_at']??''),'row'=>$row];
+        foreach($networkFeed as $row)$latestFeed[]=$row;
         usort($latestFeed,fn($a,$b)=>(strtotime((string)$b['created_at'])?:0)<=>(strtotime((string)$a['created_at'])?:0));
         $latestFeed=array_slice($latestFeed,0,30);
     }
-}catch(Throwable $e){$recordHomeIncident('feed',$e);$feed=[];$bookmarkFeed=[];$latestFeed=[];}
+}catch(Throwable $e){$recordHomeIncident('feed',$e);$feed=[];$bookmarkFeed=[];$networkFeed=[];$latestFeed=[];}
 
 $people=[];
 try{
@@ -194,6 +196,8 @@ try{
   <?php if(!$latestFeed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations, captures, and Research bookmarks will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
   <?php foreach($latestFeed as $item):?>
     <?php if(($item['kind']??'')==='bookmark'):?><?=research_agent_workspace_bookmark_card((array)$item['row'])?>
+    <?php elseif(($item['kind']??'')==='research_report'):$r=(array)$item['row'];?><article class="card homeNetworkObject homeNetworkResearch"><div class="meta">PUBLISHED RESEARCH · <a href="<?=h(profile_path((string)$r['username']))?>"><?=h((string)$r['display_name'])?></a> · version <?=h((string)$r['version_number'])?></div><h2><a href="/research-report.php?id=<?=h((string)$r['public_id'])?>"><?=h((string)$r['title'])?></a></h2><?php if(!empty($r['summary'])):?><p><?=h(public_discovery_meta_description((string)$r['summary'],320))?></p><?php endif?></article>
+    <?php elseif(($item['kind']??'')==='collection'):$c=(array)$item['row'];?><article class="card homeNetworkObject homeNetworkCollection"><div class="meta">PUBLIC COLLECTION · <a href="<?=h(profile_path((string)$c['username']))?>"><?=h((string)$c['display_name'])?></a></div><h2><a href="/collection.php?id=<?=h((string)$c['public_id'])?>"><?=h((string)$c['title'])?></a></h2><?php if(!empty($c['description'])):?><p><?=h(public_discovery_meta_description((string)$c['description'],280))?></p><?php endif?><span class="meta"><?=h((string)$c['item_count'])?> public items</span></article>
     <?php else:?><?=annotation_ui_card((array)$item['row'],$u)?>
     <?php endif?>
   <?php endforeach?>
