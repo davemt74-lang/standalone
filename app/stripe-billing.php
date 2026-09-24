@@ -433,7 +433,8 @@ function stripe_billing_over_capacity_account_ids(PDO $pdo): array {
     foreach($rows as $row){
         $limit=(int)$row['member_limit'];
         if(function_exists('account_admin_ready')&&account_admin_ready($pdo)){try{$limit=account_admin_effective_member_limit($pdo,(int)$row['id']);}catch(Throwable $e){}}
-        $q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$row['id']]);if((int)$q->fetchColumn()>$limit)$ids[]=(int)$row['id'];
+        if(function_exists('account_membership_ready')&&account_membership_ready($pdo)){$seat=account_membership_seat_summary($pdo,(int)$row['id']);if($seat['over_capacity']||$seat['over_reserved'])$ids[]=(int)$row['id'];}
+        else{$q=$pdo->prepare('SELECT COUNT(*) FROM account_members WHERE account_id=?');$q->execute([(int)$row['id']]);if((int)$q->fetchColumn()>$limit)$ids[]=(int)$row['id'];}
     }
     return $ids;
 }
