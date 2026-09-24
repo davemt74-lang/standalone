@@ -96,6 +96,20 @@ function stripe_billing_package_rows(PDO $pdo): array {
     $rows=subscription_packages($pdo,false);$mode=(string)(stripe_billing_settings($pdo)['mode']??'test');
     foreach($rows as &$row)$row['stripe_price']=stripe_billing_active_price($pdo,(int)$row['id'],$mode);unset($row);return $rows;
 }
+function stripe_billing_store_price_mapping(PDO $pdo,int $packageId,string $mode,string $productId,string $priceId,string $currency,int $amount,int $actorUserId): array {
+    $pdo->beginTransaction();try{
+        $q=$pdo->prepare('SELECT * FROM stripe_package_prices WHERE stripe_price_id=? LIMIT 1');$q->execute([$priceId]);$existing=$q->fetch();
+        if($existing&&((int)$existing['package_id']!==$packageId||(string)$existing['mode']!==$mode))throw new RuntimeException('Stripe Price is already mapped to another Annotated package or mode.');
+        $pdo->prepare('UPDATE stripe_package_prices SET active=0 WHERE package_id=? AND mode=?')->execute([$packageId,$mode]);
+        if($existing){
+            $pdo->prepare("UPDATE stripe_package_prices SET stripe_product_id=?,currency=?,unit_amount_cents=?,billing_interval='month',active=1,created_by_user_id=? WHERE id=?")->execute([$productId,$currency,$amount,$actorUserId,(int)$existing['id']]);
+        }else{
+            $pdo->prepare("INSERT INTO stripe_package_prices(public_id,package_id,mode,stripe_product_id,stripe_price_id,currency,unit_amount_cents,billing_interval,active,created_by_user_id) VALUES(?,?,?,?,?,?,?,'month',1,?)")->execute([ulid_like(),$packageId,$mode,$productId,$priceId,$currency,$amount,$actorUserId]);
+        }
+        $pdo->commit();
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+    return stripe_billing_active_price($pdo,$packageId,$mode)??throw new RuntimeException('Stripe Price mapping could not be saved.');
+}
 function stripe_billing_sync_package_price(PDO $pdo,array $config,array $admin,string $packagePublicId): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
     $package=subscription_package($pdo,$packagePublicId);if(!$package||$package['status']!=='active')throw new RuntimeException('Choose an active package.');
@@ -112,13 +126,7 @@ function stripe_billing_sync_package_price(PDO $pdo,array $config,array $admin,s
     $price=stripe_billing_api_request($config,$settings,'POST','prices',['product'=>$productId,'currency'=>'usd','unit_amount'=>$amount,'recurring'=>['interval'=>'month'],'metadata'=>['annotated_package_id'=>(string)$package['public_id']]],'annotated-price-'.$mode.'-'.$package['public_id'].'-'.$amount);
     $priceId=(string)($price['id']??'');if($priceId==='')throw new RuntimeException('Stripe did not return a Price ID.');
     if($current){stripe_billing_api_request($config,$settings,'POST','prices/'.rawurlencode((string)$current['stripe_price_id']),['active'=>'false']);}
-    $pdo->beginTransaction();try{
-        $pdo->prepare('UPDATE stripe_package_prices SET active=0 WHERE package_id=? AND mode=?')->execute([(int)$package['id'],$mode]);
-        $pdo->prepare("INSERT INTO stripe_package_prices(public_id,package_id,mode,stripe_product_id,stripe_price_id,currency,unit_amount_cents,billing_interval,active,created_by_user_id) VALUES(?,?,?,?,?,'usd',?,'month',1,?)")
-          ->execute([ulid_like(),(int)$package['id'],$mode,$productId,$priceId,$amount,(int)$admin['id']]);
-        $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    return stripe_billing_active_price($pdo,(int)$package['id'],$mode)??throw new RuntimeException('Stripe Price mapping could not be saved.');
+    return stripe_billing_store_price_mapping($pdo,(int)$package['id'],$mode,(string)$productId,$priceId,'usd',$amount,(int)$admin['id']);
 }
 function stripe_billing_map_existing_price(PDO $pdo,array $config,array $admin,string $packagePublicId,string $priceId): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
@@ -126,13 +134,7 @@ function stripe_billing_map_existing_price(PDO $pdo,array $config,array $admin,s
     $price=stripe_billing_api_request($config,$settings,'GET','prices/'.rawurlencode(trim($priceId)));$productId=is_string($price['product']??null)?(string)$price['product']:'';
     if(($price['type']??'')!=='recurring'||($price['recurring']['interval']??'')!=='month'||$productId==='')throw new RuntimeException('Choose a recurring monthly Stripe Price.');
     $amount=(int)($price['unit_amount']??0);$currency=strtolower((string)($price['currency']??'usd'));if($currency!=='usd'||$amount!==(int)$package['monthly_price_cents'])throw new RuntimeException('Stripe Price currency/amount must match the Annotated monthly package price.');
-    $pdo->beginTransaction();try{
-        $pdo->prepare('UPDATE stripe_package_prices SET active=0 WHERE package_id=? AND mode=?')->execute([(int)$package['id'],$mode]);
-        $pdo->prepare("INSERT INTO stripe_package_prices(public_id,package_id,mode,stripe_product_id,stripe_price_id,currency,unit_amount_cents,billing_interval,active,created_by_user_id) VALUES(?,?,?,?,?,?,?,'month',1,?)")
-          ->execute([ulid_like(),(int)$package['id'],$mode,$productId,(string)$price['id'],$currency,$amount,(int)$admin['id']]);
-        $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    return stripe_billing_active_price($pdo,(int)$package['id'],$mode)??throw new RuntimeException('Stripe Price mapping could not be saved.');
+    return stripe_billing_store_price_mapping($pdo,(int)$package['id'],$mode,$productId,(string)$price['id'],$currency,$amount,(int)$admin['id']);
 }
 function stripe_billing_account_owner(PDO $pdo,int $accountId): ?array {
     $q=$pdo->prepare("SELECT u.id,u.public_id,u.username,u.display_name,u.email,u.status FROM accounts a JOIN users u ON u.id=a.owner_user_id WHERE a.id=? LIMIT 1");$q->execute([$accountId]);return $q->fetch()?:null;
