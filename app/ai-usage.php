@@ -14,6 +14,7 @@ function ai_usage_estimate_tokens(string $text): int {
 }
 function ai_usage_refresh_account_period(PDO $pdo,array $account): array {
     if(empty($account['id'])||empty($account['period_start'])||empty($account['period_end']))return $account;
+    if(($account['billing_source']??'manual')==='stripe')return $account;
     $tz=new DateTimeZone('UTC');$today=new DateTimeImmutable('today',$tz);$end=new DateTimeImmutable((string)$account['period_end'].' 00:00:00',$tz);
     if($today<$end)return $account;
     $start=new DateTimeImmutable((string)$account['period_start'].' 00:00:00',$tz);$guard=0;
@@ -86,11 +87,16 @@ function ai_usage_record_completed_run(PDO $pdo,int $runId,?array $user,string $
     $output=$providerOut===null?ai_usage_estimate_tokens((string)($generated['text']??'')):max(0,(int)$providerOut);
     $tokenSource=$providerIn!==null&&$providerOut!==null?'provider':(($providerIn===null&&$providerOut===null)?'estimated':'mixed');
     $cost=ai_usage_cost_micros($run,$input,$output);$meta=['scope_type'=>$run['scope_type'],'scope_public_id'=>$run['scope_public_id'],'token_source'=>$tokenSource];
-    $pdo->prepare("INSERT INTO ai_usage_events(public_id,ai_run_id,account_id,user_id,provider_id,model_id,initiated_by,usage_class,chargeable,task_type,token_source,input_tokens,output_tokens,total_tokens,estimated_cost_micros,period_start,period_end,metadata_json)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([
-        ulid_like(),$runId,$account?(int)$account['id']:null,$run['user_id']?(int)$run['user_id']:null,$run['provider_id']?(int)$run['provider_id']:null,$run['model_id']?(int)$run['model_id']:null,
-        $initiatedBy,$class,$chargeable,(string)$run['task_type'],$tokenSource,$input,$output,$input+$output,$cost,$account['period_start']??null,$account['period_end']??null,json_encode($meta,JSON_UNESCAPED_SLASHES)
-      ]);
+    try{
+        $pdo->prepare("INSERT INTO ai_usage_events(public_id,ai_run_id,account_id,user_id,provider_id,model_id,initiated_by,usage_class,chargeable,task_type,token_source,input_tokens,output_tokens,total_tokens,estimated_cost_micros,period_start,period_end,metadata_json)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([
+            ulid_like(),$runId,$account?(int)$account['id']:null,$run['user_id']?(int)$run['user_id']:null,$run['provider_id']?(int)$run['provider_id']:null,$run['model_id']?(int)$run['model_id']:null,
+            $initiatedBy,$class,$chargeable,(string)$run['task_type'],$tokenSource,$input,$output,$input+$output,$cost,$account['period_start']??null,$account['period_end']??null,json_encode($meta,JSON_UNESCAPED_SLASHES)
+          ]);
+    }catch(PDOException $e){
+        $driver=(int)($e->errorInfo[1]??0);if((string)$e->getCode()!=='23000'||$driver!==1062)throw $e;
+        $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE ai_run_id=? LIMIT 1');$q->execute([$runId]);return $q->fetch()?:throw $e;
+    }
     $q=$pdo->prepare('SELECT * FROM ai_usage_events WHERE id=?');$q->execute([(int)$pdo->lastInsertId()]);return $q->fetch()?:null;
 }
 function ai_usage_admin_adjust(PDO $pdo,array $admin,string $accountPublicId,int $tokenDelta,string $reason): array {
