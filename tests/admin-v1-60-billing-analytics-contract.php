@@ -10,10 +10,14 @@ $need('app/billing-operations.php',"'suspend_after_grace'",'Automatic suspension
 $need('app/billing-operations.php',"'restore_after_payment'",'Payment recovery restoration must remain configurable.');
 $need('app/billing-operations.php','invoice.voided','Voided Stripe invoices must reconcile open dunning.');
 $need('app/billing-operations.php','function billing_operations_close_subscription_dunning','Ended Stripe subscriptions must close related open dunning.');
+$need('app/billing-operations.php','function billing_operations_close_account_dunning','Explicit account closure must close stale open dunning.');
+$need('app/account-admin.php','billing_operations_close_account_dunning','Account lifecycle closure must reconcile V1.60 dunning state.');
 $need('app/billing-operations.php','dunning_closed_nonbillable','Dunning worker must not suspend canceled or paused subscriptions.');
 $need('app/billing-operations.php','function billing_operations_recurring_rows','Recurring revenue must have one mode-aware account pricing source.');
 $need('app/billing-operations.php','stripe_price_cents','Stripe-managed revenue must use mapped Stripe Price amounts.');
 $need('app/billing-operations.php','MAX(snapshot_date)','MRR movement must compare durable account snapshots rather than current package prices.');
+$need('app/billing-operations.php',"reason<>'Billing dunning grace expired.'",'Admin grace and payment recovery must respect later lifecycle decisions.');
+if(str_contains((string)file_get_contents($root.'/app/billing-operations.php'),'try{billing_operations_snapshot_day($pdo,null,$mode);}catch(Throwable $ignored){}'))$fail[]='Stripe webhook hot path must not rebuild full daily/account snapshots.';
 $need('app/stripe-billing.php','billing_operations_handle_stripe_event','Stripe webhook processing must feed V1.60 operations after provider synchronization.');
 $need('app/stripe-billing.php',"'amount_cents'=>\$amount",'Refund/dispute audit must persist provider amount for revenue snapshots.');
 $need('app/bootstrap.php',"/billing-operations.php'",'Billing operations runtime must load from bootstrap.');
