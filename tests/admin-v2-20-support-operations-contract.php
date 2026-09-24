@@ -7,6 +7,8 @@ foreach(['admin_support_cases','admin_support_case_events','admin_support_case_l
 foreach(['function admin_support_ready','function admin_support_create','function admin_support_duplicate_candidates','function admin_support_cases','function admin_support_update','function admin_support_case_timeline','function admin_support_customer_360','function admin_support_metrics','function admin_support_workload','function admin_support_saved_view_save','function admin_support_agent_context'] as $n)$need('app/admin-support.php',$n,'Admin V2.20 support runtime missing '.$n);
 $need('app/admin-support.php','support_mention','Support internal @mentions must use the existing notification system.');
 $need('app/admin-support.php','support_assigned','Support assignments must notify the assigned operator.');
+$need('app/admin-support.php','support_escalated','Support escalations must notify authorized delegated domain operators.');
+$need('app/admin-support.php',"'team'",'Support queue filters must support escalation-team routing.');
 $need('app/admin-support.php',"'customer_communication'",'Support communications must be durably distinguished from internal notes.');
 $need('app/admin-support.php',"'case_reopened'",'Support cases must preserve reopen history.');
 $need('app/admin-support.php','duplicate_candidates','Support case creation must detect likely duplicates.');
