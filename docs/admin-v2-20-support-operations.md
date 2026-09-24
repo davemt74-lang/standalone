@@ -9,7 +9,7 @@ V2.20 adds two capabilities to the V2.10 registry:
 - `admin.support.view`
 - `admin.support.manage`
 
-The seeded Support Admin role receives Support view/manage plus Account view and Action Center view, but does not receive billing mutation, model mutation, role administration, or governed-action execution authority.
+The seeded Support Admin role receives Support view/manage, Account view, Billing view, AI Usage view and Action Center view so Customer 360 has the necessary read-only commercial context. It does not receive billing mutation, model mutation, role administration, approval, or governed-action execution authority.
 
 Operations Admin receives Support view/manage. Read-only Auditor receives Support view only.
 
