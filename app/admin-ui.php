@@ -16,6 +16,7 @@ function admin_ui_nav_sections(): array {
                 'accounts'=>['label'=>'Accounts','url'=>'/admin/accounts.php'],
                 'users'=>['label'=>'Users','url'=>'/admin/users.php'],
                 'packages'=>['label'=>'Packages','url'=>'/admin/packages.php'],
+                'billing'=>['label'=>'Billing & Stripe','url'=>'/admin/billing.php'],
                 'usage'=>['label'=>'AI Usage','url'=>'/admin/usage.php'],
             ],
         ],
@@ -63,7 +64,7 @@ function admin_ui_sidebar(string $active='dashboard'): string {
         }
         $out.='</div></details>';
     }
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.30</span><a href="/logout.php">Sign out</a></div></aside>';
+    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V1.40</span><a href="/logout.php">Sign out</a></div></aside>';
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}
