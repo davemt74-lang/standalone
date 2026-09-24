@@ -99,7 +99,7 @@ function admin_platform_latest_snapshot(PDO $pdo,string $type='drift_baseline'):
 }
 function admin_platform_drift(PDO $pdo,array $config): array {
     $current=admin_platform_snapshot_payload($pdo,$config,dirname(__DIR__));$fingerprint=admin_platform_fingerprint($current);$baseline=admin_platform_latest_snapshot($pdo,'drift_baseline');if(!$baseline)return ['status'=>'no_baseline','drifted'=>false,'current_fingerprint'=>$fingerprint,'baseline'=>null,'changed_sections'=>[]];
-    $changed=[];$old=(array)($baseline['snapshot']??[]);foreach(['config','modules','integrations','features'] as $section)if(json_encode($old[$section]??null,JSON_UNESCAPED_SLASHES)!==json_encode($current[$section]??null,JSON_UNESCAPED_SLASHES))$changed[]=$section;
+    $currentStable=admin_platform_drift_material($current);$oldStable=admin_platform_drift_material((array)($baseline['snapshot']??[]));$changed=[];foreach(['config','modules','integrations','features'] as $section)if(json_encode($oldStable[$section]??null,JSON_UNESCAPED_SLASHES)!==json_encode($currentStable[$section]??null,JSON_UNESCAPED_SLASHES))$changed[]=$section;
     return ['status'=>$changed?'drifted':'aligned','drifted'=>(bool)$changed,'current_fingerprint'=>$fingerprint,'baseline'=>$baseline,'changed_sections'=>$changed];
 }
 function admin_platform_metrics(PDO $pdo,array $config): array {
