@@ -1,0 +1,134 @@
+<?php
+declare(strict_types=1);
+
+function admin_security_ready(PDO $pdo): bool {
+    try{
+        foreach(['admin_security_audit_events','admin_security_cases','admin_security_case_events','admin_privacy_requests','admin_privacy_request_events','admin_audit_exports'] as $table)if(!installer_table_exists($pdo,$table))return false;
+        return true;
+    }catch(Throwable $e){return false;}
+}
+function admin_security_reason(string $value,string $fallback='Security or compliance record updated.'): string {
+    $value=trim($value);if($value==='')$value=$fallback;return mb_substr($value,0,1000);
+}
+function admin_security_request_hash(?string $value,string $scope): ?string {
+    $value=trim((string)$value);return $value===''?null:hash('sha256','annotated-admin-security|'.$scope.'|'.$value);
+}
+function admin_security_domain_capability(string $domain): ?string {
+    return match($domain){
+        'support'=>'admin.support.view',
+        'finance'=>'admin.finance.view',
+        'billing'=>'admin.billing.view',
+        'ai_usage'=>'admin.ai_usage.view',
+        'models'=>'admin.models.view',
+        'research'=>'admin.research_data.view',
+        'customer_success'=>'admin.customer_success.view',
+        'accounts','membership'=>'admin.accounts.view',
+        'trust'=>'admin.trust.view',
+        'actions'=>'admin.actions.view',
+        'security','privacy'=>null,
+        default=>null,
+    };
+}
+function admin_security_can_view_domain(PDO $pdo,array $viewer,string $domain): bool {
+    $cap=admin_security_domain_capability($domain);return $cap===null||admin_access_has_capability($pdo,$viewer,$cap);
+}
+function admin_security_event_redact(PDO $pdo,array $viewer,array $event): array {
+    $domain=(string)($event['source_domain']??'security');$allowed=admin_security_can_view_domain($pdo,$viewer,$domain);$event['source_allowed']=$allowed;
+    foreach(['before_json','after_json','metadata_json'] as $field){
+        if(!$allowed){$event[$field]=null;continue;}
+        $raw=$event[$field]??null;if($raw===null||$raw===''){continue;}
+        try{$event[$field.'_decoded']=is_array($raw)?$raw:json_decode((string)$raw,true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){$event[$field.'_decoded']=null;}
+    }
+    if(!$allowed){$event['reason']='Restricted '.$domain.' event. Source-domain permission is required for details.';$event['subject_public_id']=null;$event['source_event_public_id']=null;}
+    return $event;
+}
+function admin_security_audit_record(PDO $pdo,array $actor,array $input): array {
+    admin_ops_require_admin($actor);if(!admin_security_ready($pdo))throw new RuntimeException('Admin V2.50 security schema is unavailable.');
+    $subjectType=mb_substr(trim((string)($input['subject_type']??'action')),0,80);if($subjectType==='')$subjectType='action';
+    $subjectId=trim((string)($input['subject_public_id']??''));$domain=mb_substr(trim((string)($input['source_domain']??'security')),0,64);if($domain==='')$domain='security';
+    $eventType=mb_substr(trim((string)($input['event_type']??'security_event')),0,100);$reason=admin_security_reason((string)($input['reason']??''));
+    $enc=fn(mixed $v)=>$v===null?null:json_encode($v,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+    $accountId=!empty($input['account_id'])?(int)$input['account_id']:null;$sourceEvent=trim((string)($input['source_event_public_id']??''));$corr=trim((string)($input['correlation_id']??''));$sensitivity=in_array((string)($input['sensitivity']??'restricted'),['standard','restricted','high'],true)?(string)$input['sensitivity']:'restricted';
+    $ip=PHP_SAPI==='cli'?null:admin_security_request_hash($_SERVER['REMOTE_ADDR']??null,'ip');$ua=PHP_SAPI==='cli'?null:admin_security_request_hash($_SERVER['HTTP_USER_AGENT']??null,'ua');$public=ulid_like();
+    $pdo->prepare("INSERT INTO admin_security_audit_events(public_id,actor_user_id,account_id,subject_type,subject_public_id,event_type,source_domain,source_event_public_id,correlation_id,sensitivity,before_json,after_json,metadata_json,reason,actor_ip_hash,actor_user_agent_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      ->execute([$public,(int)$actor['id'],$accountId,$subjectType,$subjectId!==''?$subjectId:null,$eventType,$domain,$sourceEvent!==''?$sourceEvent:null,$corr!==''?$corr:null,$sensitivity,$enc($input['before']??null),$enc($input['after']??null),$enc($input['metadata']??null),$reason,$ip,$ua]);
+    $q=$pdo->prepare("SELECT e.*,u.username actor_username,u.display_name actor_display_name,a.public_id account_public_id,a.name account_name FROM admin_security_audit_events e JOIN users u ON u.id=e.actor_user_id LEFT JOIN accounts a ON a.id=e.account_id WHERE e.public_id=?");$q->execute([$public]);return $q->fetch()?:throw new RuntimeException('Security audit event could not be reloaded.');
+}
+function admin_security_filters(array $input): array {
+    $out=[];foreach(['q','domain','event_type','actor','account','sensitivity'] as $k){$v=trim((string)($input[$k]??''));if($v!=='')$out[$k]=$v;}
+    $from=trim((string)($input['from']??''));$to=trim((string)($input['to']??''));if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$from))$out['from']=$from;if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$to))$out['to']=$to;return $out;
+}
+function admin_security_events(PDO $pdo,array $viewer,array $filters=[],int $limit=250): array {
+    if(!admin_security_ready($pdo))return [];$filters=admin_security_filters($filters);$where=[];$params=[];$limit=max(1,min(1000,$limit));
+    if(isset($filters['q'])){$n='%'.$filters['q'].'%';$where[]='(e.event_type LIKE ? OR e.reason LIKE ? OR e.subject_public_id LIKE ? OR e.correlation_id LIKE ? OR u.username LIKE ? OR a.name LIKE ? OR a.public_id LIKE ?)';array_push($params,$n,$n,$n,$n,$n,$n,$n);}
+    if(isset($filters['domain'])){$where[]='e.source_domain=?';$params[]=$filters['domain'];}
+    if(isset($filters['event_type'])){$where[]='e.event_type=?';$params[]=$filters['event_type'];}
+    if(isset($filters['actor'])){$where[]='(u.username=? OR u.public_id=?)';array_push($params,$filters['actor'],$filters['actor']);}
+    if(isset($filters['account'])){$where[]='(a.public_id=? OR a.name LIKE ?)';array_push($params,$filters['account'],'%'.$filters['account'].'%');}
+    if(isset($filters['sensitivity'])&&in_array($filters['sensitivity'],['standard','restricted','high'],true)){$where[]='e.sensitivity=?';$params[]=$filters['sensitivity'];}
+    if(isset($filters['from'])){$where[]='e.created_at>=?';$params[]=$filters['from'].' 00:00:00';}
+    if(isset($filters['to'])){$where[]='e.created_at<?';$params[]=gmdate('Y-m-d H:i:s',strtotime($filters['to'].' +1 day'));}
+    $sql="SELECT e.*,u.username actor_username,u.display_name actor_display_name,a.public_id account_public_id,a.name account_name FROM admin_security_audit_events e JOIN users u ON u.id=e.actor_user_id LEFT JOIN accounts a ON a.id=e.account_id".($where?' WHERE '.implode(' AND ',$where):'')." ORDER BY e.created_at DESC,e.id DESC LIMIT ".$limit;$q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll()?:[];foreach($rows as &$row)$row=admin_security_event_redact($pdo,$viewer,$row);unset($row);return $rows;
+}
+function admin_security_legacy_events(PDO $pdo,array $viewer,int $limit=250): array {
+    if(!admin_security_ready($pdo))return [];$rows=admin_security_events($pdo,$viewer,[],$limit);return $rows;
+}
+function admin_security_permission_review(PDO $pdo): array {
+    if(!admin_access_ready($pdo))return ['operators'=>[],'issues'=>[]];$operators=admin_access_admin_operators($pdo);$issues=[];
+    foreach($operators as $op){$caps=admin_access_effective_capabilities($op);$risk=[];if(in_array('admin.*',$caps,true))$risk[]='full_admin';if(in_array('admin.actions.approve',$caps,true)&&in_array('admin.actions.execute',$caps,true))$risk[]='approve_and_execute';if(in_array('admin.billing.manage',$caps,true)&&in_array('admin.finance.manage',$caps,true))$risk[]='billing_and_finance_manage';if(($op['status']??'disabled')!=='active')$risk[]='disabled_profile';if($risk)$issues[]=['user_id'=>(int)$op['user_id'],'username'=>$op['username']??'','display_name'=>$op['display_name']??'','role_name'=>$op['role_name']??$op['role_key']??'','risks'=>$risk];}
+    return ['operators'=>$operators,'issues'=>$issues];
+}
+function admin_security_metrics(PDO $pdo): array {
+    if(!admin_security_ready($pdo))return ['events_24h'=>0,'high_events_24h'=>0,'open_cases'=>0,'critical_cases'=>0,'open_privacy'=>0,'overdue_privacy'=>0,'exports_30d'=>0,'permission_issues'=>0];
+    $s=fn(string $sql)=>(int)($pdo->query($sql)->fetchColumn()?:0);$review=admin_security_permission_review($pdo);
+    return [
+        'events_24h'=>$s("SELECT COUNT(*) FROM admin_security_audit_events WHERE created_at>=UTC_TIMESTAMP()-INTERVAL 1 DAY"),
+        'high_events_24h'=>$s("SELECT COUNT(*) FROM admin_security_audit_events WHERE sensitivity='high' AND created_at>=UTC_TIMESTAMP()-INTERVAL 1 DAY"),
+        'open_cases'=>$s("SELECT COUNT(*) FROM admin_security_cases WHERE status IN ('open','investigating','monitoring')"),
+        'critical_cases'=>$s("SELECT COUNT(*) FROM admin_security_cases WHERE severity='critical' AND status IN ('open','investigating','monitoring')"),
+        'open_privacy'=>$s("SELECT COUNT(*) FROM admin_privacy_requests WHERE status IN ('open','verifying','in_progress','blocked')"),
+        'overdue_privacy'=>$s("SELECT COUNT(*) FROM admin_privacy_requests WHERE due_at IS NOT NULL AND due_at<UTC_TIMESTAMP() AND status IN ('open','verifying','in_progress','blocked')"),
+        'exports_30d'=>$s("SELECT COUNT(*) FROM admin_audit_exports WHERE created_at>=UTC_TIMESTAMP()-INTERVAL 30 DAY"),
+        'permission_issues'=>count($review['issues']),
+    ];
+}
+function admin_security_case_event(PDO $pdo,array $admin,int $caseId,string $eventType,mixed $before,mixed $after,string $note=''): void {
+    $enc=fn(mixed $v)=>$v===null?null:json_encode($v,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);$pdo->prepare("INSERT INTO admin_security_case_events(public_id,case_id,actor_user_id,event_type,before_json,after_json,note) VALUES(?,?,?,?,?,?,?)")->execute([ulid_like(),$caseId,(int)$admin['id'],mb_substr($eventType,0,80),$enc($before),$enc($after),trim($note)!==''?mb_substr(trim($note),0,4000):null]);
+}
+function admin_security_cases(PDO $pdo,string $status='',int $limit=200): array {
+    if(!admin_security_ready($pdo))return [];$limit=max(1,min(500,$limit));$where='';$params=[];if($status!==''){$where=' WHERE c.status=?';$params[]=$status;}$q=$pdo->prepare("SELECT c.*,a.public_id account_public_id,a.name account_name,u.username assigned_username,u.display_name assigned_display_name FROM admin_security_cases c LEFT JOIN accounts a ON a.id=c.account_id LEFT JOIN users u ON u.id=c.assigned_user_id".$where." ORDER BY FIELD(c.status,'open','investigating','monitoring','resolved','dismissed'),FIELD(c.severity,'critical','high','medium','low','info'),c.updated_at DESC,c.id DESC LIMIT ".$limit);$q->execute($params);return $q->fetchAll()?:[];
+}
+function admin_security_case_create(PDO $pdo,array $admin,array $input): array {
+    admin_access_assert_capability($pdo,$admin,'admin.security.manage');$title=mb_substr(trim((string)($input['title']??'')),0,190);if($title==='')throw new InvalidArgumentException('Security case title is required.');$severity=in_array((string)($input['severity']??'medium'),['info','low','medium','high','critical'],true)?(string)$input['severity']:'medium';$accountId=!empty($input['account_id'])?(int)$input['account_id']:null;$assigned=!empty($input['assigned_user_id'])?(int)$input['assigned_user_id']:null;$public=ulid_like();$desc=trim((string)($input['description']??''));$source=trim((string)($input['opened_from_event_public_id']??''));
+    $pdo->prepare("INSERT INTO admin_security_cases(public_id,title,description,severity,status,account_id,assigned_user_id,opened_from_event_public_id,created_by_user_id,updated_by_user_id) VALUES(?,?,?,?, 'open',?,?,?,?,?)")->execute([$public,$title,$desc!==''?$desc:null,$severity,$accountId,$assigned,$source!==''?$source:null,(int)$admin['id'],(int)$admin['id']]);$id=(int)$pdo->lastInsertId();$q=$pdo->prepare("SELECT * FROM admin_security_cases WHERE id=?");$q->execute([$id]);$row=$q->fetch()?:throw new RuntimeException('Security case could not be reloaded.');admin_security_case_event($pdo,$admin,$id,'case_created',null,$row,admin_security_reason((string)($input['reason']??''),'Open security case.'));admin_security_audit_record($pdo,$admin,['account_id'=>$accountId,'subject_type'=>'security_case','subject_public_id'=>$public,'event_type'=>'security_case_created','source_domain'=>'security','sensitivity'=>$severity==='critical'?'high':'restricted','after'=>['severity'=>$severity,'status'=>'open','assigned_user_id'=>$assigned],'reason'=>(string)($input['reason']??'Open security case.')]);return $row;
+}
+function admin_security_case_update(PDO $pdo,array $admin,string $publicId,array $input): array {
+    admin_access_assert_capability($pdo,$admin,'admin.security.manage');$q=$pdo->prepare("SELECT * FROM admin_security_cases WHERE public_id=? LIMIT 1");$q->execute([$publicId]);$row=$q->fetch();if(!$row)throw new RuntimeException('Security case not found.');$before=$row;$status=in_array((string)($input['status']??$row['status']),['open','investigating','monitoring','resolved','dismissed'],true)?(string)$input['status']:(string)$row['status'];$severity=in_array((string)($input['severity']??$row['severity']),['info','low','medium','high','critical'],true)?(string)$input['severity']:(string)$row['severity'];$assigned=array_key_exists('assigned_user_id',$input)&&$input['assigned_user_id']!==''?(int)$input['assigned_user_id']:($row['assigned_user_id']!==null?(int)$row['assigned_user_id']:null);$resolution=trim((string)($input['resolution_note']??$row['resolution_note']??''));$resolvedAt=in_array($status,['resolved','dismissed'],true)?gmdate('Y-m-d H:i:s'):null;
+    $pdo->prepare("UPDATE admin_security_cases SET status=?,severity=?,assigned_user_id=?,resolution_note=?,resolved_at=?,updated_by_user_id=? WHERE id=?")->execute([$status,$severity,$assigned,$resolution!==''?$resolution:null,$resolvedAt,(int)$admin['id'],(int)$row['id']]);$q->execute([$publicId]);$after=$q->fetch()?:$row;$reason=admin_security_reason((string)($input['reason']??''));admin_security_case_event($pdo,$admin,(int)$row['id'],'case_updated',$before,$after,$reason);admin_security_audit_record($pdo,$admin,['account_id'=>$row['account_id'],'subject_type'=>'security_case','subject_public_id'=>$publicId,'event_type'=>'security_case_updated','source_domain'=>'security','sensitivity'=>$severity==='critical'?'high':'restricted','before'=>['status'=>$before['status'],'severity'=>$before['severity'],'assigned_user_id'=>$before['assigned_user_id']],'after'=>['status'=>$after['status'],'severity'=>$after['severity'],'assigned_user_id'=>$after['assigned_user_id']],'reason'=>$reason]);return $after;
+}
+function admin_privacy_requests(PDO $pdo,string $status='',int $limit=200): array {
+    if(!admin_security_ready($pdo))return [];$limit=max(1,min(500,$limit));$where='';$params=[];if($status!==''){$where=' WHERE p.status=?';$params[]=$status;}$q=$pdo->prepare("SELECT p.*,u.username subject_username,u.display_name subject_display_name,a.public_id account_public_id,a.name account_name,au.username assigned_username FROM admin_privacy_requests p LEFT JOIN users u ON u.id=p.subject_user_id LEFT JOIN accounts a ON a.id=p.account_id LEFT JOIN users au ON au.id=p.assigned_user_id".$where." ORDER BY CASE WHEN p.due_at IS NOT NULL AND p.due_at<UTC_TIMESTAMP() AND p.status IN ('open','verifying','in_progress','blocked') THEN 0 ELSE 1 END,p.due_at IS NULL,p.due_at,p.updated_at DESC,p.id DESC LIMIT ".$limit);$q->execute($params);return $q->fetchAll()?:[];
+}
+function admin_privacy_event(PDO $pdo,array $admin,int $requestId,string $eventType,mixed $before,mixed $after,string $note=''): void {
+    $enc=fn(mixed $v)=>$v===null?null:json_encode($v,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);$pdo->prepare("INSERT INTO admin_privacy_request_events(public_id,request_id,actor_user_id,event_type,before_json,after_json,note) VALUES(?,?,?,?,?,?,?)")->execute([ulid_like(),$requestId,(int)$admin['id'],mb_substr($eventType,0,80),$enc($before),$enc($after),trim($note)!==''?mb_substr(trim($note),0,4000):null]);
+}
+function admin_privacy_create(PDO $pdo,array $admin,array $input): array {
+    admin_access_assert_capability($pdo,$admin,'admin.privacy.manage');$type=in_array((string)($input['request_type']??''),['access','export','deletion','restriction','rectification','consent_review','retention_review'],true)?(string)$input['request_type']:throw new InvalidArgumentException('Privacy request type is invalid.');$subject=!empty($input['subject_user_id'])?(int)$input['subject_user_id']:null;$account=!empty($input['account_id'])?(int)$input['account_id']:null;if($subject===null&&$account===null)throw new InvalidArgumentException('Privacy request requires a user or account subject.');$assigned=!empty($input['assigned_user_id'])?(int)$input['assigned_user_id']:null;$due=trim((string)($input['due_at']??''));$dueSql=null;if($due!==''){$ts=strtotime($due);if($ts===false)throw new InvalidArgumentException('Privacy due date is invalid.');$dueSql=gmdate('Y-m-d H:i:s',$ts);}$public=ulid_like();$ref=mb_substr(trim((string)($input['request_reference']??'')),0,190);$note=trim((string)($input['request_note']??''));
+    $pdo->prepare("INSERT INTO admin_privacy_requests(public_id,request_type,status,subject_user_id,account_id,assigned_user_id,request_reference,request_note,due_at,created_by_user_id,updated_by_user_id) VALUES(?,?,'open',?,?,?,?,?,?,?,?)")->execute([$public,$type,$subject,$account,$assigned,$ref!==''?$ref:null,$note!==''?$note:null,$dueSql,(int)$admin['id'],(int)$admin['id']]);$id=(int)$pdo->lastInsertId();$q=$pdo->prepare("SELECT * FROM admin_privacy_requests WHERE id=?");$q->execute([$id]);$row=$q->fetch()?:throw new RuntimeException('Privacy request could not be reloaded.');admin_privacy_event($pdo,$admin,$id,'privacy_request_created',null,$row,admin_security_reason((string)($input['reason']??''),'Create privacy request.'));admin_security_audit_record($pdo,$admin,['account_id'=>$account,'subject_type'=>'privacy_request','subject_public_id'=>$public,'event_type'=>'privacy_request_created','source_domain'=>'privacy','sensitivity'=>'high','after'=>['request_type'=>$type,'status'=>'open','subject_user_id'=>$subject,'assigned_user_id'=>$assigned,'due_at'=>$dueSql],'reason'=>(string)($input['reason']??'Create privacy request.')]);return $row;
+}
+function admin_privacy_update(PDO $pdo,array $admin,string $publicId,array $input): array {
+    admin_access_assert_capability($pdo,$admin,'admin.privacy.manage');$q=$pdo->prepare("SELECT * FROM admin_privacy_requests WHERE public_id=? LIMIT 1");$q->execute([$publicId]);$row=$q->fetch();if(!$row)throw new RuntimeException('Privacy request not found.');$before=$row;$status=in_array((string)($input['status']??$row['status']),['open','verifying','in_progress','blocked','completed','denied','cancelled'],true)?(string)$input['status']:(string)$row['status'];$assigned=array_key_exists('assigned_user_id',$input)&&$input['assigned_user_id']!==''?(int)$input['assigned_user_id']:($row['assigned_user_id']!==null?(int)$row['assigned_user_id']:null);$completion=trim((string)($input['completion_note']??$row['completion_note']??''));$evidence=trim((string)($input['evidence_json']??''));$evidenceJson=$row['evidence_json'];if($evidence!==''){json_decode($evidence,true,512,JSON_THROW_ON_ERROR);$evidenceJson=$evidence;}$done=in_array($status,['completed','denied','cancelled'],true)?gmdate('Y-m-d H:i:s'):null;
+    $pdo->prepare("UPDATE admin_privacy_requests SET status=?,assigned_user_id=?,completion_note=?,evidence_json=?,completed_at=?,updated_by_user_id=? WHERE id=?")->execute([$status,$assigned,$completion!==''?$completion:null,$evidenceJson,$done,(int)$admin['id'],(int)$row['id']]);$q->execute([$publicId]);$after=$q->fetch()?:$row;$reason=admin_security_reason((string)($input['reason']??''));admin_privacy_event($pdo,$admin,(int)$row['id'],'privacy_request_updated',$before,$after,$reason);admin_security_audit_record($pdo,$admin,['account_id'=>$row['account_id'],'subject_type'=>'privacy_request','subject_public_id'=>$publicId,'event_type'=>'privacy_request_updated','source_domain'=>'privacy','sensitivity'=>'high','before'=>['status'=>$before['status'],'assigned_user_id'=>$before['assigned_user_id']],'after'=>['status'=>$after['status'],'assigned_user_id'=>$after['assigned_user_id']],'reason'=>$reason]);return $after;
+}
+function admin_security_export(PDO $pdo,array $admin,array $filters,string $format='csv'): array {
+    admin_access_assert_capability($pdo,$admin,'admin.security.export');$format=$format==='json'?'json':'csv';$rows=admin_security_events($pdo,$admin,$filters,1000);
+    if($format==='json'){$payload=json_encode(array_map(function($r){return ['created_at'=>$r['created_at'],'actor'=>$r['actor_username'],'account'=>$r['account_public_id']??null,'domain'=>$r['source_domain'],'event_type'=>$r['event_type'],'subject_type'=>$r['subject_type'],'subject_public_id'=>$r['subject_public_id'],'correlation_id'=>$r['correlation_id'],'sensitivity'=>$r['sensitivity'],'reason'=>$r['reason'],'source_allowed'=>$r['source_allowed']];},$rows),JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)."\n";}
+    else{$fh=fopen('php://temp','w+');fputcsv($fh,['created_at','actor','account','domain','event_type','subject_type','subject_public_id','correlation_id','sensitivity','reason','source_allowed']);foreach($rows as $r)fputcsv($fh,[$r['created_at'],$r['actor_username'],$r['account_public_id']??'',$r['source_domain'],$r['event_type'],$r['subject_type'],$r['subject_public_id']??'',$r['correlation_id']??'',$r['sensitivity'],$r['reason'],$r['source_allowed']?'1':'0']);rewind($fh);$payload=(string)stream_get_contents($fh);fclose($fh);}
+    $hash=hash('sha256',$payload);$public=ulid_like();$pdo->prepare("INSERT INTO admin_audit_exports(public_id,requested_by_user_id,export_format,filters_json,row_count,content_sha256) VALUES(?,?,?,?,?,?)")->execute([$public,(int)$admin['id'],$format,json_encode(admin_security_filters($filters),JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),count($rows),$hash]);admin_security_audit_record($pdo,$admin,['subject_type'=>'audit_export','subject_public_id'=>$public,'event_type'=>'audit_export_created','source_domain'=>'security','sensitivity'=>'high','after'=>['format'=>$format,'row_count'=>count($rows),'sha256'=>$hash],'metadata'=>['filters'=>admin_security_filters($filters)],'reason'=>'Export administrative audit evidence.']);return ['public_id'=>$public,'format'=>$format,'row_count'=>count($rows),'sha256'=>$hash,'content'=>$payload];
+}
+function admin_security_account_events(PDO $pdo,array $viewer,int $accountId,int $limit=100): array {
+    if(!admin_security_ready($pdo))return [];$q=$pdo->prepare("SELECT public_id FROM accounts WHERE id=?");$q->execute([$accountId]);$public=(string)($q->fetchColumn()?:'');return admin_security_events($pdo,$viewer,['account'=>$public],$limit);
+}
+function admin_security_agent_context(PDO $pdo,array $viewer): string {
+    if(($viewer['role']??'')!=='admin'||!admin_security_ready($pdo)||!admin_access_has_capability($pdo,$viewer,'admin.security.view'))return '';$m=admin_security_metrics($pdo);return "[ADMIN V2.50 SECURITY & COMPLIANCE — READ ONLY]\nSecurity audit events in last 24h: {$m['events_24h']}; high-sensitivity: {$m['high_events_24h']}; open security cases: {$m['open_cases']}; critical cases: {$m['critical_cases']}; open privacy requests: {$m['open_privacy']}; overdue privacy requests: {$m['overdue_privacy']}; permission-review flags: {$m['permission_issues']}. Source-domain details remain permission-gated. The Agent may summarize evidence but cannot change roles, permissions, cases, privacy workflows, security settings, audit records or exports.";
+}
