@@ -7,6 +7,8 @@ foreach(['function account_admin_create','function account_admin_update_lifecycl
 foreach(['Account lifecycle','Account members','Package baseline + account overrides','Account administration history'] as $n)$need('admin/account.php',$n,'Account detail UI missing '.$n);
 $need('admin/accounts.php','+ Create organization account','Accounts list must support organization creation.');
 $need('app/ai-usage.php','entitlement_source','Canonical AI metering must use effective account token entitlements.');
+$need('app/functions.php',"subscription_user_account($pdo,(int)$user['id'],false)",'Legacy Free/Pro compatibility must honor canonical personal-account lifecycle state.');
+$need('admin/account.php',"admin_ui_sidebar('accounts')",'Account detail must remain inside shared Admin navigation.');
 $need('app/bootstrap.php',"/account-admin.php",'Account admin runtime must load before AI usage.');
 $need('app/admin-ui.php','Admin V1.30','Shared admin shell must identify V1.30.');
 $need('tests/ci/run-full-regression.sh','tests/admin-v1-30-account-lifecycle-db.php','Full regression must execute Admin V1.30 DB journey.');
