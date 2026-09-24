@@ -8,6 +8,7 @@ foreach(['function admin_access_profile','function admin_access_has_capability',
 $need('app/admin-access.php','The last active Super Admin cannot be demoted or disabled.','V2.10 must protect the last active Super Admin.');
 $need('app/admin-access.php',"if(\$cap==='admin.roles.manage')continue",'Custom roles must not be able to self-grant security-administration authority.');
 $need('app/admin-access.php','Approval policy requires a reviewer different from the requester.','Approval policies must support separation of duties.');
+$need('app/admin-access.php',"if(str_starts_with(\$path,'/admin/'))return 'admin.*'",'Unmapped Admin routes must fail closed to Super Admin authority.');
 $need('app/functions.php','admin_access_authorize_request','require_admin must enforce V2.10 delegated route authorization.');
 $need('app/bootstrap.php',"/admin-access.php'",'V2.10 access runtime must load globally.');
 $need('app/admin-ui.php',"'roles_permissions'=>",'Admin navigation must expose Roles & Permissions.');
