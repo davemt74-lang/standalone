@@ -40,7 +40,7 @@ function stripe_billing_settings(PDO $pdo): array {
 function stripe_billing_configured(PDO $pdo,array $config): bool {
     if(!stripe_billing_ready($pdo))return false;
     $s=stripe_billing_settings($pdo);
-    try{return trim((string)$s['publishable_key'])!==''&&stripe_billing_decrypt_secret($config,$s['secret_key_ciphertext']??null)!==''&&stripe_billing_decrypt_secret($config,$s['webhook_secret_ciphertext']??null)!=='';}
+    try{return stripe_billing_decrypt_secret($config,$s['secret_key_ciphertext']??null)!==''&&stripe_billing_decrypt_secret($config,$s['webhook_secret_ciphertext']??null)!=='';}
     catch(Throwable $e){return false;}
 }
 function stripe_billing_save_settings(PDO $pdo,array $config,array $admin,array $input): array {
@@ -132,7 +132,7 @@ function stripe_billing_map_existing_price(PDO $pdo,array $config,array $admin,s
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
     $package=subscription_package($pdo,$packagePublicId);if(!$package)throw new RuntimeException('Package not found.');$settings=stripe_billing_settings($pdo);$mode=(string)$settings['mode'];
     $price=stripe_billing_api_request($config,$settings,'GET','prices/'.rawurlencode(trim($priceId)));$productId=is_string($price['product']??null)?(string)$price['product']:'';
-    if(($price['type']??'')!=='recurring'||($price['recurring']['interval']??'')!=='month'||$productId==='')throw new RuntimeException('Choose a recurring monthly Stripe Price.');
+    if(empty($price['active'])||($price['type']??'')!=='recurring'||($price['recurring']['interval']??'')!=='month'||$productId==='')throw new RuntimeException('Choose an active recurring monthly Stripe Price.');
     $amount=(int)($price['unit_amount']??0);$currency=strtolower((string)($price['currency']??'usd'));if($currency!=='usd'||$amount!==(int)$package['monthly_price_cents'])throw new RuntimeException('Stripe Price currency/amount must match the Annotated monthly package price.');
     return stripe_billing_store_price_mapping($pdo,(int)$package['id'],$mode,$productId,(string)$price['id'],$currency,$amount,(int)$admin['id']);
 }
@@ -265,6 +265,8 @@ function stripe_billing_sync_subscription(PDO $pdo,array $object,string $mode,?s
     $subscriptionId=(string)($object['id']??'');$customerId=is_string($object['customer']??null)?(string)$object['customer']:'';if($subscriptionId===''||$customerId==='')return null;
     $metadata=is_array($object['metadata']??null)?$object['metadata']:[];$accountPublic=(string)($metadata['annotated_account_id']??'');$account=$accountPublic!==''?stripe_billing_account_by_public($pdo,$accountPublic):null;if(!$account)$account=stripe_billing_account_by_customer($pdo,$customerId,$mode);if(!$account)throw new RuntimeException('Stripe subscription could not be matched to an Annotated account.');stripe_billing_link_customer($pdo,(int)$account['id'],$mode,$customerId,null,(string)$account['name'],$metadata);
     $first=$object['items']['data'][0]??[];$priceId=(string)($first['price']['id']??$object['plan']['id']??'');$priceMap=$priceId!==''?stripe_billing_price_for_stripe_id($pdo,$priceId,$mode):null;
+    if($priceId!==''&&!$priceMap)throw new RuntimeException('Stripe subscription Price is not mapped to an Annotated package in this mode.');
+    if($priceMap&&(int)$priceMap['package_id']!==(int)$account['package_id']){ $targetPackage=subscription_package($pdo,(int)$priceMap['package_id']);if(!$targetPackage)throw new RuntimeException('Mapped Annotated package is unavailable.');stripe_billing_checkout_member_limit($pdo,$account,$targetPackage); }
     $status=(string)($object['status']??'incomplete');$periodStart=stripe_billing_datetime($object['current_period_start']??$first['current_period_start']??null);$periodEnd=stripe_billing_datetime($object['current_period_end']??$first['current_period_end']??null);$trialEnd=stripe_billing_datetime($object['trial_end']??null);
     $pdo->beginTransaction();try{
         $pdo->prepare("INSERT INTO stripe_subscriptions(public_id,account_id,mode,stripe_subscription_id,stripe_customer_id,stripe_price_id,status,cancel_at_period_end,current_period_start,current_period_end,trial_end,canceled_at,ended_at,latest_invoice_id,last_event_id,metadata_json)
@@ -289,7 +291,7 @@ function stripe_billing_sync_invoice(PDO $pdo,array $object,string $eventType,st
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON DUPLICATE KEY UPDATE status=VALUES(status),currency=VALUES(currency),amount_due_cents=VALUES(amount_due_cents),amount_paid_cents=VALUES(amount_paid_cents),amount_remaining_cents=VALUES(amount_remaining_cents),invoice_number=VALUES(invoice_number),hosted_invoice_url=VALUES(hosted_invoice_url),invoice_pdf_url=VALUES(invoice_pdf_url),period_start=VALUES(period_start),period_end=VALUES(period_end),due_at=VALUES(due_at),paid_at=VALUES(paid_at),last_event_id=VALUES(last_event_id)")
           ->execute([ulid_like(),(int)$account['id'],$mode,$invoiceId,$subscriptionId,$customerId,(string)($object['status']??''),(string)($object['currency']??''),(int)($object['amount_due']??0),(int)($object['amount_paid']??0),(int)($object['amount_remaining']??0),(string)($object['number']??''),(string)($object['hosted_invoice_url']??''),(string)($object['invoice_pdf']??''),stripe_billing_datetime($period['start']??null),stripe_billing_datetime($period['end']??null),stripe_billing_datetime($object['due_date']??null),stripe_billing_datetime($paidAt),$eventId]);
-        $nextStatus=null;if(in_array($eventType,['invoice.payment_failed','invoice.payment_action_required'],true))$nextStatus='past_due';elseif($eventType==='invoice.paid'){
+        $nextStatus=null;if(in_array($eventType,['invoice.payment_failed','invoice.payment_action_required','invoice.marked_uncollectible'],true))$nextStatus='past_due';elseif($eventType==='invoice.paid'){
             $nextStatus='active';if($subscriptionId){$q=$pdo->prepare('SELECT status FROM stripe_subscriptions WHERE mode=? AND stripe_subscription_id=? LIMIT 1');$q->execute([$mode,$subscriptionId]);$ss=(string)($q->fetchColumn()?:'');if(in_array($ss,['trialing','paused','canceled','unpaid','incomplete_expired'],true))$nextStatus=stripe_billing_subscription_status($ss);}
         }
         if($nextStatus!==null)$pdo->prepare("UPDATE accounts SET subscription_status=?,billing_source='stripe' WHERE id=? AND status<>'closed'")->execute([$nextStatus,(int)$account['id']]);
@@ -346,7 +348,8 @@ function stripe_billing_account_summary(PDO $pdo,int $accountId): array {
     $settings=stripe_billing_settings($pdo);$mode=(string)$settings['mode'];$customer=stripe_billing_customer($pdo,$accountId,$mode);$subscription=stripe_billing_current_subscription($pdo,$accountId,$mode);
     $q=$pdo->prepare('SELECT * FROM stripe_invoices WHERE account_id=? AND mode=? ORDER BY created_at DESC,id DESC LIMIT 20');$q->execute([$accountId,$mode]);$invoices=$q->fetchAll()?:[];
     $q=$pdo->prepare('SELECT * FROM account_billing_events WHERE account_id=? ORDER BY created_at DESC,id DESC LIMIT 50');$q->execute([$accountId]);$events=$q->fetchAll()?:[];
-    return ['mode'=>$mode,'customer'=>$customer,'subscription'=>$subscription,'invoices'=>$invoices,'events'=>$events];
+    $subscriptionPrice=$subscription&&!empty($subscription['stripe_price_id'])?stripe_billing_price_for_stripe_id($pdo,(string)$subscription['stripe_price_id'],$mode):null;
+    return ['mode'=>$mode,'customer'=>$customer,'subscription'=>$subscription,'subscription_price'=>$subscriptionPrice,'invoices'=>$invoices,'events'=>$events];
 }
 function stripe_billing_recent_webhooks(PDO $pdo,int $limit=100): array {
     if(!stripe_billing_ready($pdo))return [];$limit=max(1,min(500,$limit));return $pdo->query('SELECT * FROM stripe_webhook_events ORDER BY received_at DESC,id DESC LIMIT '.$limit)->fetchAll()?:[];
