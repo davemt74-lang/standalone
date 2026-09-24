@@ -57,3 +57,6 @@ Manual Admin package assignment is blocked while an account has an active Stripe
 Stripe Customer, Price, Subscription, Invoice and webhook event identities are scoped by Stripe mode. Test history can coexist with live history without assuming provider IDs are globally unique across modes.
 
 Any subscription Price received from Stripe must be mapped to an Annotated package in the same mode. Package changes that would violate the account's effective member limit fail synchronization and surface as failed webhook events for administrator resolution.
+
+## Stripe API version ownership
+The integration intentionally does not hard-pin a Stripe API version in application code. Stripe API requests use the account's configured API version, and webhook payload shape follows the API version assigned to the Stripe webhook endpoint. When upgrading the Stripe API version in Workbench, update/test the webhook endpoint version in the same release window and run the V1.40 signed-webhook regression before production cutover.
