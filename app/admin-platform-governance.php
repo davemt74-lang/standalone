@@ -81,7 +81,15 @@ function admin_platform_snapshot_payload(PDO $pdo,array $config,string $root): a
     $features=[];foreach(admin_platform_features($pdo) as $f)$features[$f['feature_key']]=['lifecycle_status'=>$f['lifecycle_status'],'enforcement_mode'=>$f['enforcement_mode'],'default_enabled'=>(bool)$f['default_enabled'],'rollout_percent'=>(int)$f['rollout_percent'],'packages'=>$f['packages'],'accounts'=>$f['accounts'],'dependencies'=>$f['dependencies']];
     return ['config'=>$cfg,'modules'=>$modules,'integrations'=>$integrations,'features'=>$features];
 }
-function admin_platform_fingerprint(array $payload): string {return hash('sha256',json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));}
+function admin_platform_drift_material(array $payload): array {
+    $copy=$payload;
+    // Overall release readiness contains worker-heartbeat freshness and other intentionally
+    // time-varying operational state. It remains visible in readiness metrics/snapshots but
+    // must not make a stable configuration drift baseline change solely as time passes.
+    if(isset($copy['config']['release'])&&is_array($copy['config']['release']))unset($copy['config']['release']['ready']);
+    return $copy;
+}
+function admin_platform_fingerprint(array $payload): string {return hash('sha256',json_encode(admin_platform_drift_material($payload),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));}
 function admin_platform_capture_snapshot(PDO $pdo,array $config,array $admin,string $type='release_readiness',string $reason='Capture platform readiness snapshot.'): array {
     admin_access_assert_capability($pdo,$admin,'admin.platform.release');if(!admin_platform_ready($pdo))throw new RuntimeException('Admin V2.60 platform schema is unavailable.');if(!in_array($type,['configuration','release_readiness','drift_baseline'],true))throw new InvalidArgumentException('Platform snapshot type is invalid.');
     $payload=admin_platform_snapshot_payload($pdo,$config,dirname(__DIR__));$fingerprint=admin_platform_fingerprint($payload);$build=$payload['config']['release']['build_sha']??null;$public=ulid_like();$pdo->prepare("INSERT INTO admin_platform_snapshots(public_id,snapshot_type,fingerprint,snapshot_json,source_build_sha,created_by_user_id) VALUES(?,?,?,?,?,?)")->execute([$public,$type,$fingerprint,json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),$build,(int)$admin['id']]);$q=$pdo->prepare("SELECT * FROM admin_platform_snapshots WHERE public_id=?");$q->execute([$public]);$row=$q->fetch()?:throw new RuntimeException('Platform snapshot could not be reloaded.');admin_platform_event($pdo,$admin,'platform_snapshot_created','platform_snapshot',$public,null,['snapshot_type'=>$type,'fingerprint'=>$fingerprint],$reason);return $row;
