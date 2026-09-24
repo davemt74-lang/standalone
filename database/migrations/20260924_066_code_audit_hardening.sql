@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS stripe_checkout_sessions (
   stripe_price_id VARCHAR(255) NOT NULL,
   stripe_checkout_session_id VARCHAR(255) NULL,
   checkout_url TEXT NULL,
+  request_json JSON NOT NULL,
   status ENUM('creating','open','completed','expired') NOT NULL DEFAULT 'creating',
   expires_at DATETIME NULL,
   completed_at DATETIME NULL,
