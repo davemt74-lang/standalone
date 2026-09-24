@@ -262,6 +262,13 @@ jobs:
           test -f package-website/tests/admin-v2-50-security-compliance-db.php
           test -f package-website/tests/ci/admin-v2-50-upgrade-from-077.php
           test -f package-website/docs/admin-v2-50-security-compliance-audit.md
+          test -f package-website/database/migrations/20260924_079_admin_platform_configuration_governance.sql
+          test -f package-website/app/admin-platform-governance.php
+          test -f package-website/admin/platform-governance.php
+          test -f package-website/tests/admin-v2-60-platform-governance-contract.php
+          test -f package-website/tests/admin-v2-60-platform-governance-db.php
+          test -f package-website/tests/ci/admin-v2-60-upgrade-from-078.php
+          test -f package-website/docs/admin-v2-60-platform-configuration-governance.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
