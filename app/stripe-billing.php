@@ -212,8 +212,8 @@ function stripe_billing_account_by_public(PDO $pdo,string $publicId): ?array {
 }
 function stripe_billing_event(PDO $pdo,int $accountId,string $source,string $eventType,string $reason,?string $stripeEventId=null,?int $actorUserId=null,mixed $before=null,mixed $after=null): void {
     $enc=fn(mixed $v)=>$v===null?null:json_encode($v,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
-    try{$pdo->prepare("INSERT INTO account_billing_events(public_id,account_id,actor_user_id,source,event_type,stripe_event_id,before_json,after_json,reason) VALUES(?,?,?,?,?,?,?,?,?)")
-      ->execute([ulid_like(),$accountId,$actorUserId,$source,$eventType,$stripeEventId,$enc($before),$enc($after),mb_substr($reason,0,500)]);}catch(PDOException $e){if((string)$e->getCode()!=='23000')throw $e;}
+    $pdo->prepare("INSERT INTO account_billing_events(public_id,account_id,actor_user_id,source,event_type,stripe_event_id,before_json,after_json,reason) VALUES(?,?,?,?,?,?,?,?,?)")
+      ->execute([ulid_like(),$accountId,$actorUserId,$source,$eventType,$stripeEventId,$enc($before),$enc($after),mb_substr($reason,0,500)]);
 }
 function stripe_billing_subscription_status(string $stripeStatus): string {
     return match($stripeStatus){
@@ -275,7 +275,7 @@ function stripe_billing_sync_invoice(PDO $pdo,array $object,string $eventType,?s
 function stripe_billing_record_customer_event(PDO $pdo,array $config,array $settings,array $object,string $eventType,?string $eventId=null): void {
     $customerId=is_string($object['customer']??null)?(string)$object['customer']:'';
     if($customerId===''&&is_string($object['charge']??null)&&$object['charge']!==''){
-        try{$charge=stripe_billing_api_request($config,$settings,'GET','charges/'.rawurlencode((string)$object['charge']));$customerId=is_string($charge['customer']??null)?(string)$charge['customer']:'';}catch(Throwable $e){}
+        $charge=stripe_billing_api_request($config,$settings,'GET','charges/'.rawurlencode((string)$object['charge']));$customerId=is_string($charge['customer']??null)?(string)$charge['customer']:'';
     }
     if($customerId==='')return;$account=stripe_billing_account_by_customer($pdo,$customerId);if(!$account)return;
     stripe_billing_event($pdo,(int)$account['id'],'stripe',str_replace('.','_',$eventType),'Stripe billing event received.',$eventId,null,null,['stripe_object_id'=>$object['id']??null,'charge_id'=>$object['charge']??null]);
@@ -283,6 +283,7 @@ function stripe_billing_record_customer_event(PDO $pdo,array $config,array $sett
 function stripe_billing_claim_webhook(PDO $pdo,string $eventId,string $mode,string $eventType,?string $objectId,string $hash): array {
     $q=$pdo->prepare('SELECT * FROM stripe_webhook_events WHERE stripe_event_id=? LIMIT 1');$q->execute([$eventId]);$existing=$q->fetch();
     if($existing){
+        if(!hash_equals((string)$existing['payload_sha256'],$hash))throw new RuntimeException('Stripe event payload changed for an existing event ID.');
         if(in_array((string)$existing['status'],['processed','ignored'],true))return ['claimed'=>false,'row'=>$existing];
         if($existing['status']==='processing'&&strtotime((string)$existing['received_at'])>time()-300)return ['claimed'=>false,'row'=>$existing];
         $pdo->prepare("UPDATE stripe_webhook_events SET status='processing',attempt_count=attempt_count+1,error_text=NULL,received_at=NOW(),payload_sha256=?,event_type=?,object_id=?,mode=? WHERE id=?")->execute([$hash,$eventType,$objectId,$mode,(int)$existing['id']]);
