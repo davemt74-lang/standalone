@@ -246,6 +246,14 @@ jobs:
           test -f package-website/tests/admin-v2-30-financial-reporting-db.php
           test -f package-website/tests/ci/admin-v2-30-upgrade-from-075.php
           test -f package-website/docs/admin-v2-30-financial-reporting.md
+          test -f package-website/database/migrations/20260924_077_admin_customer_success_health.sql
+          test -f package-website/app/admin-customer-success.php
+          test -f package-website/admin/customer-success.php
+          test -f package-website/admin/customer-success-account.php
+          test -f package-website/tests/admin-v2-40-customer-success-contract.php
+          test -f package-website/tests/admin-v2-40-customer-success-db.php
+          test -f package-website/tests/ci/admin-v2-40-upgrade-from-076.php
+          test -f package-website/docs/admin-v2-40-customer-success.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
