@@ -132,6 +132,11 @@ jobs:
           test -f package-website/tests/profile-phase2-showcase-db.php
           test -f package-website/tests/ci/profile-phase2-upgrade-from-060.php
           test -f package-website/docs/profile-phase-2-public-identity-research-showcase.md
+          test -f package-website/app/profile-network.php
+          test -f package-website/people.php
+          test -f package-website/tests/profile-phase3-research-network-contract.php
+          test -f package-website/tests/profile-phase3-research-network-db.php
+          test -f package-website/docs/profile-phase-3-social-discovery-research-network.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
