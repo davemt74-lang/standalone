@@ -93,6 +93,7 @@ db_tests=(
   tests/admin-v1-80-coupons-promotions-credits-db.php
   tests/admin-v1-90-tax-invoices-commercial-billing-db.php
   tests/admin-v2-0-operations-command-center-db.php
+  tests/admin-v2-10-roles-permissions-approvals-db.php
 )
 
 for test_file in "${db_tests[@]}"; do
