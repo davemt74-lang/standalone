@@ -172,6 +172,11 @@ jobs:
           test -f package-website/tests/admin-v1-40-stripe-billing-db.php
           test -f package-website/tests/ci/admin-v1-40-upgrade-from-064.php
           test -f package-website/docs/admin-v1-40-stripe-billing-checkout.md
+          test -f package-website/database/migrations/20260924_066_code_audit_hardening.sql
+          test -f package-website/tests/code-audit-hardening-contract.php
+          test -f package-website/tests/code-audit-hardening-db.php
+          test -f package-website/tests/ci/code-audit-upgrade-from-065.php
+          test -f package-website/docs/code-audit-hardening-10-10.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
