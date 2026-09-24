@@ -8,6 +8,9 @@ $need('app/billing-operations.php','FOR UPDATE','Dunning review/grace paths must
 $need('app/billing-operations.php',"reason<>'Billing dunning grace expired.'",'Payment recovery must respect later lifecycle decisions.');
 $need('app/billing-operations.php',"'suspend_after_grace'",'Automatic suspension must remain a configurable policy.');
 $need('app/billing-operations.php',"'restore_after_payment'",'Payment recovery restoration must remain configurable.');
+$need('app/billing-operations.php','function billing_operations_recurring_rows','Recurring revenue must have one mode-aware account pricing source.');
+$need('app/billing-operations.php','stripe_price_cents','Stripe-managed revenue must use mapped Stripe Price amounts.');
+$need('app/billing-operations.php','MAX(snapshot_date)','MRR movement must compare durable account snapshots rather than current package prices.');
 $need('app/stripe-billing.php','billing_operations_handle_stripe_event','Stripe webhook processing must feed V1.60 operations after provider synchronization.');
 $need('app/stripe-billing.php',"'amount_cents'=>\$amount",'Refund/dispute audit must persist provider amount for revenue snapshots.');
 $need('app/bootstrap.php',"/billing-operations.php'",'Billing operations runtime must load from bootstrap.');
