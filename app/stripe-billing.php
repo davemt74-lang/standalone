@@ -50,11 +50,11 @@ function stripe_billing_save_settings(PDO $pdo,array $config,array $admin,array 
     $publishable=trim((string)($input['publishable_key']??$current['publishable_key']??''));
     if($publishable!==''&&!str_starts_with($publishable,$mode==='live'?'pk_live_':'pk_test_'))throw new InvalidArgumentException('Publishable key does not match the selected Stripe mode.');
     $secret=trim((string)($input['secret_key']??''));$webhook=trim((string)($input['webhook_secret']??''));
-    if($secret!==''&&!str_starts_with($secret,$mode==='live'?'sk_live_':'sk_test_'))throw new InvalidArgumentException('Secret key does not match the selected Stripe mode.');
+    if($secret!==''){ $prefixes=$mode==='live'?['sk_live_','rk_live_']:['sk_test_','rk_test_'];$valid=false;foreach($prefixes as $prefix)if(str_starts_with($secret,$prefix)){$valid=true;break;}if(!$valid)throw new InvalidArgumentException('Secret or restricted key does not match the selected Stripe mode.'); }
     if($webhook!==''&&!str_starts_with($webhook,'whsec_'))throw new InvalidArgumentException('Webhook signing secret must begin with whsec_.');
     $secretCipher=$secret!==''?stripe_billing_encrypt_secret($config,$secret):($current['secret_key_ciphertext']??null);
     $webhookCipher=$webhook!==''?stripe_billing_encrypt_secret($config,$webhook):($current['webhook_secret_ciphertext']??null);
-    if($secretCipher){$resolved=stripe_billing_decrypt_secret($config,$secretCipher);if($resolved!==''&&!str_starts_with($resolved,$mode==='live'?'sk_live_':'sk_test_'))throw new InvalidArgumentException('Configured Stripe secret key does not match the selected mode.');}
+    if($secretCipher){$resolved=stripe_billing_decrypt_secret($config,$secretCipher);$prefixes=$mode==='live'?['sk_live_','rk_live_']:['sk_test_','rk_test_'];$valid=$resolved==='';foreach($prefixes as $prefix)if(str_starts_with($resolved,$prefix)){$valid=true;break;}if(!$valid)throw new InvalidArgumentException('Configured Stripe secret or restricted key does not match the selected mode.');}
     $cleanPath=function(mixed $value,string $fallback): string {$v=trim((string)$value);return $v!==''&&str_starts_with($v,'/')&&!str_starts_with($v,'//')?mb_substr($v,0,255):$fallback;};
     $success=$cleanPath($input['checkout_success_path']??null,'/billing.php?checkout=success');
     $cancel=$cleanPath($input['checkout_cancel_path']??null,'/billing.php?checkout=cancelled');
@@ -70,7 +70,7 @@ function stripe_billing_secret_key(array $config,array $settings): string {
 }
 function stripe_billing_api_request(array $config,array $settings,string $method,string $path,array $params=[],?string $idempotencyKey=null): array {
     $method=strtoupper($method);$url='https://api.stripe.com/v1/'.ltrim($path,'/');$key=stripe_billing_secret_key($config,$settings);
-    $headers=['Authorization: Bearer '.$key,'Accept: application/json'];if($idempotencyKey)$headers[]='Idempotency-Key: '.mb_substr($idempotencyKey,0,255);
+    $headers=['Authorization: Basic '.base64_encode($key.':'),'Accept: application/json'];if($idempotencyKey)$headers[]='Idempotency-Key: '.mb_substr($idempotencyKey,0,255);
     $ch=curl_init();
     $opts=[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>45,CURLOPT_CONNECTTIMEOUT=>10,CURLOPT_HTTPHEADER=>$headers,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS];
     if($method==='GET'&&$params)$url.='?'.http_build_query($params,'','&',PHP_QUERY_RFC3986);
