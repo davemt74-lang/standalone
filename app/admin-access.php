@@ -11,6 +11,8 @@ function admin_access_capability_registry(): array {
     return [
         'admin.operations.view'=>['group'=>'Operations','label'=>'View Command Center','description'=>'View operational alerts, health summaries and Admin overview evidence.'],
         'admin.operations.manage'=>['group'=>'Operations','label'=>'Manage operational queue','description'=>'Assign, snooze, resolve and manage Command Center operational state.'],
+        'admin.support.view'=>['group'=>'Support','label'=>'View Support Operations','description'=>'View support inbox, cases, customer 360, timelines, links and support analytics.'],
+        'admin.support.manage'=>['group'=>'Support','label'=>'Manage Support Operations','description'=>'Create, assign, prioritize, communicate, escalate, resolve, reopen, link and deduplicate support cases.'],
         'admin.accounts.view'=>['group'=>'Accounts','label'=>'View accounts & users','description'=>'View accounts, users, packages, membership and Account 360 evidence.'],
         'admin.accounts.manage'=>['group'=>'Accounts','label'=>'Manage accounts & users','description'=>'Change account lifecycle, membership, entitlements, packages and user-account state on existing Admin surfaces.'],
         'admin.billing.view'=>['group'=>'Billing','label'=>'View billing','description'=>'View Stripe, revenue, dunning, promotions, credits, tax and invoice evidence.'],
@@ -82,7 +84,7 @@ function admin_access_require_super_admin(PDO $pdo,array $admin): void {
 function admin_access_route_requirement(string $path,string $method='GET'): ?string {
     $path='/'.ltrim((string)(parse_url($path,PHP_URL_PATH)?:$path),'/');$method=strtoupper($method);$write=$method!=='GET'&&$method!=='HEAD';
     $map=[
-        '/admin/'=>['admin.operations.view','admin.operations.manage'],'/admin/index.php'=>['admin.operations.view','admin.operations.manage'],'/admin/assistant.php'=>['admin.operations.view','admin.operations.view'],'/admin/action-center.php'=>['admin.actions.view','admin.actions.view'],'/admin/roles-permissions.php'=>['admin.roles.view','admin.roles.view'],
+        '/admin/'=>['admin.operations.view','admin.operations.manage'],'/admin/index.php'=>['admin.operations.view','admin.operations.manage'],'/admin/assistant.php'=>['admin.operations.view','admin.operations.view'],'/admin/action-center.php'=>['admin.actions.view','admin.actions.view'],'/admin/roles-permissions.php'=>['admin.roles.view','admin.roles.view'],'/admin/support.php'=>['admin.support.view','admin.support.manage'],'/admin/support-case.php'=>['admin.support.view','admin.support.manage'],
         '/admin/accounts.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/account.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/users.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/packages.php'=>['admin.accounts.view','admin.accounts.manage'],
         '/admin/billing.php'=>['admin.billing.view','admin.billing.manage'],'/admin/billing-analytics.php'=>['admin.billing.view','admin.billing.manage'],'/admin/overage-billing.php'=>['admin.billing.view','admin.billing.manage'],'/admin/promotions.php'=>['admin.billing.view','admin.billing.manage'],'/admin/tax-invoices.php'=>['admin.billing.view','admin.billing.manage'],
         '/admin/usage.php'=>['admin.ai_usage.view','admin.ai_usage.manage'],
@@ -96,7 +98,7 @@ function admin_access_authorize_request(PDO $pdo,array $admin): void {
 }
 function admin_access_nav_capability(string $key): string {
     return match($key){
-        'dashboard','assistant'=>'admin.operations.view','action_center'=>'admin.actions.view','roles_permissions'=>'admin.roles.view',
+        'dashboard','assistant'=>'admin.operations.view','action_center'=>'admin.actions.view','roles_permissions'=>'admin.roles.view','support'=>'admin.support.view','support_case'=>'admin.support.view',
         'accounts','users','packages'=>'admin.accounts.view',
         'billing','billing_analytics','overage_billing','promotions','tax_invoices'=>'admin.billing.view',
         'usage'=>'admin.ai_usage.view',
