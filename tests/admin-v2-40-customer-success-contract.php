@@ -7,6 +7,9 @@ foreach(['admin_customer_success_assignments','admin_customer_health_snapshots',
 foreach(['function admin_customer_success_ready','function admin_customer_success_calculate_health','function admin_customer_success_snapshot','function admin_customer_success_refresh','function admin_customer_success_portfolio','function admin_customer_success_assign','function admin_customer_success_followup_create','function admin_customer_success_plan_create','function admin_customer_success_milestone_create','function admin_customer_success_agent_context'] as $n)$need('app/admin-customer-success.php',$n,'Admin V2.40 Customer Success runtime missing '.$n);
 $need('app/admin-customer-success.php',"'impact'=>",'Health reasons must retain explicit contribution values.');
 $need('app/admin-customer-success.php',"'fingerprint'=>",'Health snapshots must use deterministic evidence fingerprints.');
+$need('app/admin-customer-success.php','function admin_customer_success_health_for_viewer','Derived health must redact source-domain evidence by delegated viewer capability.');
+$need('admin/customer-success-account.php','Requires Support view','Account Success 360 must explicitly label restricted Support evidence.');
+$need('admin/customer-success-account.php','Requires Finance view','Account Success 360 must explicitly label restricted Finance evidence.');
 $need('app/admin-customer-success.php',"'support_sla_risk'",'Support SLA risk must participate in explainable account health.');
 $need('app/admin-customer-success.php',"'critical_finance'",'Critical finance reconciliation must participate in explainable account health.');
 $need('app/admin-customer-success.php',"'seat_expansion'",'Member-capacity expansion opportunity must be explicit.');
