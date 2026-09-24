@@ -128,13 +128,20 @@ jobs:
           DB_PASS: root
           CODE_AUDIT_067_RESET_DB: '1'
         run: php tests/ci/code-audit-upgrade-from-066.php
-      - name: Admin V1.50 membership upgrade rehearsal from migration 067 through 068
+      - name: Admin V1.50 membership upgrade rehearsal from migration 067 through current
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v150_upgrade;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
           ADMIN_V150_RESET_DB: '1'
         run: php tests/ci/admin-v1-50-upgrade-from-067.php
+      - name: Admin V1.60 billing analytics upgrade rehearsal from migration 068 through 069
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v160_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V160_RESET_DB: '1'
+        run: php tests/ci/admin-v1-60-upgrade-from-068.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -187,6 +194,7 @@ jobs:
           php tests/admin-v1-40-stripe-billing-db.php
           php tests/code-audit-hardening-db.php
           php tests/admin-v1-50-account-membership-db.php
+          php tests/admin-v1-60-billing-analytics-db.php
       - name: MySQL 8 upgrade rehearsal from migration 056 through 059
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
@@ -264,13 +272,20 @@ jobs:
           DB_PASS: root
           CODE_AUDIT_067_RESET_DB: '1'
         run: php tests/ci/code-audit-upgrade-from-066.php
-      - name: MySQL 8 Admin V1.50 membership upgrade rehearsal from migration 067 through 068
+      - name: MySQL 8 Admin V1.50 membership upgrade rehearsal from migration 067 through current
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v150_upgrade;charset=utf8mb4
           DB_USER: root
           DB_PASS: root
           ADMIN_V150_RESET_DB: '1'
         run: php tests/ci/admin-v1-50-upgrade-from-067.php
+      - name: MySQL 8 Admin V1.60 billing analytics upgrade rehearsal from migration 068 through 069
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_admin_v160_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          ADMIN_V160_RESET_DB: '1'
+        run: php tests/ci/admin-v1-60-upgrade-from-068.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
