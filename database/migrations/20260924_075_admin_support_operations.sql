@@ -88,7 +88,7 @@ UPDATE admin_roles
 SET capabilities_json=JSON_ARRAY(
   'admin.operations.view',
   'admin.support.view','admin.support.manage',
-  'admin.accounts.view',
+  'admin.accounts.view','admin.billing.view','admin.ai_usage.view',
   'admin.actions.view'
 )
 WHERE role_key='support_admin';
