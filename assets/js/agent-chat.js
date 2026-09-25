@@ -54,7 +54,9 @@
     feedScroll=window.scrollY||0;feed.hidden=true;canvas.hidden=false;if(rightRail)rightRail.hidden=true;document.body.classList.add('agentChatMode');input.placeholder='Message Research Agent…';saveState(true);window.scrollTo({top:0,behavior:'instant'});
   }
   function setModeFeed(){
-    const leavingResearchAgent=researchAgentMode;researchAgentMode=false;if(leavingResearchAgent){activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'home'}}));}canvas.hidden=true;feed.hidden=false;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);const url=new URL(location.href);if(url.searchParams.has('agent')){url.searchParams.delete('agent');history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);}requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
+    const leavingResearchAgent=researchAgentMode;researchAgentMode=false;if(leavingResearchAgent){activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'home'}}));}canvas.hidden=true;feed.hidden=false;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);
+    const url=new URL(location.href);let changed=false;['agent','workspace','doc'].forEach(key=>{if(url.searchParams.has(key)){url.searchParams.delete(key);changed=true;}});if(changed)history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);
+    requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
   }
   function messageTarget(){return researchAgentMode?messages:(inlineMessages||messages);}
   function showInlineThread(){if(inlineThread)inlineThread.hidden=false;}
@@ -228,7 +230,7 @@
   document.addEventListener('annotated:agent-chat-add-context',()=>{contextTray.hidden=true;contextPicker.hidden=false;loadContextOptions();});
   add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
   input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
-  back?.addEventListener('click',setModeFeed);panelClose?.addEventListener('click',()=>{if(researchAgentMode||requestedResearchAgentConversation){location.href='/research.php';return;}setModeFeed();});inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
+  back?.addEventListener('click',setModeFeed);panelClose?.addEventListener('click',async()=>{if(researchAgentMode){const ok=await window.AnnotatedResearchWorkspace?.closeDesktop?.();if(ok===false)return;}setModeFeed();});inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
   historyToggle?.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose?.addEventListener('click',()=>historyPanel.hidden=true);
   contextClose.addEventListener('click',()=>{contextPicker.hidden=true;renderContextTray();});
 
