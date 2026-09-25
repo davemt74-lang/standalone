@@ -7,7 +7,7 @@ $model=ai_setting_model_id($pdo,'admin',false);$profile=admin_ops_operator_profi
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Agent · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('assistant')?>
 <main class="panel adminAgentPage" data-admin-agent-root data-api="/api/admin-agent.php" data-csrf="<?=h(csrf_token())?>" data-thread="<?=h((string)($active['public_id']??''))?>" data-context="<?=h(json_encode($pageContext,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR))?>">
   <header class="adminAgentHeader">
-    <div><span class="eyebrow">ADMIN V2.80 · CONTEXTUAL ADMIN AGENT</span><h1>Admin Agent</h1><p>Ask about Annotated operations, accounts, billing, usage, support, Customer Success, security, platform configuration, releases and system health.</p></div>
+    <div><span class="eyebrow">ADMIN V2.90 · PROACTIVE ADMIN INTELLIGENCE</span><h1>Admin Agent</h1><p>Ask about Annotated operations, accounts, billing, usage, support, Customer Success, security, platform configuration, releases and system health.</p></div>
     <div class="adminAgentHeaderMeta"><span><?=h((string)($profile['role_name']??$profile['role_key']??'Admin'))?></span><span><?=h($model?'Admin model configured':'Admin model not configured')?></span></div>
   </header>
   <?php if($pageContext):?><div class="adminAgentCurrentContext"><span><b>Context:</b> <?=h((string)$pageContext['label'])?></span><small><?=h((string)$pageContext['meta'])?></small><a href="/admin/assistant.php<?= $active?'?thread='.rawurlencode((string)$active['public_id']):'' ?>">Clear context</a></div><?php endif?>
@@ -22,7 +22,7 @@ $model=ai_setting_model_id($pdo,'admin',false);$profile=admin_ops_operator_profi
       <div class="adminAgentMessages" data-admin-agent-messages role="log" aria-live="polite">
         <section class="adminAgentWelcome" data-admin-agent-welcome>
           <span class="adminAgentOrb" aria-hidden="true">A</span><h2>How can I help manage Annotated?</h2>
-          <p>I can inspect the authorized Admin context, find operational records, explain issues, and prepare supported governed actions for review.</p>
+          <p>I can inspect authorized Admin context, surface priority signals, preserve evidence, build trackable investigation plans, and prepare supported governed actions for review.</p>
           <div class="adminAgentQuickPrompts">
             <button type="button" data-admin-agent-quick="What needs my attention right now?">What needs my attention?</button>
             <button type="button" data-admin-agent-quick="Check billing, dunning and AI usage for problems.">Billing & usage</button>
@@ -36,9 +36,9 @@ $model=ai_setting_model_id($pdo,'admin',false);$profile=admin_ops_operator_profi
           <textarea rows="1" maxlength="5000" data-admin-agent-input placeholder="Message Admin Agent…" aria-label="Message Admin Agent"></textarea>
           <button type="submit" data-admin-agent-send aria-label="Send message">↑</button>
         </form>
-        <div class="adminAgentComposerHint"><span data-admin-agent-status>Admin Agent can inspect authorized Admin data. Governed changes require review.</span><span>Enter to send · Shift+Enter for a new line</span></div>
+        <div class="adminAgentComposerHint"><span data-admin-agent-status>Admin Agent can investigate and track plans. Governed changes still require review.</span><span>Enter to send · Shift+Enter for a new line</span></div>
       </div>
     </section>
   </div>
 </main>
-<script src="/assets/js/admin-agent.js?v=2.80" defer></script></body></html>
+<script src="/assets/js/admin-agent.js?v=2.90" defer></script></body></html>
