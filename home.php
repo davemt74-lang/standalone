@@ -22,6 +22,8 @@ $workspaceAgentContext=trim((string)($_GET['agent']??''));
 $requestedResearchAgent=null;
 $requestedResearchDocument=null;
 $requestedFeedMode=strtolower(trim((string)($_GET['view']??'')));
+$requestedWorkspaceView=strtolower(trim((string)($_GET['workspace']??'')));
+if(!in_array($requestedWorkspaceView,['desktop','library'],true))$requestedWorkspaceView='';
 
 $conversationReady=false;$chatTeams=[];$preferredTeamContext='';$chatStatus=['status_mode'=>'auto','custom_status'=>'','effective_status'=>'offline'];
 $workspaceResearchContext='';$cognitiveReady=false;$cognitiveRuntimeReady=false;$feedMode='latest';
@@ -161,6 +163,22 @@ try{
     $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE followed_user_id=?) followers,(SELECT COUNT(*) FROM follows WHERE follower_user_id=?) following_count,(SELECT COUNT(*) FROM annotations WHERE user_id=? AND status="published") annotation_count');
     $q->execute([$u['id'],$u['id'],$u['id']]);$stats=$q->fetch()?:$stats;
 }catch(Throwable $e){$recordHomeIncident('stats',$e);}
+
+$homeOnboarding=['steps'=>[],'complete'=>true,'completed_count'=>0,'total_count'=>0,'row'=>[]];
+$homeResearchAgents=[];$homePrimaryAgent=null;$homeOnboardingVisible=false;$homeNextStep=null;
+try{
+    if(function_exists('research_agent_ensure_default'))research_agent_ensure_default($pdo,$u);
+    if(function_exists('research_agent_list'))$homeResearchAgents=research_agent_list($pdo,$u,5);
+    $homePrimaryAgent=$homeResearchAgents[0]??null;
+    if(function_exists('onboarding_status')){
+        $homeOnboarding=onboarding_status($pdo,$u,false);
+        $homeOnboardingVisible=empty($homeOnboarding['complete'])&&empty($homeOnboarding['row']['dismissed_at']);
+        foreach((array)($homeOnboarding['steps']??[]) as $key=>$step)if(empty($step['complete'])){$homeNextStep=['key'=>$key]+$step;break;}
+    }
+}catch(Throwable $e){$recordHomeIncident('journey',$e);}
+$homeAgentUrl=$homePrimaryAgent?'/home.php?agent='.rawurlencode((string)$homePrimaryAgent['conversation_public_id']):'/research.php';
+$homeDesktopUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=desktop':'/research.php';
+$homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.php';
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout">
 <?php if($requestedResearchAgent):?>
@@ -176,6 +194,25 @@ try{
   <button type="button" class="homeInlineAgentClose" data-inline-agent-close>Close chat</button>
 </section>
 <?php if($homeRuntimeIncidents&&($u['role']??'')==='admin'):?><div class="homeRuntimeNotice homeFeedRuntimeNotice" role="status"><strong>Home is running in reduced mode.</strong><span><?=h(implode(', ',array_keys($homeRuntimeIncidents)))?> unavailable.</span><details><summary>Diagnostics</summary><?php foreach($homeRuntimeIncidents as $component=>$reference):?><div><code><?=h($component)?></code> · <code><?=h($reference)?></code></div><?php endforeach?></details></div><?php endif?>
+<?php if($homeOnboardingVisible):?>
+<section class="homeJourneyCard" aria-label="Get started with Annotated">
+  <div class="homeJourneyCopy">
+    <span class="eyebrow">START HERE · <?=h((string)$homeOnboarding['completed_count'])?>/<?=h((string)$homeOnboarding['total_count'])?></span>
+    <h2>Capture something. Research it. Keep the result.</h2>
+    <p><?=h((string)($homeNextStep['detail']??'Your first Annotated research loop is ready.'))?></p>
+  </div>
+  <div class="homeJourneyActions">
+    <a class="button" href="<?=h($homeAgentUrl)?>">Open Research Agent</a>
+    <a class="button secondary" href="<?=h($homeDesktopUrl)?>">Add evidence</a>
+    <a class="button secondary" href="/onboarding.php">Setup checklist</a>
+  </div>
+</section>
+<?php elseif($homePrimaryAgent):?>
+<section class="homeContinueResearch" aria-label="Continue Research">
+  <div><span class="eyebrow">CONTINUE RESEARCH</span><strong><?=h((string)$homePrimaryAgent['name'])?></strong><?php if(!empty($homePrimaryAgent['last_message'])):?><small><?=h((string)$homePrimaryAgent['last_message'])?></small><?php else:?><small>Your Research Agent is ready for evidence, questions, and documents.</small><?php endif?></div>
+  <nav><a href="<?=h($homeAgentUrl)?>">Continue Agent</a><a href="<?=h($homeDesktopUrl)?>">Desktop</a><a href="<?=h($homeLibraryUrl)?>">Library</a></nav>
+</section>
+<?php endif?>
 <div class="homeFeedModeBar" data-cognitive-feed data-csrf="<?=h(csrf_token())?>">
   <nav class="homeFeedModeTabs" aria-label="Home feed view">
     <a href="/home.php?view=cognitive" data-cognitive-mode="cognitive" class="<?=$feedMode==='cognitive'?'active':''?>" <?=$feedMode==='cognitive'?'aria-current="page"':''?>>Now</a>
@@ -193,7 +230,7 @@ try{
   <details class="cognitiveRankingNote"><summary>How Now is ranked</summary><p><?=h((string)($cognitiveFeed['ranking']??''))?></p></details>
   <?php if(!($cognitiveFeed['sections']??[])):?><div class="card empty cognitiveCaughtUp"><h2>You’re caught up.</h2><p>No unresolved Research, source, Team, or Agent items need priority right now.</p><a class="button secondary" href="/home.php?view=latest">See latest annotations</a></div><?php else:?><?=cognitive_feed_ui_sections($cognitiveFeed)?><?php endif?>
 <?php else:?>
-  <?php if(!$latestFeed):?><div class="card empty"><h2>Your feed is ready.</h2><p>Your published annotations, captures, and Research bookmarks will appear here.</p><div class="inlineActions"><a class="button" href="/explore.php">Discover people & sources</a><a class="button secondary" href="/chrome-extension.php">Get the Chrome extension</a></div></div><?php endif?>
+  <?php if(!$latestFeed):?><div class="card empty phase65HomeEmpty"><h2>Your workspace is ready.</h2><p>Start with something real: annotate a webpage, upload a file, record a conversation, or ask your Research Agent a question.</p><div class="inlineActions"><a class="button" href="<?=h($homeDesktopUrl)?>">Add something to Research</a><a class="button secondary" href="<?=h($homeAgentUrl)?>">Ask Research Agent</a><a class="button secondary" href="/chrome-extension.php">Annotate while browsing</a></div></div><?php endif?>
   <?php foreach($latestFeed as $item):?>
     <?php if(($item['kind']??'')==='bookmark'):?><?=research_agent_workspace_bookmark_card((array)$item['row'])?>
     <?php elseif(($item['kind']??'')==='research_report'):$r=(array)$item['row'];?><article class="card homeNetworkObject homeNetworkResearch"><div class="meta">PUBLISHED RESEARCH · <a href="<?=h(profile_path((string)$r['username']))?>"><?=h((string)$r['display_name'])?></a> · version <?=h((string)$r['version_number'])?></div><h2><a href="/research-report.php?id=<?=h((string)$r['public_id'])?>"><?=h((string)$r['title'])?></a></h2><?php if(!empty($r['summary'])):?><p><?=h(public_discovery_meta_description((string)$r['summary'],320))?></p><?php endif?></article>
@@ -203,7 +240,7 @@ try{
   <?php endforeach?>
 <?php endif?>
 </section>
-<section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>" data-research-document="<?=h((string)($requestedResearchDocument['public_id']??''))?>" hidden>
+<section class="agentChatCanvas homeAgentCanvas" id="homeAgentCanvas" data-agent-chat-canvas data-csrf="<?=h(csrf_token())?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>" data-research-document="<?=h((string)($requestedResearchDocument['public_id']??''))?>" data-research-initial-workspace="<?=h($requestedResearchAgent?$requestedWorkspaceView:'')?>" hidden>
   <?php if($requestedResearchAgent):?>
   <aside class="researchLibraryDrawer" data-research-library-drawer hidden aria-label="<?=h((string)$requestedResearchAgent['name'])?> library">
     <header class="researchLibraryDrawerHeader">
