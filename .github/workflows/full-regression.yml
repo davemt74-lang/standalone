@@ -9,7 +9,9 @@ permissions:
 
 concurrency:
   group: annotated-full-regression-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  # Phase-gate runs are expensive release evidence. A benign PR metadata edit must
+  # not discard an otherwise valid MySQL/full-regression run mid-flight.
+  cancel-in-progress: false
 
 jobs:
   full-regression:
