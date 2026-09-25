@@ -283,6 +283,10 @@ jobs:
           test -f package-website/tests/admin-v2-80-contextual-admin-agent-contract.php
           test -f package-website/tests/admin-v2-80-contextual-admin-agent-db.php
           test -f package-website/docs/admin-v2-80-contextual-admin-agent.md
+          test -f package-website/app/admin-agent-v290.php
+          test -f package-website/tests/admin-v2-90-proactive-admin-agent-contract.php
+          test -f package-website/tests/admin-v2-90-proactive-admin-agent-db.php
+          test -f package-website/docs/admin-v2-90-proactive-admin-agent.md
           test -f package-website/docs/phase-64-core-product-experience-workflow-hardening.md
           test -f package-website/tests/phase64-core-product-workflow-contract.php
           test -f package-website/tests/phase64-core-product-workflow-db.php
