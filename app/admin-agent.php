@@ -109,7 +109,7 @@ function admin_agent_create_action_previews(PDO $pdo,array $admin,int $assistant
     }return ['previews'=>$out,'errors'=>$errors];
 }
 function admin_agent_send(PDO $pdo,array $config,array $admin,string $threadPublic,string $prompt,?string $clientMessageId=null): array {
-    admin_agent_assert_admin($pdo,$admin);$prompt=trim($prompt);if($prompt===''||mb_strlen($prompt)>12000)throw new InvalidArgumentException('Message must be between 1 and 12000 characters.');
+    admin_agent_assert_admin($pdo,$admin);$prompt=trim($prompt);if($prompt===''||mb_strlen($prompt)>5000)throw new InvalidArgumentException('Message must be between 1 and 5000 characters.');
     $thread=admin_agent_thread_access($pdo,$admin,$threadPublic);if(!$thread)throw new RuntimeException('Admin Agent thread not found.');
     $userMessage=conversation_message_create($pdo,$admin,$threadPublic,$prompt,null,$clientMessageId);$userMessageId=(int)$userMessage['id'];
     if(!$userMessage['created']){$q=$pdo->prepare("SELECT id,public_id,body FROM conversation_messages WHERE conversation_id=? AND parent_message_id=? AND sender_type='agent' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");$q->execute([(int)$thread['id'],$userMessageId]);if($existing=$q->fetch())return ['thread'=>['public_id'=>$threadPublic,'title'=>$thread['title']],'user_message'=>$userMessage,'assistant_message'=>['id'=>(int)$existing['id'],'public_id'=>$existing['public_id'],'body'=>$existing['body'],'role'=>'assistant'],'deduplicated'=>true];}
