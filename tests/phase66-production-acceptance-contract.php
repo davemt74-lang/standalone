@@ -40,8 +40,8 @@ foreach([
 foreach([
     "UPLOAD_ERR_PARTIAL=>'The file upload was interrupted.'",
     'new finfo(FILEINFO_MIME_TYPE)',
-    "if(!$spec)throw new InvalidArgumentException('Unsupported file type.",
-    "if($size>(int)$spec['max'])",
+    "if(!\$spec)throw new InvalidArgumentException('Unsupported file type.",
+    "if(\$size>(int)\$spec['max'])",
     'private_storage_allocate',
     "hash_file('sha256'",
 ] as $needle)if(!str_contains($upload,$needle))$fail[]='Production upload protection missing '.$needle;
