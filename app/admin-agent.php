@@ -9,6 +9,48 @@ function admin_agent_assert_admin(PDO $pdo,array $admin): void {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Admin Agent is available only to administrators.');
     if(function_exists('admin_access_ready')&&admin_access_ready($pdo))admin_access_assert_capability($pdo,$admin,'admin.operations.view');
 }
+function admin_agent_can(PDO $pdo,array $admin,string $capability): bool {
+    return !function_exists('admin_access_ready')||!admin_access_ready($pdo)||admin_access_has_capability($pdo,$admin,$capability);
+}
+function admin_agent_search_type_capability(string $type): string {
+    return match($type){
+        'Account','User'=>'admin.accounts.view',
+        'Invoice','Subscription','Promotion'=>'admin.billing.view',
+        'Admin action'=>'admin.actions.view',
+        'Support case'=>'admin.support.view',
+        default=>'admin.operations.view',
+    };
+}
+function admin_agent_filter_search_rows(PDO $pdo,array $admin,array $rows): array {
+    return array_values(array_filter($rows,fn($row)=>admin_agent_can($pdo,$admin,admin_agent_search_type_capability((string)($row['type']??'')))));
+}
+function admin_agent_attention_capability(string $url): string {
+    $path=(string)(parse_url($url,PHP_URL_PATH)?:$url);
+    if($path==='/admin/usage.php')return 'admin.ai_usage.view';
+    if(in_array($path,['/admin/accounts.php','/admin/account.php','/admin/users.php','/admin/packages.php'],true))return 'admin.accounts.view';
+    if(in_array($path,['/admin/billing.php','/admin/billing-analytics.php','/admin/overage-billing.php','/admin/promotions.php','/admin/tax-invoices.php'],true))return 'admin.billing.view';
+    if($path==='/admin/source-monitor.php')return 'admin.research_data.view';
+    if($path==='/admin/customer-success.php'||$path==='/admin/customer-success-account.php')return 'admin.customer_success.view';
+    if($path==='/admin/support.php'||$path==='/admin/support-case.php')return 'admin.support.view';
+    if($path==='/admin/security-compliance.php')return 'admin.security.view';
+    if($path==='/admin/platform-governance.php'||$path==='/upgrade.php')return 'admin.platform.view';
+    if($path==='/admin/system-health.php'||$path==='/admin/moderation.php')return 'admin.trust.view';
+    return 'admin.operations.view';
+}
+function admin_agent_safe_dashboard_snapshot(PDO $pdo,array $admin,array $snapshot): array {
+    $counts=[];$all=(array)($snapshot['counts']??[]);
+    $copy=function(array $keys)use(&$counts,$all){foreach($keys as $key)if(array_key_exists($key,$all))$counts[$key]=$all[$key];};
+    if(admin_agent_can($pdo,$admin,'admin.accounts.view'))$copy(['users','accounts','packages','suspended_accounts','paused_subscriptions','past_due_subscriptions','over_capacity_accounts','trials_ending']);
+    if(admin_agent_can($pdo,$admin,'admin.billing.view'))$copy(['failed_stripe_webhooks','open_dunning_cases','overage_failed_batches']);
+    if(admin_agent_can($pdo,$admin,'admin.trust.view'))$copy(['open_claims','open_reports','failed_ai_jobs']);
+    if(admin_agent_can($pdo,$admin,'admin.research_data.view'))$copy(['sources','failed_source_jobs']);
+    if(admin_agent_can($pdo,$admin,'admin.ai_usage.view'))$copy(['queued_ai_jobs']);
+    $safe=['counts'=>$counts,'attention'=>array_values(array_filter((array)($snapshot['attention']??[]),fn($row)=>admin_agent_can($pdo,$admin,admin_agent_attention_capability((string)($row['url']??'')))))];
+    if(admin_agent_can($pdo,$admin,'admin.ai_usage.view'))$safe['usage']=$snapshot['usage']??[];
+    if(admin_agent_can($pdo,$admin,'admin.trust.view'))$safe['worker_problems']=$snapshot['worker_problems']??0;
+    if(admin_agent_can($pdo,$admin,'admin.platform.view'))$safe['pending_migrations']=$snapshot['pending_migrations']??[];
+    return $safe;
+}
 function admin_agent_thread_access(PDO $pdo,array $admin,string $publicId): ?array {
     admin_agent_assert_admin($pdo,$admin);$publicId=trim($publicId);if($publicId==='')return null;
     $q=$pdo->prepare("SELECT c.* FROM conversations c JOIN conversation_members cm ON cm.conversation_id=c.id AND cm.user_id=? WHERE c.public_id=? AND c.conversation_type='admin_agent' AND c.created_by_user_id=? LIMIT 1");
@@ -62,18 +104,22 @@ function admin_agent_search_terms(string $prompt): array {
 }
 function admin_agent_search(PDO $pdo,array $admin,string $prompt): array {
     $out=[];$seen=[];if(!function_exists('admin_ops_global_search'))return [];
-    foreach(admin_agent_search_terms($prompt) as $term){try{$rows=admin_ops_global_search($pdo,$term,20,$admin);}catch(Throwable $e){$rows=[];}
+    foreach(admin_agent_search_terms($prompt) as $term){try{$rows=admin_agent_filter_search_rows($pdo,$admin,admin_ops_global_search($pdo,$term,20,$admin));}catch(Throwable $e){$rows=[];}
         foreach($rows as $row){$key=(string)($row['type']??'').':'.(string)($row['identifier']??'');if(isset($seen[$key]))continue;$seen[$key]=true;$out[]=$row;if(count($out)>=20)break 2;}
     }return $out;
 }
 function admin_agent_context_bundle(PDO $pdo,array $config,array $admin,string $prompt): array {
     admin_agent_assert_admin($pdo,$admin);$snapshot=function_exists('admin_ui_dashboard_snapshot')?admin_ui_dashboard_snapshot($pdo):[];
-    $safeSnapshot=['counts'=>$snapshot['counts']??[],'usage'=>$snapshot['usage']??[],'worker_problems'=>$snapshot['worker_problems']??0,'pending_migrations'=>$snapshot['pending_migrations']??[],'attention'=>$snapshot['attention']??[]];
-    $sections=[];foreach([
-        'operations'=>'admin_ops_agent_context','support'=>'admin_support_agent_context','finance'=>'admin_finance_agent_context',
-        'customer_success'=>'admin_customer_success_agent_context','security'=>'admin_security_agent_context'
-    ] as $label=>$fn){if(function_exists($fn)){try{$value=$fn($pdo,$admin);if(trim((string)$value)!=='')$sections[$label]=(string)$value;}catch(Throwable $e){}}}
-    if(function_exists('admin_platform_agent_context')){try{$value=admin_platform_agent_context($pdo,$config,$admin);if(trim((string)$value)!=='')$sections['platform']=(string)$value;}catch(Throwable $e){}}
+    $safeSnapshot=admin_agent_safe_dashboard_snapshot($pdo,$admin,$snapshot);
+    $sections=[];$contextSources=[
+        'operations'=>['admin_ops_agent_context','admin.operations.view'],
+        'support'=>['admin_support_agent_context','admin.support.view'],
+        'finance'=>['admin_finance_agent_context','admin.finance.view'],
+        'customer_success'=>['admin_customer_success_agent_context','admin.customer_success.view'],
+        'security'=>['admin_security_agent_context','admin.security.view'],
+    ];
+    foreach($contextSources as $label=>$source){[$fn,$capability]=$source;if(!admin_agent_can($pdo,$admin,$capability)||!function_exists($fn))continue;try{$value=$fn($pdo,$admin);if(trim((string)$value)!=='')$sections[$label]=(string)$value;}catch(Throwable $e){}}
+    if(admin_agent_can($pdo,$admin,'admin.platform.view')&&function_exists('admin_platform_agent_context')){try{$value=admin_platform_agent_context($pdo,$config,$admin);if(trim((string)$value)!=='')$sections['platform']=(string)$value;}catch(Throwable $e){}}
     $search=admin_agent_search($pdo,$admin,$prompt);$allowedAccounts=[];
     foreach($search as $row)if(($row['type']??'')==='Account'&&!empty($row['identifier']))$allowedAccounts[]=(string)$row['identifier'];
     $catalog=[];if(function_exists('admin_ops_action_catalog'))foreach(admin_ops_action_catalog() as $key=>$meta){if(($meta['surface']??'account')!=='account')continue;$cap=(string)($meta['capability']??'admin.actions.request');if(function_exists('admin_access_ready')&&admin_access_ready($pdo)&&(!admin_access_has_capability($pdo,$admin,'admin.actions.request')||!admin_access_has_capability($pdo,$admin,$cap)))continue;$catalog[$key]=['label'=>$meta['label'],'risk'=>$meta['risk'],'description'=>$meta['description']];}
