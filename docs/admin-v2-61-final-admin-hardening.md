@@ -60,4 +60,6 @@ The exact same CSS remains in `assets/css/app.css` and `extension/landing-app.cs
 
 V2.61 has no migration and no new cron process. The existing latest migration remains migration 079. The V1.1 / 1.1.0 / phase 62 / stable release identity remains unchanged.
 
+Release acceptance requires the normal phase gate to complete PHP 8.1/8.3 contracts, model-governance integration, both full historical regressions, MySQL 8 fresh-install/upgrade rehearsals, and production package smoke successfully.
+
 Deploy the normal website package and run `upgrade.php` as usual; it is safe for the upgrade step to report no new schema migration for V2.61.
