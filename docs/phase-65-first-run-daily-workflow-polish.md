@@ -16,6 +16,7 @@ Phase 65 makes the existing Annotated product understandable without adding anot
 - Replaces the empty Home feed dead end with actions for adding evidence, asking the Agent, or installing browser capture.
 - Adds actionable empty states to Research Desktop and Library.
 - Adds Research Agent next-step actions for Add evidence, Library, New Research Doc, and Review next steps.
+- Makes the Research Agent close control return to the Home feed, while honoring Phase 64 dirty-document save protection before leaving the Agent canvas.
 - Preserves the Phase 64 save/navigation protections and active-workspace isolation.
 
 ## Persistence and release scope
