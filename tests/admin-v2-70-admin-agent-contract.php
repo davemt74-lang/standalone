@@ -29,6 +29,15 @@ foreach([
 
 $need('app/admin-agent.php',"['resync_stripe_subscription','reconcile_ai_overage','sync_tax_policy']", 'Admin Agent governed preview whitelist must remain bounded.');
 $need('app/admin-agent.php','function admin_agent_action_intent_allowed', 'Governed previews must require deterministic administrator intent in addition to model output.');
+$need('app/admin-agent.php','function admin_agent_safe_dashboard_snapshot', 'Admin Agent must capability-filter dashboard context before model use.');
+$need('app/admin-agent.php','function admin_agent_filter_search_rows', 'Admin Agent must capability-filter Admin search results before model use.');
+$need('app/admin-agent.php',"'support'=>['admin_support_agent_context','admin.support.view']", 'Support context must require Support visibility.');
+$need('app/admin-agent.php',"'finance'=>['admin_finance_agent_context','admin.finance.view']", 'Finance context must require Finance visibility.');
+$need('app/admin-agent.php',"'customer_success'=>['admin_customer_success_agent_context','admin.customer_success.view']", 'Customer Success context must require Customer Success visibility.');
+$need('app/admin-agent.php',"'security'=>['admin_security_agent_context','admin.security.view']", 'Security context must require Security visibility.');
+$need('app/admin-agent.php',"mb_strlen(\$prompt)>5000", 'Admin Agent message length must match the authoritative conversation runtime.');
+$need('admin/assistant.php','maxlength="5000"', 'Admin Agent composer must match the authoritative conversation message limit.');
+
 $avoid('app/admin-agent.php','admin_ops_action_execute(', 'Admin Agent must not directly execute governed Admin actions.');
 foreach(['UPDATE accounts SET','DELETE FROM accounts','INSERT INTO admin_support_cases','UPDATE admin_platform_features SET'] as $needle)$avoid('app/admin-agent.php',$needle,'Admin Agent must not create a shadow mutation path: '.$needle);
 
