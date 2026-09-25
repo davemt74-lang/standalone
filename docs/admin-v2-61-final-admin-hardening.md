@@ -26,7 +26,7 @@ This fixes the prior mismatch where an operator could legitimately hold release-
 ### Shared Admin shell and accessibility
 
 - the active navigation item exposes `aria-current="page"`;
-- the Command Center uses the same name in navigation and page heading;
+- the Command Center retains its established dashboard heading contract while the V2.61 release marker is added to the shared surface;
 - the Admin shell identifies V2.61 while retaining historical lineage markers required by earlier contracts;
 - keyboard focus is visible across Admin links, forms, buttons, and disclosure controls.
 
