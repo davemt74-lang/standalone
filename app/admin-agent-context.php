@@ -14,7 +14,7 @@ function admin_agent_page_context_capability(string $path): string {
         '/admin/ai.php','/admin/evaluations.php','/admin/model-registry.php','/admin/training.php','/admin/post-training.php','/admin/model-release.php','/admin/model-deployment.php','/admin/model-observability.php','/admin/model-improvements.php','/admin/model-campaigns.php'=>'admin.models.view',
         '/admin/source-monitor.php','/admin/data-attribution.php','/admin/datasets.php','/admin/discovery-entities.php'=>'admin.research_data.view',
         '/admin/moderation.php','/admin/system-health.php','/admin/intelligence-release-audit.php'=>'admin.trust.view',
-        '/admin/action-center.php'=>'admin.actions.view',
+        '/admin/action-center.php'=>'admin.actions.view','/admin/roles-permissions.php'=>'admin.roles.view',
         default=>'admin.operations.view',
     };
 }
