@@ -58,7 +58,28 @@
   }
   function messageTarget(){return researchAgentMode?messages:(inlineMessages||messages);}
   function showInlineThread(){if(inlineThread)inlineThread.hidden=false;}
-  function clearWelcome(){messageTarget().querySelector('.agentChatWelcome')?.remove();}
+  function clearWelcome(){const target=messageTarget();target.querySelector('.agentChatWelcome')?.remove();target.querySelector('.phase65AgentQuickActions')?.remove();}
+  function renderResearchQuickActions(target=messages){
+    if(!researchAgentMode||!requestedResearchAgentConversation||!target)return;
+    target.querySelector('.phase65AgentQuickActions')?.remove();
+    const wrap=document.createElement('section');wrap.className='phase65AgentQuickActions';wrap.setAttribute('aria-label','Research Agent quick actions');
+    const label=document.createElement('span');label.className='eyebrow';label.textContent='NEXT STEP';
+    const actions=document.createElement('div');
+    const add=(text,handler)=>{const b=document.createElement('button');b.type='button';b.textContent=text;b.addEventListener('click',handler);actions.appendChild(b);};
+    add('Add evidence',()=>window.AnnotatedResearchWorkspace?.openDesktop());
+    add('Open Library',()=>window.AnnotatedResearchWorkspace?.openLibrary());
+    add('New Research Doc',async()=>{await window.AnnotatedResearchWorkspace?.openDesktop();document.querySelector('[data-research-desktop-new-doc]')?.click();});
+    add('Review next steps',()=>{input.value='Review this Research workspace and tell me the most useful next step based on the evidence, open tasks, and unresolved gaps.';sizeInput();form.requestSubmit();});
+    wrap.append(label,actions);target.appendChild(wrap);
+  }
+  function renderResearchWelcome(){
+    const target=messages;target.replaceChildren();
+    const welcome=document.createElement('div');welcome.className='agentChatWelcome phase65ResearchWelcome';
+    const eyebrow=document.createElement('span');eyebrow.className='eyebrow';eyebrow.textContent='RESEARCH AGENT';
+    const h=document.createElement('h2');h.textContent='What should we work on?';
+    const p=document.createElement('p');p.textContent='Add evidence, open your Library, create a Research Doc, or ask the Agent to review what is already in this workspace.';
+    welcome.append(eyebrow,h,p);target.appendChild(welcome);renderResearchQuickActions(target);
+  }
   function attachmentUrl(a){
     const id=encodeURIComponent(String(a?.public_id||''));if(!id)return '';
     return ({annotation:'/annotation.php?id=',research:'/research-project.php?id=',research_project:'/research-project.php?id=',source:'/source.php?id=',team:'/team.php?id=',claim:'/research-claim.php?id=',finding:'/research-finding.php?id='})[String(a?.type||'')]?.concat(id)||'';
@@ -186,7 +207,7 @@
     const isResearchAgent=options.researchAgent===true||publicId===requestedResearchAgentConversation;
     setModeAgent(isResearchAgent);activeConversation=publicId;document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));if(title)title.textContent=chatTitle||'Agent chat';messages.innerHTML='<div class="agentChatLoading">Loading conversation…</div>';
     try{
-      const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length)messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New Research</h2><p>Ask a question or attach Annotated context.</p></div>';saveState(true);messages.scrollTop=messages.scrollHeight;
+      const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length){if(isResearchAgent)renderResearchWelcome();else messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New Research</h2><p>Ask a question or attach Annotated context.</p></div>';}else if(isResearchAgent)renderResearchQuickActions(messages);saveState(true);messages.scrollTop=messages.scrollHeight;
     }catch(err){renderInlineError(messages,err.message||'Unable to load this Agent Chat.');}
   }
   function resetConversation(){
@@ -197,7 +218,7 @@
     const client=globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(16).slice(2);
     try{
       const data=await request('send',{method:'POST',data:{conversation:activeConversation||null,prompt:text,context:selectedContext.map(({type,public_id})=>({type,public_id})),client_message_id:client}});
-      activeConversation=data.conversation?.public_id||activeConversation;if(activeConversation)document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:researchAgentMode?'research-agent':'home'}}));if(title)title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(researchAgentMode);const target=messageTarget();target.scrollTop=target.scrollHeight;loadHistory();
+      activeConversation=data.conversation?.public_id||activeConversation;if(activeConversation)document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:researchAgentMode?'research-agent':'home'}}));if(title)title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(researchAgentMode);const target=messageTarget();if(researchAgentMode)renderResearchQuickActions(target);target.scrollTop=target.scrollHeight;loadHistory();
     }catch(err){thinking.remove();const error=document.createElement('div');error.className='error agentChatError';error.textContent=err.message||'Agent Chat failed.';messageTarget().appendChild(error);if(!researchAgentMode)showInlineThread();}
     finally{sending=false;input.focus();}
   }
