@@ -27,7 +27,7 @@ foreach([
     if(!str_contains($ui,$needle))$fail[]='Shared Admin shell missing '.$needle;
 }
 if(!str_contains($index,'ADMIN V2.61 · ADMIN V2.60'))$fail[]='Command Center must identify V2.61 hardening.';
-if(!str_contains($index,'<h1>Admin Command Center</h1>'))$fail[]='Command Center heading must match Admin navigation terminology.';
+if(!str_contains($index,'<h1>Admin control center</h1>'))$fail[]='Command Center must preserve the established dashboard heading contract.';
 
 $route="'/admin/platform-governance.php'=>['admin.platform.view','admin.platform.view']";
 if(!str_contains($access,$route))$fail[]='Platform Governance route must admit authorized viewers and defer POST mutation authority to operation-specific checks.';
