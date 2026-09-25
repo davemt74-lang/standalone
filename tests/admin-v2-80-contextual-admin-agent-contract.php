@@ -8,9 +8,9 @@ $avoid=function(string $file,string $needle,string $message)use($read,&$fail): v
 foreach([
  'function admin_agent_page_context',
  'function admin_agent_page_context_from_url',
- "'/admin/account.php'=>'admin.accounts.view'",
- "'/admin/support-case.php'=>'admin.support.view'",
- "'/admin/customer-success-account.php'=>'admin.customer_success.view'",
+ "'/admin/account.php','/admin/accounts.php','/admin/users.php','/admin/packages.php'=>'admin.accounts.view'",
+ "'/admin/support.php','/admin/support-case.php'=>'admin.support.view'",
+ "'/admin/customer-success.php','/admin/customer-success-account.php'=>'admin.customer_success.view'",
  '[CURRENT ADMIN PAGE — ACCOUNT]',
  '[CURRENT ADMIN PAGE — SUPPORT CASE]',
 ] as $needle)$need('app/admin-agent-context.php',$needle,'Context resolver missing '.$needle);
