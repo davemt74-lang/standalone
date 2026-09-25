@@ -28,8 +28,9 @@ foreach([
 ] as $needle)$need('app/admin-agent.php',$needle,'Admin Agent must reuse existing Admin context authority: '.$needle);
 
 $need('app/admin-agent.php',"['resync_stripe_subscription','reconcile_ai_overage','sync_tax_policy']", 'Admin Agent governed preview whitelist must remain bounded.');
+$need('app/admin-agent.php','function admin_agent_action_intent_allowed', 'Governed previews must require deterministic administrator intent in addition to model output.');
 $avoid('app/admin-agent.php','admin_ops_action_execute(', 'Admin Agent must not directly execute governed Admin actions.');
-foreach(['UPDATE accounts SET','DELETE FROM accounts','INSERT INTO admin_support_cases','UPDATE admin_platform_features SET'])$avoid('app/admin-agent.php',$needle,'Admin Agent must not create a shadow mutation path: '.$needle);
+foreach(['UPDATE accounts SET','DELETE FROM accounts','INSERT INTO admin_support_cases','UPDATE admin_platform_features SET'] as $needle)$avoid('app/admin-agent.php',$needle,'Admin Agent must not create a shadow mutation path: '.$needle);
 
 foreach([
     'data-admin-agent-root',
