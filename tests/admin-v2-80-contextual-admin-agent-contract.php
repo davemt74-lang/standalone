@@ -34,7 +34,7 @@ foreach([
  "api('send'",
  'data-admin-copilot-full',
  'adminCopilotResult',
- 'Shift+Enter',
+ "e.key==='Enter'&&!e.shiftKey",
 ] as $needle)$need('assets/js/admin-agent-copilot.js',$needle,'Admin-wide copilot client missing '.$needle);
 
 foreach([
