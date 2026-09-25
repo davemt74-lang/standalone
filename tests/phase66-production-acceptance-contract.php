@@ -50,7 +50,7 @@ foreach([
     "application/pdf'=>['ext'=>'pdf','kind'=>'upload','max'=>50*1024*1024]",
     "audio/webm'=>['ext'=>'webm','kind'=>'recording','max'=>200*1024*1024]",
     'function research_agent_workspace_retry_transcription',
-    "'transcript_to_document'",
+    'function research_agent_workspace_transcript_to_document',
     'function research_agent_workspace_clean_html',
     "preg_match('/^(javascript|data|vbscript):/i'",
     'function research_agent_workspace_object_in_project',
