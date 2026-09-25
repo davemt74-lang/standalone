@@ -73,6 +73,7 @@ foreach(glob($root.'/admin/*.php')?:[] as $file){
 }
 
 $need('tests/ci/run-static-contracts.sh','php tests/admin-v2-61-final-hardening-contract.php','Static CI must execute V2.61 hardening contract.');
+$need('.github/workflows/full-regression.yml','cancel-in-progress: false','Phase-gate full regression must not discard release evidence on benign PR edits.');
 $need('.github/workflows/package-two-zips.yml','tests/admin-v2-61-final-hardening-contract.php','Production package must include V2.61 hardening contract.');
 $need('.github/workflows/package-two-zips.yml','docs/admin-v2-61-final-admin-hardening.md','Production package must include V2.61 hardening documentation.');
 $need('tests/ci/package-smoke.sh','admin-v2-61-final-admin-hardening.md','Package smoke must require V2.61 documentation.');
