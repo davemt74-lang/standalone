@@ -59,7 +59,7 @@ foreach([
     "data-research-agent-conversation=",
 ] as $needle)if(!str_contains($home,str_replace('\\$','$',$needle)))$fail[]='Home Research Agent deep-link boundary missing '.str_replace('\\$','$',$needle);
 
-$need('tests/ci/run-static-contracts.sh','php tests/phase64-core-product-workflow-contract.php','Static CI must execute Phase 64 contract.');
+$need('tests/ci/run-static-contracts.sh',"-name 'phase*-contract.php'",'Static CI must discover Phase 64 through the phase contract runner.');
 $need('tests/ci/run-full-regression.sh','tests/phase64-core-product-workflow-db.php','Full regression must execute Phase 64 database journey.');
 $need('.github/workflows/full-regression.yml','php tests/phase64-core-product-workflow-db.php','MySQL 8 gate must execute Phase 64 database journey.');
 $need('.github/workflows/package-two-zips.yml','docs/phase-64-core-product-experience-workflow-hardening.md','Production package must include Phase 64 documentation.');
