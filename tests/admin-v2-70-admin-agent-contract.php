@@ -54,9 +54,9 @@ foreach([
 ] as $needle)$need('assets/js/admin-agent.js',$needle,'Admin Agent client missing '.$needle);
 
 foreach([
-    "if($action==='messages')",
-    "if($action==='new')",
-    "if($action==='send')",
+    "if(\$action==='messages')",
+    "if(\$action==='new')",
+    "if(\$action==='send')",
     'require_api_mutation_auth',
     'admin_agent_assert_admin',
 ] as $needle)$need('api/admin-agent.php',$needle,'Admin Agent API missing '.$needle);
