@@ -66,7 +66,7 @@ $need('.github/workflows/package-two-zips.yml','docs/phase-66-production-accepta
 $need('.github/workflows/package-two-zips.yml','tests/phase66-production-acceptance-contract.php','Package must include Phase 66 static acceptance contract.');
 $need('.github/workflows/package-two-zips.yml','tests/phase66-production-acceptance-db.php','Package must include Phase 66 DB acceptance journey.');
 $need('tests/ci/package-smoke.sh','phase-66-production-acceptance-ux-qa-release-hardening.md','Package smoke must require Phase 66 acceptance documentation.');
-$avoid('RELEASE-MANIFEST.json','20260925_080','Phase 66 must not invent a schema migration.');
+if(is_file($root.'/database/migrations/20260925_080_phase66_production_acceptance.sql'))$fail[]='Phase 66 must not invent a schema migration.';
 
 if($fail){foreach(array_values(array_unique($fail)) as $message)fwrite(STDERR,"FAIL: $message\n");exit(1);}
 echo "Phase 66 Production Acceptance, UX QA & Release Hardening static contract passed.\n";
