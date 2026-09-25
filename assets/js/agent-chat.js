@@ -58,6 +58,13 @@
     const url=new URL(location.href);let changed=false;['agent','workspace','doc'].forEach(key=>{if(url.searchParams.has(key)){url.searchParams.delete(key);changed=true;}});if(changed)history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);
     requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
   }
+  async function leaveResearchAgentToFeed(){
+    if(researchAgentMode){
+      const libraryOk=await window.AnnotatedResearchWorkspace?.closeLibrary?.();if(libraryOk===false)return false;
+      const desktopOk=await window.AnnotatedResearchWorkspace?.closeDesktop?.();if(desktopOk===false)return false;
+    }
+    setModeFeed();return true;
+  }
   function messageTarget(){return researchAgentMode?messages:(inlineMessages||messages);}
   function showInlineThread(){if(inlineThread)inlineThread.hidden=false;}
   function clearWelcome(){const target=messageTarget();target.querySelector('.agentChatWelcome')?.remove();target.querySelector('.phase65AgentQuickActions')?.remove();}
@@ -230,7 +237,7 @@
   document.addEventListener('annotated:agent-chat-add-context',()=>{contextTray.hidden=true;contextPicker.hidden=false;loadContextOptions();});
   add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
   input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
-  back?.addEventListener('click',setModeFeed);panelClose?.addEventListener('click',async()=>{if(researchAgentMode){const ok=await window.AnnotatedResearchWorkspace?.closeDesktop?.();if(ok===false)return;}setModeFeed();});inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
+  back?.addEventListener('click',leaveResearchAgentToFeed);panelClose?.addEventListener('click',leaveResearchAgentToFeed);inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
   historyToggle?.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose?.addEventListener('click',()=>historyPanel.hidden=true);
   contextClose.addEventListener('click',()=>{contextPicker.hidden=true;renderContextTray();});
 
