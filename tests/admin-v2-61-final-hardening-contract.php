@@ -32,11 +32,11 @@ if(!str_contains($index,'<h1>Admin control center</h1>'))$fail[]='Command Center
 $route="'/admin/platform-governance.php'=>['admin.platform.view','admin.platform.view']";
 if(!str_contains($access,$route))$fail[]='Platform Governance route must admit authorized viewers and defer POST mutation authority to operation-specific checks.';
 foreach([
-    "if($op==='feature_preview'){if(!$canManage||!$canRequest)",
-    "elseif($op==='module_update'){if(!$canManage)",
-    "elseif($op==='integration_update'){if(!$canManage)",
-    "elseif($op==='snapshot'){if(!$canRelease)",
-    "elseif($op==='execute'){if(!$canExecute)",
+    "if(\$op==='feature_preview'){if(!\$canManage||!\$canRequest)",
+    "elseif(\$op==='module_update'){if(!\$canManage)",
+    "elseif(\$op==='integration_update'){if(!\$canManage)",
+    "elseif(\$op==='snapshot'){if(!\$canRelease)",
+    "elseif(\$op==='execute'){if(!\$canExecute)",
 ] as $needle){
     if(!str_contains($platform,$needle))$fail[]='Platform Governance operation-specific authorization missing '.$needle;
 }
