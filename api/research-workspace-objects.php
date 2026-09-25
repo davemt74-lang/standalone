@@ -18,6 +18,11 @@ try{
         if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$project['id']);
         if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$project['id'],(int)$viewer['id'],'workspace_change',$reason);
     };
+    $scopedObject=function(string|array|null $types=null,bool $includeTrashed=false,string $message='Workspace item not found.') use($pdo,$viewer,$project,$input): array {
+        $item=research_agent_workspace_object_in_project($pdo,$viewer,$project,(string)($input['object_id']??''),$types,$includeTrashed);
+        if(!$item)json_response(['ok'=>false,'error'=>['code'=>'ITEM_NOT_FOUND','message'=>$message]],404);
+        return $item;
+    };
 
     if($action==='list'){
         $trashed=!empty($input['trashed']);
@@ -47,17 +52,15 @@ try{
         ]]);
     }
     if($action==='upload'||$action==='recording'){
-        $item=research_agent_workspace_object($pdo,$viewer,(string)($input['object_id']??''),false);
-        if(!$item||($item['object_type']??'')!==$action)json_response(['ok'=>false,'error'=>['code'=>'ITEM_NOT_FOUND','message'=>ucfirst($action).' not found.']],404);
-        if(!hash_equals((string)$project['public_id'],(string)$item['project_public_id']))json_response(['ok'=>false,'error'=>['code'=>'ITEM_NOT_FOUND','message'=>ucfirst($action).' not found.']],404);
+        $item=$scopedObject($action,false,ucfirst($action).' not found.');
         json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='document'){
-        $item=research_agent_workspace_object($pdo,$viewer,(string)($input['object_id']??''),false);
-        if(!$item||($item['object_type']??'')!=='document')json_response(['ok'=>false,'error'=>['code'=>'DOCUMENT_NOT_FOUND','message'=>'Document not found.']],404);
+        $item=$scopedObject('document',false,'Document not found.');
         json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='document_revisions'){
+        $scopedObject('document',false,'Document not found.');
         $items=research_agent_workspace_document_revisions($pdo,$viewer,(string)($input['object_id']??''),50);
         json_response(['ok'=>true,'data'=>['revisions'=>$items]]);
     }
@@ -66,12 +69,14 @@ try{
         json_response(['ok'=>true,'data'=>['items'=>$items]]);
     }
     if($action==='retry_transcription'){
+        $scopedObject('recording',false,'Recording not found.');
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
         $item=research_agent_workspace_retry_transcription($pdo,$viewer,(string)($input['object_id']??''));
         $queueWorkspaceChange('Research transcription was requeued.');
         json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='transcript_to_document'){
+        $scopedObject('recording',false,'Recording not found.');
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
         $item=research_agent_workspace_transcript_to_document($pdo,$viewer,(string)($input['object_id']??''));
         $queueWorkspaceChange('A transcript was converted to a Research Doc.');
@@ -92,12 +97,14 @@ try{
         json_response(['ok'=>true,'data'=>['item'=>$item]],201);
     }
     if($action==='save_document'){
+        $scopedObject('document',false,'Document not found.');
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],240,3600);
         $item=research_agent_workspace_save_document($pdo,$viewer,(string)($input['object_id']??''),is_array($input)?$input:[]);
         $queueWorkspaceChange('A Research Doc changed.');
         json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='restore_document_revision'){
+        $scopedObject('document',false,'Document not found.');
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],120,3600);
         $item=research_agent_workspace_restore_document_revision($pdo,$viewer,(string)($input['object_id']??''),(string)($input['revision_id']??''),(int)($input['base_revision']??0));
         $queueWorkspaceChange('A Research Doc revision was restored.');
@@ -110,6 +117,7 @@ try{
         json_response(['ok'=>true,'data'=>['item'=>$item]],201);
     }
     if($action==='update_sticky'){
+        $scopedObject('sticky',false,'Sticky note not found.');
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],600,3600);
         $item=research_agent_workspace_update_sticky($pdo,$viewer,(string)($input['object_id']??''),is_array($input)?$input:[]);
         $queueWorkspaceChange('A Research sticky changed.');
@@ -128,6 +136,7 @@ try{
         json_response(['ok'=>true,'data'=>['item'=>$item]],201);
     }
     if($action==='rename'){
+        $scopedObject(null,false,'Workspace item not found.');
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
         $item=research_agent_workspace_rename($pdo,$viewer,(string)($input['object_id']??''),(string)($input['title']??''));
         $queueWorkspaceChange('A Research workspace item was renamed.');
@@ -136,6 +145,7 @@ try{
     if($action==='move'){
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
         $type=strtolower(trim((string)($input['object_type']??'')));
+        if($type==='')$scopedObject(null,false,'Workspace item not found.');
         $item=$type!==''
           ?research_agent_workspace_desktop_move($pdo,$viewer,$project,$type,(string)($input['object_id']??''),(string)($input['parent_id']??''))
           :research_agent_workspace_move($pdo,$viewer,(string)($input['object_id']??''),(string)($input['parent_id']??''));
@@ -143,12 +153,14 @@ try{
         json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='trash'){
+        $scopedObject(null,false,'Workspace item not found.');
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
         $item=research_agent_workspace_trash($pdo,$viewer,(string)($input['object_id']??''));
         $queueWorkspaceChange('Research workspace evidence was moved to Trash.');
         json_response(['ok'=>true,'data'=>['item'=>$item]]);
     }
     if($action==='restore'){
+        $scopedObject(null,true,'Workspace item not found.');
         rate_limit_api_or_429($pdo,'research-workspace-write','user:'.$viewer['id'],180,3600);
         $item=research_agent_workspace_restore($pdo,$viewer,(string)($input['object_id']??''));
         $queueWorkspaceChange('Research workspace evidence was restored.');
