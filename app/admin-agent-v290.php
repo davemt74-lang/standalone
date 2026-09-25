@@ -189,12 +189,12 @@ function admin_agent_v290_plan_step(PDO $pdo,array $admin,string $threadPublic,s
     $status=strtolower(trim($status));if(!in_array($status,['pending','done'],true))throw new InvalidArgumentException('Plan step status must be pending or done.');
     $q=$pdo->prepare("SELECT a.id,a.metadata_json FROM conversation_message_attachments a JOIN conversation_messages m ON m.id=a.message_id WHERE a.attachment_type='admin_plan' AND a.object_public_id=? AND m.conversation_id=? LIMIT 1");
     $q->execute([$planPublic,(int)$thread['id']]);$row=$q->fetch();if(!$row)throw new RuntimeException('Admin Agent plan not found.');
-    $plan=json_decode((string)$row['metadata_json'],true);if(!is_array($plan))throw new RuntimeException('Admin Agent plan is invalid.');$found=false;
-    foreach((array)($plan['steps']??[]) as &$step){
+    $plan=json_decode((string)$row['metadata_json'],true);if(!is_array($plan))throw new RuntimeException('Admin Agent plan is invalid.');$found=false;$steps=(array)($plan['steps']??[]);
+    foreach($steps as &$step){
         if((string)($step['id']??'')!==$stepId)continue;$step['status']=$status;$found=true;break;
     }unset($step);
     if(!$found)throw new InvalidArgumentException('Plan step not found.');
-    $steps=(array)($plan['steps']??[]);$done=count(array_filter($steps,fn(array $s)=>(string)($s['status']??'pending')==='done'));
+    $plan['steps']=$steps;$done=count(array_filter($steps,fn(array $s)=>(string)($s['status']??'pending')==='done'));
     $plan['status']=$steps&&$done===count($steps)?'done':'active';$plan['public_id']=$planPublic;
     $pdo->prepare("UPDATE conversation_message_attachments SET metadata_json=? WHERE id=?")->execute([json_encode($plan,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),(int)$row['id']]);
     return $plan;
