@@ -31,6 +31,7 @@ php tests/admin-v2-60-platform-governance-contract.php
 php tests/admin-v2-61-final-hardening-contract.php
 php tests/admin-v2-70-admin-agent-contract.php
 php tests/admin-v2-80-contextual-admin-agent-contract.php
+php tests/admin-v2-90-proactive-admin-agent-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
