@@ -44,6 +44,10 @@ The shared Admin CSS now:
 
 The exact same CSS remains in `assets/css/app.css` and `extension/landing-app.css`.
 
+## Phase-gate reliability
+
+The full-regression workflow no longer cancels an in-flight phase-gate run merely because the pull request metadata is edited. These runs are release evidence; once started they finish, while newer events can still produce their own independently validated run.
+
 ## Regression contract
 
 `tests/admin-v2-61-final-hardening-contract.php` verifies:
