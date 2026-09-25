@@ -80,6 +80,16 @@ function research_agent_workspace_object(PDO $pdo,array $viewer,string $publicId
     return $row;
 }
 
+function research_agent_workspace_object_in_project(PDO $pdo,array $viewer,array $project,string $publicId,string|array|null $types=null,bool $includeTrashed=false): ?array {
+    $item=research_agent_workspace_object($pdo,$viewer,$publicId,$includeTrashed);if(!$item)return null;
+    if((int)($item['project_id']??0)!==(int)($project['id']??0))return null;
+    if($types!==null){
+        $allowed=is_array($types)?array_values(array_map('strval',$types)):[(string)$types];
+        if(!in_array((string)($item['object_type']??''),$allowed,true))return null;
+    }
+    return $item;
+}
+
 function research_agent_workspace_list(PDO $pdo,array $viewer,array $project,bool $trashed=false,int $limit=300): array {
     if(!research_agent_workspace_ready($pdo))return [];
     $limit=max(1,min(500,$limit));$status=$trashed?'trashed':'active';
