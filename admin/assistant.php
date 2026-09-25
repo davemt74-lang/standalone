@@ -1,7 +1,43 @@
 <?php
-declare(strict_types=1);require dirname(__DIR__).'/app/bootstrap.php';require_once dirname(__DIR__).'/app/ai.php';require_once dirname(__DIR__).'/app/ai-access.php';$admin=require_admin($pdo);$answer='';$error='';
-if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$question=trim((string)($_POST['question']??''));try{if($question==='')throw new RuntimeException('Ask a backend operations question.');$quota=rate_limit_consume($pdo,'ai-admin','user:'.(string)$admin['id'],240,3600);if(!$quota['allowed'])throw new RuntimeException('Admin AI request limit reached. Try again later.');$model=ai_setting_model_id($pdo,'admin');if(!$model)throw new RuntimeException('Configure an Admin default AI model first.');ai_interactive_model_record($pdo,$admin,$model);$context=[];
-foreach(['users'=>'SELECT COUNT(*) FROM users','annotations'=>"SELECT COUNT(*) FROM annotations WHERE status='published'",'open_rights'=>"SELECT COUNT(*) FROM rights_claims WHERE status IN ('submitted','under_review')",'open_reports'=>"SELECT COUNT(*) FROM moderation_reports WHERE status IN ('open','under_review')",'queued_ai'=>"SELECT COUNT(*) FROM ai_jobs WHERE status='queued'",'failed_ai'=>"SELECT COUNT(*) FROM ai_jobs WHERE status='failed'",'queued_sources'=>"SELECT COUNT(*) FROM source_monitor_jobs WHERE status='queued'",'failed_sources'=>"SELECT COUNT(*) FROM source_monitor_jobs WHERE status='failed'"] as $k=>$sql){$context[$k]=(int)$pdo->query($sql)->fetchColumn();}
-$changes=$pdo->query("SELECT s.public_id,s.domain,e.change_type,e.target_changed,e.diff_summary,e.created_at FROM source_change_events e JOIN sources s ON s.id=e.source_id ORDER BY e.created_at DESC LIMIT 12")->fetchAll();$failAi=$pdo->query("SELECT task_type,object_type,object_public_id,last_error,created_at FROM ai_jobs WHERE status='failed' ORDER BY created_at DESC LIMIT 8")->fetchAll();$failSources=$pdo->query("SELECT s.public_id,s.domain,j.last_error,j.created_at FROM source_monitor_jobs j JOIN sources s ON s.id=j.source_id WHERE j.status='failed' ORDER BY j.created_at DESC LIMIT 8")->fetchAll();
-$payload=['counts'=>$context,'recent_source_changes'=>$changes,'recent_failed_ai_jobs'=>$failAi,'recent_failed_source_jobs'=>$failSources];$system='You are the Annotated system-admin operations assistant. Use only the sanitized operational context supplied. Prioritize actionable maintenance, queue health, source integrity, moderation workload, and AI reliability. Do not reveal secrets, infer claimant identity, make legal decisions, or take actions. Clearly separate observed system facts from recommendations.';$prompt="Admin question: $question\n\nSANITIZED SYSTEM CONTEXT:\n".json_encode($payload,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);$r=ai_run($pdo,$config,$admin,'admin','admin_assistant',$model,$system,$prompt,[['type'=>'system_snapshot','counts'=>$context]],'admin','operations');$answer=$r['text'];}catch(Throwable $e){$error=$e->getMessage();}}
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Assistant · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('assistant')?><header class="topbar"><a class="brand" href="/admin/">Annotated Admin</a><nav><a href="/admin/ai.php">AI models</a><a href="/admin/source-monitor.php">Sources</a><a href="/admin/moderation.php">Moderation</a><a href="/admin/users.php">Users</a></nav></header><main class="panel article"><div class="pageTitle"><span class="eyebrow">ADMIN INTELLIGENCE</span><h1>Ask the backend</h1><p>The assistant receives a sanitized operational snapshot. It can analyze and recommend; it cannot perform admin actions.</p></div><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><label>Question<textarea name="question" rows="5" required placeholder="What needs my attention right now?"></textarea></label><button>Ask admin AI</button></form><?php if($answer):?><div class="card aiAnswer"><span class="eyebrow">BACKEND BRIEF</span><p><?=nl2br(h($answer))?></p></div><?php endif?></main></body></html>
+declare(strict_types=1);
+require dirname(__DIR__).'/app/bootstrap.php';require_once dirname(__DIR__).'/app/admin-agent.php';$admin=require_admin($pdo);
+if(!admin_agent_ready($pdo)){http_response_code(503);exit('Admin Agent requires the conversation runtime.');}
+$threads=admin_agent_threads($pdo,$admin,50);$requested=trim((string)($_GET['thread']??''));$active=$requested!==''?admin_agent_thread_access($pdo,$admin,$requested):null;if(!$active&&$threads)$active=admin_agent_thread_access($pdo,$admin,(string)$threads[0]['public_id']);
+$model=ai_setting_model_id($pdo,'admin',false);$profile=admin_ops_operator_profile($pdo,$admin);
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Agent · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('assistant')?>
+<main class="panel adminAgentPage" data-admin-agent-root data-api="/api/admin-agent.php" data-csrf="<?=h(csrf_token())?>" data-thread="<?=h((string)($active['public_id']??''))?>">
+  <header class="adminAgentHeader">
+    <div><span class="eyebrow">ADMIN V2.70 · ADMIN AGENT</span><h1>Admin Agent</h1><p>Ask about Annotated operations, accounts, billing, usage, support, Customer Success, security, platform configuration, releases and system health.</p></div>
+    <div class="adminAgentHeaderMeta"><span><?=h((string)($profile['role_name']??$profile['role_key']??'Admin'))?></span><span><?=h($model?'Admin model configured':'Admin model not configured')?></span></div>
+  </header>
+  <div class="adminAgentWorkspace">
+    <aside class="adminAgentThreads" aria-label="Admin Agent conversations">
+      <button type="button" class="adminAgentNewChat" data-admin-agent-new>+ New chat</button>
+      <nav data-admin-agent-thread-list>
+      <?php foreach($threads as $thread):$selected=$active&&$active['public_id']===$thread['public_id'];?><a href="/admin/assistant.php?thread=<?=rawurlencode((string)$thread['public_id'])?>" class="<?=$selected?'active':''?>" <?=$selected?'aria-current="page"':''?>><strong><?=h((string)($thread['title']?:'Admin Agent'))?></strong><?php if(!empty($thread['last_message'])):?><small><?=h((string)$thread['last_message'])?></small><?php endif?></a><?php endforeach?>
+      </nav>
+    </aside>
+    <section class="adminAgentCanvas" aria-label="Admin Agent chat">
+      <div class="adminAgentMessages" data-admin-agent-messages role="log" aria-live="polite">
+        <section class="adminAgentWelcome" data-admin-agent-welcome>
+          <span class="adminAgentOrb" aria-hidden="true">A</span><h2>How can I help manage Annotated?</h2>
+          <p>I can inspect the authorized Admin context, find operational records, explain issues, and prepare supported governed actions for review.</p>
+          <div class="adminAgentQuickPrompts">
+            <button type="button" data-admin-agent-quick="What needs my attention right now?">What needs my attention?</button>
+            <button type="button" data-admin-agent-quick="Check billing, dunning and AI usage for problems.">Billing & usage</button>
+            <button type="button" data-admin-agent-quick="Check system health, workers and release readiness.">System health</button>
+            <button type="button" data-admin-agent-quick="Summarize support and Customer Success risks that need follow-up.">Customer risk</button>
+          </div>
+        </section>
+      </div>
+      <div class="adminAgentComposerDock">
+        <form class="adminAgentComposer" data-admin-agent-form>
+          <textarea rows="1" maxlength="12000" data-admin-agent-input placeholder="Message Admin Agent…" aria-label="Message Admin Agent"></textarea>
+          <button type="submit" data-admin-agent-send aria-label="Send message">↑</button>
+        </form>
+        <div class="adminAgentComposerHint"><span data-admin-agent-status>Admin Agent can inspect authorized Admin data. Governed changes require review.</span><span>Enter to send · Shift+Enter for a new line</span></div>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="/assets/js/admin-agent.js?v=2.70" defer></script></body></html>
