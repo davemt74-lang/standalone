@@ -65,21 +65,31 @@ function admin_ui_nav_sections(): array {
         ],
     ];
 }
+function admin_ui_agent_copilot(PDO $pdo,array $admin,string $active): string {
+    if($active==='assistant'||!function_exists('admin_agent_page_context'))return '';
+    $requestUrl=(string)($_SERVER['REQUEST_URI']??'/admin/');$context=admin_agent_page_context_from_url($pdo,$admin,$requestUrl);
+    $encoded=h(json_encode($context,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
+    $label=h((string)($context['label']??'Annotated Admin'));$meta=h((string)($context['meta']??'Current Admin page'));
+    return '<section class="adminCopilot" data-admin-copilot data-api="/api/admin-agent.php" data-csrf="'.h(csrf_token()).'" data-context="'.$encoded.'">'
+      .'<div class="adminCopilotPanel" data-admin-copilot-panel hidden><div class="adminCopilotPanelHead"><div><span class="eyebrow">ADMIN V2.80 · CONTEXTUAL COPILOT</span><strong>Admin Agent</strong></div><div class="adminCopilotPanelActions"><a href="/admin/assistant.php" data-admin-copilot-full>Open full canvas</a><button type="button" data-admin-copilot-close aria-label="Close Admin Agent">×</button></div></div><div class="adminCopilotMessages" data-admin-copilot-messages role="log" aria-live="polite"></div></div>'
+      .'<div class="adminCopilotDock"><div class="adminCopilotContext" data-admin-copilot-context><span><b>Context:</b> '.$label.'</span><small>'.$meta.'</small><button type="button" data-admin-copilot-clear-context aria-label="Clear current page context">×</button></div>'
+      .'<form class="adminCopilotComposer" data-admin-copilot-form><button type="button" class="adminCopilotToggle" data-admin-copilot-toggle aria-label="Open Admin Agent">A</button><textarea rows="1" maxlength="5000" data-admin-copilot-input placeholder="Ask Admin Agent…" aria-label="Ask Admin Agent"></textarea><button type="submit" data-admin-copilot-send aria-label="Send to Admin Agent">↑</button></form>'
+      .'<div class="adminCopilotHint"><span data-admin-copilot-status>Uses your current Admin page as context.</span><span>Enter to send · Shift+Enter for a new line</span></div></div></section><script src="/assets/js/admin-agent-copilot.js?v=2.80" defer></script>';
+}
 function admin_ui_sidebar(string $active='dashboard'): string {
-    $profile=null;global $pdo;if(isset($pdo)&&$pdo instanceof PDO&&function_exists('admin_access_ready')&&admin_access_ready($pdo)){try{$viewer=current_user($pdo);if($viewer&&($viewer['role']??'')==='admin')$profile=admin_access_profile($pdo,$viewer);}catch(Throwable $e){}}
+    $profile=null;$viewer=null;global $pdo;if(isset($pdo)&&$pdo instanceof PDO){try{$viewer=current_user($pdo);if($viewer&&($viewer['role']??'')==='admin'&&function_exists('admin_access_ready')&&admin_access_ready($pdo))$profile=admin_access_profile($pdo,$viewer);}catch(Throwable $e){}}
     $out='<aside class="adminSidebar" aria-label="Admin navigation"><div class="adminSidebarHead"><a class="adminSidebarBrand" href="/admin/">Annotated <span>Admin</span></a><a class="adminSidebarSite" href="/home.php">Open site</a></div><nav class="adminSidebarNav">';
     foreach(admin_ui_nav_sections() as $section){
         $items=$section['items'];if($profile!==null)$items=array_filter($items,fn($item,$key)=>admin_ops_has_capability($profile,admin_access_nav_capability((string)$key)),ARRAY_FILTER_USE_BOTH);if(!$items)continue;
         $contains=array_key_exists($active,$items);
         $out.='<details class="adminNavGroup"'.($contains?' open':'').'><summary>'.h((string)$section['label']).'</summary><div class="adminNavGroupLinks">';
-        foreach($items as $key=>$item){
-            $isActive=$active===$key;
-            $out.='<a class="adminNavLink'.($isActive?' active':'').'" href="'.h((string)$item['url']).'"'.($isActive?' aria-current="page"':'').'>'.h((string)$item['label']).'</a>';
-        }
+        foreach($items as $key=>$item){$isActive=$active===$key;$out.='<a class="adminNavLink'.($isActive?' active':'').'" href="'.h((string)$item['url']).'"'.($isActive?' aria-current="page"':'').'>'.h((string)$item['label']).'</a>';}
         $out.='</div></details>';
     }
     $roleLabel=$profile!==null?' · '.h((string)($profile['role_name']??$profile['role_key']??'')):'';
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V2.70 · Admin Agent · Admin V2.61 · Final Admin Hardening · Admin V2.60 · Admin V2.50 · Admin V2.40 · Admin V2.30 · Admin V2.20 · Admin V2.10 · Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90'.$roleLabel.'</span><a href="/logout.php">Sign out</a></div></aside>';
+    $out.='</nav><div class="adminSidebarFoot"><span>Admin V2.80 · Contextual Admin Agent · Admin V2.70 · Admin Agent · Admin V2.61 · Final Admin Hardening · Admin V2.60 · Admin V2.50 · Admin V2.40 · Admin V2.30 · Admin V2.20 · Admin V2.10 · Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90'.$roleLabel.'</span><a href="/logout.php">Sign out</a></div></aside>';
+    if($viewer&&($viewer['role']??'')==='admin')$out.=admin_ui_agent_copilot($pdo,$viewer,$active);
+    return $out;
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}

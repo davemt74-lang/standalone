@@ -281,6 +281,7 @@ jobs:
           php tests/admin-v2-50-security-compliance-db.php
           php tests/admin-v2-60-platform-governance-db.php
           php tests/admin-v2-70-admin-agent-db.php
+          php tests/admin-v2-80-contextual-admin-agent-db.php
       - name: MySQL 8 upgrade rehearsal from migration 056 through 059
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase60_upgrade;charset=utf8mb4
