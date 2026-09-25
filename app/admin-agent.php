@@ -76,7 +76,7 @@ function admin_agent_context_bundle(PDO $pdo,array $config,array $admin,string $
     if(function_exists('admin_platform_agent_context')){try{$value=admin_platform_agent_context($pdo,$config,$admin);if(trim((string)$value)!=='')$sections['platform']=(string)$value;}catch(Throwable $e){}}
     $search=admin_agent_search($pdo,$admin,$prompt);$allowedAccounts=[];
     foreach($search as $row)if(($row['type']??'')==='Account'&&!empty($row['identifier']))$allowedAccounts[]=(string)$row['identifier'];
-    $catalog=[];if(function_exists('admin_ops_action_catalog'))foreach(admin_ops_action_catalog() as $key=>$meta){if(($meta['surface']??'account')!=='account')continue;$cap=(string)($meta['capability']??'admin.actions.request');if(function_exists('admin_access_ready')&&admin_access_ready($pdo)&&!admin_access_has_capability($pdo,$admin,$cap))continue;$catalog[$key]=['label'=>$meta['label'],'risk'=>$meta['risk'],'description'=>$meta['description']];}
+    $catalog=[];if(function_exists('admin_ops_action_catalog'))foreach(admin_ops_action_catalog() as $key=>$meta){if(($meta['surface']??'account')!=='account')continue;$cap=(string)($meta['capability']??'admin.actions.request');if(function_exists('admin_access_ready')&&admin_access_ready($pdo)&&(!admin_access_has_capability($pdo,$admin,'admin.actions.request')||!admin_access_has_capability($pdo,$admin,$cap)))continue;$catalog[$key]=['label'=>$meta['label'],'risk'=>$meta['risk'],'description'=>$meta['description']];}
     $text="[ANNOTATED ADMIN SNAPSHOT]\n".json_encode($safeSnapshot,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
     foreach($sections as $label=>$value)$text.="\n\n[".strtoupper(str_replace('_',' ',$label))."]\n".$value;
     if($search)$text.="\n\n[ADMIN SEARCH RESULTS]\n".json_encode($search,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
@@ -122,8 +122,9 @@ function admin_agent_send(PDO $pdo,array $config,array $admin,string $threadPubl
     $parsed=admin_agent_extract_actions((string)$run['text']);$assistant=agent_chat_insert_agent_message($pdo,$thread,(string)$parsed['body'],$userMessageId);
     if(function_exists('data_response_try_bind_message'))data_response_try_bind_message($pdo,(string)$run['public_id'],(int)$assistant['id']);
     $actions=admin_agent_create_action_previews($pdo,$admin,(int)$assistant['id'],$parsed['actions'],(array)$bundle['allowed_account_ids'],$prompt);$assistant['admin_actions']=$actions['previews'];$assistant['role']='assistant';
-    if(count((array)$parsed['actions'])&&!$actions['previews']&&$actions['errors']){
-        $note="\n\nI could not prepare the governed preview: ".implode(' ',array_map(fn($e)=>trim((string)$e),$actions['errors']));
+    if(count((array)$parsed['actions'])&&!$actions['previews']){
+        $detail=$actions['errors']?implode(' ',array_map(fn($e)=>trim((string)$e),$actions['errors'])):'The requested operation did not meet the deterministic account, capability, or explicit-intent checks.';
+        $note="\n\nI did not create a governed preview: ".$detail;
         $assistant['body'].=$note;$assistant['action_errors']=$actions['errors'];$pdo->prepare('UPDATE conversation_messages SET body=? WHERE id=?')->execute([$assistant['body'],(int)$assistant['id']]);
     }
     $pdo->prepare("UPDATE conversations SET title=CASE WHEN title='Admin Agent' THEN ? ELSE title END,last_message_at=NOW(),updated_at=NOW() WHERE id=?")->execute([mb_substr(preg_replace('/\s+/u',' ',$prompt),0,72),(int)$thread['id']]);
