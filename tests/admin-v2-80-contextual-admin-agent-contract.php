@@ -47,7 +47,7 @@ foreach([
  'ACTIVE ADMIN PACKAGES',
  'CURRENT ADMIN PAGE',
 ] as $needle)$need('app/admin-agent.php',$needle,'Admin Agent V2.80 runtime missing '.$needle);
-$need('api/admin-agent.php',"$pageContext=is_array($input['page_context']??null)?$input['page_context']:[]",'Admin Agent API must accept contextual page descriptor and re-resolve it server-side.');
+$need('api/admin-agent.php',"\$pageContext=is_array(\$input['page_context']??null)?\$input['page_context']:[]",'Admin Agent API must accept contextual page descriptor and re-resolve it server-side.');
 $need('api/admin-agent.php','admin_agent_page_context_from_url','Admin Agent state must resolve current page context server-side.');
 
 foreach([
