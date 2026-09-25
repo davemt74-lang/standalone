@@ -6,9 +6,10 @@ $avoid=function(string $file,string $needle,string $message)use(&$fail,$root){$p
 
 $need('register.php','onboarding_ensure($pdo,$uid)','New accounts must initialize the same onboarding state as website accounts.');
 $need('register.php','post_auth_destination($pdo,$uid)','Website registration must use the shared post-auth destination flow.');
-$need('app/release.php','Publish your first annotation','Onboarding milestones must guide the first annotation.');
-$need('app/release.php','Follow a researcher or source','Onboarding milestones must guide social/source following.');
-$need('app/release.php','Start or join Research','Onboarding milestones must guide Research setup.');
+$need('app/release.php','Capture or add your first evidence','Onboarding milestones must guide the first evidence capture.');
+$need('app/release.php','Open your Research Agent','Onboarding milestones must guide the Research Agent entry point.');
+$need('app/release.php','Do one piece of Research work','Onboarding milestones must guide a durable first Research action.');
+$avoid('app/release.php',"'follow'=>",'First-run completion must not be blocked on an unrelated social follow.');
 $need('onboarding.php',"\$status['steps']",'Onboarding page must render the server-derived milestone checklist.');
 $need('extension/service-worker.js',"details.reason==='install'",'Extension install must trigger first-run setup.');
 $need('extension/sidepanel.html','id="authLoginForm"','Chrome sidebar must expose a normal login form.');

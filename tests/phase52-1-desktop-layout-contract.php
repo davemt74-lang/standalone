@@ -8,7 +8,9 @@ $need=function(string $file,string $needle,string $message)use($root,&$fail): vo
 
 $need('assets/js/research-agent-workspace-ui.js',"document.body.classList.add('researchDesktopMode')",'Opening the Desktop must mark the page for full-column layout.');
 $need('assets/js/research-agent-workspace-ui.js',"document.body.classList.remove('researchDesktopMode')",'Closing the Desktop must restore the normal Agent layout.');
-$need('assets/js/agent-chat.js',"location.href='/research.php'",'Research Agent X must return to the main Research page.');
+$need('assets/js/agent-chat.js',"window.AnnotatedResearchWorkspace?.closeDesktop?.()",'Research Agent X must honor dirty Desktop document saves before leaving.');
+$need('assets/js/agent-chat.js',"setModeFeed();",'Research Agent X must restore the Home feed canvas.');
+$need('assets/js/agent-chat.js',"['agent','workspace','doc']",'Returning to Home must clear Research Agent deep-link state.');
 $need('assets/css/app.css','.homeFeedPage.agentChatMode.researchDesktopMode .homeWorkspaceLayout','Desktop mode must override the old centered Home/Agent max width.');
 $need('assets/css/app.css','max-width:none!important;','Desktop layout must remove the centered max-width cap.');
 $need('assets/css/app.css','.homeAgentCanvas.researchDesktopOpen>.researchAgentCanvasTopActions','Underlying Agent controls must be hidden while the Desktop is open.');

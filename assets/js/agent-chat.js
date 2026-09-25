@@ -54,11 +54,41 @@
     feedScroll=window.scrollY||0;feed.hidden=true;canvas.hidden=false;if(rightRail)rightRail.hidden=true;document.body.classList.add('agentChatMode');input.placeholder='Message Research Agent…';saveState(true);window.scrollTo({top:0,behavior:'instant'});
   }
   function setModeFeed(){
-    const leavingResearchAgent=researchAgentMode;researchAgentMode=false;if(leavingResearchAgent){activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'home'}}));}canvas.hidden=true;feed.hidden=false;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);const url=new URL(location.href);if(url.searchParams.has('agent')){url.searchParams.delete('agent');history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);}requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
+    const leavingResearchAgent=researchAgentMode;researchAgentMode=false;if(leavingResearchAgent){activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'home'}}));}canvas.hidden=true;feed.hidden=false;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);
+    const url=new URL(location.href);let changed=false;['agent','workspace','doc'].forEach(key=>{if(url.searchParams.has(key)){url.searchParams.delete(key);changed=true;}});if(changed)history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);
+    requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
+  }
+  async function leaveResearchAgentToFeed(){
+    if(researchAgentMode){
+      const libraryOk=await window.AnnotatedResearchWorkspace?.closeLibrary?.();if(libraryOk===false)return false;
+      const desktopOk=await window.AnnotatedResearchWorkspace?.closeDesktop?.();if(desktopOk===false)return false;
+    }
+    setModeFeed();return true;
   }
   function messageTarget(){return researchAgentMode?messages:(inlineMessages||messages);}
   function showInlineThread(){if(inlineThread)inlineThread.hidden=false;}
-  function clearWelcome(){messageTarget().querySelector('.agentChatWelcome')?.remove();}
+  function clearWelcome(){const target=messageTarget();target.querySelector('.agentChatWelcome')?.remove();target.querySelector('.phase65AgentQuickActions')?.remove();}
+  function renderResearchQuickActions(target=messages){
+    if(!researchAgentMode||!requestedResearchAgentConversation||!target)return;
+    target.querySelector('.phase65AgentQuickActions')?.remove();
+    const wrap=document.createElement('section');wrap.className='phase65AgentQuickActions';wrap.setAttribute('aria-label','Research Agent quick actions');
+    const label=document.createElement('span');label.className='eyebrow';label.textContent='NEXT STEP';
+    const actions=document.createElement('div');
+    const add=(text,handler)=>{const b=document.createElement('button');b.type='button';b.textContent=text;b.addEventListener('click',handler);actions.appendChild(b);};
+    add('Add evidence',()=>window.AnnotatedResearchWorkspace?.openDesktop());
+    add('Open Library',()=>window.AnnotatedResearchWorkspace?.openLibrary());
+    add('New Research Doc',async()=>{await window.AnnotatedResearchWorkspace?.openDesktop();document.querySelector('[data-research-desktop-new-doc]')?.click();});
+    add('Review next steps',()=>{input.value='Review this Research workspace and tell me the most useful next step based on the evidence, open tasks, and unresolved gaps.';sizeInput();form.requestSubmit();});
+    wrap.append(label,actions);target.appendChild(wrap);
+  }
+  function renderResearchWelcome(){
+    const target=messages;target.replaceChildren();
+    const welcome=document.createElement('div');welcome.className='agentChatWelcome phase65ResearchWelcome';
+    const eyebrow=document.createElement('span');eyebrow.className='eyebrow';eyebrow.textContent='RESEARCH AGENT';
+    const h=document.createElement('h2');h.textContent='What should we work on?';
+    const p=document.createElement('p');p.textContent='Add evidence, open your Library, create a Research Doc, or ask the Agent to review what is already in this workspace.';
+    welcome.append(eyebrow,h,p);target.appendChild(welcome);renderResearchQuickActions(target);
+  }
   function attachmentUrl(a){
     const id=encodeURIComponent(String(a?.public_id||''));if(!id)return '';
     return ({annotation:'/annotation.php?id=',research:'/research-project.php?id=',research_project:'/research-project.php?id=',source:'/source.php?id=',team:'/team.php?id=',claim:'/research-claim.php?id=',finding:'/research-finding.php?id='})[String(a?.type||'')]?.concat(id)||'';
@@ -186,7 +216,7 @@
     const isResearchAgent=options.researchAgent===true||publicId===requestedResearchAgentConversation;
     setModeAgent(isResearchAgent);activeConversation=publicId;document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:'agent'}}));if(title)title.textContent=chatTitle||'Agent chat';messages.innerHTML='<div class="agentChatLoading">Loading conversation…</div>';
     try{
-      const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length)messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New Research</h2><p>Ask a question or attach Annotated context.</p></div>';saveState(true);messages.scrollTop=messages.scrollHeight;
+      const data=await request('messages',{params:{conversation:publicId,limit:80}});messages.replaceChildren();(data.messages||[]).forEach(renderMessage);if(!(data.messages||[]).length){if(isResearchAgent)renderResearchWelcome();else messages.innerHTML='<div class="agentChatWelcome"><span class="eyebrow">ANNOTATED AGENT</span><h2>New Research</h2><p>Ask a question or attach Annotated context.</p></div>';}else if(isResearchAgent)renderResearchQuickActions(messages);saveState(true);messages.scrollTop=messages.scrollHeight;
     }catch(err){renderInlineError(messages,err.message||'Unable to load this Agent Chat.');}
   }
   function resetConversation(){
@@ -197,7 +227,7 @@
     const client=globalThis.crypto?.randomUUID?.()||String(Date.now())+'-'+Math.random().toString(16).slice(2);
     try{
       const data=await request('send',{method:'POST',data:{conversation:activeConversation||null,prompt:text,context:selectedContext.map(({type,public_id})=>({type,public_id})),client_message_id:client}});
-      activeConversation=data.conversation?.public_id||activeConversation;if(activeConversation)document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:researchAgentMode?'research-agent':'home'}}));if(title)title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(researchAgentMode);const target=messageTarget();target.scrollTop=target.scrollHeight;loadHistory();
+      activeConversation=data.conversation?.public_id||activeConversation;if(activeConversation)document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{agent_conversation_public_id:activeConversation,surface:researchAgentMode?'research-agent':'home'}}));if(title)title.textContent=data.conversation?.title||title.textContent;thinking.remove();renderMessage(data.assistant_message||{role:'assistant',body:'No response returned.'});selectedContext=[];renderContextTray();saveState(researchAgentMode);const target=messageTarget();if(researchAgentMode)renderResearchQuickActions(target);target.scrollTop=target.scrollHeight;loadHistory();
     }catch(err){thinking.remove();const error=document.createElement('div');error.className='error agentChatError';error.textContent=err.message||'Agent Chat failed.';messageTarget().appendChild(error);if(!researchAgentMode)showInlineThread();}
     finally{sending=false;input.focus();}
   }
@@ -207,7 +237,7 @@
   document.addEventListener('annotated:agent-chat-add-context',()=>{contextTray.hidden=true;contextPicker.hidden=false;loadContextOptions();});
   add.addEventListener('click',()=>document.dispatchEvent(new CustomEvent('annotated:agent-chat-add-context',{bubbles:true})));
   input.addEventListener('input',sizeInput);input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
-  back?.addEventListener('click',setModeFeed);panelClose?.addEventListener('click',()=>{if(researchAgentMode||requestedResearchAgentConversation){location.href='/research.php';return;}setModeFeed();});inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
+  back?.addEventListener('click',leaveResearchAgentToFeed);panelClose?.addEventListener('click',leaveResearchAgentToFeed);inlineClose?.addEventListener('click',()=>{if(inlineThread)inlineThread.hidden=true;});newChat?.addEventListener('click',resetConversation);
   historyToggle?.addEventListener('click',()=>{historyPanel.hidden=!historyPanel.hidden;if(!historyPanel.hidden)loadHistory();});historyClose?.addEventListener('click',()=>historyPanel.hidden=true);
   contextClose.addEventListener('click',()=>{contextPicker.hidden=true;renderContextTray();});
 

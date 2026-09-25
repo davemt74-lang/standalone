@@ -34,7 +34,7 @@ home_render_assert(str_contains($js,"if(rightRail)rightRail.hidden=false"),'Retu
 home_render_assert(!str_contains($home,'agentChatCanvasHeader'),'Agent canvas does not render the removed chat header');
 home_render_assert(!str_contains($home,'data-agent-back')&&!str_contains($home,'data-agent-history-toggle')&&!str_contains($home,'data-agent-new')&&!str_contains($home,'data-agent-title'),'Removed Agent header controls are absent from Home');
 home_render_assert(!str_contains($css,'.agentChatCanvasHeader'),'Removed Agent header has no stale CSS surface');
-home_render_assert(str_contains($js,"back?.addEventListener('click',setModeFeed)")&&str_contains($js,"newChat?.addEventListener('click',resetConversation)"),'Agent Chat safely tolerates absent header controls');
+home_render_assert(str_contains($js,"back?.addEventListener('click',leaveResearchAgentToFeed)")&&str_contains($js,"newChat?.addEventListener('click',resetConversation)"),'Agent Chat safely tolerates absent header controls');
 $composerPos=strpos($home,'id="homeAgentComposer"');$pickerPos=strpos($home,'data-agent-context-picker');$canvasClosePos=strpos($home,'</section><aside class="homeRightRail');
 home_render_assert($composerPos!==false&&$pickerPos!==false&&$pickerPos>$composerPos,'Agent context picker is mounted inside the chat composer');
 home_render_assert(str_contains($css,'.homeAgentDock .agentChatContextPicker{')&&str_contains($css,'bottom:calc(100% + 10px)'),'Context picker opens above the composer');

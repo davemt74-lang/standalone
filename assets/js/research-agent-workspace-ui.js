@@ -9,6 +9,7 @@
   const teamId=String(canvas.dataset.researchAgentTeam||'').trim();
   const conversationId=String(canvas.dataset.researchAgentConversation||'').trim();
   const initialDocument=String(canvas.dataset.researchDocument||'').trim();
+  const initialWorkspace=String(canvas.dataset.researchInitialWorkspace||'').trim().toLowerCase();
   const csrf=String(canvas.dataset.csrf||'');
 
   const openButton=document.querySelector('[data-research-desktop-open]');
@@ -212,6 +213,18 @@
   function renderDesktop(){
     if(!iconLayer)return;iconLayer.replaceChildren();renderBreadcrumbs();
     const rows=visibleItems();rows.forEach((item,index)=>iconLayer.appendChild(makeDesktopIcon(item,index)));
+    const visibleStickies=stickies.filter(item=>String(item.parent_public_id||'')===String(currentFolder||''));
+    if(!trashMode&&currentFolder===''&&rows.length===0&&visibleStickies.length===0){
+      const guide=document.createElement('section');guide.className='researchDesktopEmptyGuide';
+      const eyebrow=document.createElement('span');eyebrow.className='eyebrow';eyebrow.textContent='RESEARCH DESKTOP';
+      const title=document.createElement('h2');title.textContent='Add your first piece of evidence';
+      const copy=document.createElement('p');copy.textContent='Drop files anywhere on the Desktop, upload a document, record audio, save a bookmark, or start a Research Doc.';
+      const actions=document.createElement('div');actions.className='researchDesktopEmptyActions';
+      const upload=document.createElement('button');upload.type='button';upload.textContent='Upload files';upload.addEventListener('click',()=>fileInput?.click());
+      const doc=document.createElement('button');doc.type='button';doc.textContent='New Doc';doc.addEventListener('click',openDocumentDialog);
+      const record=document.createElement('button');record.type='button';record.textContent='Record audio';record.addEventListener('click',openRecordingWindow);
+      actions.append(upload,doc,record);guide.append(eyebrow,title,copy,actions);iconLayer.appendChild(guide);
+    }
     if(!trashMode&&currentFolder==='')iconLayer.appendChild(makeTrashIcon(rows.length));
     renderStickies();
   }
@@ -434,7 +447,13 @@
   function renderLibrary(overrideLabel=''){
     if(!libraryList)return;libraryList.replaceChildren();
     const rows=libraryResults;if(libraryCount)libraryCount.textContent=overrideLabel||(rows.length+' result'+(rows.length===1?'':'s'));
-    if(!rows.length){const empty=document.createElement('div');empty.className='researchLibraryEmpty';empty.textContent='No matching Research evidence.';libraryList.appendChild(empty);return;}
+    if(!rows.length){
+      const empty=document.createElement('div');empty.className='researchLibraryEmpty phase65LibraryEmpty';
+      const strong=document.createElement('strong');strong.textContent=libraryFilter==='all'?'Your Research Library is ready':'No matching Research evidence';
+      const p=document.createElement('p');p.textContent=libraryFilter==='all'?'Add files, recordings, bookmarks, annotations, or Research Docs from the Desktop.':'Try another filter or open the Desktop to add evidence.';
+      const button=document.createElement('button');button.type='button';button.textContent='Open Desktop';button.addEventListener('click',async()=>{if(await closeLibrary())await openDesktop();});
+      empty.append(strong,p,button);libraryList.appendChild(empty);return;
+    }
     for(const item of rows){
       const row=document.createElement('article');row.className='researchLibraryItem';row.dataset.objectType=String(item.object_type||'');
       const select=document.createElement('input');select.type='checkbox';select.className='researchLibrarySelect';select.setAttribute('aria-label','Select '+libraryResultLabel(item));
@@ -912,6 +931,8 @@
   });
   window.addEventListener('resize',()=>{if(desktopOpen)renderDesktop();});
   if(initialDocument)openDocument(initialDocument,{historyMode:'replace'});
+  else if(initialWorkspace==='desktop')openDesktop();
+  else if(initialWorkspace==='library')openLibrary();
 
   window.AnnotatedResearchWorkspace={openDesktop,closeDesktop,openLibrary,closeLibrary,openDocument,openRecording,createSticky,uploadFiles,reload:()=>desktopOpen?loadDesktop(trashMode):libraryOpen?loadLibraryResults():Promise.resolve(),shareBookmarkToTeam:id=>shareObjectToTeam('bookmark',id,'Research bookmark'),shareDocumentToTeam:id=>shareObjectToTeam('document',id,'Research document')};
 })();

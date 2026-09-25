@@ -24,20 +24,56 @@ function onboarding_status(PDO $pdo,array $user,bool $persistCompletion=true): a
     $q=$pdo->prepare('SELECT COUNT(*) FROM user_identities WHERE user_id=?');$q->execute([$uid]);$identityCount=(int)$q->fetchColumn();
     $q=$pdo->prepare('SELECT COUNT(*) FROM extension_sessions WHERE user_id=? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW())');$q->execute([$uid]);$extensionCount=(int)$q->fetchColumn();
     $q=$pdo->prepare("SELECT COUNT(*) FROM annotations WHERE user_id=? AND status IN ('published','restricted')");$q->execute([$uid]);$annotationCount=(int)$q->fetchColumn();
-    $q=$pdo->prepare('SELECT (SELECT COUNT(*) FROM follows WHERE follower_user_id=?)+(SELECT COUNT(*) FROM source_watches WHERE user_id=?)');$q->execute([$uid,$uid]);$followCount=(int)$q->fetchColumn();
-    $agentProjectFilter='';try{$pdo->query('SELECT 1 FROM research_agents LIMIT 0');$agentProjectFilter=' AND NOT EXISTS(SELECT 1 FROM research_agents rag WHERE rag.project_id=rp.id)';}catch(PDOException $e){}
-    $q=$pdo->prepare('SELECT COUNT(DISTINCT rp.id) FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE (rp.owner_user_id=? OR tm.user_id IS NOT NULL)'.$agentProjectFilter);$q->execute([$uid,$uid]);$projectCount=(int)$q->fetchColumn();
+
+    $agentCount=0;$projectCount=0;$workspaceObjectCount=0;$agentMessageCount=0;
+    try{
+        $q=$pdo->prepare("SELECT COUNT(DISTINCT ra.id)
+          FROM research_agents ra
+          LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
+          WHERE ra.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))");
+        $q->execute([$uid,$uid,$uid]);$agentCount=(int)$q->fetchColumn();
+
+        $q=$pdo->prepare("SELECT COUNT(DISTINCT rp.id)
+          FROM research_projects rp
+          LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
+          WHERE rp.status<>'archived' AND (rp.owner_user_id=? OR tm.user_id IS NOT NULL)");
+        $q->execute([$uid,$uid]);$projectCount=(int)$q->fetchColumn();
+
+        $q=$pdo->prepare("SELECT COUNT(DISTINCT rwo.id)
+          FROM research_workspace_objects rwo
+          JOIN research_projects rp ON rp.id=rwo.project_id
+          LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
+          WHERE rwo.status='active'
+            AND rwo.object_type IN ('document','upload','recording','bookmark','sticky')
+            AND (rp.owner_user_id=? OR tm.user_id IS NOT NULL)");
+        $q->execute([$uid,$uid]);$workspaceObjectCount=(int)$q->fetchColumn();
+
+        $q=$pdo->prepare("SELECT COUNT(DISTINCT m.id)
+          FROM conversation_messages m
+          JOIN research_agents ra ON ra.conversation_id=m.conversation_id AND ra.status<>'archived'
+          LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
+          WHERE m.deleted_at IS NULL
+            AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))");
+        $q->execute([$uid,$uid,$uid]);$agentMessageCount=(int)$q->fetchColumn();
+    }catch(PDOException $e){}
+
     try{$q=$pdo->prepare('SELECT * FROM user_onboarding WHERE user_id=?');$q->execute([$uid]);$row=$q->fetch()?:[];}catch(PDOException $e){$row=[];}
+    $captureCount=$annotationCount+$workspaceObjectCount;
+    $researchReady=$agentCount>0||$projectCount>0;
+    $continuityReady=$agentMessageCount>0||$workspaceObjectCount>0;
     $steps=[
-        'account'=>['complete'=>$hasPassword||$identityCount>0,'label'=>'Secure your account','detail'=>$hasPassword?'Native password ready':($identityCount?'Connected login ready':'Add a password or OAuth login method'),'url'=>'/connected-accounts.php'],
-        'extension'=>['complete'=>$extensionCount>0,'label'=>'Connect the Chrome sidebar','detail'=>$extensionCount?($extensionCount.' active extension session'.($extensionCount===1?'':'s')):'Authorize the Annotated Chrome extension','url'=>'/onboarding.php#extension'],
-        'annotation'=>['complete'=>$annotationCount>0,'label'=>'Publish your first annotation','detail'=>$annotationCount?($annotationCount.' annotation'.($annotationCount===1?'':'s').' published'):'Open a webpage, highlight something, and publish from the sidebar','url'=>'/onboarding.php#annotation'],
-        'follow'=>['complete'=>$followCount>0,'label'=>'Follow a researcher or source','detail'=>$followCount?($followCount.' follow/watch relationship'.($followCount===1?'':'s')):'Follow from This Page or watch a Source','url'=>'/explore.php'],
-        'research'=>['complete'=>$projectCount>0,'label'=>'Start or join Research','detail'=>$projectCount?($projectCount.' accessible Research project'.($projectCount===1?'':'s')):'Create a Research project and add evidence','url'=>'/research.php'],
+        'account'=>['complete'=>$hasPassword||$identityCount>0,'label'=>'Secure your account','detail'=>$hasPassword?'Native password ready':($identityCount?'Connected login ready':'Add a password or connected login method'),'url'=>'/connected-accounts.php'],
+        'extension'=>['complete'=>$extensionCount>0,'label'=>'Connect browser capture','detail'=>$extensionCount?($extensionCount.' active browser session'.($extensionCount===1?'':'s')):'Connect the Annotated Chrome extension so pages can become Research evidence','url'=>'/chrome-extension.php'],
+        'capture'=>['complete'=>$captureCount>0,'label'=>'Capture or add your first evidence','detail'=>$captureCount?($captureCount.' evidence item'.($captureCount===1?'':'s').' available'):'Annotate a webpage or add a file, bookmark, recording, or Research Doc','url'=>'/research.php'],
+        'agent'=>['complete'=>$researchReady,'label'=>'Open your Research Agent','detail'=>$agentCount?($agentCount.' Research Agent'.($agentCount===1?'':'s').' ready'):($projectCount?($projectCount.' Research workspace'.($projectCount===1?'':'s').' ready'):'Start a dedicated Research workspace and Agent'),'url'=>'/research.php'],
+        'continue'=>['complete'=>$continuityReady,'label'=>'Do one piece of Research work','detail'=>$continuityReady?($workspaceObjectCount?($workspaceObjectCount.' saved workspace item'.($workspaceObjectCount===1?'':'s')):($agentMessageCount.' Agent message'.($agentMessageCount===1?'':'s'))):'Ask the Agent something, upload evidence, create a document, or save a recording','url'=>'/research.php'],
     ];
     $complete=true;foreach($steps as $s)if(!$s['complete']){$complete=false;break;}
     if($complete&&empty($row['completed_at'])&&$persistCompletion){try{$pdo->prepare('UPDATE user_onboarding SET completed_at=NOW(),dismissed_at=NULL WHERE user_id=?')->execute([$uid]);$row['completed_at']=gmdate('Y-m-d H:i:s');}catch(PDOException $e){}}
-    return ['steps'=>$steps,'complete'=>$complete,'completed_count'=>count(array_filter($steps,fn($s)=>$s['complete'])),'total_count'=>count($steps),'row'=>$row];
+    return [
+      'steps'=>$steps,'complete'=>$complete,'completed_count'=>count(array_filter($steps,fn($s)=>$s['complete'])),'total_count'=>count($steps),'row'=>$row,
+      'signals'=>['extensions'=>$extensionCount,'annotations'=>$annotationCount,'research_agents'=>$agentCount,'research_projects'=>$projectCount,'workspace_items'=>$workspaceObjectCount,'agent_messages'=>$agentMessageCount]
+    ];
 }
 function onboarding_should_redirect(PDO $pdo,int $userId): bool {
     try{$q=$pdo->prepare('SELECT welcome_seen_at,dismissed_at,completed_at FROM user_onboarding WHERE user_id=?');$q->execute([$userId]);$row=$q->fetch();return $row&&!$row['welcome_seen_at']&&!$row['dismissed_at']&&!$row['completed_at'];}catch(PDOException $e){return false;}

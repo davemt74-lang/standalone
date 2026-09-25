@@ -274,6 +274,9 @@ jobs:
           test -f package-website/docs/phase-64-core-product-experience-workflow-hardening.md
           test -f package-website/tests/phase64-core-product-workflow-contract.php
           test -f package-website/tests/phase64-core-product-workflow-db.php
+          test -f package-website/docs/phase-65-first-run-daily-workflow-polish.md
+          test -f package-website/tests/phase65-first-run-daily-workflow-contract.php
+          test -f package-website/tests/phase65-first-run-daily-workflow-db.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
