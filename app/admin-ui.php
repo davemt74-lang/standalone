@@ -72,11 +72,14 @@ function admin_ui_sidebar(string $active='dashboard'): string {
         $items=$section['items'];if($profile!==null)$items=array_filter($items,fn($item,$key)=>admin_ops_has_capability($profile,admin_access_nav_capability((string)$key)),ARRAY_FILTER_USE_BOTH);if(!$items)continue;
         $contains=array_key_exists($active,$items);
         $out.='<details class="adminNavGroup"'.($contains?' open':'').'><summary>'.h((string)$section['label']).'</summary><div class="adminNavGroupLinks">';
-        foreach($items as $key=>$item)$out.='<a class="adminNavLink'.($active===$key?' active':'').'" href="'.h((string)$item['url']).'">'.h((string)$item['label']).'</a>';
+        foreach($items as $key=>$item){
+            $isActive=$active===$key;
+            $out.='<a class="adminNavLink'.($isActive?' active':'').'" href="'.h((string)$item['url']).'"'.($isActive?' aria-current="page"':'').'>'.h((string)$item['label']).'</a>';
+        }
         $out.='</div></details>';
     }
     $roleLabel=$profile!==null?' · '.h((string)($profile['role_name']??$profile['role_key']??'')):'';
-    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V2.60 · Admin V2.50 · Admin V2.40 · Admin V2.30 · Admin V2.20 · Admin V2.10 · Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90'.$roleLabel.'</span><a href="/logout.php">Sign out</a></div></aside>';
+    return $out.'</nav><div class="adminSidebarFoot"><span>Admin V2.61 · Final Admin Hardening · Admin V2.60 · Admin V2.50 · Admin V2.40 · Admin V2.30 · Admin V2.20 · Admin V2.10 · Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90'.$roleLabel.'</span><a href="/logout.php">Sign out</a></div></aside>';
 }
 function admin_ui_scalar(PDO $pdo,string $sql): int {
     try{return (int)($pdo->query($sql)->fetchColumn()?:0);}catch(Throwable $e){return 0;}

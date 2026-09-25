@@ -3297,3 +3297,65 @@
   .adminSidebar~main.panel .sectionHeadWeb{align-items:stretch;flex-direction:column}
   .adminSidebar~main.panel .sectionHeadWeb>.inlineActions{width:100%}
 }
+
+/* Admin V2.61 — final Admin hardening */
+.adminSidebar~main.panel,
+.adminSidebar~main.panel>*,
+.adminSidebar~main.panel .adminContentSplit>*,
+.adminSidebar~main.panel .adminAccountTwoCol>*,
+.adminSidebar~main.panel .adminDashboardGrid>*,
+.adminSidebar~main.panel .adminWorkspaceGrid>*{
+  min-width:0;
+}
+.adminSidebar~main.panel input,
+.adminSidebar~main.panel select,
+.adminSidebar~main.panel textarea,
+.adminSidebar~main.panel button,
+.adminSidebar~main.panel .button{
+  max-width:100%;
+}
+.adminSidebar~main.panel code,
+.adminSidebar~main.panel pre{
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.adminSidebar~main.panel pre{
+  max-width:100%;
+  overflow:auto;
+}
+.adminSidebar~main.panel img,
+.adminSidebar~main.panel video,
+.adminSidebar~main.panel canvas,
+.adminSidebar~main.panel svg{
+  max-width:100%;
+}
+.adminSidebar~main.panel .tableWrap{
+  overscroll-behavior-inline:contain;
+}
+.adminSidebar .adminNavLink[aria-current="page"]{
+  font-weight:800;
+}
+.adminSidebar a:focus-visible,
+.adminSidebar~main.panel a:focus-visible,
+.adminSidebar~main.panel button:focus-visible,
+.adminSidebar~main.panel input:focus-visible,
+.adminSidebar~main.panel select:focus-visible,
+.adminSidebar~main.panel textarea:focus-visible,
+.adminSidebar~main.panel summary:focus-visible{
+  outline:2px solid currentColor;
+  outline-offset:3px;
+}
+.adminSidebar~main.panel .adminContentSplit>aside.card{
+  width:100%;
+  padding:4px 0 4px 16px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+@media(max-width:980px){
+  .adminSidebar~main.panel .adminContentSplit>aside.card{
+    padding:0;
+  }
+}
+
