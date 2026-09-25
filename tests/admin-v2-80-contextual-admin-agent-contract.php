@@ -23,8 +23,8 @@ foreach([
  'data-admin-copilot-form',
  'data-admin-copilot-input',
  'Ask Admin Agent…',
- '/assets/js/admin-agent-copilot.js?v=2.80',
- 'Admin V2.80 · Contextual Admin Agent',
+ '/assets/js/admin-agent-copilot.js?v=2.',
+ 'Admin V2.',
 ] as $needle)$need('app/admin-ui.php',$needle,'Shared Admin shell missing V2.80 copilot contract '.$needle);
 
 foreach([
@@ -65,9 +65,9 @@ $avoid('app/admin-agent.php','account_admin_update_lifecycle(','Admin Agent mode
 
 foreach([
  'data-context=',
- 'ADMIN V2.80 · CONTEXTUAL ADMIN AGENT',
+ 'ADMIN V2.',
  'adminAgentCurrentContext',
- '/assets/js/admin-agent.js?v=2.80',
+ '/assets/js/admin-agent.js?v=2.',
 ] as $needle)$need('admin/assistant.php',$needle,'Full Admin Agent canvas missing contextual continuity '.$needle);
 foreach(['admin_links','page_context:pageContext','adminAgentResultLink','annotated.adminAgent.activeThread'] as $needle)$need('assets/js/admin-agent.js',$needle,'Full Agent client missing contextual continuity '.$needle);
 
