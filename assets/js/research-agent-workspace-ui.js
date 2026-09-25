@@ -85,6 +85,10 @@
   let mediaRecorder=null,mediaStream=null,recordingChunks=[],recordingBlob=null,recordingObjectUrl='',recordingElapsedMs=0,recordingTicker=null,recordingMeterFrame=null,recordingAudioContext=null;
   let activeRecording=null;
 
+  function hasUnsafeExitState(){
+    return !!documentDirty||!!libraryDocDirty||mediaRecorder?.state==='recording';
+  }
+
 
   async function api(url,{method='GET',data=null}={}){
     const options={method,headers:{Accept:'application/json'}};
@@ -908,6 +912,11 @@
   surface?.addEventListener('drop',e=>{if(!canWrite()||!(e.dataTransfer?.files?.length))return;e.preventDefault();surface.classList.remove('is-file-drop');const rect=surface.getBoundingClientRect();uploadFiles(e.dataTransfer.files,e.clientX-rect.left,e.clientY-rect.top,dropFolderId(e));});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&libraryOpen){e.preventDefault();closeLibrary();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&documentDirty)saveDocument(true).catch(()=>{});if(document.hidden&&libraryDocDirty)saveLibraryDocument().catch(()=>{});});
+  window.addEventListener('beforeunload',event=>{
+    if(!hasUnsafeExitState())return;
+    event.preventDefault();
+    event.returnValue='';
+  });
   document.addEventListener('annotated:research-document-open',e=>openDocument(String(e.detail?.public_id||e.detail?.document_id||'')));
   document.addEventListener('annotated:research-recording-open',e=>openRecording(String(e.detail?.public_id||e.detail?.recording_id||'')));
 
