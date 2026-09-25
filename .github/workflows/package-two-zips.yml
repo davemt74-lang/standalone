@@ -271,6 +271,13 @@ jobs:
           test -f package-website/docs/admin-v2-60-platform-configuration-governance.md
           test -f package-website/tests/admin-v2-61-final-hardening-contract.php
           test -f package-website/docs/admin-v2-61-final-admin-hardening.md
+          test -f package-website/app/admin-agent.php
+          test -f package-website/api/admin-agent.php
+          test -f package-website/admin/assistant.php
+          test -f package-website/assets/js/admin-agent.js
+          test -f package-website/tests/admin-v2-70-admin-agent-contract.php
+          test -f package-website/tests/admin-v2-70-admin-agent-db.php
+          test -f package-website/docs/admin-v2-70-admin-agent.md
           test -f package-website/docs/phase-64-core-product-experience-workflow-hardening.md
           test -f package-website/tests/phase64-core-product-workflow-contract.php
           test -f package-website/tests/phase64-core-product-workflow-db.php

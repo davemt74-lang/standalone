@@ -249,6 +249,6 @@ $need('app/ai-access.php','function ai_interactive_model_record','Interactive AI
 $need('app/ai-access.php',"admin_enabled",'Interactive Admin AI must honor the model admin_enabled flag.');
 $need('app/ai-access.php',"pro_enabled",'Interactive Pro AI must honor the model pro_enabled flag.');
 $need('research-project.php','ai_interactive_model_record($pdo,$u,$model)','Ask Annotated must enforce centralized model entitlement.');
-$need('admin/assistant.php','ai_interactive_model_record($pdo,$admin,$model)','Admin Assistant must enforce centralized model entitlement.');
+$need('app/admin-agent.php','ai_interactive_model_record($pdo,$admin,$model)','Admin Agent runtime must enforce centralized model entitlement.');
 
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Security contracts passed.\n";
