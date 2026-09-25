@@ -89,10 +89,19 @@ function admin_agent_extract_actions(string $text): array {
     try{$decoded=json_decode($json,true,512,JSON_THROW_ON_ERROR);if(is_array($decoded))$actions=array_values($decoded);}catch(Throwable $e){}
     return ['body'=>$body!==''?$body:'I prepared the requested Admin review.','actions'=>array_slice($actions,0,3)];
 }
+function admin_agent_action_intent_allowed(string $prompt,string $actionType): bool {
+    $p=mb_strtolower($prompt);
+    return match($actionType){
+        'resync_stripe_subscription'=>(str_contains($p,'resync')||str_contains($p,'re-sync'))&&(str_contains($p,'stripe')||str_contains($p,'subscription')),
+        'reconcile_ai_overage'=>str_contains($p,'reconcile')&&str_contains($p,'overage'),
+        'sync_tax_policy'=>(str_contains($p,'sync')||str_contains($p,'synchronize'))&&(str_contains($p,'tax')||str_contains($p,'billing profile')||str_contains($p,'billing policy')),
+        default=>false,
+    };
+}
 function admin_agent_create_action_previews(PDO $pdo,array $admin,int $assistantMessageId,array $requested,array $allowedAccountIds,string $prompt): array {
     $allowedTypes=['resync_stripe_subscription','reconcile_ai_overage','sync_tax_policy'];$out=[];$errors=[];
     foreach($requested as $action){if(!is_array($action))continue;$type=(string)($action['action_type']??'');$account=(string)($action['account_public_id']??'');
-        if(!in_array($type,$allowedTypes,true)||!in_array($account,$allowedAccountIds,true))continue;
+        if(!in_array($type,$allowedTypes,true)||!in_array($account,$allowedAccountIds,true)||!admin_agent_action_intent_allowed($prompt,$type))continue;
         try{$preview=admin_ops_action_preview($pdo,$admin,$type,$account,mb_substr('Admin Agent request: '.preg_replace('/\s+/u',' ',trim($prompt)),0,500));$record=$preview['record'];$meta=$preview['preview'];
             $pdo->prepare("INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,'admin_action',?,?)")->execute([$assistantMessageId,(string)$record['public_id'],json_encode(['label'=>$meta['label']??$type,'risk_level'=>$record['risk_level']??'routine'],JSON_UNESCAPED_SLASHES)]);
             $out[]=['public_id'=>(string)$record['public_id'],'action_type'=>$type,'status'=>(string)$record['status'],'risk_level'=>(string)$record['risk_level'],'required_approvals'=>(int)($record['required_approvals']??0),'label'=>(string)($meta['label']??$type),'account_name'=>(string)($meta['account_name']??''),'url'=>'/admin/action-center.php?record='.rawurlencode((string)$record['public_id'])];
@@ -113,7 +122,10 @@ function admin_agent_send(PDO $pdo,array $config,array $admin,string $threadPubl
     $parsed=admin_agent_extract_actions((string)$run['text']);$assistant=agent_chat_insert_agent_message($pdo,$thread,(string)$parsed['body'],$userMessageId);
     if(function_exists('data_response_try_bind_message'))data_response_try_bind_message($pdo,(string)$run['public_id'],(int)$assistant['id']);
     $actions=admin_agent_create_action_previews($pdo,$admin,(int)$assistant['id'],$parsed['actions'],(array)$bundle['allowed_account_ids'],$prompt);$assistant['admin_actions']=$actions['previews'];$assistant['role']='assistant';
-    if(count((array)$parsed['actions'])&&!$actions['previews']&&$actions['errors'])$assistant['action_errors']=$actions['errors'];
+    if(count((array)$parsed['actions'])&&!$actions['previews']&&$actions['errors']){
+        $note="\n\nI could not prepare the governed preview: ".implode(' ',array_map(fn($e)=>trim((string)$e),$actions['errors']));
+        $assistant['body'].=$note;$assistant['action_errors']=$actions['errors'];$pdo->prepare('UPDATE conversation_messages SET body=? WHERE id=?')->execute([$assistant['body'],(int)$assistant['id']]);
+    }
     $pdo->prepare("UPDATE conversations SET title=CASE WHEN title='Admin Agent' THEN ? ELSE title END,last_message_at=NOW(),updated_at=NOW() WHERE id=?")->execute([mb_substr(preg_replace('/\s+/u',' ',$prompt),0,72),(int)$thread['id']]);
     return ['thread'=>['public_id'=>$threadPublic,'title'=>$thread['title']],'user_message'=>$userMessage,'assistant_message'=>$assistant,'search_results'=>$bundle['search'],'deduplicated'=>false];
 }
