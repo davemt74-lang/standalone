@@ -269,6 +269,8 @@ jobs:
           test -f package-website/tests/admin-v2-60-platform-governance-db.php
           test -f package-website/tests/ci/admin-v2-60-upgrade-from-078.php
           test -f package-website/docs/admin-v2-60-platform-configuration-governance.md
+          test -f package-website/tests/admin-v2-61-final-hardening-contract.php
+          test -f package-website/docs/admin-v2-61-final-admin-hardening.md
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
