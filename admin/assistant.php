@@ -32,7 +32,7 @@ $model=ai_setting_model_id($pdo,'admin',false);$profile=admin_ops_operator_profi
       </div>
       <div class="adminAgentComposerDock">
         <form class="adminAgentComposer" data-admin-agent-form>
-          <textarea rows="1" maxlength="12000" data-admin-agent-input placeholder="Message Admin Agent…" aria-label="Message Admin Agent"></textarea>
+          <textarea rows="1" maxlength="5000" data-admin-agent-input placeholder="Message Admin Agent…" aria-label="Message Admin Agent"></textarea>
           <button type="submit" data-admin-agent-send aria-label="Send message">↑</button>
         </form>
         <div class="adminAgentComposerHint"><span data-admin-agent-status>Admin Agent can inspect authorized Admin data. Governed changes require review.</span><span>Enter to send · Shift+Enter for a new line</span></div>
