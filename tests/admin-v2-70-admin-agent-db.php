@@ -28,6 +28,10 @@ $parsed=admin_agent_extract_actions('Review this first. <<ANNOTATED_ADMIN_ACTION
 av270($parsed['body']==='Review this first.'&&count($parsed['actions'])===1&&$parsed['actions'][0]['action_type']==='resync_stripe_subscription','Admin Agent separates human response text from governed action requests.');
 $bad=admin_agent_extract_actions('No action <<ANNOTATED_ADMIN_ACTIONS>>not-json');
 av270($bad['actions']===[],'Malformed model action payload cannot create a governed Admin preview.');
+av270(admin_agent_action_intent_allowed('Please resync the Stripe subscription for this account.','resync_stripe_subscription'),'Explicit administrator resync request authorizes only the matching preview intent.');
+av270(!admin_agent_action_intent_allowed('Tell me why this Stripe subscription is past due.','resync_stripe_subscription'),'Read-only Stripe questions cannot be upgraded into a governed preview by model output alone.');
+av270(admin_agent_action_intent_allowed('Reconcile the AI overage for this account.','reconcile_ai_overage'),'Explicit overage reconciliation intent is recognized deterministically.');
+
 
 $q=$pdo->prepare("SELECT COUNT(*) FROM conversations WHERE conversation_type='admin_agent' AND created_by_user_id=?");$q->execute([(int)$owner['id']]);av270((int)$q->fetchColumn()===1,'Admin Agent persists no shadow thread store outside the conversation runtime.');
 av270(admin_access_route_requirement('/admin/assistant.php','GET')==='admin.operations.view','Admin Agent surface remains governed by delegated Admin operations visibility.');
