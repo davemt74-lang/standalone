@@ -102,6 +102,7 @@ db_tests=(
   tests/admin-v2-40-customer-success-db.php
   tests/admin-v2-50-security-compliance-db.php
   tests/admin-v2-60-platform-governance-db.php
+  tests/admin-v2-70-admin-agent-db.php
 )
 
 for test_file in "${db_tests[@]}"; do
