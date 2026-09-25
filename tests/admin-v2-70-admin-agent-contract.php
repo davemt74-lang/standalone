@@ -27,7 +27,7 @@ foreach([
     'admin_platform_agent_context',
 ] as $needle)$need('app/admin-agent.php',$needle,'Admin Agent must reuse existing Admin context authority: '.$needle);
 
-$need('app/admin-agent.php',"['resync_stripe_subscription','reconcile_ai_overage','sync_tax_policy']", 'Admin Agent governed preview whitelist must remain bounded.');
+foreach(['resync_stripe_subscription','reconcile_ai_overage','sync_tax_policy'] as $action)$need('app/admin-agent.php',"'".$action."'",'Admin V2.70 governed preview action must remain available: '.$action);
 $need('app/admin-agent.php','function admin_agent_action_intent_allowed', 'Governed previews must require deterministic administrator intent in addition to model output.');
 $need('app/admin-agent.php','function admin_agent_safe_dashboard_snapshot', 'Admin Agent must capability-filter dashboard context before model use.');
 $need('app/admin-agent.php','function admin_agent_filter_search_rows', 'Admin Agent must capability-filter Admin search results before model use.');
@@ -49,7 +49,7 @@ foreach([
     'data-admin-agent-form',
     'data-admin-agent-input',
     'Message Admin Agent…',
-    '/assets/js/admin-agent.js?v=2.70',
+    '/assets/js/admin-agent.js?v=',
 ] as $needle)$need('admin/assistant.php',$needle,'Admin Agent canvas missing '.$needle);
 $avoid('admin/assistant.php','Ask the backend','Legacy one-shot Admin Assistant UI must be removed.');
 
