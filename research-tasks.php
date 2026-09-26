@@ -18,7 +18,7 @@ $csrf=csrf_token();
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research Tasks · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css?v=67.0">
+<link rel="stylesheet" href="/assets/css/app.css?v=59.0">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-tasks">
 <main class="researchLibraryCanvas researchTasksCanvas">
