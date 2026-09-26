@@ -105,7 +105,7 @@ function research_report_studio_sections(string $html): array {
 function research_report_studio_filter_render(array $render,array $options): array {
     $sections=research_report_studio_sections((string)($render['html']??''));$wanted=research_report_studio_clean_ids($options['include_sections']??[],40);
     if(!$wanted)return [$render,$sections];
-    $kept=[];$html='<h1>'.research_system_report_escape((string)($render['title']??'Research Report')).'</h1>';
+    $kept=[];$original=(string)($render['html']??'');$firstH2=stripos($original,'<h2>');$html=$firstH2===false?'<h1>'.research_system_report_escape((string)($render['title']??'Research Report')).'</h1>':substr($original,0,$firstH2);
     foreach($sections as $section)if(in_array((string)$section['key'],$wanted,true)){$kept[]=$section;$html.=(string)$section['html'];}
     if(!$kept)throw new InvalidArgumentException('None of the selected report sections are available for this report type.');
     $html.='<hr><p><small>This Report Run contains only the sections selected in Report Studio. The recorded provenance and data-state hash identify the scoped Research data used for generation.</small></p>';
@@ -203,7 +203,6 @@ function research_report_studio_freshness(PDO $pdo,array $config,array $viewer,a
     $snapshot=research_report_studio_scope_snapshot($pdo,$config,$viewer,$agent,$snapshot,$opts);
     if(hash_equals((string)$report['input_state_hash'],(string)$snapshot['state_hash']))$state='current';
     else{$old=json_decode((string)($report['knowledge_manifest_json']??''),true)?:[];$d=research_report_studio_compare_manifests($old,research_report_studio_manifest($snapshot));$age=time()-strtotime((string)$report['created_at']);$state=$d['material_change_count']>0?'materially_changed':'changed';if($age>30*86400)$state='stale';}
-    if(($report['freshness_state']??'')!==$state)$pdo->prepare('UPDATE research_system_reports SET freshness_state=? WHERE id=?')->execute([$state,(int)$report['id']]);
     return ['state'=>$state,'current_state_hash'=>$snapshot['state_hash']];
 }
 
