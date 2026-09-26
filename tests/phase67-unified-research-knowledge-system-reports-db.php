@@ -51,6 +51,14 @@ $entityRelPublic=$pub('entityrel');$pdo->prepare("INSERT INTO research_entity_re
 $records=research_retrieval_collect_records($pdo,(int)$project['id']);$recordTypes=array_count_values(array_map(fn($x)=>(string)$x['object_type'],$records));
 foreach(['source','claim','finding','entity','claim_relation','entity_relation'] as $type)p67(($recordTypes[$type]??0)>=1,'Unified retrieval includes structured '.$type.' knowledge.');
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],$records,false);
+$initialSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'',[],10,false);
+p67(strlen((string)($initialSearch['index']['input_hash']??''))===64,'Retrieval exposes the full corpus input hash for report provenance.');
+$snap1=research_system_report_snapshot($pdo,[],$owner,$agent);
+p67(($snap1['coverage']['totals']['claims']??0)===2&&($snap1['coverage']['included']['claims']??0)===2,'System Report snapshot publishes explicit included/total coverage.');
+p67(($snap1['diagnostics']??[])===[],'Complete report snapshot records no hidden subsystem failures.');
+research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
+$snap2=research_system_report_snapshot($pdo,[],$owner,$agent);
+p67(hash_equals((string)$snap1['state_hash'],(string)$snap2['state_hash']),'System Report data-state hash is stable across a no-op retrieval rebuild.');
 
 $claimSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'18 percent',['type'=>'claim'],10,true);
 p67(count(array_filter($claimSearch['results'],fn($x)=>($x['public_id']??'')===$claimPublic))===1,'Research Library search finds a structured Claim.');
@@ -69,9 +77,18 @@ $claimRelCtx=agent_chat_context_item($pdo,$owner,'claim_relation',$claimRelPubli
 p67($claimRelCtx&&str_contains((string)$claimRelCtx['text'],'Relationship: context'),'Selected Claim relationship becomes authoritative Agent context.');
 p67($entityRelCtx&&str_contains((string)$entityRelCtx['text'],'Relationship: associated_with'),'Selected Entity relationship becomes authoritative Agent context.');
 
+$pdo->beginTransaction();
+$rollbackProbe=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'research_brief','Rollback Probe',false);
+$rollbackReportId=(string)$rollbackProbe['public_id'];$rollbackDocId=(string)$rollbackProbe['document_public_id'];
+$pdo->rollBack();
+p67(research_system_report_access($pdo,$owner,$rollbackReportId)===null,'System Report provenance row participates in the caller transaction.');
+p67(research_agent_workspace_object($pdo,$owner,$rollbackDocId,false)===null,'System Report document and provenance roll back atomically.');
+
 $report=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'research_brief','Market Research Brief',false);
 p67(($report['report_type']??'')==='research_brief'&&!empty($report['document_public_id']),'User can generate a Research Brief as a versioned Research document.');
 p67(strlen((string)$report['input_state_hash'])===64&&!empty($report['evidence_refs']),'System Report records a deterministic state hash and authoritative references.');
+p67((int)($report['metrics']['claim_relations']??0)>=1&&(int)($report['metrics']['entity_relations']??0)>=1,'System Report metrics include knowledge-graph relationship coverage.');
+p67((int)($report['metrics']['diagnostic_count']??-1)===0,'System Report provenance records complete component availability.');
 $doc=research_agent_workspace_object($pdo,$owner,(string)$report['document_public_id'],false);
 p67($doc&&($doc['document_type']??'')==='report'&&str_contains((string)$doc['document_plain_text'],'Strongest Findings'),'Generated System Report is a normal Research Doc with rendered report content.');
 p67(($doc['parent_title']??'')==='System Reports','System Reports live in the managed Desktop folder.');
@@ -79,6 +96,11 @@ p67(($doc['parent_title']??'')==='System Reports','System Reports live in the ma
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
 $reportSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'',['type'=>'report'],20,true);
 p67(count(array_filter($reportSearch['results'],fn($x)=>($x['public_id']??'')===$report['document_public_id']))===1,'Research Library Reports filter returns generated System Report documents.');
+research_system_report_archive($pdo,$owner,(string)$report['public_id']);
+research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
+$archivedReportSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'',['type'=>'report'],20,true);
+p67(count(array_filter($archivedReportSearch['results'],fn($x)=>($x['public_id']??'')===$report['document_public_id']))===0,'Archived System Reports are removed from the active Reports retrieval filter after refresh.');
+p67(research_agent_workspace_object($pdo,$owner,(string)$report['document_public_id'],false)!==null,'Archiving a System Report preserves its underlying versioned Research document.');
 
 $verification=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'claims_verification','Claims Verification',false);
 $full=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'full_intelligence','Full Intelligence',false);
