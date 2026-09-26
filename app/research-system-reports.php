@@ -256,7 +256,7 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
     ];
     $snapshot['state_hash']=hash('sha256',json_encode($stateBasis,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
     if(function_exists('research_longitudinal_report_data')&&research_longitudinal_ready($pdo)){
-        try{$snapshot['longitudinal']=research_longitudinal_report_data($pdo,$viewer,(string)$agent['public_id'],30);}
+        try{$snapshot['longitudinal']=research_longitudinal_report_data($pdo,$viewer,(string)$agent['public_id'],3650);}
         catch(Throwable $e){research_system_report_component_error('longitudinal',$e,$diagnostics);$snapshot['longitudinal']=['ready'=>false,'summary'=>[]];}
     }else $snapshot['longitudinal']=['ready'=>false,'summary'=>[]];
     $snapshot['generated_at']=date('c');
