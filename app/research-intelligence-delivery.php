@@ -70,7 +70,7 @@ function research_report_subscription_validate_links(PDO $pdo,array $viewer,stri
     $project=research_agent_workspace_project($pdo,$viewer,$agentPublic);if(!$project)throw new RuntimeException('Research Agent workspace not found.');
     research_agent_workspace_require_write($project);
     $preset=research_report_studio_preset_access($pdo,$viewer,$presetPublic);if(!$preset||($preset['status']??'')!=='active'||!hash_equals((string)$preset['agent_public_id'],$agentPublic))throw new InvalidArgumentException('Choose an active Report preset from this Research Agent.');
-    $program=research_program_access($pdo,$viewer,$programPublic);if(!$program||!hash_equals((string)$program['agent_public_id'],$agentPublic))throw new InvalidArgumentException('Choose a Research Program from this Research Agent.');
+    $program=research_program_access($pdo,$viewer,$programPublic);if(!$program||!hash_equals((string)$program['agent_public_id'],$agentPublic)||($program['status']??'')==='archived')throw new InvalidArgumentException('Choose a non-archived Research Program from this Research Agent.');
     if(!empty($preset['program_public_id'])&&!hash_equals((string)$preset['program_public_id'],$programPublic))throw new InvalidArgumentException('This preset is already associated with a different Research Program.');
     return [$agent,$project,$preset,$program];
 }
@@ -126,6 +126,7 @@ function research_report_subscription_set_status(PDO $pdo,array $viewer,string $
     $sub=research_report_subscription_access($pdo,$viewer,$publicId);if(!$sub)throw new RuntimeException('Report subscription not found.');
     $project=research_agent_workspace_project($pdo,$viewer,(string)$sub['agent_public_id']);if(!$project)throw new RuntimeException('Report subscription not found.');research_agent_workspace_require_write($project);
     if(!isset(research_report_subscription_statuses()[$status]))throw new InvalidArgumentException('Invalid Report subscription status.');
+    if($status==='active')research_report_subscription_validate_links($pdo,$viewer,(string)$sub['agent_public_id'],(string)$sub['preset_public_id'],(string)$sub['program_public_id']);
     $pdo->prepare('UPDATE research_report_subscriptions SET status=?,updated_at=NOW() WHERE id=?')->execute([$status,(int)$sub['id']]);
     research_report_delivery_event($pdo,null,(int)$sub['id'],'subscription_'.$status,$byAgent?'agent':'user',(int)$viewer['id']);
     return research_report_subscription_access($pdo,$viewer,$publicId)??array_merge($sub,['status'=>$status]);
@@ -160,8 +161,10 @@ function research_report_delivery_list(PDO $pdo,array $viewer,string $agentPubli
 
 function research_report_delivery_mark_viewed(PDO $pdo,array $viewer,string $publicId): array {
     $row=research_report_delivery_access($pdo,$viewer,$publicId);if(!$row)throw new RuntimeException('Intelligence delivery not found.');
-    if((string)$row['status']==='delivered')$pdo->prepare("UPDATE research_report_deliveries SET status='viewed',viewed_at=NOW() WHERE id=? AND status='delivered'")->execute([(int)$row['id']]);
-    research_report_delivery_event($pdo,(int)$row['id'],$row['subscription_id']!==null?(int)$row['subscription_id']:null,'viewed','user',(int)$viewer['id']);
+    if((string)$row['status']==='delivered'){
+        $pdo->prepare("UPDATE research_report_deliveries SET status='viewed',viewed_at=NOW() WHERE id=? AND status='delivered'")->execute([(int)$row['id']]);
+        research_report_delivery_event($pdo,(int)$row['id'],$row['subscription_id']!==null?(int)$row['subscription_id']:null,'viewed','user',(int)$viewer['id']);
+    }
     return research_report_delivery_access($pdo,$viewer,$publicId)??$row;
 }
 
@@ -175,8 +178,11 @@ function research_intelligence_delivery_subscriber(PDO $pdo,array $sub): ?array 
 
 function research_intelligence_delivery_reserve(PDO $pdo,array $sub,?array $run,string $trigger,string $reason='processing'): array {
     $slot=$run?(string)$run['public_id']:ulid_like();$dedupe=hash('sha256','research-intelligence-delivery|'.(int)$sub['id'].'|'.$trigger.'|'.$slot);
-    $q=$pdo->prepare('SELECT public_id FROM research_report_deliveries WHERE dedupe_key=? LIMIT 1');$q->execute([$dedupe]);$existing=(string)($q->fetchColumn()?:'');
-    if($existing!=='')return ['existing'=>true,'row_public_id'=>$existing,'dedupe_key'=>$dedupe];
+    $q=$pdo->prepare('SELECT id,public_id,status,report_id FROM research_report_deliveries WHERE dedupe_key=? LIMIT 1');$q->execute([$dedupe]);$existing=$q->fetch();
+    if($existing){
+        $retryable=in_array((string)$existing['status'],['pending','failed'],true);
+        return ['existing'=>true,'retryable'=>$retryable,'id'=>(int)$existing['id'],'public_id'=>(string)$existing['public_id'],'row_public_id'=>(string)$existing['public_id'],'report_id'=>$existing['report_id']!==null?(int)$existing['report_id']:null,'dedupe_key'=>$dedupe];
+    }
     $public=ulid_like();$pdo->prepare("INSERT INTO research_report_deliveries(public_id,subscription_id,research_agent_id,project_id,subscriber_user_id,preset_id,program_id,program_run_id,trigger_type,status,reason_code,dedupe_key,material_change_count,channels_json)
       VALUES(?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
       ->execute([$public,(int)$sub['id'],(int)$sub['research_agent_id'],(int)$sub['project_id'],$sub['subscriber_user_id']!==null?(int)$sub['subscriber_user_id']:null,$sub['preset_id']!==null?(int)$sub['preset_id']:null,$sub['program_id']!==null?(int)$sub['program_id']:null,$run?(int)$run['id']:null,$trigger,$reason,$dedupe,$run?(int)($run['material_change_count']??0):0,json_encode(['in_app'=>(bool)$sub['notify_in_app'],'agent_chat'=>(bool)$sub['notify_agent_chat']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);
@@ -241,26 +247,32 @@ function research_intelligence_delivery_complete(PDO $pdo,array $viewer,array $r
       'diff'=>$diff,'material_count'=>(int)($run['material_change_count']??0)
     ],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
     $summary=research_intelligence_delivery_summary($sub,$report,$comparison,(int)($run['material_change_count']??0));
+    $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
+    try{
+        $pdo->prepare("UPDATE research_report_deliveries SET status='delivered',reason_code=?,report_id=?,previous_report_id=?,change_signature=?,summary=?,comparison_json=?,delivered_at=NOW() WHERE id=?")
+          ->execute([$reason,(int)$report['id'],$previous?(int)$previous['id']:null,$signature,$summary,$comparison?json_encode($comparison['diff'],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR):null,(int)$reservation['id']]);
+        $pdo->prepare("UPDATE research_report_subscriptions SET last_report_id=?,last_state_hash=?,last_change_signature=?,last_delivered_at=NOW(),updated_at=NOW() WHERE id=?")
+          ->execute([(int)$report['id'],(string)$report['input_state_hash'],$signature,(int)$sub['id']]);
+        if($owns)$pdo->commit();
+    }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+
     $channels=['in_app'=>false,'agent_chat'=>false];
-    if(!empty($sub['notify_in_app'])){
-        $channels['in_app']=notification_create($pdo,(int)$viewer['id'],null,'research_report_delivery','research_report_delivery',(string)$reservation['public_id'],$summary,[
+    try{
+        if(!empty($sub['notify_in_app']))$channels['in_app']=notification_create($pdo,(int)$viewer['id'],null,'research_report_delivery','research_report_delivery',(string)$reservation['public_id'],$summary,[
           'allow_self'=>true,'dedupe_key'=>'research-report-delivery:'.$reservation['public_id'],'group_key'=>'research-report-subscription:'.$sub['public_id'],
           'context'=>['agent_public_id'=>$sub['agent_public_id'],'report_public_id'=>$report['public_id'],'delivery_public_id'=>$reservation['public_id'],'subscription_public_id'=>$sub['public_id']]
         ]);
-    }
-    try{$channels['agent_chat']=research_intelligence_delivery_chat_update($pdo,$sub,$report,$summary,(string)$reservation['public_id']);}catch(Throwable $e){$channels['agent_chat']=false;error_log('[Annotated Research Delivery chat] '.$e->getMessage());}
-    $pdo->prepare("UPDATE research_report_deliveries SET status='delivered',reason_code=?,report_id=?,previous_report_id=?,change_signature=?,summary=?,comparison_json=?,channels_json=?,delivered_at=NOW() WHERE id=?")
-      ->execute([$reason,(int)$report['id'],$previous?(int)$previous['id']:null,$signature,$summary,$comparison?json_encode($comparison['diff'],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR):null,json_encode($channels,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),(int)$reservation['id']]);
-    $pdo->prepare("UPDATE research_report_subscriptions SET last_report_id=?,last_state_hash=?,last_change_signature=?,last_delivered_at=NOW(),updated_at=NOW() WHERE id=?")
-      ->execute([(int)$report['id'],(string)$report['input_state_hash'],$signature,(int)$sub['id']]);
-    research_report_delivery_event($pdo,(int)$reservation['id'],(int)$sub['id'],'delivered','agent',null,['report_id'=>$report['public_id'],'channels'=>$channels,'reason'=>$reason]);
+    }catch(Throwable $e){error_log('[Annotated Research Delivery notification] '.$e->getMessage());}
+    try{$channels['agent_chat']=research_intelligence_delivery_chat_update($pdo,$sub,$report,$summary,(string)$reservation['public_id']);}catch(Throwable $e){error_log('[Annotated Research Delivery chat] '.$e->getMessage());}
+    try{$pdo->prepare("UPDATE research_report_deliveries SET channels_json=? WHERE id=?")->execute([json_encode($channels,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),(int)$reservation['id']]);}catch(Throwable $e){error_log('[Annotated Research Delivery channel-audit] '.$e->getMessage());}
+    try{research_report_delivery_event($pdo,(int)$reservation['id'],(int)$sub['id'],'delivered','agent',null,['report_id'=>$report['public_id'],'channels'=>$channels,'reason'=>$reason]);}catch(Throwable $e){error_log('[Annotated Research Delivery event] '.$e->getMessage());}
     return ['status'=>'delivered','delivery_id'=>$reservation['public_id'],'report_id'=>$report['public_id'],'channels'=>$channels,'summary'=>$summary];
 }
 
 function research_intelligence_delivery_process_subscription(PDO $pdo,array $config,array $sub,?array $run,string $trigger): array {
     $viewer=research_intelligence_delivery_subscriber($pdo,$sub);
     $reservation=research_intelligence_delivery_reserve($pdo,$sub,$run,$trigger);
-    if(!empty($reservation['existing']))return ['status'=>'deduplicated','delivery_id'=>$reservation['row_public_id']];
+    if(!empty($reservation['existing'])&&empty($reservation['retryable']))return ['status'=>'deduplicated','delivery_id'=>$reservation['row_public_id']];
     if(!$viewer){
         $pdo->prepare("UPDATE research_report_subscriptions SET status='paused',updated_at=NOW() WHERE id=?")->execute([(int)$sub['id']]);
         return research_intelligence_delivery_suppress($pdo,$reservation,$sub,'subscriber_unavailable','Subscription paused because the subscriber account is unavailable.',$run);
@@ -275,15 +287,22 @@ function research_intelligence_delivery_process_subscription(PDO $pdo,array $con
     }
     $decision=research_intelligence_delivery_should_run($pdo,$config,$viewer,$sub,$run,$trigger);
     if(empty($decision['run']))return research_intelligence_delivery_suppress($pdo,$reservation,$sub,(string)$decision['reason'],'No intelligence delivery was needed for this Program cycle.',$run);
+    $report=null;
     try{
-        $report=research_report_studio_run_preset($pdo,$config,$viewer,(string)$sub['agent_public_id'],(string)$sub['preset_public_id'],true,'program');
+        if(!empty($reservation['report_id'])){
+            $q=$pdo->prepare('SELECT public_id FROM research_system_reports WHERE id=? LIMIT 1');$q->execute([(int)$reservation['report_id']]);$reportPublic=(string)($q->fetchColumn()?:'');
+            if($reportPublic!=='')$report=research_system_report_access($pdo,$viewer,$reportPublic);
+        }
+        if(!$report)$report=research_report_studio_run_preset($pdo,$config,$viewer,(string)$sub['agent_public_id'],(string)$sub['preset_public_id'],true,'program');
+        try{$pdo->prepare("UPDATE research_report_deliveries SET status='pending',report_id=?,reason_code='processing',summary=NULL WHERE id=?")->execute([(int)$report['id'],(int)$reservation['id']]);}catch(Throwable $ignored){}
         $previous=$decision['previous']??null;$comparison=null;
         if($previous)try{$comparison=research_report_studio_compare($pdo,$config,$viewer,(string)$previous['public_id'],(string)$report['public_id']);}catch(Throwable $ignored){}
         return research_intelligence_delivery_complete($pdo,$viewer,$reservation,$sub,$report,$previous,$comparison,$run,(string)$decision['reason']);
     }catch(Throwable $e){
-        $pdo->prepare("UPDATE research_report_deliveries SET status='failed',reason_code='generation_failed',summary=? WHERE id=?")
-          ->execute([mb_substr($e->getMessage(),0,12000),(int)$reservation['id']]);
-        research_report_delivery_event($pdo,(int)$reservation['id'],(int)$sub['id'],'failed','system',null,['error'=>mb_substr($e->getMessage(),0,1000)]);
+        $reportId=is_array($report)&&!empty($report['id'])?(int)$report['id']:null;
+        $pdo->prepare("UPDATE research_report_deliveries SET status='failed',report_id=COALESCE(?,report_id),reason_code='generation_failed',summary=? WHERE id=?")
+          ->execute([$reportId,mb_substr($e->getMessage(),0,12000),(int)$reservation['id']]);
+        try{research_report_delivery_event($pdo,(int)$reservation['id'],(int)$sub['id'],'failed','system',null,['error'=>mb_substr($e->getMessage(),0,1000)]);}catch(Throwable $ignored){}
         return ['status'=>'failed','delivery_id'=>$reservation['public_id'],'error'=>$e->getMessage()];
     }
 }
@@ -295,7 +314,7 @@ function research_intelligence_delivery_process_program_run(PDO $pdo,array $prog
     $q=$pdo->prepare("SELECT public_id FROM research_report_subscriptions WHERE program_id=? AND research_agent_id=? AND status='active' ORDER BY id");
     $q->execute([(int)$program['id'],(int)$program['research_agent_id']]);$results=[];$config=is_array($GLOBALS['config']??null)?$GLOBALS['config']:[];
     foreach($q->fetchAll(PDO::FETCH_COLUMN)?:[] as $public){
-        $uidq=$pdo->prepare("SELECT subscriber_user_id FROM research_report_subscriptions WHERE public_id=?");$uidq->execute([(string)$public]);$uid=(int)($uidq->fetchColumn()?:0);if($uid<=0)continue;
+        $uidq=$pdo->prepare("SELECT subscriber_user_id FROM research_report_subscriptions WHERE public_id=?");$uidq->execute([(string)$public]);$uid=(int)($uidq->fetchColumn()?:0);if($uid<=0){$pdo->prepare("UPDATE research_report_subscriptions SET status='paused',updated_at=NOW() WHERE public_id=?")->execute([(string)$public]);continue;}
         $vq=$pdo->prepare("SELECT * FROM users WHERE id=? AND status='active' LIMIT 1");$vq->execute([$uid]);$viewer=$vq->fetch();
         if(!$viewer){$pdo->prepare("UPDATE research_report_subscriptions SET status='paused',updated_at=NOW() WHERE public_id=?")->execute([(string)$public]);continue;}
         $sub=research_report_subscription_access($pdo,$viewer,(string)$public);if(!$sub)continue;
