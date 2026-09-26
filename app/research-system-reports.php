@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Phase 64 — Research Agent Knowledge & System Reports
+ * Phase 67 — Research Agent Knowledge & System Reports
  *
  * System Reports are deterministic views over authoritative Research project
  * state. Every generated report is stored as a normal versioned Research Doc.
