@@ -321,9 +321,10 @@ function research_report_studio_freshness(PDO $pdo,array $config,array $viewer,a
     return ['state'=>$state,'current_state_hash'=>$snapshot['state_hash']];
 }
 
-function research_report_studio_run_preset(PDO $pdo,array $config,array $viewer,string $agentPublic,string $presetPublic,bool $byAgent=false): array {
+function research_report_studio_run_preset(PDO $pdo,array $config,array $viewer,string $agentPublic,string $presetPublic,bool $byAgent=false,string $generationMode=''): array {
     $preset=research_report_studio_preset_access($pdo,$viewer,$presetPublic);if(!$preset||!hash_equals((string)$preset['agent_public_id'],$agentPublic)||($preset['status']??'')!=='active')throw new RuntimeException('Report preset not found.');
-    $opts=research_report_studio_preset_options($preset);$report=research_system_report_generate($pdo,$config,$viewer,$agentPublic,(string)$preset['report_type'],(string)($preset['title_template']??''),$byAgent,null,$opts,(int)$preset['id'],null,$byAgent?'agent':'user');
+    $mode=$generationMode!==''?$generationMode:($byAgent?'agent':'user');if(!in_array($mode,['user','agent','program','legacy'],true))$mode=$byAgent?'agent':'user';
+    $opts=research_report_studio_preset_options($preset);$report=research_system_report_generate($pdo,$config,$viewer,$agentPublic,(string)$preset['report_type'],(string)($preset['title_template']??''),$byAgent,null,$opts,(int)$preset['id'],null,$mode);
     $pdo->prepare('UPDATE research_report_presets SET last_run_at=NOW(),updated_at=NOW() WHERE id=?')->execute([(int)$preset['id']]);return $report;
 }
 
