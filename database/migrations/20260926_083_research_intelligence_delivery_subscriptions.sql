@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS research_report_deliveries (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   public_id VARCHAR(40) NOT NULL UNIQUE,
   subscription_id BIGINT UNSIGNED NULL,
+  subscription_public_id VARCHAR(40) NULL,
   research_agent_id BIGINT UNSIGNED NOT NULL,
   project_id BIGINT UNSIGNED NOT NULL,
   subscriber_user_id BIGINT UNSIGNED NULL,
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS research_report_deliveries (
   viewed_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_report_delivery_subscription(subscription_id,created_at),
+  INDEX idx_report_delivery_subscription_public(subscription_public_id,created_at),
   INDEX idx_report_delivery_agent(research_agent_id,status,created_at),
   INDEX idx_report_delivery_user(subscriber_user_id,status,created_at),
   INDEX idx_report_delivery_program(program_id,created_at),
@@ -89,9 +91,3 @@ CREATE TABLE IF NOT EXISTS research_report_delivery_events (
   CONSTRAINT fk_report_delivery_event_delivery FOREIGN KEY(delivery_id) REFERENCES research_report_deliveries(id) ON DELETE SET NULL,
   CONSTRAINT fk_report_delivery_event_user FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-ALTER TABLE research_report_deliveries
-  ADD CONSTRAINT fk_report_delivery_subscription FOREIGN KEY(subscription_id) REFERENCES research_report_subscriptions(id) ON DELETE SET NULL;
-
-ALTER TABLE research_report_delivery_events
-  ADD CONSTRAINT fk_report_delivery_event_subscription FOREIGN KEY(subscription_id) REFERENCES research_report_subscriptions(id) ON DELETE SET NULL;
