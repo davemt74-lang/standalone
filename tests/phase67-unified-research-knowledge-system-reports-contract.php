@@ -23,7 +23,7 @@ $must('app/research-system-reports.php',[
 $avoid('app/research-system-reports.php',['cross_research_context(','research_outcome_context(','research_network_project_context('],'Persisted System Reports permission boundary');
 $must('app/research-retrieval.php',[
  "'claim'","'finding'","'entity'","'claim_relation'","'entity_relation'","'task'","'program'","'report'",
- 'research_retrieval_project_object_allowed','system_report_type','JSON_UNQUOTE(JSON_EXTRACT','research_claims','research_findings','research_entities',"'input_hash'=>\$state['input_hash']??null"
+ 'research_retrieval_project_object_allowed','system_report_type','JSON_UNQUOTE(JSON_EXTRACT','research_claims','research_findings','research_entities',"'input_hash'=>\$state['state_hash']??null"
 ],'Phase 67 unified retrieval');
 $must('app/agent-chat.php',[
  "if(\$type==='claim'","if(\$type==='finding'","if(\$type==='entity'","if(\$type==='task'","if(\$type==='program'"
