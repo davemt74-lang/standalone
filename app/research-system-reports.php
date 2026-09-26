@@ -10,9 +10,10 @@ declare(strict_types=1);
 
 function research_system_reports_ready(PDO $pdo): bool {
     try{
-        return installer_table_exists($pdo,'research_system_reports')
-            &&installer_table_exists($pdo,'research_system_report_events')
-            &&research_agent_workspace_ready($pdo);
+        if(!installer_table_exists($pdo,'research_system_reports')||!installer_table_exists($pdo,'research_system_report_events')||!installer_table_exists($pdo,'research_report_presets')||!research_agent_workspace_ready($pdo))return false;
+        $db=(string)($pdo->query('SELECT DATABASE()')->fetchColumn()?:'');if($db==='')return false;
+        $q=$pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='research_system_reports' AND COLUMN_NAME IN ('rendered_html','knowledge_manifest_json','parameters_json','sections_json')");
+        $q->execute([$db]);return (int)$q->fetchColumn()===4;
     }catch(Throwable $e){return false;}
 }
 
@@ -53,13 +54,14 @@ function research_system_report_event(PDO $pdo,int $reportId,string $event,strin
 function research_system_report_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!research_system_reports_ready($pdo))return null;
     $q=$pdo->prepare("SELECT rsr.*,ra.public_id agent_public_id,ra.name agent_name,rp.public_id project_public_id,rp.title project_title,
-      rwo.public_id document_public_id,rwo.title document_title,rwd.revision_number document_revision,rrp.public_id preset_public_id,rrp.name preset_name
+      rwo.public_id document_public_id,rwo.title document_title,rwd.revision_number document_revision,rrp.public_id preset_public_id,rrp.name preset_name,parent.public_id refreshed_from_public_id
       FROM research_system_reports rsr
       JOIN research_agents ra ON ra.id=rsr.research_agent_id
       JOIN research_projects rp ON rp.id=rsr.project_id
       LEFT JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
       LEFT JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
       LEFT JOIN research_report_presets rrp ON rrp.id=rsr.preset_id
+      LEFT JOIN research_system_reports parent ON parent.id=rsr.refreshed_from_report_id
       WHERE rsr.public_id=? LIMIT 1");
     $q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;
     if(!research_agent_access($pdo,$viewer,(string)$row['agent_public_id']))return null;
