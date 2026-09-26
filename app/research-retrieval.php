@@ -190,12 +190,23 @@ function research_retrieval_collect_records(PDO $pdo,int $projectId): array {
         }
         $records[]=research_retrieval_record($type,(string)$row['public_id'],(string)$row['title'],$content,$row['folder_public_id']??null,(string)$row['updated_at'],$metadata,$status,$chunks);
     }
-    if(installer_table_exists($pdo,'research_system_reports')){
-        $q=$pdo->prepare("SELECT rsr.public_id report_public_id,rsr.report_type,rsr.document_object_id,rwo.public_id document_public_id,c.public_id agent_conversation_id
-          FROM research_system_reports rsr JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
+    if(function_exists('research_system_reports_ready')&&research_system_reports_ready($pdo)){
+        $q=$pdo->prepare("SELECT rsr.public_id,rsr.report_type,rsr.title,rsr.rendered_html,rsr.rendered_summary,rsr.freshness_state,rsr.generation_mode,rsr.updated_at,
+          rwo.public_id document_public_id,ra.public_id agent_public_id,c.public_id agent_conversation_id,rrp.public_id preset_public_id
+          FROM research_system_reports rsr
           JOIN research_agents ra ON ra.id=rsr.research_agent_id JOIN conversations c ON c.id=ra.conversation_id
-          WHERE rsr.project_id=? AND rsr.status='ready'");
-        $q->execute([$projectId]);$reportDocs=[];foreach($q->fetchAll()?:[] as $row)$reportDocs[(string)$row['document_public_id']]=['system_report_id'=>(string)$row['report_public_id'],'system_report_type'=>(string)$row['report_type'],'agent_conversation_id'=>(string)$row['agent_conversation_id']];
+          LEFT JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
+          LEFT JOIN research_report_presets rrp ON rrp.id=rsr.preset_id
+          WHERE rsr.project_id=? AND rsr.status='ready' ORDER BY rsr.created_at,rsr.id");
+        $q->execute([$projectId]);$reportDocs=[];
+        foreach($q->fetchAll()?:[] as $row){
+            $plain=trim((string)($row['rendered_summary']??''))."\n\n".trim(strip_tags((string)($row['rendered_html']??'')));
+            $metadata=['report_type'=>(string)$row['report_type'],'freshness_state'=>(string)$row['freshness_state'],'generation_mode'=>(string)$row['generation_mode'],
+              'agent_public_id'=>(string)$row['agent_public_id'],'agent_conversation_id'=>(string)$row['agent_conversation_id'],'document_public_id'=>$row['document_public_id']??null,'preset_public_id'=>$row['preset_public_id']??null];
+            $records[]=research_retrieval_record('report',(string)$row['public_id'],(string)$row['title'],$plain,null,(string)$row['updated_at'],$metadata,'ready',
+              research_retrieval_document_chunks((string)($row['rendered_html']??''),$plain));
+            if(!empty($row['document_public_id']))$reportDocs[(string)$row['document_public_id']]=['source_report_id'=>(string)$row['public_id'],'system_report_type'=>(string)$row['report_type'],'agent_conversation_id'=>(string)$row['agent_conversation_id']];
+        }
         if($reportDocs)foreach($records as &$record)if($record['object_type']==='document'&&isset($reportDocs[$record['object_public_id']]))$record['metadata']=array_merge((array)$record['metadata'],$reportDocs[$record['object_public_id']]);unset($record);
     }
 
@@ -438,7 +449,7 @@ function research_retrieval_annotation_allowed(PDO $pdo,array $viewer,string $pu
 
 function research_retrieval_project_object_allowed(PDO $pdo,array $viewer,string $type,string $publicId): bool {
     $table=match($type){
-      'claim'=>'research_claims','finding'=>'research_findings','entity'=>'research_entities','claim_relation'=>'claim_relations','entity_relation'=>'research_entity_relations','task'=>'research_tasks','program'=>'research_programs',default=>''
+      'claim'=>'research_claims','finding'=>'research_findings','entity'=>'research_entities','claim_relation'=>'claim_relations','entity_relation'=>'research_entity_relations','task'=>'research_tasks','program'=>'research_programs','report'=>'research_system_reports',default=>''
     };
     if($table==='')return false;
     try{
@@ -453,6 +464,7 @@ function research_retrieval_result_allowed(PDO $pdo,array $viewer,array $row): b
     if($type==='annotation')return research_retrieval_annotation_allowed($pdo,$viewer,$id);
     if(in_array($type,['document','bookmark','sticky','upload','recording'],true))return research_agent_workspace_object($pdo,$viewer,$id,false)!==null;
     if($type==='source')return source_access($pdo,$id,$viewer)!==null;
+    if($type==='report')return function_exists('research_system_report_access')&&research_system_report_access($pdo,$viewer,$id)!==null;
     if(in_array($type,['claim','finding','entity','claim_relation','entity_relation','task','program'],true))return research_retrieval_project_object_allowed($pdo,$viewer,$type,$id);
     return false;
 }
@@ -471,7 +483,8 @@ function research_retrieval_href(array $row): string {
       'entity_relation'=>!empty($metadata['project_public_id'])?'/research-entities.php?id='.rawurlencode((string)$metadata['project_public_id']):'',
       'task'=>!empty($metadata['agent_public_id'])?'/research-tasks.php?agent='.rawurlencode((string)$metadata['agent_public_id']).'&task='.rawurlencode($id):'',
       'program'=>!empty($metadata['agent_public_id'])?'/research-programs.php?agent='.rawurlencode((string)$metadata['agent_public_id']).'&program='.rawurlencode($id):'',
-      'document'=>!empty($metadata['system_report_id'])?'/home.php?agent='.rawurlencode((string)($metadata['agent_conversation_id']??'')).'&doc='.rawurlencode($id):'',
+      'report'=>!empty($metadata['agent_public_id'])?'/research-reports.php?agent='.rawurlencode((string)$metadata['agent_public_id']).'&report='.rawurlencode($id):'',
+      'document'=>!empty($metadata['source_report_id'])?'/home.php?agent='.rawurlencode((string)($metadata['agent_conversation_id']??'')).'&doc='.rawurlencode($id):'',
       default=>''
     };
 }
@@ -492,7 +505,7 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
 
     $params=[$projectId];$where=['d.project_id=?'];
     if($type==='transcript'){$where[]="d.object_type='recording'";$where[]="d.source_status='ready'";}
-    elseif($type==='report'){$where[]="d.object_type='document'";$where[]="JSON_UNQUOTE(JSON_EXTRACT(d.metadata_json,'$.system_report_type')) IS NOT NULL";}
+    elseif($type==='report'){$where[]="d.object_type='report'";}
     elseif($type==='relation'){$where[]="d.object_type IN ('claim_relation','entity_relation')";}
     elseif($type!=='all'){$where[]='d.object_type=?';$params[]=$type;}
     if($status!==''){$where[]='d.source_status=?';$params[]=$status;}
