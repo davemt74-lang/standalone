@@ -96,6 +96,7 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
   <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions">
     <a href="/research.php">Research Agents</a>
     <a href="/research-agent-knowledge.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Knowledge</a>
+    <a href="/research-evolution.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Evolution</a>
     <a class="active" href="/research-reports.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Reports</a>
     <a href="/research-monitoring.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Monitoring</a>
     <a href="/research-tasks.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Tasks</a>
