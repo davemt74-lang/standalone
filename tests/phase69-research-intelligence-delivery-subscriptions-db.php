@@ -73,20 +73,20 @@ p69($report1&&($report1['generation_mode']??'')==='program'&&empty($report1['doc
 $afterDocs=(int)$pdo->query("SELECT COUNT(*) FROM research_workspace_objects WHERE project_id=".(int)$project['id']." AND object_type='document'")->fetchColumn();
 p69($beforeDocs===$afterDocs,'Scheduled intelligence delivery creates no Research Document.');
 
-$q=$pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id=? AND object_type='research_report_delivery'");$q->execute([(int)$owner['id']);p69((int)$q->fetchColumn()===1,'Delivered intelligence creates one in-app notification.');
-$q=$pdo->prepare("SELECT n.* FROM notifications n WHERE n.user_id=? AND n.object_type='research_report_delivery' ORDER BY n.id DESC LIMIT 1");$q->execute([(int)$owner['id']);$notification=$q->fetch();
+$q=$pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id=? AND object_type='research_report_delivery'");$q->execute([(int)$owner['id']]);p69((int)$q->fetchColumn()===1,'Delivered intelligence creates one in-app notification.');
+$q=$pdo->prepare("SELECT n.* FROM notifications n WHERE n.user_id=? AND n.object_type='research_report_delivery' ORDER BY n.id DESC LIMIT 1");$q->execute([(int)$owner['id']]);$notification=$q->fetch();
 p69($notification&&str_contains((string)notification_url($pdo,$owner,$notification),'view=inbox'),'Delivery notification resolves to the per-Agent Intelligence Inbox.');
 
-$q=$pdo->prepare("SELECT COUNT(*) FROM conversation_events WHERE conversation_id=? AND event_type='agent_message_created' AND JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.source'))='research_intelligence_delivery'");$q->execute([(int)$agent['conversation_id']);p69((int)$q->fetchColumn()===1,'Private Research Agent receives one user-specific delivery chat update.');
+$q=$pdo->prepare("SELECT COUNT(*) FROM conversation_events WHERE conversation_id=? AND event_type='agent_message_created' AND JSON_UNQUOTE(JSON_EXTRACT(payload_json,'$.source'))='research_intelligence_delivery'");$q->execute([(int)$agent['conversation_id']]);p69((int)$q->fetchColumn()===1,'Private Research Agent receives one user-specific delivery chat update.');
 $q=$pdo->prepare("SELECT COUNT(*) FROM conversation_message_attachments cma JOIN conversation_messages cm ON cm.id=cma.message_id WHERE cm.conversation_id=? AND cma.attachment_type='report' AND cma.object_public_id=?");$q->execute([(int)$agent['conversation_id'],(string)$report1['public_id']]);p69((int)$q->fetchColumn()===1,'Delivery Agent Chat update attaches the generated Report Run.');
 
 $dedup=research_intelligence_delivery_process_program_run($pdo,$program,(int)$run1['id'],'program_completed');
 p69(count($dedup)===1&&($dedup[0]['status']??'')==='deduplicated','Worker/reconciliation retry cannot deliver the same subscription Program cycle twice.');
-$q=$pdo->prepare('SELECT COUNT(*) FROM research_report_deliveries WHERE subscription_id=?');$q->execute([(int)$sub['id']);p69((int)$q->fetchColumn()===1,'Same-cycle dedupe leaves only one delivery record.');
+$q=$pdo->prepare('SELECT COUNT(*) FROM research_report_deliveries WHERE subscription_id=?');$q->execute([(int)$sub['id']]);p69((int)$q->fetchColumn()===1,'Same-cycle dedupe leaves only one delivery record.');
 
 $run2=$makeRun(0);$quiet=research_intelligence_delivery_process_program_run($pdo,$program,(int)$run2['id'],'program_quiet');$finishRun($run2,'skipped');
 p69(count($quiet)===1&&($quiet[0]['status']??'')==='suppressed'&&($quiet[0]['reason']??'')==='no_material_program_change','Quiet/no-material Program cycle is preserved as a suppressed delivery without notifying the user.');
-$q=$pdo->prepare('SELECT COUNT(*) FROM research_system_reports WHERE preset_id=?');$q->execute([(int)$preset['id']);p69((int)$q->fetchColumn()===1,'Suppressed no-change delivery does not generate a redundant Report Run.');
+$q=$pdo->prepare('SELECT COUNT(*) FROM research_system_reports WHERE preset_id=?');$q->execute([(int)$preset['id']]);p69((int)$q->fetchColumn()===1,'Suppressed no-change delivery does not generate a redundant Report Run.');
 
 $pdo->prepare("UPDATE research_claims SET statement=?,updated_at=NOW() WHERE id=?")->execute(['Mercury orchard demand increased by 26 percent.',$claimId]);
 $run3=$makeRun(1);$changed=research_intelligence_delivery_process_program_run($pdo,$program,(int)$run3['id'],'program_completed');$finishRun($run3);
