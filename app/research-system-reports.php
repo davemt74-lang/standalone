@@ -83,7 +83,7 @@ function research_system_report_list(PDO $pdo,array $viewer,string $agentPublic,
       LEFT JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
       LEFT JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
       LEFT JOIN research_report_presets rrp ON rrp.id=rsr.preset_id
-      WHERE rsr.research_agent_id=? ORDER BY rsr.created_at DESC,rsr.id DESC LIMIT ".$limit);
+      WHERE rsr.research_agent_id=? AND rsr.status='ready' ORDER BY rsr.created_at DESC,rsr.id DESC LIMIT ".$limit);
     $q->execute([(int)$agent['id']]);$rows=$q->fetchAll()?:[];$types=research_system_report_types();
     foreach($rows as &$row){$row['type_label']=$types[(string)$row['report_type']]['label']??ucwords(str_replace('_',' ',(string)$row['report_type']));}unset($row);
     return $rows;
@@ -205,7 +205,7 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
     }
     $recent=[];$index=[];
     if(function_exists('research_retrieval_ready')&&research_retrieval_ready($pdo)){
-        try{$search=research_retrieval_search($pdo,$config,$viewer,$projectPublic,'',[],40,false);$recent=array_values(array_filter((array)($search['results']??[]),fn($r)=>(string)($r['object_type']??'')!=='report'&&empty($r['metadata']['source_report_id'])));$recent=array_slice($recent,0,24);$index=$search['index']??[];$authoritativeHash=research_system_report_authoritative_corpus_hash($pdo,$projectId);if($authoritativeHash!=='')$index['input_hash']=$authoritativeHash;}
+        try{$search=research_retrieval_search($pdo,$config,$viewer,$projectPublic,'',['exclude_report_derivatives'=>true],60,false);$recent=array_slice((array)($search['results']??[]),0,24);$index=$search['index']??[];$authoritativeHash=research_system_report_authoritative_corpus_hash($pdo,$projectId);if($authoritativeHash!=='')$index['input_hash']=$authoritativeHash;}
         catch(Throwable $e){research_system_report_component_error('retrieval',$e,$diagnostics);}
     }
     $q=$pdo->prepare("SELECT s.public_id,s.title,s.domain,s.status,s.last_checked_at,sv.version_number,sv.captured_at,
