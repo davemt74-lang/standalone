@@ -228,6 +228,8 @@ function research_intelligence_delivery_chat_update(PDO $pdo,array $sub,array $r
     $public=ulid_like();$pdo->prepare("INSERT INTO conversation_messages(public_id,conversation_id,user_id,sender_type,parent_message_id,body) VALUES(?,?,NULL,'agent',NULL,?)")
       ->execute([$public,$conversationId,mb_substr($body,0,12000)]);$messageId=(int)$pdo->lastInsertId();
     $pdo->prepare('UPDATE conversations SET last_message_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$conversationId]);
+    if(installer_table_exists($pdo,'conversation_message_attachments'))$pdo->prepare("INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,'report',?,?)")
+      ->execute([$messageId,(string)$report['public_id'],json_encode(['label'=>(string)$report['title'],'source'=>'research_intelligence_delivery','delivery_id'=>$deliveryPublic],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
     $pdo->prepare("INSERT INTO conversation_events(conversation_id,event_type,message_id,payload_json) VALUES(?,'agent_message_created',?,?)")
       ->execute([$conversationId,$messageId,json_encode(['source'=>'research_intelligence_delivery','delivery_id'=>$deliveryPublic,'report_id'=>$report['public_id'],'subscription_id'=>$sub['public_id']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
     return true;
@@ -263,7 +265,8 @@ function research_intelligence_delivery_process_subscription(PDO $pdo,array $con
         $pdo->prepare("UPDATE research_report_subscriptions SET status='paused',updated_at=NOW() WHERE id=?")->execute([(int)$sub['id']]);
         return research_intelligence_delivery_suppress($pdo,$reservation,$sub,'subscriber_unavailable','Subscription paused because the subscriber account is unavailable.',$run);
     }
-    if(($sub['status']??'')!=='active')return research_intelligence_delivery_suppress($pdo,$reservation,$sub,'subscription_not_active','Subscription is not active.',$run);
+    if(($sub['status']??'')==='archived')return research_intelligence_delivery_suppress($pdo,$reservation,$sub,'subscription_archived','Subscription is archived.',$run);
+    if(($sub['status']??'')!=='active'&&$trigger!=='manual')return research_intelligence_delivery_suppress($pdo,$reservation,$sub,'subscription_not_active','Subscription is not active for scheduled delivery.',$run);
     if(empty($sub['preset_public_id'])||empty($sub['program_public_id']))return research_intelligence_delivery_suppress($pdo,$reservation,$sub,'subscription_dependency_missing','Subscription is missing its Report preset or Research Program.',$run);
     $program=research_program_access($pdo,$viewer,(string)$sub['program_public_id']);$preset=research_report_studio_preset_access($pdo,$viewer,(string)$sub['preset_public_id']);
     if(!$program||!$preset){
