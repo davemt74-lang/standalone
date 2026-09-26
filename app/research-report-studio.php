@@ -137,12 +137,13 @@ function research_report_studio_compare_manifests(array $old,array $new): array 
 }
 
 function research_report_studio_scope_choices(PDO $pdo,array $viewer,string $agentPublic): array {
-    $agent=research_system_report_agent($pdo,$viewer,$agentPublic);$projectId=(int)$agent['project_id'];$out=['sources'=>[],'claims'=>[],'findings'=>[],'entities'=>[],'folders'=>[]];
+    $agent=research_system_report_agent($pdo,$viewer,$agentPublic);$projectId=(int)$agent['project_id'];$out=['sources'=>[],'claims'=>[],'findings'=>[],'entities'=>[],'folders'=>[],'programs'=>[]];
     $q=$pdo->prepare("SELECT s.public_id,COALESCE(NULLIF(s.title,''),s.domain,s.public_id) label FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id=? ORDER BY label LIMIT 200");$q->execute([$projectId]);$out['sources']=$q->fetchAll()?:[];
     $q=$pdo->prepare("SELECT public_id,LEFT(statement,180) label FROM research_claims WHERE project_id=? ORDER BY updated_at DESC LIMIT 200");$q->execute([$projectId]);$out['claims']=$q->fetchAll()?:[];
     $q=$pdo->prepare("SELECT public_id,title label FROM research_findings WHERE project_id=? AND status<>'archived' ORDER BY updated_at DESC LIMIT 200");$q->execute([$projectId]);$out['findings']=$q->fetchAll()?:[];
     $q=$pdo->prepare("SELECT public_id,canonical_name label FROM research_entities WHERE project_id=? AND status<>'archived' ORDER BY canonical_name LIMIT 200");$q->execute([$projectId]);$out['entities']=$q->fetchAll()?:[];
     $q=$pdo->prepare("SELECT public_id,title label FROM research_workspace_objects WHERE project_id=? AND object_type='folder' AND status='active' ORDER BY title LIMIT 200");$q->execute([$projectId]);$out['folders']=$q->fetchAll()?:[];
+    if(function_exists('research_programs_ready')&&research_programs_ready($pdo)){$q=$pdo->prepare("SELECT public_id,title label FROM research_programs WHERE research_agent_id=? AND status<>'archived' ORDER BY updated_at DESC LIMIT 100");$q->execute([(int)$agent['id']]);$out['programs']=$q->fetchAll()?:[];}
     return $out;
 }
 
@@ -154,8 +155,9 @@ function research_report_studio_previous_run(PDO $pdo,array $viewer,array $repor
 
 function research_report_studio_preset_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!research_report_studio_ready($pdo))return null;
-    $q=$pdo->prepare("SELECT rrp.*,ra.public_id agent_public_id,rp.public_id project_public_id FROM research_report_presets rrp
-      JOIN research_agents ra ON ra.id=rrp.research_agent_id JOIN research_projects rp ON rp.id=rrp.project_id WHERE rrp.public_id=? LIMIT 1");
+    $q=$pdo->prepare("SELECT rrp.*,ra.public_id agent_public_id,rp.public_id project_public_id,rprog.public_id program_public_id,rprog.title program_title FROM research_report_presets rrp
+      JOIN research_agents ra ON ra.id=rrp.research_agent_id JOIN research_projects rp ON rp.id=rrp.project_id
+      LEFT JOIN research_programs rprog ON rprog.id=rrp.program_id WHERE rrp.public_id=? LIMIT 1");
     $q->execute([trim($publicId)]);$row=$q->fetch();if(!$row||!research_agent_access($pdo,$viewer,(string)$row['agent_public_id']))return null;
     $row['parameters']=json_decode((string)($row['parameters_json']??''),true)?:[];$row['scope']=json_decode((string)($row['scope_json']??''),true)?:[];return $row;
 }
@@ -169,8 +171,10 @@ function research_report_studio_preset_save(PDO $pdo,array $viewer,string $agent
     $agent=research_system_report_agent($pdo,$viewer,$agentPublic);$project=research_agent_workspace_project($pdo,$viewer,$agentPublic);if(!$project)throw new RuntimeException('Research Agent workspace not found.');research_agent_workspace_require_write($project);
     $name=mb_substr(trim((string)($input['name']??'')),0,190);if($name==='')throw new InvalidArgumentException('Preset name is required.');
     $type=research_system_report_type((string)($input['report_type']??''));$options=research_report_studio_options($input);$title=mb_substr(trim((string)($input['title_template']??'')),0,255);
-    $public=ulid_like();$pdo->prepare("INSERT INTO research_report_presets(public_id,research_agent_id,project_id,created_by_user_id,name,report_type,title_template,parameters_json,scope_json)
-      VALUES(?,?,?,?,?,?,?,?,?)")->execute([$public,(int)$agent['id'],(int)$agent['project_id'],(int)$viewer['id'],$name,$type['key'],$title?:null,
+    $programId=null;$programPublic=trim((string)($input['program_id']??''));
+    if($programPublic!==''){if(!function_exists('research_program_access'))throw new RuntimeException('Research Programs are unavailable.');$program=research_program_access($pdo,$viewer,$programPublic);if(!$program||(int)$program['research_agent_id']!==(int)$agent['id'])throw new InvalidArgumentException('Selected Research Program does not belong to this Research Agent.');$programId=(int)$program['id'];}
+    $public=ulid_like();$pdo->prepare("INSERT INTO research_report_presets(public_id,research_agent_id,project_id,program_id,created_by_user_id,name,report_type,title_template,parameters_json,scope_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?)")->execute([$public,(int)$agent['id'],(int)$agent['project_id'],$programId,(int)$viewer['id'],$name,$type['key'],$title?:null,
       json_encode(['depth'=>$options['depth'],'focus_query'=>$options['focus_query'],'date_from'=>$options['date_from'],'date_to'=>$options['date_to'],'include_sections'=>$options['include_sections']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),
       json_encode(['source_ids'=>$options['source_ids'],'claim_ids'=>$options['claim_ids'],'finding_ids'=>$options['finding_ids'],'entity_ids'=>$options['entity_ids'],'folder_ids'=>$options['folder_ids']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
     return research_report_studio_preset_access($pdo,$viewer,$public)??['public_id'=>$public];
