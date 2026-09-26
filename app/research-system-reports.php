@@ -192,7 +192,11 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
       'diagnostics'=>$diagnostics,
     ];
     $stateBasis=$snapshot;
-    $stateBasis['generated_at']=null;
+    $stateBasis['retrieval_index']=[
+      'input_hash'=>$index['input_hash']??null,
+      'document_count'=>(int)($index['document_count']??0),
+      'chunk_count'=>(int)($index['chunk_count']??0)
+    ];
     $snapshot['state_hash']=hash('sha256',json_encode($stateBasis,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
     $snapshot['generated_at']=date('c');
     return $snapshot;
