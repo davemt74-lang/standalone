@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS research_report_deliveries (
   report_id BIGINT UNSIGNED NULL,
   previous_report_id BIGINT UNSIGNED NULL,
   trigger_type ENUM('program_completed','program_quiet','manual') NOT NULL DEFAULT 'program_completed',
-  status ENUM('pending','delivered','suppressed','failed','viewed') NOT NULL DEFAULT 'delivered',
+  status ENUM('pending','delivered','suppressed','failed','viewed') NOT NULL DEFAULT 'pending',
   reason_code VARCHAR(64) NULL,
   dedupe_key CHAR(64) NOT NULL UNIQUE,
   change_signature CHAR(64) NULL,
@@ -64,7 +64,6 @@ CREATE TABLE IF NOT EXISTS research_report_deliveries (
   INDEX idx_report_delivery_user(subscriber_user_id,status,created_at),
   INDEX idx_report_delivery_program(program_id,created_at),
   INDEX idx_report_delivery_run(program_run_id,created_at),
-  CONSTRAINT fk_report_delivery_subscription FOREIGN KEY(subscription_id) REFERENCES research_report_subscriptions(id) ON DELETE SET NULL,
   CONSTRAINT fk_report_delivery_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
   CONSTRAINT fk_report_delivery_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
   CONSTRAINT fk_report_delivery_user FOREIGN KEY(subscriber_user_id) REFERENCES users(id) ON DELETE SET NULL,
@@ -88,6 +87,11 @@ CREATE TABLE IF NOT EXISTS research_report_delivery_events (
   INDEX idx_report_delivery_event_delivery(delivery_id,created_at),
   INDEX idx_report_delivery_event_subscription(subscription_id,created_at),
   CONSTRAINT fk_report_delivery_event_delivery FOREIGN KEY(delivery_id) REFERENCES research_report_deliveries(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_delivery_event_subscription FOREIGN KEY(subscription_id) REFERENCES research_report_subscriptions(id) ON DELETE SET NULL,
   CONSTRAINT fk_report_delivery_event_user FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE research_report_deliveries
+  ADD CONSTRAINT fk_report_delivery_subscription FOREIGN KEY(subscription_id) REFERENCES research_report_subscriptions(id) ON DELETE SET NULL;
+
+ALTER TABLE research_report_delivery_events
+  ADD CONSTRAINT fk_report_delivery_event_subscription FOREIGN KEY(subscription_id) REFERENCES research_report_subscriptions(id) ON DELETE SET NULL;
