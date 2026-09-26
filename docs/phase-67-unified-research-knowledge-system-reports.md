@@ -94,6 +94,10 @@ A System Report records:
 
 The rendered report is written into a normal versioned Research Doc under the managed **System Reports** Desktop folder. The report can therefore be edited, retrieved, reviewed, published and cited through existing Annotated systems.
 
+Persisted System Reports deliberately include only project-contained intelligence. Dynamic Agent Chat may also use viewer-specific outcomes, cross-project intelligence, or access-controlled citation-network context, but those contexts are not copied into a shared project document because doing so could broaden their audience beyond the original permission scope.
+
+Report generation records explicit coverage, diagnostics, provenance-reference completeness, and a deterministic data-state hash anchored to the complete unified retrieval corpus. If a renderer intentionally caps a large section, the generated report says so instead of presenting the subset as exhaustive.
+
 No separate report-content store is introduced.
 
 ## 67E — Research Agent report creation
