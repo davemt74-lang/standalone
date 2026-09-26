@@ -27,12 +27,12 @@ CREATE TABLE IF NOT EXISTS research_intelligence_subscriptions (
   INDEX idx_report_subscription_agent(research_agent_id,status,updated_at),
   INDEX idx_report_subscription_program(program_id,status,updated_at),
   INDEX idx_report_subscription_user(subscriber_user_id,status,updated_at),
-  CONSTRAINT fk_report_subscription_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
-  CONSTRAINT fk_report_subscription_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
-  CONSTRAINT fk_report_subscription_user FOREIGN KEY(subscriber_user_id) REFERENCES users(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_subscription_preset FOREIGN KEY(preset_id) REFERENCES research_report_presets(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_subscription_program FOREIGN KEY(program_id) REFERENCES research_programs(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_subscription_last_report FOREIGN KEY(last_report_id) REFERENCES research_system_reports(id) ON DELETE SET NULL
+  CONSTRAINT fk_p69_intel_sub_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_p69_intel_sub_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_p69_intel_sub_user FOREIGN KEY(subscriber_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_intel_sub_preset FOREIGN KEY(preset_id) REFERENCES research_report_presets(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_intel_sub_program FOREIGN KEY(program_id) REFERENCES research_programs(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_intel_sub_last_report FOREIGN KEY(last_report_id) REFERENCES research_system_reports(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS research_report_deliveries (
@@ -66,14 +66,14 @@ CREATE TABLE IF NOT EXISTS research_report_deliveries (
   INDEX idx_report_delivery_user(subscriber_user_id,status,created_at),
   INDEX idx_report_delivery_program(program_id,created_at),
   INDEX idx_report_delivery_run(program_run_id,created_at),
-  CONSTRAINT fk_report_delivery_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
-  CONSTRAINT fk_report_delivery_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
-  CONSTRAINT fk_report_delivery_user FOREIGN KEY(subscriber_user_id) REFERENCES users(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_delivery_preset FOREIGN KEY(preset_id) REFERENCES research_report_presets(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_delivery_program FOREIGN KEY(program_id) REFERENCES research_programs(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_delivery_program_run FOREIGN KEY(program_run_id) REFERENCES research_program_runs(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_delivery_report FOREIGN KEY(report_id) REFERENCES research_system_reports(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_delivery_previous_report FOREIGN KEY(previous_report_id) REFERENCES research_system_reports(id) ON DELETE SET NULL
+  CONSTRAINT fk_p69_delivery_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_p69_delivery_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_p69_delivery_user FOREIGN KEY(subscriber_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_delivery_preset FOREIGN KEY(preset_id) REFERENCES research_report_presets(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_delivery_program FOREIGN KEY(program_id) REFERENCES research_programs(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_delivery_program_run FOREIGN KEY(program_run_id) REFERENCES research_program_runs(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_delivery_report FOREIGN KEY(report_id) REFERENCES research_system_reports(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_delivery_previous_report FOREIGN KEY(previous_report_id) REFERENCES research_system_reports(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS research_report_delivery_events (
@@ -88,6 +88,6 @@ CREATE TABLE IF NOT EXISTS research_report_delivery_events (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_report_delivery_event_delivery(delivery_id,created_at),
   INDEX idx_report_delivery_event_subscription(subscription_id,created_at),
-  CONSTRAINT fk_report_delivery_event_delivery FOREIGN KEY(delivery_id) REFERENCES research_report_deliveries(id) ON DELETE SET NULL,
-  CONSTRAINT fk_report_delivery_event_user FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+  CONSTRAINT fk_p69_delivery_event_delivery FOREIGN KEY(delivery_id) REFERENCES research_report_deliveries(id) ON DELETE SET NULL,
+  CONSTRAINT fk_p69_delivery_event_user FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
