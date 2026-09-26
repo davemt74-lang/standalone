@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS research_report_deliveries (
   report_id BIGINT UNSIGNED NULL,
   previous_report_id BIGINT UNSIGNED NULL,
   trigger_type ENUM('program_completed','program_quiet','manual') NOT NULL DEFAULT 'program_completed',
-  status ENUM('delivered','suppressed','failed','viewed') NOT NULL DEFAULT 'delivered',
+  status ENUM('pending','delivered','suppressed','failed','viewed') NOT NULL DEFAULT 'delivered',
   reason_code VARCHAR(64) NULL,
   dedupe_key CHAR(64) NOT NULL UNIQUE,
   change_signature CHAR(64) NULL,
