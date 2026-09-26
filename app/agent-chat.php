@@ -120,6 +120,20 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         $text="[ENTITY {$publicId}]\nType: ".(string)$entity['entity_type']."\nStatus: ".(string)$entity['status']."\nName: ".(string)$entity['canonical_name'].(!empty($entity['description'])?"\nDescription: ".$entity['description']:'').($parts?"\n".implode("\n",$parts):'');
         return ['type'=>'entity','public_id'=>$publicId,'label'=>(string)$entity['canonical_name'],'text'=>mb_substr($text,0,18000),'refs'=>$refs];
     }
+    if($type==='claim_relation'){
+        $q=$pdo->prepare("SELECT cr.*,rp.public_id project_public_id,sc.public_id source_public_id,sc.statement source_statement,tc.public_id target_public_id,tc.statement target_statement
+          FROM claim_relations cr JOIN research_projects rp ON rp.id=cr.project_id JOIN research_claims sc ON sc.id=cr.source_claim_id JOIN research_claims tc ON tc.id=cr.target_claim_id
+          WHERE cr.public_id=? LIMIT 1");$q->execute([$publicId]);$rel=$q->fetch();if(!$rel||!project_access($pdo,(int)$viewer['id'],(string)$rel['project_public_id']))return null;
+        $text="[CLAIM RELATION {$publicId}]\n[CLAIM ".(string)$rel['source_public_id']."] ".(string)$rel['source_statement']."\nRelationship: ".(string)$rel['relation_type']."\n[CLAIM ".(string)$rel['target_public_id']."] ".(string)$rel['target_statement'].(!empty($rel['note'])?"\nNote: ".$rel['note']:'');
+        return ['type'=>'claim_relation','public_id'=>$publicId,'label'=>mb_substr((string)$rel['source_statement'].' '.(string)$rel['relation_type'].' '.(string)$rel['target_statement'],0,100),'text'=>$text,'refs'=>[['type'=>'claim_relation','id'=>$publicId],['type'=>'claim','id'=>(string)$rel['source_public_id']],['type'=>'claim','id'=>(string)$rel['target_public_id']]]];
+    }
+    if($type==='entity_relation'){
+        $q=$pdo->prepare("SELECT rr.*,rp.public_id project_public_id,se.public_id source_public_id,se.canonical_name source_name,te.public_id target_public_id,te.canonical_name target_name
+          FROM research_entity_relations rr JOIN research_projects rp ON rp.id=rr.project_id JOIN research_entities se ON se.id=rr.source_entity_id JOIN research_entities te ON te.id=rr.target_entity_id
+          WHERE rr.public_id=? LIMIT 1");$q->execute([$publicId]);$rel=$q->fetch();if(!$rel||!project_access($pdo,(int)$viewer['id'],(string)$rel['project_public_id']))return null;
+        $text="[ENTITY RELATION {$publicId}]\n[ENTITY ".(string)$rel['source_public_id']."] ".(string)$rel['source_name']."\nRelationship: ".(string)$rel['relation_type']."\n[ENTITY ".(string)$rel['target_public_id']."] ".(string)$rel['target_name'].(!empty($rel['note'])?"\nNote: ".$rel['note']:'');
+        return ['type'=>'entity_relation','public_id'=>$publicId,'label'=>(string)$rel['source_name'].' '.(string)$rel['relation_type'].' '.(string)$rel['target_name'],'text'=>$text,'refs'=>[['type'=>'entity_relation','id'=>$publicId],['type'=>'entity','id'=>(string)$rel['source_public_id']],['type'=>'entity','id'=>(string)$rel['target_public_id']]]];
+    }
     if($type==='task'&&function_exists('research_task_access')){
         $task=research_task_access($pdo,$viewer,$publicId);if(!$task)return null;
         $text="[RESEARCH TASK {$publicId}]\nTitle: ".(string)$task['title']."\nType: ".(string)$task['task_type']."\nPriority: ".(string)$task['priority']."\nStatus: ".(string)$task['status']."\n".(string)($task['description']??'');
