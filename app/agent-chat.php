@@ -144,6 +144,13 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         $text="[RESEARCH PROGRAM {$publicId}]\nTitle: ".(string)$program['title']."\nStatus: ".(string)$program['status']."\nCadence: ".(string)$program['cadence']."\nObjective: ".(string)$program['objective'].(!empty($program['next_run_at'])?"\nNext run: ".$program['next_run_at']:'');
         return ['type'=>'program','public_id'=>$publicId,'label'=>(string)$program['title'],'text'=>mb_substr($text,0,14000),'refs'=>[['type'=>'program','id'=>$publicId],['type'=>'research_project','id'=>(string)$program['project_public_id']]]];
     }
+    if($type==='report'&&function_exists('research_system_report_access')){
+        $report=research_system_report_access($pdo,$viewer,$publicId);if(!$report)return null;
+        $text="[REPORT RUN {$publicId}]\nType: ".(string)$report['report_type']."\nTitle: ".(string)$report['title']."\nFreshness: ".(string)($report['freshness_state']??'current')."\nGenerated: ".(string)$report['created_at']."\nData state: ".(string)$report['input_state_hash']."\n\n".trim(strip_tags((string)($report['rendered_html']??'')));
+        $refs=[['type'=>'report','id'=>$publicId],['type'=>'research_project','id'=>(string)$report['project_public_id']]];
+        foreach((array)($report['evidence_refs']??[]) as $r)$refs[]=$r;
+        return ['type'=>'report','public_id'=>$publicId,'label'=>(string)$report['title'],'text'=>mb_substr($text,0,30000),'refs'=>$refs];
+    }
     if($type==='research'){
         $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;
         $ctx=(function_exists('research_retrieval_ready')&&research_retrieval_ready($pdo))?['text'=>'','refs'=>[]]:ai_research_context($pdo,(int)$p['id']);

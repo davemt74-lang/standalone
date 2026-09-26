@@ -8,7 +8,7 @@ declare(strict_types=1);
  * access and never become a second copy of the underlying object.
  */
 function object_handoff_types(): array {
-    return ['annotation'=>'Annotation','bookmark'=>'Bookmark','document'=>'Research document','upload'=>'Research file','recording'=>'Recording'];
+    return ['annotation'=>'Annotation','bookmark'=>'Bookmark','document'=>'Research document','upload'=>'Research file','recording'=>'Recording','report'=>'Research Report Run'];
 }
 
 function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publicId): ?array {
@@ -76,6 +76,18 @@ function object_handoff_resolve(PDO $pdo,array $viewer,string $type,string $publ
           'created_at'=>$row['created_at']??null,
         ];
     }
+    if($type==='report'&&function_exists('research_system_report_access')){
+        $row=research_system_report_access($pdo,$viewer,$publicId);if(!$row)return null;
+        $q=$pdo->prepare("SELECT t.public_id team_public_id,t.name team_name FROM research_projects rp LEFT JOIN teams t ON t.id=rp.team_id WHERE rp.id=? LIMIT 1");$q->execute([(int)$row['project_id']]);$team=$q->fetch()?:[];
+        return [
+          'type'=>'report','public_id'=>(string)$row['public_id'],'label'=>'Research Report Run','title'=>(string)$row['title'],
+          'preview'=>mb_substr(trim((string)($row['rendered_summary']??strip_tags((string)($row['rendered_html']??'')))),0,360),
+          'url'=>'/research-reports.php?agent='.rawurlencode((string)$row['agent_public_id']).'&view=recent&report='.rawurlencode((string)$row['public_id']),
+          'project_public_id'=>(string)$row['project_public_id'],'research_agent_public_id'=>(string)$row['agent_public_id'],
+          'conversation_public_id'=>'','freshness_state'=>(string)($row['freshness_state']??'current'),
+          'team_public_id'=>$team['team_public_id']??null,'team_name'=>$team['team_name']??null,'created_at'=>$row['created_at']??null,'updated_at'=>$row['updated_at']??null,
+        ];
+    }
     if($type!=='annotation')return null;
     $access=annotation_access($pdo,$publicId,$viewer);if(!$access)return null;
     if((int)$access['user_id']!==(int)$viewer['id']&&function_exists('is_blocked')&&is_blocked($pdo,(int)$viewer['id'],(int)$access['user_id']))return null;
@@ -121,6 +133,9 @@ function object_handoff_can_share_to_conversation(PDO $pdo,array $viewer,array $
         return !empty($object['team_public_id'])
             &&hash_equals((string)$object['team_public_id'],$conversationTeamPublic);
     }
+    if($object['type']==='report'){
+        return !empty($object['team_public_id'])&&hash_equals((string)$object['team_public_id'],$conversationTeamPublic);
+    }
     if(in_array($object['type'],['upload','recording'],true)){
         return !empty($object['team_public_id'])
             &&hash_equals((string)$object['team_public_id'],$conversationTeamPublic);
@@ -163,5 +178,6 @@ function object_handoff_agent_prompt(string $type): string {
     if($type==='document')return 'Review this Research document in the context of its owning Research Agent. Identify useful improvements, unsupported claims, missing evidence, and concrete next steps. Do not edit the document unless the user confirms a governed action.';
     if($type==='upload')return 'Review this uploaded Research file and its extracted content. Identify important evidence, uncertainty, missing context, and useful next steps.';
     if($type==='recording')return 'Review this Research recording and its transcript when available. Summarize the useful evidence, decisions, tasks, open questions, and next steps.';
+    if($type==='report')return 'Review this Research Report Run against its underlying project evidence. Explain the strongest conclusions, provenance, uncertainty, what changed, and useful next steps. Treat the Report Run as a preserved processing result; do not turn it into a Research Document unless the user confirms that separate action.';
     return 'Review this Annotated item and explain the most useful next step.';
 }

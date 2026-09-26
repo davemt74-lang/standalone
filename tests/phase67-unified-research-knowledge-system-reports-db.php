@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
 $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-foreach(['installer','storage','jobs','concurrency','functions','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','research-retrieval','workspace-context','object-handoff','research-autonomy','research-monitoring','research-tasks','research-programs','cross-research','research-outcomes','research-reviews','change-impact','research-portfolio','living-research','research-publishing','research-intelligence-portfolios','research-intelligence-operations','research-network','research-provenance','research-verification','research-evidence-packs','research-workflow','research-system-reports'] as $lib)require_once $root.'/app/'.$lib.'.php';
+foreach(['installer','storage','jobs','concurrency','functions','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','research-retrieval','workspace-context','object-handoff','research-autonomy','research-monitoring','research-tasks','research-programs','cross-research','research-outcomes','research-reviews','change-impact','research-portfolio','living-research','research-publishing','research-intelligence-portfolios','research-intelligence-operations','research-network','research-provenance','research-verification','research-evidence-packs','research-workflow','research-system-reports','research-report-studio'] as $lib)require_once $root.'/app/'.$lib.'.php';
 function p67(bool $ok,string $m): void {if(!$ok)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
 function p67throws(callable $fn,string $m): void {try{$fn();}catch(Throwable $e){echo "PASS: $m\n";return;}throw new RuntimeException('FAIL: '.$m);}
 
@@ -84,24 +84,25 @@ p67($entityRelCtx&&str_contains((string)$entityRelCtx['text'],'Relationship: ass
 
 $pdo->beginTransaction();
 $rollbackProbe=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'research_brief','Rollback Probe',false);
-$rollbackReportId=(string)$rollbackProbe['public_id'];$rollbackDocId=(string)$rollbackProbe['document_public_id'];
+$rollbackReportId=(string)$rollbackProbe['public_id'];
 $pdo->rollBack();
 p67(research_system_report_access($pdo,$owner,$rollbackReportId)===null,'System Report provenance row participates in the caller transaction.');
-p67(research_agent_workspace_object($pdo,$owner,$rollbackDocId,false)===null,'System Report document and provenance roll back atomically.');
 
 $report=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'research_brief','Market Research Brief',false);
-p67(($report['report_type']??'')==='research_brief'&&!empty($report['document_public_id']),'User can generate a Research Brief as a versioned Research document.');
+p67(($report['report_type']??'')==='research_brief'&&empty($report['document_public_id'])&&!empty($report['rendered_html']),'User can generate a Research Brief as a first-class Report Run without creating a Research document.');
 p67(strlen((string)$report['input_state_hash'])===64&&!empty($report['evidence_refs']),'System Report records a deterministic state hash and authoritative references.');
 p67((int)($report['metrics']['claim_relations']??0)>=1&&(int)($report['metrics']['entity_relations']??0)>=1,'System Report metrics include knowledge-graph relationship coverage.');
 p67((int)($report['metrics']['diagnostic_count']??-1)===0,'System Report provenance records complete component availability.');
 p67((int)($report['metrics']['provenance_truncated']??-1)===0&&(int)($report['metrics']['provenance_total_unique']??0)===count((array)$report['evidence_refs']),'System Report provenance declares whether its reference list is complete.');
-$doc=research_agent_workspace_object($pdo,$owner,(string)$report['document_public_id'],false);
-p67($doc&&($doc['document_type']??'')==='report'&&str_contains((string)$doc['document_plain_text'],'Strongest Findings'),'Generated System Report is a normal Research Doc with rendered report content.');
-p67(($doc['parent_title']??'')==='System Reports','System Reports live in the managed Desktop folder.');
+$doc=research_report_studio_create_document($pdo,$owner,(string)$agent['public_id'],(string)$report['public_id']);
+p67($doc&&($doc['document_type']??'')==='report'&&str_contains((string)$doc['document_plain_text'],'Strongest Findings'),'A Report Run can explicitly create a normal Research Document with rendered report content.');
+p67(($doc['parent_title']??'')==='System Reports','Documents created from Report Runs live in the managed Desktop folder.');
+$report=research_system_report_access($pdo,$owner,(string)$report['public_id']);
+p67($report&&!empty($report['document_public_id']),'Report Run retains a durable backlink to the created Research Document.');
 
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
 $reportSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'',['type'=>'report'],20,true);
-p67(count(array_filter($reportSearch['results'],fn($x)=>($x['public_id']??'')===$report['document_public_id']))===1,'Research Library Reports filter returns generated System Report documents.');
+p67(count(array_filter($reportSearch['results'],fn($x)=>($x['public_id']??'')===$report['public_id']))===1,'Research Library Reports filter returns first-class Report Runs.');
 $otherAgent=research_agent_create($pdo,$owner,['name'=>'Other Knowledge Agent','description'=>'Archive scope fixture.','cadence'=>'manual','timezone_name'=>'UTC']);
 p67throws(fn()=>research_system_report_archive($pdo,$owner,(string)$report['public_id'],(string)$otherAgent['public_id']),'System Report archive rejects a report from another selected Research Agent.');
 research_system_report_archive($pdo,$owner,(string)$report['public_id'],(string)$agent['public_id']);
@@ -111,21 +112,20 @@ $eventCountAfter=(int)$pdo->query("SELECT COUNT(*) FROM research_system_report_e
 p67($eventCountBefore===1&&$eventCountAfter===1,'System Report archive is idempotent and does not duplicate archive events.');
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
 $archivedReportSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'',['type'=>'report'],20,true);
-p67(count(array_filter($archivedReportSearch['results'],fn($x)=>($x['public_id']??'')===$report['document_public_id']))===0,'Archived System Reports are removed from the active Reports retrieval filter after refresh.');
-p67(research_agent_workspace_object($pdo,$owner,(string)$report['document_public_id'],false)!==null,'Archiving a System Report preserves its underlying versioned Research document.');
+p67(count(array_filter($archivedReportSearch['results'],fn($x)=>($x['public_id']??'')===$report['public_id']))===0,'Archived Report Runs are removed from the active Reports retrieval filter after refresh.');
+p67(research_agent_workspace_object($pdo,$owner,(string)$report['document_public_id'],false)!==null,'Archiving a Report Run preserves any Research Document created from it.');
 
 $verification=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'claims_verification','Claims Verification',false);
 $full=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'full_intelligence','Full Intelligence',false);
-$fullDoc=research_agent_workspace_object($pdo,$owner,(string)$full['document_public_id'],false);
-p67($fullDoc&&str_contains((string)$fullDoc['document_plain_text'],'Extended Research intelligence'),'Full Intelligence report renders project-contained extended Research intelligence.');
+p67(str_contains(strip_tags((string)$full['rendered_html']),'Extended Research intelligence'),'Full Intelligence Report Run renders project-contained extended Research intelligence.');
 $list=research_system_report_list($pdo,$owner,(string)$agent['public_id'],20);
-p67(count($list)>=3&&!empty($verification['document_public_id'])&&!empty($full['document_public_id']),'One Research Agent can create multiple report processors over the same knowledge.');
+p67(count($list)>=2&&empty($verification['document_public_id'])&&empty($full['document_public_id']),'One Research Agent can create multiple active Report Runs without automatically creating documents; archived runs stay out of the active list.');
 
 $clean=agent_action_clean_arguments('research.create_system_report',['report_type'=>'evidence_audit','title'=>'Agent Evidence Audit']);
 p67(($clean['report_type']??'')==='evidence_audit','Governed Agent action validates System Report type.');
 $GLOBALS['config']=[];
 $action=agent_action_execute_capability($pdo,$owner,$project,'research.create_system_report',$clean);
-p67(($action['type']??'')==='research_system_report'&&!empty($action['document_public_id']),'Research Agent can create a confirmed System Report through the governed action executor.');
+p67(($action['type']??'')==='research_system_report'&&empty($action['document_public_id']),'Research Agent can create a confirmed Report Run through the governed action executor without auto-creating a document.');
 
 p67(research_system_report_access($pdo,$outsider,(string)$report['public_id'])===null,'System Report access is live permission checked.');
 p67throws(fn()=>research_retrieval_search($pdo,[],$outsider,(string)$project['public_id'],'Mercury',[],10,true),'Unified structured retrieval rejects a user outside the project boundary.');

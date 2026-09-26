@@ -46,8 +46,12 @@ function agent_action_capabilities(): array {
         'arguments'=>['title'=>'string','body'=>'string','summary'=>'string optional','document_type'=>'document|research_brief|memo|report|analysis|source_summary|timeline|weekly_report']
       ],
       'research.create_system_report'=>[
-        'label'=>'Create System Report','description'=>'Process the current Research Agent data into a governed System Report stored as a normal versioned Research document. The user must confirm report creation.',
-        'arguments'=>['report_type'=>'research_brief|evidence_audit|claims_verification|contradictions_gaps|source_freshness|entity_map|timeline|action_plan|full_intelligence','title'=>'string optional']
+        'label'=>'Run Research Report','description'=>'Run a governed per-Research-Agent System Report over the current project data. This creates a Report Run, not a Research Document. The user must confirm the report run.',
+        'arguments'=>['report_type'=>'research_brief|evidence_audit|claims_verification|contradictions_gaps|source_freshness|entity_map|timeline|action_plan|full_intelligence','title'=>'string optional','depth'=>'quick|standard|deep optional','focus_query'=>'string optional','date_from'=>'YYYY-MM-DD optional','date_to'=>'YYYY-MM-DD optional','source_ids'=>'array optional','claim_ids'=>'array optional','finding_ids'=>'array optional','entity_ids'=>'array optional','folder_ids'=>'array optional','include_sections'=>'array optional']
+      ],
+      'research.create_document_from_report'=>[
+        'label'=>'Create document from Report Run','description'=>'Create a durable editable Research Document from an existing Report Run after user confirmation. The Report Run remains unchanged.',
+        'arguments'=>['report_id'=>'Report Run public ID','section_keys'=>'array optional']
       ],
       'research.create_sticky'=>[
         'label'=>'Create sticky note','description'=>'Pin a concise colored sticky note to the current Research Agent canvas after user confirmation.',
@@ -93,17 +97,19 @@ function agent_action_extract(string $text): array {
 }
 
 function agent_action_project_from_context(PDO $pdo,array $viewer,array $context): ?array {
-    $projects=[];
-    foreach($context as $item)if(($item['type']??'')==='research'){
-        $p=project_access($pdo,(int)$viewer['id'],(string)$item['public_id']);if($p)$projects[(string)$p['public_id']]=$p;
-    }
+    $projects=agent_action_project_map($pdo,$viewer,$context);
     return count($projects)===1?array_values($projects)[0]:null;
 }
 
 function agent_action_project_map(PDO $pdo,array $viewer,array $context): array {
     $projects=[];
-    foreach($context as $item)if(($item['type']??'')==='research'){
-        $p=project_access($pdo,(int)$viewer['id'],(string)$item['public_id']);if($p)$projects[(string)$p['public_id']]=$p;
+    foreach($context as $item){
+        $type=(string)($item['type']??'');$id=(string)($item['public_id']??'');
+        if($type==='research'){
+            $p=project_access($pdo,(int)$viewer['id'],$id);if($p)$projects[(string)$p['public_id']]=$p;
+        }elseif($type==='report'&&function_exists('research_system_report_access')){
+            $report=research_system_report_access($pdo,$viewer,$id);if($report){$p=project_access($pdo,(int)$viewer['id'],(string)$report['project_public_id']);if($p)$projects[(string)$p['public_id']]=$p;}
+        }
     }
     return $projects;
 }
@@ -190,7 +196,13 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $type=$s($args['report_type']??'research_brief',64);
         $allowed=function_exists('research_system_report_types')?research_system_report_types():array_fill_keys(['research_brief','evidence_audit','claims_verification','contradictions_gaps','source_freshness','entity_map','timeline','action_plan','full_intelligence'],[]);
         if(!isset($allowed[$type]))throw new InvalidArgumentException('Unknown System Report type.');
-        return ['report_type'=>$type,'title'=>$s($args['title']??'',240)];
+        $o=function_exists('research_report_studio_options')?research_report_studio_options($args):[];
+        return ['report_type'=>$type,'title'=>$s($args['title']??'',240)]+$o;
+    }
+    if($capability==='research.create_document_from_report'){
+        $report=$s($args['report_id']??'',64);if($report==='')throw new InvalidArgumentException('Report Run ID is required.');
+        $sections=[];foreach(array_slice((array)($args['section_keys']??[]),0,40) as $key){$key=$s($key,80);if($key!==''&&!in_array($key,$sections,true))$sections[]=$key;}
+        return ['report_id'=>$report,'section_keys'=>$sections];
     }
     if($capability==='research.create_sticky'){
         $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Sticky note body is required.');
@@ -256,6 +268,12 @@ function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $p
     if($capability==='research.link_claims'){
         if(!isset($seen['claim:'.$args['source_claim_id']],$seen['claim:'.$args['target_claim_id']]))return false;
         return agent_action_claim_row($pdo,$projectId,(string)$args['source_claim_id'])!==null&&agent_action_claim_row($pdo,$projectId,(string)$args['target_claim_id'])!==null;
+    }
+    if($capability==='research.create_document_from_report'){
+        if(!isset($seen['report:'.$args['report_id']]))return false;
+        if(!function_exists('research_system_report_access'))return false;
+        $report=research_system_report_access($pdo,$viewer,(string)$args['report_id']);
+        return $report&&(int)$report['project_id']===$projectId;
     }
     if($capability==='research.prepare_publication_review'){
         if(!isset($seen['document:'.$args['document_id']]))return false;
@@ -358,12 +376,19 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         ];
     }
     if($capability==='research.create_system_report'){
-        if(!function_exists('research_system_report_generate')||!research_system_reports_ready($pdo))throw new RuntimeException('Research System Reports require the latest database upgrade.');
+        if(!function_exists('research_system_report_generate')||!research_report_studio_ready($pdo))throw new RuntimeException('Research Agent Report Studio requires the latest database upgrade.');
         $q=$pdo->prepare("SELECT public_id FROM research_agents WHERE project_id=? AND status='active' ORDER BY is_default DESC,id LIMIT 1");$q->execute([$projectId]);$agentPublic=(string)($q->fetchColumn()?:'');
         if($agentPublic==='')throw new RuntimeException('This project has no active Research Agent.');
         $cfg=is_array($GLOBALS['config']??null)?$GLOBALS['config']:[];
-        $report=research_system_report_generate($pdo,$cfg,$viewer,$agentPublic,(string)$args['report_type'],(string)$args['title'],true);
-        return ['type'=>'research_system_report','public_id'=>(string)$report['public_id'],'label'=>(string)$report['title'],'url'=>'/research-reports.php?agent='.rawurlencode($agentPublic).'&report='.rawurlencode((string)$report['public_id']),'document_public_id'=>(string)$report['document_public_id']];
+        $report=research_system_report_generate($pdo,$cfg,$viewer,$agentPublic,(string)$args['report_type'],(string)$args['title'],true,null,$args,null,null,'agent');
+        return ['type'=>'research_system_report','public_id'=>(string)$report['public_id'],'label'=>(string)$report['title'],'url'=>'/research-reports.php?agent='.rawurlencode($agentPublic).'&report='.rawurlencode((string)$report['public_id']),'document_public_id'=>null];
+    }
+    if($capability==='research.create_document_from_report'){
+        if(!function_exists('research_report_studio_create_document')||!research_report_studio_ready($pdo))throw new RuntimeException('Research Agent Report Studio requires the latest database upgrade.');
+        $q=$pdo->prepare("SELECT public_id FROM research_agents WHERE project_id=? AND status='active' ORDER BY is_default DESC,id LIMIT 1");$q->execute([$projectId]);$agentPublic=(string)($q->fetchColumn()?:'');
+        if($agentPublic==='')throw new RuntimeException('This project has no active Research Agent.');
+        $doc=research_report_studio_create_document($pdo,$viewer,$agentPublic,(string)$args['report_id'],(array)$args['section_keys']);
+        return ['type'=>'document','public_id'=>(string)$doc['public_id'],'label'=>(string)$doc['title'],'url'=>'/home.php?agent='.rawurlencode((string)($doc['conversation_public_id']??'')).'&doc='.rawurlencode((string)$doc['public_id']),'document_type'=>'report'];
     }
     if($capability==='research.create_sticky'){
         if(!function_exists('research_agent_workspace_create_sticky'))throw new RuntimeException('Research sticky workspace is unavailable.');
