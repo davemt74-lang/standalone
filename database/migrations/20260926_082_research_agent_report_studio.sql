@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS research_report_presets (
   public_id VARCHAR(40) NOT NULL UNIQUE,
   research_agent_id BIGINT UNSIGNED NOT NULL,
   project_id BIGINT UNSIGNED NOT NULL,
+  program_id BIGINT UNSIGNED NULL,
   created_by_user_id BIGINT UNSIGNED NULL,
   name VARCHAR(190) NOT NULL,
   report_type VARCHAR(64) NOT NULL,
@@ -18,8 +19,10 @@ CREATE TABLE IF NOT EXISTS research_report_presets (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_report_presets_agent(research_agent_id,status,updated_at),
   INDEX idx_report_presets_project(project_id,status,updated_at),
+  INDEX idx_report_presets_program(program_id,status,updated_at),
   CONSTRAINT fk_report_presets_agent FOREIGN KEY(research_agent_id) REFERENCES research_agents(id) ON DELETE CASCADE,
   CONSTRAINT fk_report_presets_project FOREIGN KEY(project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_report_presets_program FOREIGN KEY(program_id) REFERENCES research_programs(id) ON DELETE SET NULL,
   CONSTRAINT fk_report_presets_creator FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
