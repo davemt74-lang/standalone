@@ -323,6 +323,38 @@ function research_longitudinal_render_report(string $type,array $snapshot): stri
       .research_system_report_section('Implications',research_longitudinal_change_html(array_slice(array_values(array_filter($changes,fn($c)=>(string)$c['materiality']==='high')),0,20),20));
 }
 
+function research_longitudinal_since_token(PDO $pdo,array $viewer,string $agentPublic,string $token): ?string {
+    $token=trim($token);if($token==='')return null;
+    $lower=strtolower($token);if($lower==='yesterday')return date('Y-m-d 00:00:00',strtotime('-1 day'));
+    if(in_array($lower,['last week','week'],true))return date('Y-m-d H:i:s',strtotime('-7 days'));
+    if(in_array($lower,['last month','month'],true))return date('Y-m-d H:i:s',strtotime('-30 days'));
+    if(strtotime($token)!==false)return date('Y-m-d H:i:s',strtotime($token));
+    $snap=research_longitudinal_snapshot_access($pdo,$viewer,$token);if($snap&&hash_equals((string)$snap['agent_public_id'],$agentPublic))return (string)$snap['captured_at'];
+    if(function_exists('research_system_report_access')){$report=research_system_report_access($pdo,$viewer,$token);if($report&&hash_equals((string)$report['agent_public_id'],$agentPublic))return (string)$report['created_at'];}
+    return null;
+}
+
+function research_longitudinal_context_since(PDO $pdo,array $viewer,string $agentPublic,?string $since,int $limit=24): string {
+    if(!research_longitudinal_ready($pdo))return '';$latest=research_longitudinal_latest_snapshot($pdo,$viewer,$agentPublic);if(!$latest)return '[LONGITUDINAL RESEARCH]\nNo longitudinal baseline has been captured yet.';
+    $summary=research_longitudinal_summary($pdo,$viewer,$agentPublic,$since);$label=$since?:'the previous longitudinal state';
+    $lines=['[LONGITUDINAL RESEARCH — SINCE '.$label.']','Changes: '.count((array)$summary['changes']).'; high materiality: '.(int)($summary['materiality']['high']??0).'; milestones: '.count((array)$summary['milestones']).'.'];
+    foreach(array_slice((array)$summary['changes'],0,max(1,min(60,$limit))) as $change){$row=$change['after']??$change['before']??[];$lines[]='- '.strtoupper((string)$change['change_type']).' · '.ucwords(str_replace('_',' ',(string)$change['object_type'])).' · '.research_longitudinal_object_title((string)$change['object_type'],(array)$row).' — '.(string)$change['reason'].' ['.(string)$change['public_id'].']';}
+    return mb_substr(implode("\n",$lines),0,16000);
+}
+
+function research_longitudinal_prompt_context(PDO $pdo,array $viewer,string $agentPublic,string $prompt): string {
+    $p=strtolower($prompt);$since=null;
+    if(str_contains($p,'since yesterday')||str_contains($p,'what changed yesterday'))$since=date('Y-m-d 00:00:00',strtotime('-1 day'));
+    elseif(str_contains($p,'last week')||str_contains($p,'past week'))$since=date('Y-m-d H:i:s',strtotime('-7 days'));
+    elseif(str_contains($p,'last month')||str_contains($p,'past month'))$since=date('Y-m-d H:i:s',strtotime('-30 days'));
+    else{
+        foreach(research_longitudinal_snapshot_list($pdo,$viewer,$agentPublic,30) as $snap)if(str_contains($prompt,(string)$snap['public_id'])){$since=(string)$snap['captured_at'];break;}
+        if($since===null&&function_exists('research_system_report_list'))foreach(research_system_report_list($pdo,$viewer,$agentPublic,40) as $report)if(str_contains($prompt,(string)$report['public_id'])){$since=(string)$report['created_at'];break;}
+    }
+    if($since===null)$since=date('Y-m-d H:i:s',strtotime('-30 days'));
+    return research_longitudinal_context_since($pdo,$viewer,$agentPublic,$since,24);
+}
+
 function research_longitudinal_agent_context(PDO $pdo,array $viewer,string $agentPublic,int $days=30): string {
     if(!research_longitudinal_ready($pdo))return '';$data=research_longitudinal_report_data($pdo,$viewer,$agentPublic,$days);if(empty($data['ready']))return '[LONGITUDINAL RESEARCH]\nNo longitudinal baseline has been captured yet.';
     $s=$data['summary'];$lines=['[LONGITUDINAL RESEARCH — LAST '.$days.' DAYS]','Changes: '.count((array)$s['changes']).'; high materiality: '.(int)($s['materiality']['high']??0).'; milestones: '.count((array)$s['milestones']).'.'];
