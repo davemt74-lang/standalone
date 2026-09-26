@@ -3501,3 +3501,26 @@
 .adminAgentPlanStep>span{display:grid;gap:3px;min-width:0;flex:1}
 .adminAgentPlanStep small{color:var(--muted,#696969);line-height:1.4}
 .adminAgentPlanStep a{width:max-content;font-size:.73rem;font-weight:700;color:inherit}
+
+
+/* Phase 67 — Unified Research Knowledge & System Reports */
+.researchCanvasTopLink{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border:1px solid var(--line,#d8d8d3);border-radius:999px;background:var(--panel,#fff);color:inherit;text-decoration:none;font-size:.72rem;font-weight:800;letter-spacing:.04em}
+.researchReportsHero,.researchKnowledgeHero{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding:28px 4px 20px}
+.researchReportsHero h1,.researchKnowledgeHero h1{margin:.25rem 0 .45rem;font-size:clamp(1.8rem,3vw,3rem)}
+.researchReportsHero p,.researchKnowledgeHero p{max-width:780px;margin:0;color:var(--muted,#666);line-height:1.55}
+.researchReportsHero label,.researchKnowledgeHero label{display:grid;gap:6px;min-width:220px;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.researchSystemReportTypes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.researchSystemReportType{display:grid;gap:10px;align-content:start}
+.researchSystemReportType h2{margin:0}.researchSystemReportType p{margin:0 0 4px;color:var(--muted,#666);line-height:1.45}
+.researchSystemReportType form{display:grid;gap:8px;margin-top:auto}.researchSystemReportType label{display:grid;gap:5px;font-size:.75rem;font-weight:700}
+.researchReportsHistory,.researchKnowledgeEvidence,.researchKnowledgeReports{margin-top:28px}
+.researchReportsList{display:grid;gap:10px}.researchReportRow{display:flex;justify-content:space-between;gap:18px;align-items:center}.researchReportRow h3{margin:4px 0}.researchReportRow small{color:var(--muted,#666)}.researchReportRow nav{display:flex;gap:12px;flex-wrap:wrap}.researchReportRow nav a{font-weight:700}
+.researchReportDetail{margin-top:18px}.researchReportMetrics,.researchKnowledgeStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.researchReportMetrics span,.researchKnowledgeStats div{display:grid;gap:3px;padding:12px;border:1px solid var(--line,#dfdfda);border-radius:12px;background:var(--soft,#fafaf8)}
+.researchReportMetrics strong,.researchKnowledgeStats strong{font-size:1.35rem}.researchReportMetrics small,.researchKnowledgeStats span{font-size:.72rem;color:var(--muted,#666);text-transform:uppercase;letter-spacing:.04em}
+.researchKnowledgeActions{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 22px}
+.researchKnowledgeGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.researchKnowledgeGrid .card{min-width:0}.researchKnowledgeGrid h2{margin:.2rem 0 .7rem}.researchKnowledgeGrid ul,.researchKnowledgeGrid ol{display:grid;gap:8px;margin:0;padding-left:20px}
+.researchKnowledgeGrid li{line-height:1.4}.researchKnowledgeGrid li span,.researchKnowledgeGrid li small{display:block;color:var(--muted,#666);margin-top:2px}.researchKnowledgeGrid li a{font-weight:700}
+.researchKnowledgeEvidenceGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.researchKnowledgeEvidenceGrid .card{display:grid;gap:7px;align-content:start}.researchKnowledgeEvidenceGrid h3{margin:0}.researchKnowledgeEvidenceGrid p{margin:0;color:var(--muted,#666);line-height:1.45}.researchKnowledgeEvidenceGrid a{font-weight:750}
+@media(max-width:760px){.researchReportsHero,.researchKnowledgeHero,.researchReportRow{align-items:stretch;flex-direction:column}.researchKnowledgeGrid{grid-template-columns:1fr}.researchReportsHero label,.researchKnowledgeHero label{min-width:0;width:100%}}

@@ -29,6 +29,8 @@ $csrf=csrf_token();
   <section class="researchLibraryToolbar" aria-label="Research workspace tools">
     <nav class="researchLibraryTabs researchPrimaryActions">
       <a href="/research.php">Research Agents</a>
+      <a href="/research-agent-knowledge.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Knowledge</a>
+      <a href="/research-reports.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Reports</a>
       <a href="/research-monitoring.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Monitoring</a>
       <a href="/research-tasks.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Tasks</a>
       <a class="active" href="/research-programs.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Programs</a>

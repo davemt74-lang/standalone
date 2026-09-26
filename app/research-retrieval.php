@@ -190,11 +190,131 @@ function research_retrieval_collect_records(PDO $pdo,int $projectId): array {
         }
         $records[]=research_retrieval_record($type,(string)$row['public_id'],(string)$row['title'],$content,$row['folder_public_id']??null,(string)$row['updated_at'],$metadata,$status,$chunks);
     }
+    if(installer_table_exists($pdo,'research_system_reports')){
+        $q=$pdo->prepare("SELECT rsr.public_id report_public_id,rsr.report_type,rsr.document_object_id,rwo.public_id document_public_id,c.public_id agent_conversation_id
+          FROM research_system_reports rsr JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
+          JOIN research_agents ra ON ra.id=rsr.research_agent_id JOIN conversations c ON c.id=ra.conversation_id
+          WHERE rsr.project_id=? AND rsr.status='ready'");
+        $q->execute([$projectId]);$reportDocs=[];foreach($q->fetchAll()?:[] as $row)$reportDocs[(string)$row['document_public_id']]=['system_report_id'=>(string)$row['report_public_id'],'system_report_type'=>(string)$row['report_type'],'agent_conversation_id'=>(string)$row['agent_conversation_id']];
+        if($reportDocs)foreach($records as &$record)if($record['object_type']==='document'&&isset($reportDocs[$record['object_public_id']]))$record['metadata']=array_merge((array)$record['metadata'],$reportDocs[$record['object_public_id']]);unset($record);
+    }
+
+    if(installer_table_exists($pdo,'research_claims')){
+        $q=$pdo->prepare("SELECT rc.public_id,rc.statement,rc.claim_type,rc.status,rc.resolution_note,rc.updated_at,
+          COUNT(ce.id) evidence_count,
+          SUM(ce.relationship='supports') supports_count,
+          SUM(ce.relationship='contradicts') contradicts_count,
+          SUM(ce.relationship='primary') primary_count
+          FROM research_claims rc LEFT JOIN claim_evidence ce ON ce.claim_id=rc.id
+          WHERE rc.project_id=? GROUP BY rc.id ORDER BY rc.updated_at DESC");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Claim type: ".(string)$row['claim_type']."\nStatus: ".(string)$row['status']."\nStatement: ".(string)$row['statement'];
+            if(trim((string)($row['resolution_note']??''))!=='')$content.="\nResolution: ".trim((string)$row['resolution_note']);
+            $content.="\nEvidence: ".(int)$row['evidence_count']." total; ".(int)$row['supports_count']." supports; ".(int)$row['contradicts_count']." contradicts; ".(int)$row['primary_count']." primary.";
+            $records[]=research_retrieval_record('claim',(string)$row['public_id'],mb_substr((string)$row['statement'],0,255),$content,null,(string)$row['updated_at'],[
+              'claim_type'=>(string)$row['claim_type'],'claim_status'=>(string)$row['status'],'evidence_count'=>(int)$row['evidence_count']
+            ],'ready',research_retrieval_chunk_text($content,'claim','Claim'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_findings')){
+        $q=$pdo->prepare("SELECT rf.public_id,rf.title,rf.summary,rf.status,rf.updated_at,
+          GROUP_CONCAT(CONCAT(rc.public_id,': ',rc.statement) ORDER BY fc.position SEPARATOR '\n') linked_claims
+          FROM research_findings rf
+          LEFT JOIN finding_claims fc ON fc.finding_id=rf.id LEFT JOIN research_claims rc ON rc.id=fc.claim_id
+          WHERE rf.project_id=? AND rf.status<>'archived' GROUP BY rf.id ORDER BY rf.updated_at DESC");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Finding status: ".(string)$row['status']."\nSummary: ".(string)$row['summary'];
+            if(trim((string)($row['linked_claims']??''))!=='')$content.="\nLinked Claims:\n".(string)$row['linked_claims'];
+            $records[]=research_retrieval_record('finding',(string)$row['public_id'],(string)$row['title'],$content,null,(string)$row['updated_at'],['finding_status'=>(string)$row['status']],'ready',research_retrieval_chunk_text($content,'finding','Finding'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_entities')){
+        $q=$pdo->prepare("SELECT re.public_id,re.entity_type,re.canonical_name,re.description,re.status,re.updated_at,
+          COUNT(DISTINCT rem.id) mention_count,COUNT(DISTINCT rr.id) relation_count
+          FROM research_entities re
+          LEFT JOIN research_entity_mentions rem ON rem.entity_id=re.id
+          LEFT JOIN research_entity_relations rr ON rr.source_entity_id=re.id OR rr.target_entity_id=re.id
+          WHERE re.project_id=? AND re.status<>'archived'
+          GROUP BY re.id ORDER BY re.updated_at DESC");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Entity type: ".(string)$row['entity_type']."\nStatus: ".(string)$row['status']."\nName: ".(string)$row['canonical_name'];
+            if(trim((string)($row['description']??''))!=='')$content.="\nDescription: ".trim((string)$row['description']);
+            $content.="\nMentions: ".(int)$row['mention_count']."; relationships: ".(int)$row['relation_count'].".";
+            $records[]=research_retrieval_record('entity',(string)$row['public_id'],(string)$row['canonical_name'],$content,null,(string)$row['updated_at'],[
+              'entity_type'=>(string)$row['entity_type'],'entity_status'=>(string)$row['status'],'mention_count'=>(int)$row['mention_count'],'relation_count'=>(int)$row['relation_count']
+            ],'ready',research_retrieval_chunk_text($content,'entity','Entity'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'claim_relations')){
+        $q=$pdo->prepare("SELECT cr.public_id,cr.relation_type,cr.note,cr.created_at,rp.public_id project_public_id,
+          sc.public_id source_public_id,sc.statement source_statement,tc.public_id target_public_id,tc.statement target_statement
+          FROM claim_relations cr JOIN research_claims sc ON sc.id=cr.source_claim_id JOIN research_claims tc ON tc.id=cr.target_claim_id
+          JOIN research_projects rp ON rp.id=cr.project_id WHERE cr.project_id=? ORDER BY cr.created_at DESC");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $title=mb_substr((string)$row['source_statement'].' '.str_replace('_',' ',(string)$row['relation_type']).' '.(string)$row['target_statement'],0,255);
+            $content="[CLAIM ".(string)$row['source_public_id']."] ".(string)$row['source_statement']."\nRelationship: ".(string)$row['relation_type']."\n[CLAIM ".(string)$row['target_public_id']."] ".(string)$row['target_statement'];
+            if(trim((string)($row['note']??''))!=='')$content.="\nNote: ".trim((string)$row['note']);
+            $records[]=research_retrieval_record('claim_relation',(string)$row['public_id'],$title,$content,null,(string)$row['created_at'],[
+              'relation_type'=>(string)$row['relation_type'],'source_claim_id'=>(string)$row['source_public_id'],'target_claim_id'=>(string)$row['target_public_id'],'project_public_id'=>(string)$row['project_public_id']
+            ],'ready',research_retrieval_chunk_text($content,'relationship','Claim relationship'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_entity_relations')){
+        $q=$pdo->prepare("SELECT rr.public_id,rr.relation_type,rr.note,rr.created_at,rp.public_id project_public_id,
+          se.public_id source_public_id,se.canonical_name source_name,te.public_id target_public_id,te.canonical_name target_name
+          FROM research_entity_relations rr JOIN research_entities se ON se.id=rr.source_entity_id JOIN research_entities te ON te.id=rr.target_entity_id
+          JOIN research_projects rp ON rp.id=rr.project_id WHERE rr.project_id=? ORDER BY rr.created_at DESC");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $title=mb_substr((string)$row['source_name'].' '.str_replace('_',' ',(string)$row['relation_type']).' '.(string)$row['target_name'],0,255);
+            $content="[ENTITY ".(string)$row['source_public_id']."] ".(string)$row['source_name']."\nRelationship: ".(string)$row['relation_type']."\n[ENTITY ".(string)$row['target_public_id']."] ".(string)$row['target_name'];
+            if(trim((string)($row['note']??''))!=='')$content.="\nNote: ".trim((string)$row['note']);
+            $records[]=research_retrieval_record('entity_relation',(string)$row['public_id'],$title,$content,null,(string)$row['created_at'],[
+              'relation_type'=>(string)$row['relation_type'],'source_entity_id'=>(string)$row['source_public_id'],'target_entity_id'=>(string)$row['target_public_id'],'project_public_id'=>(string)$row['project_public_id']
+            ],'ready',research_retrieval_chunk_text($content,'relationship','Entity relationship'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_tasks')){
+        $q=$pdo->prepare("SELECT rt.public_id,rt.title,rt.description,rt.task_type,rt.priority,rt.status,rt.due_at,rt.updated_at,ra.public_id agent_public_id
+          FROM research_tasks rt JOIN research_agents ra ON ra.id=rt.research_agent_id
+          WHERE rt.project_id=? AND rt.status<>'archived' ORDER BY rt.updated_at DESC LIMIT 300");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Task type: ".(string)$row['task_type']."\nPriority: ".(string)$row['priority']."\nStatus: ".(string)$row['status']."\n".trim((string)($row['description']??''));
+            $records[]=research_retrieval_record('task',(string)$row['public_id'],(string)$row['title'],$content,null,(string)$row['updated_at'],[
+              'task_type'=>(string)$row['task_type'],'priority'=>(string)$row['priority'],'task_status'=>(string)$row['status'],'due_at'=>$row['due_at']??null,'agent_public_id'=>(string)$row['agent_public_id']
+            ],'ready',research_retrieval_chunk_text($content,'task','Task'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_programs')){
+        $q=$pdo->prepare("SELECT rp.public_id,rp.title,rp.objective,rp.status,rp.cadence,rp.next_run_at,rp.updated_at,ra.public_id agent_public_id
+          FROM research_programs rp JOIN research_agents ra ON ra.id=rp.research_agent_id
+          WHERE rp.project_id=? AND rp.status<>'archived' ORDER BY rp.updated_at DESC LIMIT 200");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Program status: ".(string)$row['status']."\nCadence: ".(string)$row['cadence']."\nObjective: ".(string)$row['objective'];
+            if(!empty($row['next_run_at']))$content.="\nNext run: ".(string)$row['next_run_at'];
+            $records[]=research_retrieval_record('program',(string)$row['public_id'],(string)$row['title'],$content,null,(string)$row['updated_at'],[
+              'program_status'=>(string)$row['status'],'cadence'=>(string)$row['cadence'],'next_run_at'=>$row['next_run_at']??null,'agent_public_id'=>(string)$row['agent_public_id']
+            ],'ready',research_retrieval_chunk_text($content,'program','Program'));
+        }
+    }
+
     return $records;
 }
 
 function research_retrieval_records_hash(array $records): string {
-    $parts=[];foreach($records as $r)$parts[]=$r['object_type'].':'.$r['object_public_id'].':'.$r['content_hash'].':'.($r['folder_public_id']??'').':'.$r['source_status'];
+    $parts=[];foreach($records as $r)$parts[]=$r['object_type'].':'.$r['object_public_id'].':'.$r['content_hash'].':'.($r['folder_public_id']??'').':'.$r['source_status'].':'.hash('sha256',json_encode((array)($r['metadata']??[]),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
     sort($parts,SORT_STRING);return hash('sha256',implode("\n",$parts));
 }
 
@@ -316,20 +436,42 @@ function research_retrieval_annotation_allowed(PDO $pdo,array $viewer,string $pu
     return false;
 }
 
+function research_retrieval_project_object_allowed(PDO $pdo,array $viewer,string $type,string $publicId): bool {
+    $table=match($type){
+      'claim'=>'research_claims','finding'=>'research_findings','entity'=>'research_entities','claim_relation'=>'claim_relations','entity_relation'=>'research_entity_relations','task'=>'research_tasks','program'=>'research_programs',default=>''
+    };
+    if($table==='')return false;
+    try{
+        $q=$pdo->prepare("SELECT rp.public_id FROM {$table} o JOIN research_projects rp ON rp.id=o.project_id WHERE o.public_id=? LIMIT 1");
+        $q->execute([$publicId]);$projectPublic=(string)($q->fetchColumn()?:'');
+        return $projectPublic!==''&&project_access($pdo,(int)$viewer['id'],$projectPublic)!==null;
+    }catch(Throwable $e){return false;}
+}
+
 function research_retrieval_result_allowed(PDO $pdo,array $viewer,array $row): bool {
     $type=(string)($row['object_type']??'');$id=(string)($row['object_public_id']??'');
     if($type==='annotation')return research_retrieval_annotation_allowed($pdo,$viewer,$id);
     if(in_array($type,['document','bookmark','sticky','upload','recording'],true))return research_agent_workspace_object($pdo,$viewer,$id,false)!==null;
     if($type==='source')return source_access($pdo,$id,$viewer)!==null;
+    if(in_array($type,['claim','finding','entity','claim_relation','entity_relation','task','program'],true))return research_retrieval_project_object_allowed($pdo,$viewer,$type,$id);
     return false;
 }
 
 function research_retrieval_href(array $row): string {
+    $metadata=json_decode((string)($row['metadata_json']??''),true)?:[];$id=(string)$row['object_public_id'];
     return match((string)$row['object_type']){
-      'annotation'=>'/annotation.php?id='.rawurlencode((string)$row['object_public_id']),
-      'source'=>'/source.php?id='.rawurlencode((string)$row['object_public_id']),
-      'upload'=>'/research-workspace-file.php?id='.rawurlencode((string)$row['object_public_id']),
-      'bookmark'=>(string)((json_decode((string)($row['metadata_json']??''),true)?:[])['url']??''),
+      'annotation'=>'/annotation.php?id='.rawurlencode($id),
+      'source'=>'/source.php?id='.rawurlencode($id),
+      'upload'=>'/research-workspace-file.php?id='.rawurlencode($id),
+      'bookmark'=>(string)($metadata['url']??''),
+      'claim'=>'/research-claim.php?id='.rawurlencode($id),
+      'finding'=>'/research-finding.php?id='.rawurlencode($id),
+      'entity'=>'/research-entity.php?id='.rawurlencode($id),
+      'claim_relation'=>!empty($metadata['project_public_id'])?'/research-graph.php?id='.rawurlencode((string)$metadata['project_public_id']):'',
+      'entity_relation'=>!empty($metadata['project_public_id'])?'/research-entities.php?id='.rawurlencode((string)$metadata['project_public_id']):'',
+      'task'=>!empty($metadata['agent_public_id'])?'/research-tasks.php?agent='.rawurlencode((string)$metadata['agent_public_id']).'&task='.rawurlencode($id):'',
+      'program'=>!empty($metadata['agent_public_id'])?'/research-programs.php?agent='.rawurlencode((string)$metadata['agent_public_id']).'&program='.rawurlencode($id):'',
+      'document'=>!empty($metadata['system_report_id'])?'/home.php?agent='.rawurlencode((string)($metadata['agent_conversation_id']??'')).'&doc='.rawurlencode($id):'',
       default=>''
     };
 }
@@ -344,12 +486,14 @@ function research_retrieval_snippet(string $content,string $query,int $max=360):
 function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $projectPublicId,string $query,array $filters=[],int $limit=30,bool $audit=true): array {
     $current=research_retrieval_ensure_current($pdo,$config,$viewer,$projectPublicId);$project=$current['project'];$state=$current['state'];$projectId=(int)$project['id'];
     $query=mb_substr(trim((string)preg_replace('/\s+/u',' ',$query)),0,1000);$limit=max(1,min(60,$limit));
-    $type=strtolower(trim((string)($filters['type']??'all')));$allowedTypes=['all','source','annotation','document','bookmark','sticky','upload','recording','transcript'];if(!in_array($type,$allowedTypes,true))$type='all';
+    $type=strtolower(trim((string)($filters['type']??'all')));$allowedTypes=['all','source','annotation','document','bookmark','sticky','upload','recording','transcript','claim','finding','entity','relation','task','program','report'];if(!in_array($type,$allowedTypes,true))$type='all';
     $folder=trim((string)($filters['folder_id']??''));$status=trim((string)($filters['status']??''));$dateFrom=trim((string)($filters['date_from']??''));$dateTo=trim((string)($filters['date_to']??''));$creator=trim((string)($filters['creator']??''));
     $folderScope=$folder!==''?research_retrieval_folder_scope($pdo,$projectId,$folder):[];
 
     $params=[$projectId];$where=['d.project_id=?'];
     if($type==='transcript'){$where[]="d.object_type='recording'";$where[]="d.source_status='ready'";}
+    elseif($type==='report'){$where[]="d.object_type='document'";$where[]="JSON_UNQUOTE(JSON_EXTRACT(d.metadata_json,'$.system_report_type')) IS NOT NULL";}
+    elseif($type==='relation'){$where[]="d.object_type IN ('claim_relation','entity_relation')";}
     elseif($type!=='all'){$where[]='d.object_type=?';$params[]=$type;}
     if($status!==''){$where[]='d.source_status=?';$params[]=$status;}
     if($dateFrom!==''&&preg_match('/^\d{4}-\d{2}-\d{2}$/',$dateFrom)){$where[]='d.source_updated_at>=?';$params[]=$dateFrom.' 00:00:00';}

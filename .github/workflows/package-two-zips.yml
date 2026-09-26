@@ -296,6 +296,15 @@ jobs:
           test -f package-website/docs/phase-66-production-acceptance-ux-qa-release-hardening.md
           test -f package-website/tests/phase66-production-acceptance-contract.php
           test -f package-website/tests/phase66-production-acceptance-db.php
+          test -f package-website/database/migrations/20260925_080_research_agent_knowledge_system_reports.sql
+          test -f package-website/docs/phase-67-unified-research-knowledge-system-reports.md
+          test -f package-website/app/research-system-reports.php
+          test -f package-website/api/research-system-reports.php
+          test -f package-website/research-agent-knowledge.php
+          test -f package-website/research-reports.php
+          test -f package-website/tests/phase67-unified-research-knowledge-system-reports-contract.php
+          test -f package-website/tests/phase67-unified-research-knowledge-system-reports-db.php
+          test -f package-website/tests/ci/phase67-upgrade-from-079.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php

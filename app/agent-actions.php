@@ -45,6 +45,10 @@ function agent_action_capabilities(): array {
         'label'=>'Create research document','description'=>'Create a durable editable Research document in the current Research Agent workspace. The completed document is posted back into the Agent conversation as a document card.',
         'arguments'=>['title'=>'string','body'=>'string','summary'=>'string optional','document_type'=>'document|research_brief|memo|report|analysis|source_summary|timeline|weekly_report']
       ],
+      'research.create_system_report'=>[
+        'label'=>'Create System Report','description'=>'Process the current Research Agent data into a governed System Report stored as a normal versioned Research document. The user must confirm report creation.',
+        'arguments'=>['report_type'=>'research_brief|evidence_audit|claims_verification|contradictions_gaps|source_freshness|entity_map|timeline|action_plan|full_intelligence','title'=>'string optional']
+      ],
       'research.create_sticky'=>[
         'label'=>'Create sticky note','description'=>'Pin a concise colored sticky note to the current Research Agent canvas after user confirmation.',
         'arguments'=>['body'=>'string','color'=>'yellow|pink|blue|green|purple|gray optional']
@@ -181,6 +185,12 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $body=$s($args['body']??'',60000);if($body==='')throw new InvalidArgumentException('Document body is required.');
         $summary=$s($args['summary']??'',5000);$type=research_agent_workspace_document_type((string)($args['document_type']??'document'));
         return ['title'=>$title,'body'=>$body,'summary'=>$summary,'document_type'=>$type];
+    }
+    if($capability==='research.create_system_report'){
+        $type=$s($args['report_type']??'research_brief',64);
+        $allowed=function_exists('research_system_report_types')?research_system_report_types():array_fill_keys(['research_brief','evidence_audit','claims_verification','contradictions_gaps','source_freshness','entity_map','timeline','action_plan','full_intelligence'],[]);
+        if(!isset($allowed[$type]))throw new InvalidArgumentException('Unknown System Report type.');
+        return ['report_type'=>$type,'title'=>$s($args['title']??'',240)];
     }
     if($capability==='research.create_sticky'){
         $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Sticky note body is required.');
@@ -346,6 +356,14 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
           'url'=>$conversation!==''?'/home.php?agent='.rawurlencode($conversation).'&doc='.rawurlencode((string)$document['public_id']):'/research-project.php?id='.rawurlencode((string)$project['public_id']),
           'revision_number'=>(int)($document['revision_number']??1),'document_type'=>(string)($document['document_type']??$args['document_type'])
         ];
+    }
+    if($capability==='research.create_system_report'){
+        if(!function_exists('research_system_report_generate')||!research_system_reports_ready($pdo))throw new RuntimeException('Research System Reports require the latest database upgrade.');
+        $q=$pdo->prepare("SELECT public_id FROM research_agents WHERE project_id=? AND status='active' ORDER BY is_default DESC,id LIMIT 1");$q->execute([$projectId]);$agentPublic=(string)($q->fetchColumn()?:'');
+        if($agentPublic==='')throw new RuntimeException('This project has no active Research Agent.');
+        $cfg=is_array($GLOBALS['config']??null)?$GLOBALS['config']:[];
+        $report=research_system_report_generate($pdo,$cfg,$viewer,$agentPublic,(string)$args['report_type'],(string)$args['title'],true);
+        return ['type'=>'research_system_report','public_id'=>(string)$report['public_id'],'label'=>(string)$report['title'],'url'=>'/research-reports.php?agent='.rawurlencode($agentPublic).'&report='.rawurlencode((string)$report['public_id']),'document_public_id'=>(string)$report['document_public_id']];
     }
     if($capability==='research.create_sticky'){
         if(!function_exists('research_agent_workspace_create_sticky'))throw new RuntimeException('Research sticky workspace is unavailable.');
