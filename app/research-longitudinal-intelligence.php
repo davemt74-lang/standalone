@@ -261,6 +261,8 @@ function research_longitudinal_rebuild_summary(array $changes,array $milestones)
 function research_longitudinal_filter_report_data(array $data,array $options): array {
     if(empty($data['ready']))return $data;$summary=(array)($data['summary']??[]);$changes=(array)($summary['changes']??[]);$milestones=(array)($summary['milestones']??[]);
     $from=trim((string)($options['date_from']??''));$to=trim((string)($options['date_to']??''));$focus=mb_strtolower(trim((string)($options['focus_query']??'')));
+    if($from===''&&$to===''){$from=date('Y-m-d',strtotime('-30 days'));$data['since_days']=30;}
+    elseif($from!==''){$days=max(1,(int)ceil((time()-(strtotime($from)?:time()))/86400));$data['since_days']=$days;}
     $selected=array_values(array_unique(array_merge((array)($options['source_ids']??[]),(array)($options['claim_ids']??[]),(array)($options['finding_ids']??[]),(array)($options['entity_ids']??[]))));
     $accept=function(array $row)use($from,$to,$focus,$selected): bool {
         $time=strtotime((string)($row['occurred_at']??''));if($from!==''&&$time!==false&&$time<strtotime($from.' 00:00:00'))return false;if($to!==''&&$time!==false&&$time>strtotime($to.' 23:59:59'))return false;
