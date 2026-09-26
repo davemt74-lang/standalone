@@ -9,13 +9,13 @@ $must('database/migrations/20260925_080_research_agent_knowledge_system_reports.
  'research_system_reports','research_system_report_events','input_state_hash','evidence_refs_json','document_object_id'
 ],'Phase 67 migration');
 $must('app/research-system-reports.php',[
- 'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge',
+ 'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge','research_system_report_coverage_counts','research_system_report_component_error',
  "'research_brief'","'evidence_audit'","'claims_verification'","'contradictions_gaps'","'source_freshness'","'entity_map'","'timeline'","'action_plan'","'full_intelligence'",
- 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports'
+ 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports','coverage','diagnostics','claim_relations','entity_relations','beginTransaction','rollBack','chat_post_failed'
 ],'Phase 67 reports runtime');
 $must('app/research-retrieval.php',[
  "'claim'","'finding'","'entity'","'claim_relation'","'entity_relation'","'task'","'program'","'report'",
- 'research_retrieval_project_object_allowed','system_report_type','JSON_UNQUOTE(JSON_EXTRACT','research_claims','research_findings','research_entities'
+ 'research_retrieval_project_object_allowed','system_report_type','JSON_UNQUOTE(JSON_EXTRACT','research_claims','research_findings','research_entities',"'input_hash'=>\$state['input_hash']??null"
 ],'Phase 67 unified retrieval');
 $must('app/agent-chat.php',[
  "if(\$type==='claim'","if(\$type==='finding'","if(\$type==='entity'","if(\$type==='task'","if(\$type==='program'"
