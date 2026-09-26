@@ -276,3 +276,54 @@ function research_system_report_render(string $type,array $s): array {
     $body.='<hr><p><small>This System Report is a deterministic processing of the Research Agent\'s authorized project data at the recorded data-state hash. Source evidence, Claims, Findings and authoritative Research objects remain independently inspectable.</small></p>';
     return ['title'=>$title,'html'=>$body,'summary'=>(string)$meta['description']];
 }
+
+
+function research_system_report_folder(PDO $pdo,array $viewer,array $project): array {
+    $q=$pdo->prepare("SELECT public_id FROM research_workspace_objects WHERE project_id=? AND parent_id IS NULL AND object_type='folder' AND status='active' AND title='System Reports' ORDER BY id LIMIT 1");
+    $q->execute([(int)$project['id']]);$public=(string)($q->fetchColumn()?:'');
+    if($public!==''){ $row=research_agent_workspace_object($pdo,$viewer,$public,false);if($row)return $row; }
+    return research_agent_workspace_create_folder($pdo,$viewer,$project,'System Reports');
+}
+
+function research_system_report_generate(PDO $pdo,array $config,array $viewer,string $agentPublic,string $reportType,string $customTitle='',bool $byAgent=false,?int $parentMessageId=null): array {
+    if(!research_system_reports_ready($pdo))throw new RuntimeException('Research System Reports require the latest database upgrade.');
+    $agent=research_system_report_agent($pdo,$viewer,$agentPublic);
+    $project=research_agent_workspace_project($pdo,$viewer,(string)$agent['public_id']);if(!$project)throw new RuntimeException('Research Agent workspace not found.');
+    research_agent_workspace_require_write($project);$type=research_system_report_type($reportType);
+    $snapshot=research_system_report_snapshot($pdo,$config,$viewer,$agent);$render=research_system_report_render((string)$type['key'],$snapshot);
+    $title=mb_substr(trim($customTitle)!==''?trim($customTitle):(string)$render['title'],0,240);if($title==='')$title=(string)$type['label'];
+    $folder=research_system_report_folder($pdo,$viewer,$project);
+    $doc=research_agent_workspace_create_document($pdo,$viewer,$project,[
+      'title'=>$title,'document_type'=>'report','content_html'=>(string)$render['html'],'summary'=>(string)$render['summary'],'parent_id'=>(string)$folder['public_id']
+    ],$byAgent);
+    $refs=research_system_report_refs($snapshot);$metrics=[
+      'sources'=>count((array)$snapshot['sources']),'claims'=>count((array)$snapshot['claims']),'findings'=>count((array)$snapshot['findings']),
+      'entities'=>count((array)$snapshot['entities']),'evidence_refs'=>count($refs),
+      'gaps'=>count((array)($snapshot['workspace']['gaps']??[])),'conflicts'=>count((array)($snapshot['workspace']['conflicts']??[]))
+    ];
+    $public=ulid_like();$pdo->prepare("INSERT INTO research_system_reports(public_id,research_agent_id,project_id,requested_by_user_id,report_type,title,status,document_object_id,input_state_hash,evidence_refs_json,metrics_json)
+      VALUES(?,?,?,?,?,?,'ready',?,?,?,?)")
+      ->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],(string)$type['key'],$title,(int)$doc['id'],(string)$snapshot['state_hash'],
+        json_encode($refs,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($metrics,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);
+    $reportId=(int)$pdo->lastInsertId();
+    research_system_report_event($pdo,$reportId,'generated',$byAgent?'agent':'user',(int)$viewer['id'],['report_type'=>$type['key'],'document_id'=>$doc['public_id'],'state_hash'=>$snapshot['state_hash']]);
+    if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$project['id']);
+    if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$project['id'],(int)$viewer['id'],'workspace_change','A Research System Report was generated.');
+    $message=null;if($byAgent&&function_exists('research_agent_workspace_post_document_to_chat'))$message=research_agent_workspace_post_document_to_chat($pdo,$viewer,(string)$doc['public_id'],$parentMessageId);
+    $report=research_system_report_access($pdo,$viewer,$public)??['public_id'=>$public,'report_type'=>$type['key'],'title'=>$title,'document_public_id'=>$doc['public_id'],'metrics'=>$metrics,'evidence_refs'=>$refs];
+    $report['agent_message']=$message;return $report;
+}
+
+function research_system_report_archive(PDO $pdo,array $viewer,string $publicId): array {
+    $report=research_system_report_access($pdo,$viewer,$publicId);if(!$report)throw new RuntimeException('System Report not found.');
+    $project=research_agent_workspace_project($pdo,$viewer,(string)$report['agent_public_id']);if(!$project)throw new RuntimeException('System Report not found.');
+    research_agent_workspace_require_write($project);
+    $pdo->prepare("UPDATE research_system_reports SET status='archived',updated_at=NOW() WHERE id=?")->execute([(int)$report['id']]);
+    research_system_report_event($pdo,(int)$report['id'],'archived','user',(int)$viewer['id']);
+    return research_system_report_access($pdo,$viewer,$publicId)??$report;
+}
+
+function research_system_report_knowledge(PDO $pdo,array $config,array $viewer,string $agentPublic): array {
+    $agent=research_system_report_agent($pdo,$viewer,$agentPublic);$snapshot=research_system_report_snapshot($pdo,$config,$viewer,$agent);
+    return ['agent'=>$agent,'snapshot'=>$snapshot,'reports'=>research_system_report_list($pdo,$viewer,$agentPublic,12),'report_types'=>research_system_report_types()];
+}
