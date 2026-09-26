@@ -15,7 +15,7 @@ try{
     foreach(glob($root.'/database/migrations/*.sql')?:[] as $file){$base=basename($file);if(strcmp($base,$baseline)<=0)copy($file,$tmp.'/'.$base);}
     installer_run($pdo,$root.'/database/schema.sql',$tmp);
     if(!installer_table_exists($pdo,'research_report_presets'))throw new RuntimeException('082 fixture is missing Report Studio presets.');
-    if(installer_table_exists($pdo,'research_report_subscriptions')||installer_table_exists($pdo,'research_report_deliveries'))throw new RuntimeException('082 fixture unexpectedly contains Phase 69 delivery tables.');
+    if(installer_table_exists($pdo,'research_intelligence_subscriptions')||installer_table_exists($pdo,'research_report_deliveries'))throw new RuntimeException('082 fixture unexpectedly contains Phase 69 delivery tables.');
 
     foreach(['storage','jobs','functions','access','notifications','rate-limit','conversations','research-automation','research-workspace','research-agents','research-agent-workspace','research-tasks','research-programs','research-system-reports','research-report-studio'] as $lib)require_once $root.'/app/'.$lib.'.php';
     $run='p69up'.substr(bin2hex(random_bytes(5)),0,10);$username='phase69_'.$run;
@@ -30,17 +30,17 @@ try{
 
     $applied=migration_apply_pending($pdo,$root.'/database/migrations',20);
     if(!in_array('20260926_083_research_intelligence_delivery_subscriptions',$applied,true))throw new RuntimeException('Upgrade did not apply migration 083.');
-    foreach(['research_report_subscriptions','research_report_deliveries','research_report_delivery_events'] as $table)if(!installer_table_exists($pdo,$table))throw new RuntimeException('083 upgraded schema missing '.$table.'.');
+    foreach(['research_intelligence_subscriptions','research_report_deliveries','research_report_delivery_events'] as $table)if(!installer_table_exists($pdo,$table))throw new RuntimeException('083 upgraded schema missing '.$table.'.');
 
     $columnType=(string)$pdo->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='research_report_deliveries' AND COLUMN_NAME='status'")->fetchColumn();
     if(!str_contains($columnType,"'pending'")||!str_contains($columnType,"'suppressed'")||!str_contains($columnType,"'viewed'"))throw new RuntimeException('083 delivery lifecycle enum is incomplete.');
-    $nullable=(string)$pdo->query("SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='research_report_subscriptions' AND COLUMN_NAME='subscriber_user_id'")->fetchColumn();
+    $nullable=(string)$pdo->query("SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='research_intelligence_subscriptions' AND COLUMN_NAME='subscriber_user_id'")->fetchColumn();
     if($nullable!=='YES')throw new RuntimeException('083 must preserve historical subscriptions when a subscriber account is deleted.');
 
     $q=$pdo->prepare("SELECT rrp.public_id preset_public_id,rp.public_id program_public_id FROM research_report_presets rrp LEFT JOIN research_programs rp ON rp.id=rrp.program_id WHERE rrp.public_id=?");$q->execute([(string)$preset['public_id']]);$links=$q->fetch();
     if(!$links||$links['program_public_id']!==$program['public_id'])throw new RuntimeException('083 altered the existing Phase 68 preset/Program relationship.');
     $q=$pdo->prepare('SELECT COUNT(*) FROM research_system_reports WHERE public_id=? AND document_object_id IS NULL');$q->execute([(string)$report['public_id']]);if((int)$q->fetchColumn()!==1)throw new RuntimeException('083 altered the existing Phase 68 Report Run.');
-    if((int)$pdo->query('SELECT COUNT(*) FROM research_report_subscriptions')->fetchColumn()!==0||(int)$pdo->query('SELECT COUNT(*) FROM research_report_deliveries')->fetchColumn()!==0)throw new RuntimeException('083 must not create subscriptions or deliveries implicitly.');
+    if((int)$pdo->query('SELECT COUNT(*) FROM research_intelligence_subscriptions')->fetchColumn()!==0||(int)$pdo->query('SELECT COUNT(*) FROM research_report_deliveries')->fetchColumn()!==0)throw new RuntimeException('083 must not create subscriptions or deliveries implicitly.');
 
     $pending=installer_pending_migrations($pdo,$root.'/database/migrations');if($pending)throw new RuntimeException('Upgrade left pending migrations: '.implode(', ',$pending));
     $again=migration_apply_pending($pdo,$root.'/database/migrations',20);if($again)throw new RuntimeException('Phase 69 repeat upgrade is not a no-op: '.implode(', ',$again));
