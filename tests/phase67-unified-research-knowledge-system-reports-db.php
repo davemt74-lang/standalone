@@ -29,7 +29,7 @@ $pdo->prepare('INSERT INTO project_sources(project_id,source_id,added_by_user_id
 $claimPublic=$pub('claim');$statement='Mercury orchard demand increased by 18 percent.';
 $pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,?, 'factual','supported')")
   ->execute([$claimPublic,(int)$project['id'],(int)$owner['id'],$statement]);$claimId=(int)$pdo->lastInsertId();
-$pdo->prepare("INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,source_version_id,relationship,note) VALUES(?,?,?,'source',?,'primary','Primary market evidence')")
+$pdo->prepare("INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,source_version_id,relationship,note) VALUES(?,?,?,'source_version',?,'primary','Primary market evidence')")
   ->execute([$pub('ev'),$claimId,(int)$owner['id'],$versionId]);
 
 $claim2Public=$pub('claim');$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,?, 'interpretation','unverified')")
