@@ -500,10 +500,11 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
     $current=research_retrieval_ensure_current($pdo,$config,$viewer,$projectPublicId);$project=$current['project'];$state=$current['state'];$projectId=(int)$project['id'];
     $query=mb_substr(trim((string)preg_replace('/\s+/u',' ',$query)),0,1000);$limit=max(1,min(60,$limit));
     $type=strtolower(trim((string)($filters['type']??'all')));$allowedTypes=['all','source','annotation','document','bookmark','sticky','upload','recording','transcript','claim','finding','entity','relation','task','program','report'];if(!in_array($type,$allowedTypes,true))$type='all';
-    $folder=trim((string)($filters['folder_id']??''));$status=trim((string)($filters['status']??''));$dateFrom=trim((string)($filters['date_from']??''));$dateTo=trim((string)($filters['date_to']??''));$creator=trim((string)($filters['creator']??''));
+    $folder=trim((string)($filters['folder_id']??''));$status=trim((string)($filters['status']??''));$dateFrom=trim((string)($filters['date_from']??''));$dateTo=trim((string)($filters['date_to']??''));$creator=trim((string)($filters['creator']??''));$excludeReportDerivatives=!empty($filters['exclude_report_derivatives']);
     $folderScope=$folder!==''?research_retrieval_folder_scope($pdo,$projectId,$folder):[];
 
     $params=[$projectId];$where=['d.project_id=?'];
+    if($excludeReportDerivatives)$where[]="d.object_type<>'report' AND NOT (d.object_type='document' AND JSON_UNQUOTE(JSON_EXTRACT(d.metadata_json,'$.source_report_id')) IS NOT NULL)";
     if($type==='transcript'){$where[]="d.object_type='recording'";$where[]="d.source_status='ready'";}
     elseif($type==='report'){$where[]="d.object_type='report'";}
     elseif($type==='relation'){$where[]="d.object_type IN ('claim_relation','entity_relation')";}
