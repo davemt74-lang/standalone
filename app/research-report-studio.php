@@ -136,6 +136,22 @@ function research_report_studio_compare_manifests(array $old,array $new): array 
     $diff['material_change_count']=$material;return $diff;
 }
 
+function research_report_studio_scope_choices(PDO $pdo,array $viewer,string $agentPublic): array {
+    $agent=research_system_report_agent($pdo,$viewer,$agentPublic);$projectId=(int)$agent['project_id'];$out=['sources'=>[],'claims'=>[],'findings'=>[],'entities'=>[],'folders'=>[]];
+    $q=$pdo->prepare("SELECT s.public_id,COALESCE(NULLIF(s.title,''),s.domain,s.public_id) label FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id=? ORDER BY label LIMIT 200");$q->execute([$projectId]);$out['sources']=$q->fetchAll()?:[];
+    $q=$pdo->prepare("SELECT public_id,LEFT(statement,180) label FROM research_claims WHERE project_id=? ORDER BY updated_at DESC LIMIT 200");$q->execute([$projectId]);$out['claims']=$q->fetchAll()?:[];
+    $q=$pdo->prepare("SELECT public_id,title label FROM research_findings WHERE project_id=? AND status<>'archived' ORDER BY updated_at DESC LIMIT 200");$q->execute([$projectId]);$out['findings']=$q->fetchAll()?:[];
+    $q=$pdo->prepare("SELECT public_id,canonical_name label FROM research_entities WHERE project_id=? AND status<>'archived' ORDER BY canonical_name LIMIT 200");$q->execute([$projectId]);$out['entities']=$q->fetchAll()?:[];
+    $q=$pdo->prepare("SELECT public_id,title label FROM research_workspace_objects WHERE project_id=? AND object_type='folder' AND status='active' ORDER BY title LIMIT 200");$q->execute([$projectId]);$out['folders']=$q->fetchAll()?:[];
+    return $out;
+}
+
+function research_report_studio_previous_run(PDO $pdo,array $viewer,array $report): ?array {
+    $q=$pdo->prepare("SELECT public_id FROM research_system_reports WHERE research_agent_id=? AND report_type=? AND status='ready' AND id<? ORDER BY id DESC LIMIT 1");
+    $q->execute([(int)$report['research_agent_id'],(string)$report['report_type'],(int)$report['id']]);$id=(string)($q->fetchColumn()?:'');
+    return $id!==''?research_system_report_access($pdo,$viewer,$id):null;
+}
+
 function research_report_studio_preset_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!research_report_studio_ready($pdo))return null;
     $q=$pdo->prepare("SELECT rrp.*,ra.public_id agent_public_id,rp.public_id project_public_id FROM research_report_presets rrp
