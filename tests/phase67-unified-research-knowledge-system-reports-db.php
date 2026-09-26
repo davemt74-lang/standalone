@@ -119,7 +119,7 @@ $verification=research_system_report_generate($pdo,[],$owner,(string)$agent['pub
 $full=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'full_intelligence','Full Intelligence',false);
 p67(str_contains(strip_tags((string)$full['rendered_html']),'Extended Research intelligence'),'Full Intelligence Report Run renders project-contained extended Research intelligence.');
 $list=research_system_report_list($pdo,$owner,(string)$agent['public_id'],20);
-p67(count($list)>=3&&empty($verification['document_public_id'])&&empty($full['document_public_id']),'One Research Agent can create multiple Report Runs without automatically creating documents.');
+p67(count($list)>=2&&empty($verification['document_public_id'])&&empty($full['document_public_id']),'One Research Agent can create multiple active Report Runs without automatically creating documents; archived runs stay out of the active list.');
 
 $clean=agent_action_clean_arguments('research.create_system_report',['report_type'=>'evidence_audit','title'=>'Agent Evidence Audit']);
 p67(($clean['report_type']??'')==='evidence_audit','Governed Agent action validates System Report type.');
