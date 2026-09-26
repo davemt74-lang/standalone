@@ -372,14 +372,14 @@ function research_longitudinal_capture_program(PDO $pdo,array $program,int $runI
 
 function research_longitudinal_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limit=12): void {
     if(!research_longitudinal_ready($pdo))return;$limit=max(1,min(30,$limit));
-    $q=$pdo->prepare("SELECT rlc.public_id,rlc.research_agent_id,rlc.object_type,rlc.object_public_id,rlc.change_type,rlc.materiality,rlc.reason,rlc.after_json,rlc.before_json,rlc.occurred_at,ra.public_id agent_public_id,ra.name agent_name
-      FROM research_longitudinal_changes rlc JOIN research_agents ra ON ra.id=rlc.research_agent_id
+    $q=$pdo->prepare("SELECT rlc.public_id,rlc.research_agent_id,rlc.object_type,rlc.object_public_id,rlc.change_type,rlc.materiality,rlc.reason,rlc.after_json,rlc.before_json,rlc.occurred_at,ra.public_id agent_public_id,ra.name agent_name,rp.public_id project_public_id
+      FROM research_longitudinal_changes rlc JOIN research_agents ra ON ra.id=rlc.research_agent_id JOIN research_projects rp ON rp.id=rlc.project_id
       WHERE rlc.materiality='high' AND rlc.occurred_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) ORDER BY rlc.id DESC LIMIT ".($limit*4));$q->execute();
     $added=0;foreach($q->fetchAll()?:[] as $r){if($added>=$limit)break;if(!research_agent_access($pdo,$viewer,(string)$r['agent_public_id']))continue;$row=json_decode((string)($r['after_json']?:$r['before_json']?:'{}'),true)?:[];$title=research_longitudinal_object_title((string)$r['object_type'],$row);
         cognitive_feed_add($items,['key'=>cognitive_feed_key('research_longitudinal_change','research_change',(string)$r['public_id'],(string)$r['occurred_at']),'type'=>'research_longitudinal_change',
           'section'=>in_array((string)$r['change_type'],['weakened','disputed','removed'],true)?'needs_attention':'recent_changes','priority'=>'high','created_at'=>$r['occurred_at'],
           'title'=>ucwords(str_replace('_',' ',(string)$r['change_type'])).': '.$title,'body'=>(string)$r['reason'],'meta'=>['agent'=>$r['agent_name'],'object_type'=>$r['object_type']],
-          'actions'=>[cognitive_feed_action_link('Open evolution','/research-evolution.php?agent='.rawurlencode((string)$r['agent_public_id'])),cognitive_feed_action_agent('Ask Agent','Explain this Research change, the evidence behind it, and what I should review next.',[['type'=>'research','public_id'=>(string)$r['agent_public_id']]])]]);
+          'actions'=>[cognitive_feed_action_link('Open evolution','/research-evolution.php?agent='.rawurlencode((string)$r['agent_public_id'])),cognitive_feed_action_agent('Ask Agent','Explain this Research change, the evidence behind it, and what I should review next.',[['type'=>'research','public_id'=>(string)$r['project_public_id']]])]]);
         $added++;
     }
 }
