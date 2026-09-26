@@ -214,6 +214,13 @@ jobs:
           DB_PASS: root
           ADMIN_V260_RESET_DB: '1'
         run: php tests/ci/admin-v2-60-upgrade-from-078.php
+      - name: Phase 67 upgrade rehearsal from migration 079 through 080
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase67_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE67_RESET_DB: '1'
+        run: php tests/ci/phase67-upgrade-from-079.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
@@ -261,6 +268,7 @@ jobs:
           php tests/phase64-core-product-workflow-db.php
           php tests/phase65-first-run-daily-workflow-db.php
           php tests/phase66-production-acceptance-db.php
+          php tests/phase67-unified-research-knowledge-system-reports-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -444,6 +452,13 @@ jobs:
           DB_PASS: root
           ADMIN_V260_RESET_DB: '1'
         run: php tests/ci/admin-v2-60-upgrade-from-078.php
+      - name: MySQL 8 Phase 67 upgrade rehearsal from migration 079 through 080
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase67_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE67_RESET_DB: '1'
+        run: php tests/ci/phase67-upgrade-from-079.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
