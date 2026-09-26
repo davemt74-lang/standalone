@@ -191,10 +191,11 @@ function research_retrieval_collect_records(PDO $pdo,int $projectId): array {
         $records[]=research_retrieval_record($type,(string)$row['public_id'],(string)$row['title'],$content,$row['folder_public_id']??null,(string)$row['updated_at'],$metadata,$status,$chunks);
     }
     if(installer_table_exists($pdo,'research_system_reports')){
-        $q=$pdo->prepare("SELECT rsr.public_id report_public_id,rsr.report_type,rsr.document_object_id,rwo.public_id document_public_id
+        $q=$pdo->prepare("SELECT rsr.public_id report_public_id,rsr.report_type,rsr.document_object_id,rwo.public_id document_public_id,c.public_id agent_conversation_id
           FROM research_system_reports rsr JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
+          JOIN research_agents ra ON ra.id=rsr.research_agent_id JOIN conversations c ON c.id=ra.conversation_id
           WHERE rsr.project_id=? AND rsr.status='ready'");
-        $q->execute([$projectId]);$reportDocs=[];foreach($q->fetchAll()?:[] as $row)$reportDocs[(string)$row['document_public_id']]=['system_report_id'=>(string)$row['report_public_id'],'system_report_type'=>(string)$row['report_type']];
+        $q->execute([$projectId]);$reportDocs=[];foreach($q->fetchAll()?:[] as $row)$reportDocs[(string)$row['document_public_id']]=['system_report_id'=>(string)$row['report_public_id'],'system_report_type'=>(string)$row['report_type'],'agent_conversation_id'=>(string)$row['agent_conversation_id']];
         if($reportDocs)foreach($records as &$record)if($record['object_type']==='document'&&isset($reportDocs[$record['object_public_id']]))$record['metadata']=array_merge((array)$record['metadata'],$reportDocs[$record['object_public_id']]);unset($record);
     }
 
@@ -251,26 +252,28 @@ function research_retrieval_collect_records(PDO $pdo,int $projectId): array {
     }
 
     if(installer_table_exists($pdo,'research_tasks')){
-        $q=$pdo->prepare("SELECT public_id,title,description,task_type,priority,status,due_at,updated_at FROM research_tasks
-          WHERE project_id=? AND status<>'archived' ORDER BY updated_at DESC LIMIT 300");
+        $q=$pdo->prepare("SELECT rt.public_id,rt.title,rt.description,rt.task_type,rt.priority,rt.status,rt.due_at,rt.updated_at,ra.public_id agent_public_id
+          FROM research_tasks rt JOIN research_agents ra ON ra.id=rt.research_agent_id
+          WHERE rt.project_id=? AND rt.status<>'archived' ORDER BY rt.updated_at DESC LIMIT 300");
         $q->execute([$projectId]);
         foreach($q->fetchAll()?:[] as $row){
             $content="Task type: ".(string)$row['task_type']."\nPriority: ".(string)$row['priority']."\nStatus: ".(string)$row['status']."\n".trim((string)($row['description']??''));
             $records[]=research_retrieval_record('task',(string)$row['public_id'],(string)$row['title'],$content,null,(string)$row['updated_at'],[
-              'task_type'=>(string)$row['task_type'],'priority'=>(string)$row['priority'],'task_status'=>(string)$row['status'],'due_at'=>$row['due_at']??null
+              'task_type'=>(string)$row['task_type'],'priority'=>(string)$row['priority'],'task_status'=>(string)$row['status'],'due_at'=>$row['due_at']??null,'agent_public_id'=>(string)$row['agent_public_id']
             ],'ready',research_retrieval_chunk_text($content,'task','Task'));
         }
     }
 
     if(installer_table_exists($pdo,'research_programs')){
-        $q=$pdo->prepare("SELECT public_id,title,objective,status,cadence,next_run_at,updated_at FROM research_programs
-          WHERE project_id=? AND status<>'archived' ORDER BY updated_at DESC LIMIT 200");
+        $q=$pdo->prepare("SELECT rp.public_id,rp.title,rp.objective,rp.status,rp.cadence,rp.next_run_at,rp.updated_at,ra.public_id agent_public_id
+          FROM research_programs rp JOIN research_agents ra ON ra.id=rp.research_agent_id
+          WHERE rp.project_id=? AND rp.status<>'archived' ORDER BY rp.updated_at DESC LIMIT 200");
         $q->execute([$projectId]);
         foreach($q->fetchAll()?:[] as $row){
             $content="Program status: ".(string)$row['status']."\nCadence: ".(string)$row['cadence']."\nObjective: ".(string)$row['objective'];
             if(!empty($row['next_run_at']))$content.="\nNext run: ".(string)$row['next_run_at'];
             $records[]=research_retrieval_record('program',(string)$row['public_id'],(string)$row['title'],$content,null,(string)$row['updated_at'],[
-              'program_status'=>(string)$row['status'],'cadence'=>(string)$row['cadence'],'next_run_at'=>$row['next_run_at']??null
+              'program_status'=>(string)$row['status'],'cadence'=>(string)$row['cadence'],'next_run_at'=>$row['next_run_at']??null,'agent_public_id'=>(string)$row['agent_public_id']
             ],'ready',research_retrieval_chunk_text($content,'program','Program'));
         }
     }
