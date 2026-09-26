@@ -285,7 +285,7 @@ function research_report_studio_freshness(PDO $pdo,array $config,array $viewer,a
     $opts=array_merge(json_decode((string)($report['parameters_json']??''),true)?:[],json_decode((string)($report['scope_json']??''),true)?:[]);
     $snapshot=research_report_studio_scope_snapshot($pdo,$config,$viewer,$agent,$snapshot,$opts);
     if(hash_equals((string)$report['input_state_hash'],(string)$snapshot['state_hash']))$state='current';
-    else{$old=json_decode((string)($report['knowledge_manifest_json']??''),true)?:[];$d=research_report_studio_compare_manifests($old,research_report_studio_manifest($snapshot));$age=time()-strtotime((string)$report['created_at']);$state=$d['material_change_count']>0?'materially_changed':'changed';if($age>30*86400)$state='stale';}
+    else{$old=json_decode((string)($report['knowledge_manifest_json']??''),true)?:[];$d=research_report_studio_compare_manifests($old,research_report_studio_manifest($snapshot));$age=time()-strtotime((string)$report['created_at']);$state=$d['material_change_count']>0?'materially_changed':($age>30*86400?'stale':'changed');}
     return ['state'=>$state,'current_state_hash'=>$snapshot['state_hash']];
 }
 
