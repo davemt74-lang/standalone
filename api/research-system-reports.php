@@ -27,7 +27,7 @@ try{
     }
     if($action==='archive'){
         rate_limit_api_or_429($pdo,'research-system-reports-write','user:'.$viewer['id'],120,3600);
-        $report=research_system_report_archive($pdo,$viewer,(string)($input['report_id']??''));
+        $report=research_system_report_archive($pdo,$viewer,(string)($input['report_id']??''),$agent);
         json_response(['ok'=>true,'data'=>['report'=>$report]]);
     }
     json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);
