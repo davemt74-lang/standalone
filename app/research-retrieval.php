@@ -500,7 +500,7 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
     $current=research_retrieval_ensure_current($pdo,$config,$viewer,$projectPublicId);$project=$current['project'];$state=$current['state'];$projectId=(int)$project['id'];
     $query=mb_substr(trim((string)preg_replace('/\s+/u',' ',$query)),0,1000);$limit=max(1,min(60,$limit));
     $type=strtolower(trim((string)($filters['type']??'all')));$allowedTypes=['all','source','annotation','document','bookmark','sticky','upload','recording','transcript','claim','finding','entity','relation','task','program','report'];if(!in_array($type,$allowedTypes,true))$type='all';
-    $folder=trim((string)($filters['folder_id']??''));$status=trim((string)($filters['status']??''));$dateFrom=trim((string)($filters['date_from']??''));$dateTo=trim((string)($filters['date_to']??''));$creator=trim((string)($filters['creator']??''));$excludeReportDerivatives=!empty($filters['exclude_report_derivatives']);
+    $folder=trim((string)($filters['folder_id']??''));$status=trim((string)($filters['status']??''));$dateFrom=trim((string)($filters['date_from']??''));$dateTo=trim((string)($filters['date_to']??''));$creator=trim((string)($filters['creator']??''));$excludeReportDerivatives=!empty($filters['exclude_report_derivatives']);$stableScoring=!empty($filters['stable_scoring']);
     $folderScope=$folder!==''?research_retrieval_folder_scope($pdo,$projectId,$folder):[];
 
     $params=[$projectId];$where=['d.project_id=?'];
@@ -521,14 +521,24 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
           WHERE ".implode(' AND ',$where)." ORDER BY COALESCE(d.source_updated_at,d.updated_at) DESC,d.id DESC LIMIT ".($limit*3);
         $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll()?:[];
     }else{
-        $mode='lexical';$like='%'.$query.'%';$searchWhere=$where;
-        $searchWhere[]="(COALESCE(MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE),0)>0 OR c.content LIKE ? OR c.heading LIKE ? OR d.title LIKE ?)";
-        $searchParams=array_merge($params,[$query,$like,$like,$like]);
-        $sql="SELECT d.*,c.id chunk_id,c.chunk_index,c.locator_type,c.locator_label,c.locator_json,c.heading,c.content,
-          (COALESCE(MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE),0)+(CASE WHEN d.title LIKE ? THEN 4 ELSE 0 END)+(CASE WHEN c.content LIKE ? THEN 1.5 ELSE 0 END)) lexical_score,c.embedding_json
-          FROM research_retrieval_documents d LEFT JOIN research_retrieval_chunks c ON c.document_id=d.id
-          WHERE ".implode(' AND ',$searchWhere)." ORDER BY lexical_score DESC,COALESCE(d.source_updated_at,d.updated_at) DESC LIMIT ".($limit*8);
-        $q=$pdo->prepare($sql);$q->execute(array_merge([$query,$like,$like],$searchParams));$rows=$q->fetchAll()?:[];
+        $mode=$stableScoring?'stable_lexical':'lexical';$like='%'.$query.'%';$searchWhere=$where;
+        if($stableScoring){
+            $searchWhere[]="(c.content LIKE ? OR c.heading LIKE ? OR d.title LIKE ?)";
+            $searchParams=array_merge($params,[$like,$like,$like]);
+            $sql="SELECT d.*,c.id chunk_id,c.chunk_index,c.locator_type,c.locator_label,c.locator_json,c.heading,c.content,
+              ((CASE WHEN d.title LIKE ? THEN 4 ELSE 0 END)+(CASE WHEN c.heading LIKE ? THEN 2 ELSE 0 END)+(CASE WHEN c.content LIKE ? THEN 1.5 ELSE 0 END)) lexical_score,c.embedding_json
+              FROM research_retrieval_documents d LEFT JOIN research_retrieval_chunks c ON c.document_id=d.id
+              WHERE ".implode(' AND ',$searchWhere)." ORDER BY lexical_score DESC,COALESCE(d.source_updated_at,d.updated_at) DESC,d.id DESC,c.chunk_index ASC LIMIT ".($limit*8);
+            $q=$pdo->prepare($sql);$q->execute(array_merge([$like,$like,$like],$searchParams));$rows=$q->fetchAll()?:[];
+        }else{
+            $searchWhere[]="(COALESCE(MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE),0)>0 OR c.content LIKE ? OR c.heading LIKE ? OR d.title LIKE ?)";
+            $searchParams=array_merge($params,[$query,$like,$like,$like]);
+            $sql="SELECT d.*,c.id chunk_id,c.chunk_index,c.locator_type,c.locator_label,c.locator_json,c.heading,c.content,
+              (COALESCE(MATCH(c.heading,c.content) AGAINST (? IN NATURAL LANGUAGE MODE),0)+(CASE WHEN d.title LIKE ? THEN 4 ELSE 0 END)+(CASE WHEN c.content LIKE ? THEN 1.5 ELSE 0 END)) lexical_score,c.embedding_json
+              FROM research_retrieval_documents d LEFT JOIN research_retrieval_chunks c ON c.document_id=d.id
+              WHERE ".implode(' AND ',$searchWhere)." ORDER BY lexical_score DESC,COALESCE(d.source_updated_at,d.updated_at) DESC LIMIT ".($limit*8);
+            $q=$pdo->prepare($sql);$q->execute(array_merge([$query,$like,$like],$searchParams));$rows=$q->fetchAll()?:[];
+        }
     }
 
     $queryVector=null;$semanticRows=[];
