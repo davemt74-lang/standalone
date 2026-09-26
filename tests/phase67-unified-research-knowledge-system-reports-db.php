@@ -102,7 +102,13 @@ p67(($doc['parent_title']??'')==='System Reports','System Reports live in the ma
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
 $reportSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'',['type'=>'report'],20,true);
 p67(count(array_filter($reportSearch['results'],fn($x)=>($x['public_id']??'')===$report['document_public_id']))===1,'Research Library Reports filter returns generated System Report documents.');
-research_system_report_archive($pdo,$owner,(string)$report['public_id']);
+$otherAgent=research_agent_create($pdo,$owner,['name'=>'Other Knowledge Agent','description'=>'Archive scope fixture.','cadence'=>'manual','timezone_name'=>'UTC']);
+p67throws(fn()=>research_system_report_archive($pdo,$owner,(string)$report['public_id'],(string)$otherAgent['public_id']),'System Report archive rejects a report from another selected Research Agent.');
+research_system_report_archive($pdo,$owner,(string)$report['public_id'],(string)$agent['public_id']);
+$eventCountBefore=(int)$pdo->query("SELECT COUNT(*) FROM research_system_report_events WHERE report_id=".(int)$report['id']." AND event_type='archived'")->fetchColumn();
+research_system_report_archive($pdo,$owner,(string)$report['public_id'],(string)$agent['public_id']);
+$eventCountAfter=(int)$pdo->query("SELECT COUNT(*) FROM research_system_report_events WHERE report_id=".(int)$report['id']." AND event_type='archived'")->fetchColumn();
+p67($eventCountBefore===1&&$eventCountAfter===1,'System Report archive is idempotent and does not duplicate archive events.');
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
 $archivedReportSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'',['type'=>'report'],20,true);
 p67(count(array_filter($archivedReportSearch['results'],fn($x)=>($x['public_id']??'')===$report['document_public_id']))===0,'Archived System Reports are removed from the active Reports retrieval filter after refresh.');
