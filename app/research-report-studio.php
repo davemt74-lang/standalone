@@ -170,10 +170,33 @@ function research_report_studio_scope_snapshot(PDO $pdo,array $config,array $vie
     $snapshot['studio']=$o;
     $counts=['claims'=>count($snapshot['claims']),'findings'=>count($snapshot['findings']),'entities'=>count($snapshot['entities']),'sources'=>count($snapshot['sources']),'recent_evidence'=>count($snapshot['recent_evidence'])];
     $snapshot['coverage']=$scoped?['scoped'=>true,'totals'=>$counts,'included'=>$counts,'truncated'=>[],'scoped_counts'=>$counts]:array_merge((array)($snapshot['coverage']??[]),['scoped_counts'=>$counts]);
-    $basis=$snapshot;unset($basis['generated_at'],$basis['state_hash']);
-    $basis['retrieval_index']=$scoped
-      ? ['scoped'=>true]
-      : ['input_hash'=>(string)($snapshot['retrieval_index']['input_hash']??'')];
+    if($scoped){
+        $evidenceState=[];foreach((array)$snapshot['recent_evidence'] as $r){
+            $evidenceState[]=[
+              'object_type'=>(string)($r['object_type']??''),'public_id'=>(string)($r['public_id']??''),
+              'updated_at'=>(string)($r['updated_at']??''),'title'=>(string)($r['title']??''),
+              'heading'=>(string)($r['heading']??''),'snippet'=>(string)($r['snippet']??''),
+              'locator_type'=>(string)($r['locator_type']??''),'locator_label'=>(string)($r['locator_label']??''),
+              'metadata'=>(array)($r['metadata']??[])
+            ];
+        }
+        usort($evidenceState,fn($a,$b)=>strcmp($a['object_type'].':'.$a['public_id'],$b['object_type'].':'.$b['public_id']));
+        $basis=[
+          'schema'=>'annotated-report-studio-scoped-state-v1',
+          'agent_public_id'=>(string)($snapshot['agent']['public_id']??''),
+          'project_public_id'=>(string)($snapshot['project']['public_id']??''),
+          'studio'=>$o,
+          'claims'=>(array)$snapshot['claims'],'findings'=>(array)$snapshot['findings'],
+          'entities'=>(array)$snapshot['entities'],'sources'=>(array)$snapshot['sources'],
+          'claim_relations'=>(array)$snapshot['claim_relations'],'entity_relations'=>(array)$snapshot['entity_relations'],
+          'timeline'=>(array)$snapshot['timeline'],'monitoring_events'=>(array)($snapshot['monitoring']['events']??[]),
+          'tasks'=>(array)($snapshot['tasks']['items']??[]),'programs'=>(array)($snapshot['programs']['items']??[]),
+          'recent_evidence'=>$evidenceState
+        ];
+    }else{
+        $basis=$snapshot;unset($basis['generated_at'],$basis['state_hash']);
+        $basis['retrieval_index']=['input_hash'=>(string)($snapshot['retrieval_index']['input_hash']??'')];
+    }
     $snapshot['state_hash']=hash('sha256',json_encode($basis,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
     return $snapshot;
 }
