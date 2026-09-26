@@ -56,37 +56,113 @@ function research_report_studio_date_ok(array $row,string $from,string $to,array
     return true;
 }
 
+function research_report_studio_selected_claims(PDO $pdo,int $projectId,array $ids): array {
+    if(!$ids)return [];$marks=implode(',',array_fill(0,count($ids),'?'));
+    $q=$pdo->prepare("SELECT rc.public_id,rc.statement,rc.claim_type,rc.status,rc.updated_at,
+      COUNT(ce.id) evidence_count,COUNT(DISTINCT ce.source_version_id) source_version_count,COUNT(DISTINCT sv.source_id) source_count,
+      SUM(ce.relationship='supports') supports_count,SUM(ce.relationship='contradicts') contradicts_count,SUM(ce.relationship='primary') primary_count
+      FROM research_claims rc LEFT JOIN claim_evidence ce ON ce.claim_id=rc.id LEFT JOIN source_versions sv ON sv.id=ce.source_version_id
+      WHERE rc.project_id=? AND rc.public_id IN ($marks) GROUP BY rc.id ORDER BY rc.updated_at DESC,rc.id DESC");
+    $q->execute(array_merge([$projectId],$ids));$rows=$q->fetchAll()?:[];foreach($rows as &$r)foreach(['evidence_count','source_version_count','source_count','supports_count','contradicts_count','primary_count'] as $k)$r[$k]=(int)($r[$k]??0);unset($r);return $rows;
+}
+
+function research_report_studio_selected_findings(PDO $pdo,int $projectId,array $ids): array {
+    if(!$ids)return [];$marks=implode(',',array_fill(0,count($ids),'?'));
+    $q=$pdo->prepare("SELECT rf.public_id,rf.title,rf.summary,rf.status,rf.updated_at,(SELECT COUNT(*) FROM finding_claims fc WHERE fc.finding_id=rf.id) claim_count
+      FROM research_findings rf WHERE rf.project_id=? AND rf.status<>'archived' AND rf.public_id IN ($marks) ORDER BY rf.updated_at DESC,rf.id DESC");
+    $q->execute(array_merge([$projectId],$ids));return $q->fetchAll()?:[];
+}
+
+function research_report_studio_selected_sources(PDO $pdo,int $projectId,array $ids): array {
+    if(!$ids)return [];$marks=implode(',',array_fill(0,count($ids),'?'));
+    $q=$pdo->prepare("SELECT s.public_id,s.title,s.domain,s.status,s.last_checked_at,sv.version_number,sv.captured_at,
+      EXISTS(SELECT 1 FROM source_change_events sce WHERE sce.source_id=s.id AND sce.created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY)) changed_30d
+      FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id
+      WHERE ps.project_id=? AND s.public_id IN ($marks) ORDER BY COALESCE(sv.captured_at,s.last_checked_at) DESC,s.id DESC");
+    $q->execute(array_merge([$projectId],$ids));return $q->fetchAll()?:[];
+}
+
 function research_report_studio_scope_snapshot(PDO $pdo,array $config,array $viewer,array $agent,array $snapshot,array $options): array {
-    $o=research_report_studio_options($options);$focus=$o['focus_query'];$from=$o['date_from'];$to=$o['date_to'];
-    $filterIds=function(array $rows,string $key,array $ids)use($focus,$from,$to): array{
-        return array_values(array_filter($rows,function($r)use($key,$ids,$focus,$from,$to){
+    $o=research_report_studio_options($options);$focus=$o['focus_query'];$from=$o['date_from'];$to=$o['date_to'];$projectId=(int)$agent['project_id'];
+    $explicit=(bool)($o['source_ids']||$o['claim_ids']||$o['finding_ids']||$o['entity_ids']||$o['folder_ids']);
+    $scoped=$explicit||$focus!==''||$from!==''||$to!=='';
+    $filterIds=function(array $rows,string $key,array $ids)use($from,$to): array{
+        return array_values(array_filter($rows,function($r)use($key,$ids,$from,$to){
             if($ids&&!in_array((string)($r[$key]??''),$ids,true))return false;
-            if(!research_report_studio_date_ok($r,$from,$to,['updated_at','captured_at','created_at','last_checked_at']))return false;
-            return true;
+            return research_report_studio_date_ok($r,$from,$to,['updated_at','captured_at','created_at','last_checked_at']);
         }));
     };
-    $snapshot['claims']=$filterIds((array)($snapshot['claims']??[]),'public_id',$o['claim_ids']);
+
+    $snapshot['claims']=$o['claim_ids']?research_report_studio_selected_claims($pdo,$projectId,$o['claim_ids']):$filterIds((array)($snapshot['claims']??[]),'public_id',[]);
     if($focus!=='')$snapshot['claims']=array_values(array_filter($snapshot['claims'],fn($r)=>research_report_studio_row_matches_focus($r,$focus,['statement','resolution_note','claim_type','status'])));
-    $snapshot['findings']=$filterIds((array)($snapshot['findings']??[]),'public_id',$o['finding_ids']);
+    $snapshot['findings']=$o['finding_ids']?research_report_studio_selected_findings($pdo,$projectId,$o['finding_ids']):$filterIds((array)($snapshot['findings']??[]),'public_id',[]);
     if($focus!=='')$snapshot['findings']=array_values(array_filter($snapshot['findings'],fn($r)=>research_report_studio_row_matches_focus($r,$focus,['title','summary','status'])));
     $snapshot['entities']=$filterIds((array)($snapshot['entities']??[]),'public_id',$o['entity_ids']);
     if($focus!=='')$snapshot['entities']=array_values(array_filter($snapshot['entities'],fn($r)=>research_report_studio_row_matches_focus($r,$focus,['canonical_name','description','entity_type'])));
-    $snapshot['sources']=$filterIds((array)($snapshot['sources']??[]),'public_id',$o['source_ids']);
+    $snapshot['sources']=$o['source_ids']?research_report_studio_selected_sources($pdo,$projectId,$o['source_ids']):$filterIds((array)($snapshot['sources']??[]),'public_id',[]);
     if($focus!=='')$snapshot['sources']=array_values(array_filter($snapshot['sources'],fn($r)=>research_report_studio_row_matches_focus($r,$focus,['title','domain','status'])));
-    $snapshot['timeline']=array_values(array_filter((array)($snapshot['timeline']??[]),fn($r)=>research_report_studio_date_ok($r,$from,$to,['created_at','occurred_at','updated_at'])));
-    $snapshot['monitoring']['events']=array_values(array_filter((array)($snapshot['monitoring']['events']??[]),fn($r)=>research_report_studio_date_ok($r,$from,$to,['occurred_at','created_at'])));
-    if($focus!==''||$o['folder_ids']||$from!==''||$to!==''){
-        $results=[];$seen=[];$folders=$o['folder_ids']?:[''];
-        foreach($folders as $folder){
-            $filters=['date_from'=>$from,'date_to'=>$to];if($folder!=='')$filters['folder_id']=$folder;
-            try{$search=research_retrieval_search($pdo,$config,$viewer,(string)$agent['project_public_id'],$focus,$filters,50,false);
-                foreach((array)($search['results']??[]) as $r){$k=(string)$r['object_type'].':'.(string)$r['public_id'];if(!isset($seen[$k])){$seen[$k]=1;$results[]=$r;}}
-            }catch(Throwable $e){}
-        }
-        $snapshot['recent_evidence']=array_slice($results,0,research_report_studio_limit(['studio'=>$o],12,30,80));
+
+    if($o['claim_ids'])$snapshot['claim_relations']=array_values(array_filter((array)($snapshot['claim_relations']??[]),fn($r)=>in_array((string)($r['source_public_id']??''),$o['claim_ids'],true)&&in_array((string)($r['target_public_id']??''),$o['claim_ids'],true)));
+    if($o['entity_ids'])$snapshot['entity_relations']=array_values(array_filter((array)($snapshot['entity_relations']??[]),fn($r)=>in_array((string)($r['source_public_id']??''),$o['entity_ids'],true)&&in_array((string)($r['target_public_id']??''),$o['entity_ids'],true)));
+
+    $selectedIds=array_values(array_unique(array_merge($o['source_ids'],$o['claim_ids'],$o['finding_ids'],$o['entity_ids'])));
+    $snapshot['timeline']=array_values(array_filter((array)($snapshot['timeline']??[]),function($r)use($from,$to,$selectedIds,$focus){
+        if(!research_report_studio_date_ok($r,$from,$to,['created_at','occurred_at','updated_at']))return false;
+        $blob=json_encode($r,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+        if($selectedIds&&!array_filter($selectedIds,fn($id)=>str_contains((string)$blob,$id)))return false;
+        return $focus===''||research_report_studio_row_matches_focus($r,$focus,['title','body','detail','event','type']);
+    }));
+    $snapshot['monitoring']['events']=array_values(array_filter((array)($snapshot['monitoring']['events']??[]),function($r)use($from,$to,$o,$focus){
+        if(!research_report_studio_date_ok($r,$from,$to,['occurred_at','created_at']))return false;
+        $blob=json_encode($r,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+        if($o['source_ids']&&!array_filter($o['source_ids'],fn($id)=>str_contains((string)$blob,$id)))return false;
+        return $focus===''||research_report_studio_row_matches_focus($r,$focus,['summary','event_type','detail']);
+    }));
+
+    $results=[];$seen=[];$folders=$o['folder_ids']?:[''];
+    foreach($folders as $folder){
+        $filters=['date_from'=>$from,'date_to'=>$to,'exclude_report_derivatives'=>true];if($folder!=='')$filters['folder_id']=$folder;
+        try{$search=research_retrieval_search($pdo,$config,$viewer,(string)$agent['project_public_id'],$focus,$filters,60,false);
+            foreach((array)($search['results']??[]) as $r){
+                $type=(string)($r['object_type']??'');$id=(string)($r['public_id']??'');$m=(array)($r['metadata']??[]);
+                if($o['source_ids']&&$type==='source'&&!in_array($id,$o['source_ids'],true)&&!in_array((string)($m['source_public_id']??''),$o['source_ids'],true))continue;
+                if($o['claim_ids']&&$type==='claim'&&!in_array($id,$o['claim_ids'],true))continue;
+                if($o['finding_ids']&&$type==='finding'&&!in_array($id,$o['finding_ids'],true))continue;
+                if($o['entity_ids']&&$type==='entity'&&!in_array($id,$o['entity_ids'],true))continue;
+                $k=$type.':'.$id;if($id!==''&&!isset($seen[$k])){$seen[$k]=1;$results[]=$r;}
+            }
+        }catch(Throwable $e){}
     }
+    $snapshot['recent_evidence']=array_slice($results,0,research_report_studio_limit(['studio'=>$o],12,30,60));
+
+    if($scoped){
+        $workspace=(array)($snapshot['workspace']??[]);
+        $filterWorkspace=function(array $rows,string $kind)use($o,$focus): array{
+            return array_values(array_filter($rows,function($r)use($kind,$o,$focus){
+                if($kind==='claim'&&$o['claim_ids']&&!in_array((string)($r['claim_id']??''),$o['claim_ids'],true))return false;
+                if($kind==='source'&&$o['source_ids']&&!in_array((string)($r['source_public_id']??$r['ref_id']??''),$o['source_ids'],true))return false;
+                if($kind==='action'&&$o['claim_ids']&&($r['ref_type']??'')==='claim'&&!in_array((string)($r['ref_id']??''),$o['claim_ids'],true))return false;
+                if($kind==='action'&&$o['source_ids']&&($r['ref_type']??'')==='source'&&!in_array((string)($r['ref_id']??''),$o['source_ids'],true))return false;
+                return $focus===''||research_report_studio_row_matches_focus($r,$focus,['title','detail','reason','domain','latest_diff','statement']);
+            }));
+        };
+        $workspace['claims']=$snapshot['claims'];
+        $workspace['gaps']=$filterWorkspace((array)($workspace['gaps']??[]),'claim');
+        $workspace['conflicts']=$filterWorkspace((array)($workspace['conflicts']??[]),'claim');
+        $workspace['source_risks']=$filterWorkspace((array)($workspace['source_risks']??[]),'source');
+        $workspace['next_actions']=$filterWorkspace((array)($workspace['next_actions']??[]),'action');
+        $workspace['annotation_links']=[];$workspace['entities']=$snapshot['entities'];$workspace['recent_activity']=$snapshot['timeline'];
+        $workspace['counts']=['sources'=>count($snapshot['sources']),'annotations'=>count(array_filter($snapshot['recent_evidence'],fn($r)=>(string)($r['object_type']??'')==='annotation')),'claims'=>count($snapshot['claims']),'findings'=>count($snapshot['findings']),'open_tasks'=>0,'recent_source_changes'=>count($snapshot['monitoring']['events'])];
+        $snapshot['workspace']=$workspace;
+        if($focus!==''){$snapshot['tasks']['items']=array_values(array_filter((array)($snapshot['tasks']['items']??[]),fn($r)=>research_report_studio_row_matches_focus($r,$focus,['title','description','task_type','status'])));$snapshot['programs']['items']=array_values(array_filter((array)($snapshot['programs']['items']??[]),fn($r)=>research_report_studio_row_matches_focus($r,$focus,['title','objective','status','cadence'])));}
+        elseif($explicit){$snapshot['tasks']['items']=[];$snapshot['programs']['items']=[];}
+        $snapshot['tasks']['summary']=[];$snapshot['programs']['summary']=[];$snapshot['monitoring']['summary']=[];$snapshot['extended_intelligence']=[];
+        $snapshot['retrieval_index']=['status'=>$snapshot['retrieval_index']['status']??'ready','scoped'=>true];
+    }
+
     $snapshot['studio']=$o;
-    $snapshot['coverage']['scoped_counts']=['claims'=>count((array)$snapshot['claims']),'findings'=>count((array)$snapshot['findings']),'entities'=>count((array)$snapshot['entities']),'sources'=>count((array)$snapshot['sources']),'recent_evidence'=>count((array)$snapshot['recent_evidence'])];
+    $counts=['claims'=>count($snapshot['claims']),'findings'=>count($snapshot['findings']),'entities'=>count($snapshot['entities']),'sources'=>count($snapshot['sources']),'recent_evidence'=>count($snapshot['recent_evidence'])];
+    $snapshot['coverage']=$scoped?['scoped'=>true,'totals'=>$counts,'included'=>$counts,'truncated'=>[],'scoped_counts'=>$counts]:array_merge((array)($snapshot['coverage']??[]),['scoped_counts'=>$counts]);
     $basis=$snapshot;unset($basis['generated_at']);$snapshot['state_hash']=hash('sha256',json_encode($basis,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
     return $snapshot;
 }
