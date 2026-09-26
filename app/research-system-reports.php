@@ -103,3 +103,100 @@ function research_system_report_active_programs(PDO $pdo,int $agentId,int $limit
       ORDER BY FIELD(status,'active','paused'),next_run_at IS NULL,next_run_at,updated_at DESC LIMIT ".$limit);
     $q->execute([$agentId]);return $q->fetchAll()?:[];
 }
+
+
+function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,array $agent): array {
+    $projectId=(int)$agent['project_id'];$projectPublic=(string)$agent['project_public_id'];
+    $workspace=function_exists('research_workspace_deterministic_snapshot')?research_workspace_deterministic_snapshot($pdo,$projectId):[];
+    $claims=function_exists('research_workspace_claim_rows')?research_workspace_claim_rows($pdo,$projectId):[];
+    $findings=research_system_report_findings($pdo,$projectId,60);
+    $entities=function_exists('research_project_entity_rows')?research_project_entity_rows($pdo,$projectId):[];
+    $timeline=function_exists('research_project_timeline')?research_project_timeline($pdo,$projectId):[];
+    $monitoring=[];$monitorEvents=[];
+    if(function_exists('research_monitor_ready')&&research_monitor_ready($pdo)){
+        try{$monitoring=research_monitor_summary($pdo,$viewer,(string)$agent['public_id']);$monitorEvents=research_monitor_events($pdo,$viewer,(string)$agent['public_id'],30);}catch(Throwable $e){}
+    }
+    $tasks=[];$taskSummary=[];
+    if(function_exists('research_tasks_ready')&&research_tasks_ready($pdo)){
+        try{$taskSummary=research_task_summary($pdo,$viewer,(string)$agent['public_id']);$tasks=research_system_report_active_tasks($pdo,(int)$agent['id']);}catch(Throwable $e){}
+    }
+    $programs=[];$programSummary=[];
+    if(function_exists('research_programs_ready')&&research_programs_ready($pdo)){
+        try{$programSummary=research_program_summary($pdo,$viewer,(string)$agent['public_id']);$programs=research_system_report_active_programs($pdo,(int)$agent['id']);}catch(Throwable $e){}
+    }
+    $recent=[];$index=[];
+    if(function_exists('research_retrieval_ready')&&research_retrieval_ready($pdo)){
+        try{$search=research_retrieval_search($pdo,$config,$viewer,$projectPublic,'',[],24,false);$recent=$search['results']??[];$index=$search['index']??[];}catch(Throwable $e){}
+    }
+    $q=$pdo->prepare("SELECT s.public_id,s.title,s.domain,s.status,s.last_checked_at,sv.version_number,sv.captured_at,
+      EXISTS(SELECT 1 FROM source_change_events sce WHERE sce.source_id=s.id AND sce.created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY)) changed_30d
+      FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id
+      WHERE ps.project_id=? ORDER BY COALESCE(sv.captured_at,s.last_checked_at) DESC,s.id DESC LIMIT 100");
+    $q->execute([$projectId]);$sourceRows=$q->fetchAll()?:[];
+
+    $snapshot=[
+      'schema'=>'annotated-system-report-v1',
+      'agent'=>['public_id'=>(string)$agent['public_id'],'name'=>(string)$agent['name'],'description'=>(string)($agent['description']??'')],
+      'project'=>['public_id'=>$projectPublic,'title'=>(string)$agent['project_title']],
+      'workspace'=>$workspace,
+      'claims'=>$claims,
+      'findings'=>$findings,
+      'entities'=>$entities,
+      'sources'=>$sourceRows,
+      'timeline'=>$timeline,
+      'monitoring'=>['summary'=>$monitoring,'events'=>$monitorEvents],
+      'tasks'=>['summary'=>$taskSummary,'items'=>$tasks],
+      'programs'=>['summary'=>$programSummary,'items'=>$programs],
+      'recent_evidence'=>$recent,
+      'retrieval_index'=>$index,
+    ];
+    $snapshot['state_hash']=hash('sha256',json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
+    $snapshot['generated_at']=date('c');
+    return $snapshot;
+}
+
+function research_system_report_refs(array $snapshot,int $limit=250): array {
+    $refs=[];$seen=[];
+    $push=function(string $type,string $id,?string $label=null)use(&$refs,&$seen,$limit): void{
+        $id=trim($id);if($id===''||count($refs)>=$limit)return;$key=$type.':'.$id;if(isset($seen[$key]))return;$seen[$key]=true;
+        $refs[]=['type'=>$type,'id'=>$id]+($label!==null&&$label!==''?['label'=>mb_substr($label,0,220)]:[]);
+    };
+    foreach((array)($snapshot['recent_evidence']??[]) as $r)$push((string)($r['object_type']??'evidence'),(string)($r['public_id']??''),(string)($r['title']??''));
+    foreach((array)($snapshot['claims']??[]) as $r)$push('claim',(string)($r['public_id']??''),(string)($r['statement']??''));
+    foreach((array)($snapshot['findings']??[]) as $r)$push('finding',(string)($r['public_id']??''),(string)($r['title']??''));
+    foreach((array)($snapshot['entities']??[]) as $r)$push('entity',(string)($r['public_id']??''),(string)($r['canonical_name']??''));
+    foreach((array)($snapshot['sources']??[]) as $r)$push('source',(string)($r['public_id']??''),(string)($r['title']??$r['domain']??''));
+    return $refs;
+}
+
+function research_system_report_escape(string $v): string {return htmlspecialchars($v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
+function research_system_report_li(string $title,string $detail='',string $meta=''): string {
+    $h='<li><strong>'.research_system_report_escape($title).'</strong>';
+    if($meta!=='')$h.=' <em>'.research_system_report_escape($meta).'</em>';
+    if($detail!=='')$h.='<div>'.research_system_report_escape($detail).'</div>';
+    return $h.'</li>';
+}
+function research_system_report_section(string $title,string $body): string {
+    return '<h2>'.research_system_report_escape($title).'</h2>'.$body;
+}
+function research_system_report_empty(string $text): string {return '<p>'.research_system_report_escape($text).'</p>';}
+
+function research_system_report_summary_block(array $s): string {
+    $c=(array)($s['workspace']['counts']??[]);
+    $pairs=[
+      'Sources'=>(int)($c['sources']??count((array)($s['sources']??[]))),
+      'Annotations'=>(int)($c['annotations']??0),
+      'Claims'=>(int)($c['claims']??count((array)($s['claims']??[]))),
+      'Findings'=>(int)($c['findings']??count((array)($s['findings']??[]))),
+      'Open tasks'=>(int)($c['open_tasks']??($s['tasks']['summary']['active']??0)),
+      'Recent source changes'=>(int)($c['recent_source_changes']??0),
+    ];
+    $html='<ul>';foreach($pairs as $label=>$value)$html.=research_system_report_li($label,(string)$value);return $html.'</ul>';
+}
+
+function research_system_report_claim_matrix(array $claims): string {
+    if(!$claims)return research_system_report_empty('No structured Claims are recorded yet.');
+    $e='research_system_report_escape';$html='<table><thead><tr><th>Claim</th><th>Status</th><th>Evidence</th><th>Supports</th><th>Contradicts</th><th>Primary</th></tr></thead><tbody>';
+    foreach($claims as $c)$html.='<tr><td>'.$e((string)$c['statement']).'</td><td>'.$e((string)$c['status']).'</td><td>'.(int)($c['evidence_count']??0).'</td><td>'.(int)($c['supports_count']??0).'</td><td>'.(int)($c['contradicts_count']??0).'</td><td>'.(int)($c['primary_count']??0).'</td></tr>';
+    return $html.'</tbody></table>';
+}
