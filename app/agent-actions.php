@@ -97,17 +97,19 @@ function agent_action_extract(string $text): array {
 }
 
 function agent_action_project_from_context(PDO $pdo,array $viewer,array $context): ?array {
-    $projects=[];
-    foreach($context as $item)if(($item['type']??'')==='research'){
-        $p=project_access($pdo,(int)$viewer['id'],(string)$item['public_id']);if($p)$projects[(string)$p['public_id']]=$p;
-    }
+    $projects=agent_action_project_map($pdo,$viewer,$context);
     return count($projects)===1?array_values($projects)[0]:null;
 }
 
 function agent_action_project_map(PDO $pdo,array $viewer,array $context): array {
     $projects=[];
-    foreach($context as $item)if(($item['type']??'')==='research'){
-        $p=project_access($pdo,(int)$viewer['id'],(string)$item['public_id']);if($p)$projects[(string)$p['public_id']]=$p;
+    foreach($context as $item){
+        $type=(string)($item['type']??'');$id=(string)($item['public_id']??'');
+        if($type==='research'){
+            $p=project_access($pdo,(int)$viewer['id'],$id);if($p)$projects[(string)$p['public_id']]=$p;
+        }elseif($type==='report'&&function_exists('research_system_report_access')){
+            $report=research_system_report_access($pdo,$viewer,$id);if($report){$p=project_access($pdo,(int)$viewer['id'],(string)$report['project_public_id']);if($p)$projects[(string)$p['public_id']]=$p;}
+        }
     }
     return $projects;
 }
