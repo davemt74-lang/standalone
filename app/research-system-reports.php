@@ -167,6 +167,17 @@ function research_system_report_extended_html(array $snapshot,array $keys=[]): s
     return $html!==''?$html:research_system_report_empty('No additional Research intelligence is currently available for this report.');
 }
 
+function research_system_report_authoritative_corpus_hash(PDO $pdo,int $projectId): string {
+    if(!function_exists('research_retrieval_collect_records')||!function_exists('research_retrieval_records_hash'))return '';
+    $records=research_retrieval_collect_records($pdo,$projectId);
+    $records=array_values(array_filter($records,function($record){
+        if(($record['object_type']??'')==='report')return false;
+        if(($record['object_type']??'')==='document'&&!empty($record['metadata']['source_report_id']))return false;
+        return true;
+    }));
+    return research_retrieval_records_hash($records);
+}
+
 function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,array $agent): array {
     $projectId=(int)$agent['project_id'];$projectPublic=(string)$agent['project_public_id'];$diagnostics=[];
     $workspace=function_exists('research_workspace_deterministic_snapshot')?research_workspace_deterministic_snapshot($pdo,$projectId):[];
@@ -194,7 +205,7 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
     }
     $recent=[];$index=[];
     if(function_exists('research_retrieval_ready')&&research_retrieval_ready($pdo)){
-        try{$search=research_retrieval_search($pdo,$config,$viewer,$projectPublic,'',[],24,false);$recent=$search['results']??[];$index=$search['index']??[];}
+        try{$search=research_retrieval_search($pdo,$config,$viewer,$projectPublic,'',[],40,false);$recent=array_values(array_filter((array)($search['results']??[]),fn($r)=>(string)($r['object_type']??'')!=='report'&&empty($r['metadata']['source_report_id'])));$recent=array_slice($recent,0,24);$index=$search['index']??[];$authoritativeHash=research_system_report_authoritative_corpus_hash($pdo,$projectId);if($authoritativeHash!=='')$index['input_hash']=$authoritativeHash;}
         catch(Throwable $e){research_system_report_component_error('retrieval',$e,$diagnostics);}
     }
     $q=$pdo->prepare("SELECT s.public_id,s.title,s.domain,s.status,s.last_checked_at,sv.version_number,sv.captured_at,
