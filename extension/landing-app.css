@@ -3590,3 +3590,41 @@
 @media(max-width:900px){.reportSubscriptionLayout{grid-template-columns:1fr}.reportSubscriptionBuilder{position:static}}
 @media(max-width:620px){.reportSubscriptionChecks{grid-template-columns:1fr}}
 
+/* Phase 70 — Longitudinal Research Intelligence & Synthesis */
+.researchEvolutionCanvas{display:grid;gap:18px}
+.researchEvolutionHero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.researchEvolutionHero h1{margin:.25rem 0 .4rem}
+.researchEvolutionHero p{max-width:820px;margin:0;color:var(--muted,#666);line-height:1.5}
+.researchEvolutionHero label{display:grid;gap:6px;min-width:220px;font-size:.75rem;font-weight:800}
+.researchEvolutionActions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.researchEvolutionActions form{margin:0}
+.researchEvolutionWindow{display:flex;gap:8px;flex-wrap:wrap}
+.researchEvolutionWindow a{display:inline-flex;align-items:center;min-height:36px;padding:0 13px;border:1px solid var(--line,#deded9);border-radius:999px;text-decoration:none;color:inherit;font-size:.76rem;font-weight:800;background:var(--panel,#fff)}
+.researchEvolutionWindow a.active{background:var(--ink,#171717);color:var(--panel,#fff);border-color:var(--ink,#171717)}
+.researchEvolutionGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.researchEvolutionGrid .card{display:grid;align-content:start}
+.researchEvolutionGrid h2{margin:.25rem 0 .75rem}
+.researchEvolutionList{display:grid;gap:10px;margin:0;padding-left:1.1rem}
+.researchEvolutionList li{display:grid;gap:3px}
+.researchEvolutionList li span{font-size:.84rem;line-height:1.4}
+.researchEvolutionList li small{color:var(--muted,#666);font-size:.72rem}
+.researchEvolutionLedger{display:grid;gap:12px}
+.researchEvolutionLedgerRows{display:grid;gap:8px}
+.researchEvolutionLedgerRows article{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;padding:11px 0;border-top:1px solid var(--line,#e3e3de)}
+.researchEvolutionLedgerRows article:first-child{border-top:0}
+.researchEvolutionLedgerRows p{margin:.2rem 0;color:var(--muted,#666)}
+.researchEvolutionLedgerRows small{color:var(--muted,#666)}
+.researchEvolutionBadge{display:inline-flex;align-items:center;min-height:25px;padding:0 8px;border-radius:999px;border:1px solid var(--line,#d8d8d3);font-size:.66rem;font-weight:900;letter-spacing:.05em}
+.researchEvolutionBadge.high{font-weight:950}
+.researchEvolutionSnapshots{display:grid;gap:10px}
+.researchEvolutionSnapshotRows{display:grid;gap:7px}
+.researchEvolutionSnapshotRows>div{display:grid;grid-template-columns:minmax(150px,1fr) minmax(120px,.7fr) minmax(120px,.8fr) minmax(120px,.7fr);gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line,#e3e3de)}
+.researchEvolutionSnapshotRows>div:first-child{border-top:0}
+.researchEvolutionSnapshotRows span,.researchEvolutionSnapshotRows small{font-size:.76rem;color:var(--muted,#666)}
+.researchEvolutionReports{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.researchEvolutionReports a{display:grid;gap:6px;text-decoration:none;color:inherit}
+.researchEvolutionReports span{font-size:.82rem;color:var(--muted,#666);line-height:1.4}
+.researchEvolutionEmpty{text-align:center;padding:36px 20px}
+@media(max-width:900px){.researchEvolutionGrid,.researchEvolutionReports{grid-template-columns:1fr}.researchEvolutionHero{flex-direction:column}.researchEvolutionHero label{width:100%}.researchEvolutionSnapshotRows>div{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.researchEvolutionActions>*{width:100%}.researchEvolutionActions form button,.researchEvolutionActions a{width:100%;justify-content:center}.researchEvolutionSnapshotRows>div{grid-template-columns:1fr}.researchEvolutionLedgerRows article{grid-template-columns:1fr}}
+
