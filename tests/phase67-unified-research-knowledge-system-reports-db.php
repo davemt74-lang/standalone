@@ -59,6 +59,8 @@ p67(strlen((string)($initialSearch['index']['input_hash']??''))===64,'Retrieval 
 $snap1=research_system_report_snapshot($pdo,[],$owner,$agent);
 p67(($snap1['coverage']['totals']['claims']??0)===2&&($snap1['coverage']['included']['claims']??0)===2,'System Report snapshot publishes explicit included/total coverage.');
 p67(($snap1['diagnostics']??[])===[],'Complete report snapshot records no hidden subsystem failures.');
+p67(!empty($snap1['extended_intelligence']['workspace_synthesis']['text']),'System Reports consume the same project-contained Research workspace intelligence available to the Agent.');
+p67(!isset($snap1['extended_intelligence']['cross_research'],$snap1['extended_intelligence']['outcomes'],$snap1['extended_intelligence']['citation_network']),'Persisted System Reports exclude cross-project and viewer-private Agent contexts.');
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
 $snap2=research_system_report_snapshot($pdo,[],$owner,$agent);
 p67(hash_equals((string)$snap1['state_hash'],(string)$snap2['state_hash']),'System Report data-state hash is stable across a no-op retrieval rebuild.');
@@ -108,6 +110,8 @@ p67(research_agent_workspace_object($pdo,$owner,(string)$report['document_public
 
 $verification=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'claims_verification','Claims Verification',false);
 $full=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'full_intelligence','Full Intelligence',false);
+$fullDoc=research_agent_workspace_object($pdo,$owner,(string)$full['document_public_id'],false);
+p67($fullDoc&&str_contains((string)$fullDoc['document_plain_text'],'Extended Research intelligence'),'Full Intelligence report renders project-contained extended Research intelligence.');
 $list=research_system_report_list($pdo,$owner,(string)$agent['public_id'],20);
 p67(count($list)>=3&&!empty($verification['document_public_id'])&&!empty($full['document_public_id']),'One Research Agent can create multiple report processors over the same knowledge.');
 
