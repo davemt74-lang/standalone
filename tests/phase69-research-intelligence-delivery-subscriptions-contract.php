@@ -11,7 +11,7 @@ $avoid=function(string $file,array $needles,string $label)use($root,&$fail): voi
 };
 
 $must('database/migrations/20260926_083_research_intelligence_delivery_subscriptions.sql',[
-  'research_report_subscriptions','research_report_deliveries','research_report_delivery_events',
+  'research_intelligence_subscriptions','research_report_deliveries','research_report_delivery_events',
   "delivery_policy ENUM('every_run','if_changed','material_change_only','if_stale')",
   "status ENUM('pending','delivered','suppressed','failed','viewed')",'dedupe_key CHAR(64) NOT NULL UNIQUE',
   'subscriber_user_id BIGINT UNSIGNED NULL','ON DELETE SET NULL'
