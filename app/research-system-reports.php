@@ -385,14 +385,17 @@ function research_system_report_folder(PDO $pdo,array $viewer,array $project): a
     return research_agent_workspace_create_folder($pdo,$viewer,$project,'System Reports');
 }
 
+function research_system_report_nonfatal_event(PDO $pdo,int $reportId,string $event,?int $userId=null): void {
+    try{research_system_report_event($pdo,$reportId,$event,'system',$userId);}catch(Throwable $ignored){}
+}
 function research_system_report_queue_followups(PDO $pdo,int $reportId,int $projectId,int $userId,string $reason): void {
     if(function_exists('research_retrieval_queue_project')){
         try{research_retrieval_queue_project($pdo,$projectId);}
-        catch(Throwable $e){research_system_report_event($pdo,$reportId,'retrieval_queue_failed','system',$userId);error_log('[Annotated System Report retrieval-queue] '.$e->getMessage());}
+        catch(Throwable $e){research_system_report_nonfatal_event($pdo,$reportId,'retrieval_queue_failed',$userId);error_log('[Annotated System Report retrieval-queue] '.$e->getMessage());}
     }
     if(function_exists('research_autonomy_queue_project')){
         try{research_autonomy_queue_project($pdo,$projectId,$userId,'workspace_change',$reason);}
-        catch(Throwable $e){research_system_report_event($pdo,$reportId,'autonomy_queue_failed','system',$userId);error_log('[Annotated System Report autonomy-queue] '.$e->getMessage());}
+        catch(Throwable $e){research_system_report_nonfatal_event($pdo,$reportId,'autonomy_queue_failed',$userId);error_log('[Annotated System Report autonomy-queue] '.$e->getMessage());}
     }
 }
 
@@ -430,7 +433,7 @@ function research_system_report_generate(PDO $pdo,array $config,array $viewer,st
     $message=null;
     if($byAgent&&function_exists('research_agent_workspace_post_document_to_chat')){
         try{$message=research_agent_workspace_post_document_to_chat($pdo,$viewer,(string)$doc['public_id'],$parentMessageId);}
-        catch(Throwable $e){research_system_report_event($pdo,$reportId,'chat_post_failed','system',(int)$viewer['id']);error_log('[Annotated System Report chat-post] '.$e->getMessage());}
+        catch(Throwable $e){research_system_report_nonfatal_event($pdo,$reportId,'chat_post_failed',(int)$viewer['id']);error_log('[Annotated System Report chat-post] '.$e->getMessage());}
     }
     $report=research_system_report_access($pdo,$viewer,$public)??['public_id'=>$public,'report_type'=>$type['key'],'title'=>$title,'document_public_id'=>$doc['public_id'],'metrics'=>$metrics,'evidence_refs'=>$refs];
     $report['agent_message']=$message;return $report;
@@ -441,6 +444,7 @@ function research_system_report_archive(PDO $pdo,array $viewer,string $publicId,
     if($expectedAgentPublic!==''&&!hash_equals((string)$report['agent_public_id'],$expectedAgentPublic))throw new RuntimeException('System Report does not belong to this Research Agent.');
     $project=research_agent_workspace_project($pdo,$viewer,(string)$report['agent_public_id']);if(!$project)throw new RuntimeException('System Report not found.');
     research_agent_workspace_require_write($project);
+    if((string)$report['status']==='archived')return $report;
     $pdo->prepare("UPDATE research_system_reports SET status='archived',updated_at=NOW() WHERE id=?")->execute([(int)$report['id']]);
     research_system_report_event($pdo,(int)$report['id'],'archived','user',(int)$viewer['id']);
     research_system_report_queue_followups($pdo,(int)$report['id'],(int)$report['project_id'],(int)$viewer['id'],'A Research System Report was archived.');
