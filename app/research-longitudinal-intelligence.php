@@ -27,7 +27,8 @@ function research_longitudinal_sort_map(array $rows,string $key='public_id'): ar
 function research_longitudinal_derived_id(string $prefix,array $row): string {
     $basis=[
       (string)($row['claim_id']??''),(string)($row['ref_type']??''),(string)($row['ref_id']??''),
-      (string)($row['title']??''),(string)($row['detail']??''),(string)($row['reason']??'')
+      (string)($row['source_public_id']??''),(string)($row['target_public_id']??''),(string)($row['relation_type']??''),
+      (string)($row['title']??'')
     ];
     return $prefix.'-'.substr(hash('sha256',implode('|',$basis)),0,32);
 }
@@ -244,6 +245,31 @@ function research_longitudinal_compare_snapshots(PDO $pdo,array $viewer,string $
         foreach($a as $id=>$row)if(!isset($b[$id]))$out[$type]['removed'][]=$id;
     }
     return ['older'=>$old,'newer'=>$new,'diff'=>$out];
+}
+
+function research_longitudinal_rebuild_summary(array $changes,array $milestones): array {
+    $counts=[];$types=[];$material=['high'=>0,'medium'=>0,'low'=>0];$objectTrend=[];
+    foreach($changes as $c){$change=(string)$c['change_type'];$type=(string)$c['object_type'];$counts[$change]=($counts[$change]??0)+1;$types[$type]=($types[$type]??0)+1;$material[$c['materiality']]=($material[$c['materiality']]??0)+1;
+        $key=$type.':'.$c['object_public_id'];if(!isset($objectTrend[$key]))$objectTrend[$key]=['object_type'=>$type,'object_public_id'=>$c['object_public_id'],'strengthened'=>0,'weakened'=>0,'disputed'=>0,'verified'=>0,'changes'=>0,'latest'=>$c];
+        $objectTrend[$key]['changes']++;if(isset($objectTrend[$key][$change]))$objectTrend[$key][$change]++;
+    }
+    uasort($objectTrend,fn($a,$b)=>$b['changes']<=>$a['changes']);arsort($counts);arsort($types);
+    $emerging=[];foreach($objectTrend as $row)if(in_array($row['object_type'],['entity','claim','finding'],true)&&$row['changes']>=2)$emerging[]=$row;
+    return ['changes'=>array_values($changes),'milestones'=>array_values($milestones),'change_counts'=>$counts,'object_counts'=>$types,'materiality'=>$material,'trends'=>array_values($objectTrend),'emerging'=>array_slice($emerging,0,20)];
+}
+
+function research_longitudinal_filter_report_data(array $data,array $options): array {
+    if(empty($data['ready']))return $data;$summary=(array)($data['summary']??[]);$changes=(array)($summary['changes']??[]);$milestones=(array)($summary['milestones']??[]);
+    $from=trim((string)($options['date_from']??''));$to=trim((string)($options['date_to']??''));$focus=mb_strtolower(trim((string)($options['focus_query']??'')));
+    $selected=array_values(array_unique(array_merge((array)($options['source_ids']??[]),(array)($options['claim_ids']??[]),(array)($options['finding_ids']??[]),(array)($options['entity_ids']??[]))));
+    $accept=function(array $row)use($from,$to,$focus,$selected): bool {
+        $time=strtotime((string)($row['occurred_at']??''));if($from!==''&&$time!==false&&$time<strtotime($from.' 00:00:00'))return false;if($to!==''&&$time!==false&&$time>strtotime($to.' 23:59:59'))return false;
+        if($selected&&!in_array((string)($row['object_public_id']??''),$selected,true))return false;
+        if($focus!==''){$blob=mb_strtolower(json_encode($row,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));if(!str_contains($blob,$focus))return false;}
+        return true;
+    };
+    $changes=array_values(array_filter($changes,$accept));$milestones=array_values(array_filter($milestones,$accept));
+    $data['summary']=research_longitudinal_rebuild_summary($changes,$milestones);return $data;
 }
 
 function research_longitudinal_report_data(PDO $pdo,array $viewer,string $agentPublic,int $days=30): array {
