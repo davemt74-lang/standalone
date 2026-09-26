@@ -160,8 +160,8 @@ function research_report_studio_scope_snapshot(PDO $pdo,array $config,array $vie
         $workspace['next_actions']=$filterWorkspace((array)($workspace['next_actions']??[]),'action');
         $workspace['annotation_links']=[];$workspace['entities']=$snapshot['entities'];$workspace['recent_activity']=$snapshot['timeline'];
         $snapshot['workspace']=$workspace;
-        if($focus!==''){$snapshot['tasks']['items']=array_values(array_filter((array)($snapshot['tasks']['items']??[]),fn($r)=>research_report_studio_row_matches_focus($r,$focus,['title','description','task_type','status'])));$snapshot['programs']['items']=array_values(array_filter((array)($snapshot['programs']['items']??[]),fn($r)=>research_report_studio_row_matches_focus($r,$focus,['title','objective','status','cadence'])));}
-        elseif($explicit){$snapshot['tasks']['items']=[];$snapshot['programs']['items']=[];}
+        if($explicit){$snapshot['tasks']['items']=[];$snapshot['programs']['items']=[];}
+        elseif($focus!==''){$snapshot['tasks']['items']=array_values(array_filter((array)($snapshot['tasks']['items']??[]),fn($r)=>research_report_studio_row_matches_focus($r,$focus,['title','description','task_type','status'])));$snapshot['programs']['items']=array_values(array_filter((array)($snapshot['programs']['items']??[]),fn($r)=>research_report_studio_row_matches_focus($r,$focus,['title','objective','status','cadence'])));}
         $snapshot['workspace']['counts']=['sources'=>count($snapshot['sources']),'annotations'=>count(array_filter($snapshot['recent_evidence'],fn($r)=>(string)($r['object_type']??'')==='annotation')),'claims'=>count($snapshot['claims']),'findings'=>count($snapshot['findings']),'open_tasks'=>count((array)$snapshot['tasks']['items']),'recent_source_changes'=>count($snapshot['monitoring']['events'])];
         $snapshot['tasks']['summary']=[];$snapshot['programs']['summary']=[];$snapshot['monitoring']['summary']=[];$snapshot['extended_intelligence']=[];
         $snapshot['retrieval_index']=['status'=>$snapshot['retrieval_index']['status']??'ready','scoped'=>true];
