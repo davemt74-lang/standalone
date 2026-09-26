@@ -123,7 +123,7 @@ function research_report_studio_scope_snapshot(PDO $pdo,array $config,array $vie
 
     $results=[];$seen=[];$folders=$o['folder_ids']?:[''];
     foreach($folders as $folder){
-        $filters=['date_from'=>$from,'date_to'=>$to,'exclude_report_derivatives'=>true];if($folder!=='')$filters['folder_id']=$folder;
+        $filters=['date_from'=>$from,'date_to'=>$to,'exclude_report_derivatives'=>true,'stable_scoring'=>true];if($folder!=='')$filters['folder_id']=$folder;
         try{$search=research_retrieval_search($pdo,$config,$viewer,(string)$agent['project_public_id'],$focus,$filters,60,false);
             foreach((array)($search['results']??[]) as $r){
                 $type=(string)($r['object_type']??'');$id=(string)($r['public_id']??'');$m=(array)($r['metadata']??[]);
