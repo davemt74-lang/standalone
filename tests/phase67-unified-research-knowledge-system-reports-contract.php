@@ -9,9 +9,9 @@ $must('database/migrations/20260925_080_research_agent_knowledge_system_reports.
  'research_system_reports','research_system_report_events','input_state_hash','evidence_refs_json','document_object_id'
 ],'Phase 67 migration');
 $must('app/research-system-reports.php',[
- 'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge','research_system_report_coverage_counts','research_system_report_component_error',
+ 'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge','research_system_report_coverage_counts','research_system_report_component_error','research_system_report_ref_bundle',
  "'research_brief'","'evidence_audit'","'claims_verification'","'contradictions_gaps'","'source_freshness'","'entity_map'","'timeline'","'action_plan'","'full_intelligence'",
- 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports','coverage','diagnostics','claim_relations','entity_relations','beginTransaction','rollBack','chat_post_failed'
+ 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports','coverage','diagnostics','claim_relations','entity_relations','beginTransaction','rollBack','chat_post_failed','provenance_truncated','provenance_total_unique'
 ],'Phase 67 reports runtime');
 $must('app/research-retrieval.php',[
  "'claim'","'finding'","'entity'","'claim_relation'","'entity_relation'","'task'","'program'","'report'",
@@ -47,7 +47,7 @@ if(is_file($root.'/worker/research-system-report-worker.php')||is_file($root.'/w
 $must('tests/ci/run-full-regression.sh',['tests/phase67-unified-research-knowledge-system-reports-db.php'],'Phase 67 regression gate');
 $must('.github/workflows/full-regression.yml',['phase67-upgrade-from-079.php','phase67-unified-research-knowledge-system-reports-db.php'],'Phase 67 MySQL gate');
 $must('.github/workflows/package-two-zips.yml',[
- '20260925_080_research_agent_knowledge_system_reports.sql','phase-67-unified-research-knowledge-system-reports.md','research-system-reports.php','research-agent-knowledge.php','research-reports.php'
+ '20260925_080_research_agent_knowledge_system_reports.sql','20260926_081_phase67_system_report_provenance_hardening.sql','phase-67-unified-research-knowledge-system-reports.md','research-system-reports.php','research-agent-knowledge.php','research-reports.php'
 ],'Phase 67 production package');
 if($fail){fwrite(STDERR,implode("\n",array_values(array_unique($fail)))."\n");exit(1);}
 echo "Phase 67 Unified Research Knowledge & System Reports static contracts passed.\n";
