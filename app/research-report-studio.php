@@ -9,10 +9,12 @@ declare(strict_types=1);
  */
 
 function research_report_studio_ready(PDO $pdo): bool {
-    try{return research_system_reports_ready($pdo)&&installer_table_exists($pdo,'research_report_presets')
-        &&installer_column_exists($pdo,'research_system_reports','rendered_html')
-        &&installer_column_exists($pdo,'research_system_reports','knowledge_manifest_json');}
-    catch(Throwable $e){return false;}
+    try{
+        if(!research_system_reports_ready($pdo)||!installer_table_exists($pdo,'research_report_presets'))return false;
+        $db=(string)($pdo->query('SELECT DATABASE()')->fetchColumn()?:'');if($db==='')return false;
+        $q=$pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='research_system_reports' AND COLUMN_NAME IN ('rendered_html','knowledge_manifest_json')");
+        $q->execute([$db]);return (int)$q->fetchColumn()===2;
+    }catch(Throwable $e){return false;}
 }
 
 function research_report_studio_clean_ids($value,int $limit=100): array {
