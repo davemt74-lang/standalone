@@ -21,7 +21,7 @@ $must('app/research-intelligence-delivery.php',[
   'research_intelligence_delivery_ready','research_report_subscription_create','research_report_subscription_update','research_report_subscription_set_status',
   'research_report_delivery_access','research_report_delivery_mark_viewed','research_intelligence_delivery_should_run',
   'research_intelligence_delivery_process_subscription','research_intelligence_delivery_process_program_run','research_intelligence_delivery_run_manual',
-  'research_intelligence_delivery_agent_context','research_intelligence_delivery_cognitive_observations',
+  'research_intelligence_delivery_agent_context','research_intelligence_delivery_cognitive_observations','retryable','conversation_message_attachments',
   "'every_run'","'if_changed'","'material_change_only'","'if_stale'","research_report_studio_run_preset",
   'research_report_studio_freshness','research_report_studio_compare','notification_create','conversation_message_attachments'
 ],'Phase 69 runtime');
@@ -48,8 +48,8 @@ $must('app/cognitive-feed.php',[
   "'research_report_delivery'=>84","research_intelligence_delivery_cognitive_observations"
 ],'Phase 69 Now integration');
 $must('app/agent-chat.php',[
-  'research_intelligence_delivery_agent_context'
-],'Phase 69 Agent awareness');
+  'research_intelligence_delivery_agent_context',"empty(\$researchAgent['team_id'])"
+],'Phase 69 Agent awareness and Team privacy');
 
 $must('app/agent-actions.php',[
   "'research.create_report_subscription'","'research.update_report_subscription'","'research.set_report_subscription_status'",
