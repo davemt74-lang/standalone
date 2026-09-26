@@ -128,17 +128,22 @@ function research_system_report_coverage_counts(PDO $pdo,int $projectId): array 
     return $counts;
 }
 
+function research_system_report_review_context(PDO $pdo,array $viewer,string $projectPublic,int $limit=10): array {
+    if(!function_exists('research_review_project_summary'))return ['text'=>'','refs'=>[]];
+    $s=research_review_project_summary($pdo,$viewer,$projectPublic);if(empty($s['open']))return ['text'=>'','refs'=>[]];
+    $lines=['[COLLABORATIVE RESEARCH REVIEW]','Open reviews: '.(int)$s['open'].'; changes requested: '.(int)$s['changes_requested'].'; unresolved objections: '.(int)$s['unresolved_objections'].'; overdue: '.(int)$s['overdue'].'; stale: '.(int)$s['stale'].'.'];$refs=[];
+    foreach(array_slice((array)($s['items']??[]),0,max(1,min(30,$limit))) as $item){$lines[]='- '.(string)$item['title'].' · '.(string)$item['consensus'].(!empty($item['is_stale'])?' · stale':'').(!empty($item['due_at'])?' · due '.$item['due_at']:'').' [REVIEW '.(string)$item['public_id'].']';$refs[]=['type'=>'research_review','id'=>(string)$item['public_id']];}
+    return ['text'=>implode("\n",$lines),'refs'=>$refs];
+}
+
 function research_system_report_extended_intelligence(PDO $pdo,array $viewer,string $projectPublic,int $projectId,array &$diagnostics): array {
     $out=[];$add=function(string $key,callable $fn)use(&$out,&$diagnostics): void{
         try{$ctx=$fn();if(!is_array($ctx))return;$text=trim((string)($ctx['text']??''));$refs=is_array($ctx['refs']??null)?array_values($ctx['refs']):[];if($text!==''||$refs)$out[$key]=['text'=>$text,'refs'=>$refs];}
         catch(Throwable $e){research_system_report_component_error($key,$e,$diagnostics);}
     };
     if(function_exists('research_workspace_context'))$add('workspace_synthesis',fn()=>research_workspace_context($pdo,$projectId));
-    if(function_exists('cross_research_ready')&&cross_research_ready($pdo))$add('cross_research',fn()=>cross_research_context($pdo,$viewer,$projectPublic,10));
-    if(function_exists('research_reviews_ready')&&research_reviews_ready($pdo))$add('reviews',fn()=>research_review_context($pdo,$viewer,$projectPublic,10));
+    if(function_exists('research_reviews_ready')&&research_reviews_ready($pdo))$add('reviews',fn()=>research_system_report_review_context($pdo,$viewer,$projectPublic,10));
     if(function_exists('change_impact_ready')&&change_impact_ready($pdo))$add('change_impact',fn()=>change_impact_context($pdo,$viewer,$projectPublic,8));
-    if(function_exists('research_outcomes_ready')&&research_outcomes_ready($pdo))$add('outcomes',fn()=>research_outcome_context($pdo,$viewer,$projectPublic,15));
-    if(function_exists('research_network_ready')&&research_network_ready($pdo))$add('citation_network',fn()=>research_network_project_context($pdo,$viewer,$projectPublic,12));
     if(function_exists('provenance_ready')&&provenance_ready($pdo))$add('provenance',fn()=>provenance_project_context($pdo,$viewer,$projectPublic));
     if(function_exists('research_verification_ready')&&research_verification_ready($pdo))$add('verification',fn()=>research_verification_context($pdo,$viewer,$projectPublic,12));
     if(function_exists('research_evidence_packs_ready')&&research_evidence_packs_ready($pdo))$add('evidence_packs',fn()=>research_evidence_pack_project_context($pdo,$viewer,$projectPublic,5));
@@ -352,7 +357,7 @@ function research_system_report_render(string $type,array $s): array {
         $body.=research_system_report_section('Active tasks',$html);
         $body.=research_system_report_section('Evidence gaps',$sections['gapsHtml']);
         $body.=research_system_report_section('Contradictions',$sections['conflictsHtml']);
-        $body.=research_system_report_section('Workflow, outcomes & downstream impact',research_system_report_extended_html($s,['workflow','outcomes','change_impact','reviews']));
+        $body.=research_system_report_section('Workflow, outcomes & downstream impact',research_system_report_extended_html($s,['workflow','change_impact','reviews']));
     } else {
         $body.=research_system_report_section('Research state',research_system_report_summary_block($s));
         $body.=research_system_report_section('Findings',$sections['findingsHtml']);
