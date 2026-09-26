@@ -306,6 +306,12 @@ jobs:
           test -f package-website/tests/phase67-unified-research-knowledge-system-reports-contract.php
           test -f package-website/tests/phase67-unified-research-knowledge-system-reports-db.php
           test -f package-website/tests/ci/phase67-upgrade-from-079.php
+          test -f package-website/database/migrations/20260926_082_research_agent_report_studio.sql
+          test -f package-website/docs/phase-68-research-agent-report-studio.md
+          test -f package-website/app/research-report-studio.php
+          test -f package-website/tests/phase68-research-agent-report-studio-contract.php
+          test -f package-website/tests/phase68-research-agent-report-studio-db.php
+          test -f package-website/tests/ci/phase68-upgrade-from-081.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
