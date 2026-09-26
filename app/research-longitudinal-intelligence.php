@@ -251,6 +251,78 @@ function research_longitudinal_report_data(PDO $pdo,array $viewer,string $agentP
     return ['ready'=>(bool)$latest,'latest_snapshot'=>$latest,'since_days'=>$days,'summary'=>research_longitudinal_summary($pdo,$viewer,$agentPublic,'-'.$days.' days')];
 }
 
+function research_longitudinal_change_html(array $rows,int $limit=30): string {
+    $rows=array_slice($rows,0,max(1,$limit));if(!$rows)return research_system_report_empty('No longitudinal changes are available for this section.');
+    $html='<ul>';foreach($rows as $c){$row=$c['after']??$c['before']??[];$title=research_longitudinal_object_title((string)$c['object_type'],(array)$row);
+        $html.=research_system_report_li($title,(string)$c['reason'],strtoupper((string)$c['change_type']).' · '.strtoupper((string)$c['materiality']).' · '.(string)$c['occurred_at']);}
+    return $html.'</ul>';
+}
+
+function research_longitudinal_milestone_html(array $rows,int $limit=24): string {
+    $rows=array_slice($rows,0,max(1,$limit));if(!$rows)return research_system_report_empty('No longitudinal milestones are recorded for this period.');
+    $html='<ol>';foreach($rows as $m)$html.=research_system_report_li((string)$m['title'],(string)($m['summary']??''),strtoupper(str_replace('_',' ',(string)$m['milestone_type'])).' · '.(string)$m['occurred_at']);
+    return $html.'</ol>';
+}
+
+function research_longitudinal_render_report(string $type,array $snapshot): string {
+    $data=(array)($snapshot['longitudinal']??[]);$summary=(array)($data['summary']??[]);$changes=(array)($summary['changes']??[]);$milestones=(array)($summary['milestones']??[]);
+    if(empty($data['ready']))return research_system_report_section('Longitudinal Research baseline',research_system_report_empty('No longitudinal baseline has been captured yet. Run a Research Program cycle or capture the current state from Research Evolution.'));
+    $latest=(array)($data['latest_snapshot']??[]);$state=(array)($latest['state']??[]);
+    $filter=function(callable $fn)use($changes){return array_values(array_filter($changes,$fn));};
+    $summaryHtml='<p><strong>'.count($changes).'</strong> recorded change(s) in the last '.(int)($data['since_days']??30).' days; '
+      .'<strong>'.(int)($summary['materiality']['high']??0).'</strong> high-materiality; <strong>'.count($milestones).'</strong> milestone(s).</p>';
+    foreach(array_slice((array)($summary['change_counts']??[]),0,8,true) as $k=>$v)$summaryHtml.='<p><strong>'.research_system_report_escape(ucwords(str_replace('_',' ',$k))).':</strong> '.(int)$v.'</p>';
+
+    if($type==='research_evolution'){
+        $strong=$filter(fn($c)=>in_array((string)$c['change_type'],['strengthened','verified'],true));
+        $weak=$filter(fn($c)=>in_array((string)$c['change_type'],['weakened','disputed','removed'],true));
+        $persistent=array_values(array_filter((array)($summary['trends']??[]),fn($r)=>(int)($r['changes']??0)>=2));
+        $trendHtml='<ul>';foreach(array_slice($persistent,0,20) as $r){$latestChange=(array)($r['latest']??[]);$row=$latestChange['after']??$latestChange['before']??[];$trendHtml.=research_system_report_li(research_longitudinal_object_title((string)$r['object_type'],(array)$row),(int)$r['changes'].' longitudinal changes','STRENGTHENED '.(int)$r['strengthened'].' · WEAKENED '.(int)$r['weakened'].' · VERIFIED '.(int)$r['verified'].' · DISPUTED '.(int)$r['disputed']);}$trendHtml.='</ul>';if(!$persistent)$trendHtml=research_system_report_empty('No object has changed repeatedly in this period.');
+        return research_system_report_section('Evolution summary',$summaryHtml)
+          .research_system_report_section('Major milestones',research_longitudinal_milestone_html($milestones))
+          .research_system_report_section('Strengthening and weakening',research_longitudinal_change_html(array_merge($strong,$weak),30))
+          .research_system_report_section('Persistent change',$trendHtml)
+          .research_system_report_section('What to review next',research_longitudinal_change_html(array_slice($weak,0,15),15));
+    }
+    if($type==='what_changed'){
+        $material=$filter(fn($c)=>(string)$c['materiality']==='high');$resolved=$filter(fn($c)=>(string)$c['change_type']==='resolved');
+        $newQuestions=$filter(fn($c)=>in_array((string)$c['object_type'],['open_question','contradiction'],true)&&(string)$c['change_type']==='introduced');
+        return research_system_report_section('Change summary',$summaryHtml)
+          .research_system_report_section('Material changes',research_longitudinal_change_html($material,40))
+          .research_system_report_section('Resolved items',research_longitudinal_change_html($resolved,25))
+          .research_system_report_section('New questions and contradictions',research_longitudinal_change_html($newQuestions,25))
+          .research_system_report_section('Next review',research_longitudinal_change_html(array_slice($material,0,12),12));
+    }
+    if($type==='confidence_contradictions'){
+        $claimMoves=$filter(fn($c)=>(string)$c['object_type']==='claim'&&in_array((string)$c['change_type'],['strengthened','weakened','verified','disputed','changed'],true));
+        $verified=$filter(fn($c)=>(string)$c['object_type']==='claim'&&(string)$c['change_type']==='verified');
+        $contradictions=$filter(fn($c)=>(string)$c['object_type']==='contradiction');
+        $atRisk=$filter(fn($c)=>in_array((string)$c['change_type'],['weakened','disputed'],true));
+        return research_system_report_section('Confidence movement',research_longitudinal_change_html($claimMoves,40))
+          .research_system_report_section('Verification milestones',research_longitudinal_change_html($verified,25))
+          .research_system_report_section('Contradiction history',research_longitudinal_change_html($contradictions,30))
+          .research_system_report_section('At-risk knowledge',research_longitudinal_change_html($atRisk,25));
+    }
+    if($type==='open_questions_evolution'){
+        $current=array_values((array)($state['open_question']??[]));$currentHtml='<ul>';foreach(array_slice($current,0,40) as $q)$currentHtml.=research_system_report_li((string)($q['title']??'Open question'),(string)($q['detail']??''),(string)($q['priority']??''));$currentHtml.='</ul>';if(!$current)$currentHtml=research_system_report_empty('No open longitudinal questions are present in the latest snapshot.');
+        $opened=$filter(fn($c)=>(string)$c['object_type']==='open_question'&&(string)$c['change_type']==='introduced');
+        $resolved=$filter(fn($c)=>(string)$c['object_type']==='open_question'&&(string)$c['change_type']==='resolved');
+        $changed=$filter(fn($c)=>(string)$c['object_type']==='open_question'&&(string)$c['change_type']==='changed');
+        return research_system_report_section('Open question state',$currentHtml)
+          .research_system_report_section('New questions',research_longitudinal_change_html($opened,30))
+          .research_system_report_section('Persistent questions',research_longitudinal_change_html($changed,30))
+          .research_system_report_section('Resolved questions',research_longitudinal_change_html($resolved,30))
+          .research_system_report_section('Recommended follow-up',research_longitudinal_change_html(array_merge($opened,$changed),20));
+    }
+    $entities=$filter(fn($c)=>(string)$c['object_type']==='entity');$relations=$filter(fn($c)=>in_array((string)$c['object_type'],['entity_relation','claim_relation'],true));$emerging=(array)($summary['emerging']??[]);
+    $emergingHtml='<ul>';foreach(array_slice($emerging,0,25) as $r){$lc=(array)($r['latest']??[]);$row=$lc['after']??$lc['before']??[];$emergingHtml.=research_system_report_li(research_longitudinal_object_title((string)$r['object_type'],(array)$row),(int)$r['changes'].' changes in the period',ucwords(str_replace('_',' ',(string)$r['object_type'])));}$emergingHtml.='</ul>';if(!$emerging)$emergingHtml=research_system_report_empty('No repeatedly changing entities or themes are detected yet.');
+    return research_system_report_section('Entity movement',research_longitudinal_change_html($entities,35))
+      .research_system_report_section('Relationship changes',research_longitudinal_change_html($relations,35))
+      .research_system_report_section('Emerging themes',$emergingHtml)
+      .research_system_report_section('Persistent themes',$emergingHtml)
+      .research_system_report_section('Implications',research_longitudinal_change_html(array_slice(array_values(array_filter($changes,fn($c)=>(string)$c['materiality']==='high')),0,20),20));
+}
+
 function research_longitudinal_agent_context(PDO $pdo,array $viewer,string $agentPublic,int $days=30): string {
     if(!research_longitudinal_ready($pdo))return '';$data=research_longitudinal_report_data($pdo,$viewer,$agentPublic,$days);if(empty($data['ready']))return '[LONGITUDINAL RESEARCH]\nNo longitudinal baseline has been captured yet.';
     $s=$data['summary'];$lines=['[LONGITUDINAL RESEARCH — LAST '.$days.' DAYS]','Changes: '.count((array)$s['changes']).'; high materiality: '.(int)($s['materiality']['high']??0).'; milestones: '.count((array)$s['milestones']).'.'];
