@@ -73,6 +73,10 @@ p68throws(fn()=>research_report_studio_preset_save($pdo,$owner,(string)$otherAge
 $presetRun=research_report_studio_run_preset($pdo,[],$owner,(string)$agent['public_id'],(string)$preset['public_id'],false);
 p68(($presetRun['preset_public_id']??'')===$preset['public_id']&&empty($presetRun['document_public_id']),'Running a saved preset creates a new Report Run, not a Document.');
 
+$unrelated=$pub('claim');$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,?, 'factual','unverified')")
+  ->execute([$unrelated,(int)$project['id'],(int)$owner['id'],'An unrelated satellite market claim.']);
+$freshScoped=research_report_studio_freshness($pdo,[],$owner,$run1);p68(($freshScoped['state']??'')==='current','Changes outside an explicit Report scope do not make the scoped Report stale.');
+
 $pdo->prepare("UPDATE research_claims SET statement=?,updated_at=NOW() WHERE id=?")->execute(['Mercury orchard demand increased by 24 percent.',$claimId]);
 $freshChanged=research_report_studio_freshness($pdo,[],$owner,$run1);p68(($freshChanged['state']??'')==='materially_changed','Underlying Claim changes make the old Report materially changed.');
 $run2=research_report_studio_refresh($pdo,[],$owner,(string)$agent['public_id'],(string)$run1['public_id']);
