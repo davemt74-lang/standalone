@@ -43,7 +43,7 @@ $run1=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id']
 p68(empty($run1['document_public_id'])&&!empty($run1['rendered_html'])&&!empty($run1['sections'])&&!empty($run1['knowledge_manifest']),'Running a predefined report creates a Report Run without a Research Document.');
 p68(($run1['parameters']['depth']??'')==='quick'&&($run1['parameters']['focus_query']??'')==='Mercury','Report Run persists Studio parameters.');
 p68(($run1['scope']['claim_ids'][0]??'')===$claimPublic,'Report Run persists per-Agent scope.');
-$q=$pdo->prepare("SELECT COUNT(*) FROM research_workspace_objects WHERE project_id=? AND object_type='folder' AND title='System Reports'");$q->execute([(int)$project['id']);p68((int)$q->fetchColumn()===0,'Running a Report does not create a Desktop document folder.');
+$q=$pdo->prepare("SELECT COUNT(*) FROM research_workspace_objects WHERE project_id=? AND object_type='folder' AND title='System Reports'");$q->execute([(int)$project['id']]);p68((int)$q->fetchColumn()===0,'Running a Report does not create a Desktop document folder.');
 
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],null,false);
 $reportSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'Mercury',['type'=>'report'],20,true);
