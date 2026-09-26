@@ -183,9 +183,9 @@ function research_intelligence_delivery_reserve(PDO $pdo,array $sub,?array $run,
         $retryable=in_array((string)$existing['status'],['pending','failed'],true);
         return ['existing'=>true,'retryable'=>$retryable,'id'=>(int)$existing['id'],'public_id'=>(string)$existing['public_id'],'row_public_id'=>(string)$existing['public_id'],'report_id'=>$existing['report_id']!==null?(int)$existing['report_id']:null,'dedupe_key'=>$dedupe];
     }
-    $public=ulid_like();$pdo->prepare("INSERT INTO research_report_deliveries(public_id,subscription_id,research_agent_id,project_id,subscriber_user_id,preset_id,program_id,program_run_id,trigger_type,status,reason_code,dedupe_key,material_change_count,channels_json)
-      VALUES(?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
-      ->execute([$public,(int)$sub['id'],(int)$sub['research_agent_id'],(int)$sub['project_id'],$sub['subscriber_user_id']!==null?(int)$sub['subscriber_user_id']:null,$sub['preset_id']!==null?(int)$sub['preset_id']:null,$sub['program_id']!==null?(int)$sub['program_id']:null,$run?(int)$run['id']:null,$trigger,$reason,$dedupe,$run?(int)($run['material_change_count']??0):0,json_encode(['in_app'=>(bool)$sub['notify_in_app'],'agent_chat'=>(bool)$sub['notify_agent_chat']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);
+    $public=ulid_like();$pdo->prepare("INSERT INTO research_report_deliveries(public_id,subscription_id,subscription_public_id,research_agent_id,project_id,subscriber_user_id,preset_id,program_id,program_run_id,trigger_type,status,reason_code,dedupe_key,material_change_count,channels_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
+      ->execute([$public,(int)$sub['id'],(string)$sub['public_id'],(int)$sub['research_agent_id'],(int)$sub['project_id'],$sub['subscriber_user_id']!==null?(int)$sub['subscriber_user_id']:null,$sub['preset_id']!==null?(int)$sub['preset_id']:null,$sub['program_id']!==null?(int)$sub['program_id']:null,$run?(int)$run['id']:null,$trigger,$reason,$dedupe,$run?(int)($run['material_change_count']??0):0,json_encode(['in_app'=>(bool)$sub['notify_in_app'],'agent_chat'=>(bool)$sub['notify_agent_chat']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);
     $id=(int)$pdo->lastInsertId();research_report_delivery_event($pdo,$id,(int)$sub['id'],'reserved','system',null,['trigger'=>$trigger]);
     return ['existing'=>false,'id'=>$id,'public_id'=>$public,'dedupe_key'=>$dedupe];
 }
