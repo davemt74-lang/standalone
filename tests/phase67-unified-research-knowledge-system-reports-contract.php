@@ -5,14 +5,22 @@ $must=function(string $file,array $needles,string $label)use($root,&$fail): void
     $path=$root.'/'.$file;if(!is_file($path)){$fail[]=$label.' file missing: '.$file;return;}
     $body=(string)file_get_contents($path);foreach($needles as $needle)if(!str_contains($body,$needle))$fail[]=$label.' missing in '.$file.': '.$needle;
 };
+$avoid=function(string $file,array $needles,string $label)use($root,&$fail): void{
+    $path=$root.'/'.$file;if(!is_file($path))return;$body=(string)file_get_contents($path);
+    foreach($needles as $needle)if(str_contains($body,$needle))$fail[]=$label.' must not contain '.$needle;
+};
 $must('database/migrations/20260925_080_research_agent_knowledge_system_reports.sql',[
  'research_system_reports','research_system_report_events','input_state_hash','evidence_refs_json','document_object_id'
 ],'Phase 67 migration');
+$must('database/migrations/20260926_081_phase67_system_report_provenance_hardening.sql',[
+ 'requested_by_user_id BIGINT UNSIGNED NULL','ON DELETE SET NULL','fk_system_reports_requester'
+],'Phase 67 provenance hardening migration');
 $must('app/research-system-reports.php',[
- 'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge','research_system_report_coverage_counts','research_system_report_component_error','research_system_report_ref_bundle',
+ 'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge','research_system_report_coverage_counts','research_system_report_component_error','research_system_report_ref_bundle','research_system_report_extended_intelligence','research_system_report_review_context',
  "'research_brief'","'evidence_audit'","'claims_verification'","'contradictions_gaps'","'source_freshness'","'entity_map'","'timeline'","'action_plan'","'full_intelligence'",
- 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports','coverage','diagnostics','claim_relations','entity_relations','beginTransaction','rollBack','chat_post_failed','provenance_truncated','provenance_total_unique'
+ 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports','coverage','diagnostics','claim_relations','entity_relations','extended_intelligence','beginTransaction','rollBack','chat_post_failed','provenance_truncated','provenance_total_unique'
 ],'Phase 67 reports runtime');
+$avoid('app/research-system-reports.php',['cross_research_context(','research_outcome_context(','research_network_project_context('],'Persisted System Reports permission boundary');
 $must('app/research-retrieval.php',[
  "'claim'","'finding'","'entity'","'claim_relation'","'entity_relation'","'task'","'program'","'report'",
  'research_retrieval_project_object_allowed','system_report_type','JSON_UNQUOTE(JSON_EXTRACT','research_claims','research_findings','research_entities',"'input_hash'=>\$state['input_hash']??null"
