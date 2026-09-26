@@ -15,7 +15,7 @@ try{
     $baseline='20260924_079_admin_platform_configuration_governance.sql';
     foreach(glob($root.'/database/migrations/*.sql')?:[] as $file){$base=basename($file);if(strcmp($base,$baseline)<=0)copy($file,$tmp.'/'.$base);}
     installer_run($pdo,$root.'/database/schema.sql',$tmp);
-    if(!installer_table_exists($pdo,'admin_platform_settings'))throw new RuntimeException('079 fixture did not reach Admin Platform Governance.');
+    if(!installer_table_exists($pdo,'admin_platform_features'))throw new RuntimeException('079 fixture did not reach Admin Platform Governance.');
     if(installer_table_exists($pdo,'research_system_reports'))throw new RuntimeException('079 fixture unexpectedly contains Phase 67 System Reports schema.');
     $applied=migration_apply_pending($pdo,$root.'/database/migrations',20);
     if(!in_array('20260925_080_research_agent_knowledge_system_reports',$applied,true))throw new RuntimeException('Upgrade did not apply migration 080.');
