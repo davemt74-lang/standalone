@@ -401,20 +401,40 @@ function research_retrieval_annotation_allowed(PDO $pdo,array $viewer,string $pu
     return false;
 }
 
+function research_retrieval_project_object_allowed(PDO $pdo,array $viewer,string $type,string $publicId): bool {
+    $table=match($type){
+      'claim'=>'research_claims','finding'=>'research_findings','entity'=>'research_entities','task'=>'research_tasks','program'=>'research_programs',default=>''
+    };
+    if($table==='')return false;
+    try{
+        $q=$pdo->prepare("SELECT rp.public_id FROM {$table} o JOIN research_projects rp ON rp.id=o.project_id WHERE o.public_id=? LIMIT 1");
+        $q->execute([$publicId]);$projectPublic=(string)($q->fetchColumn()?:'');
+        return $projectPublic!==''&&project_access($pdo,(int)$viewer['id'],$projectPublic)!==null;
+    }catch(Throwable $e){return false;}
+}
+
 function research_retrieval_result_allowed(PDO $pdo,array $viewer,array $row): bool {
     $type=(string)($row['object_type']??'');$id=(string)($row['object_public_id']??'');
     if($type==='annotation')return research_retrieval_annotation_allowed($pdo,$viewer,$id);
     if(in_array($type,['document','bookmark','sticky','upload','recording'],true))return research_agent_workspace_object($pdo,$viewer,$id,false)!==null;
     if($type==='source')return source_access($pdo,$id,$viewer)!==null;
+    if(in_array($type,['claim','finding','entity','task','program'],true))return research_retrieval_project_object_allowed($pdo,$viewer,$type,$id);
     return false;
 }
 
 function research_retrieval_href(array $row): string {
+    $metadata=json_decode((string)($row['metadata_json']??''),true)?:[];$id=(string)$row['object_public_id'];
     return match((string)$row['object_type']){
-      'annotation'=>'/annotation.php?id='.rawurlencode((string)$row['object_public_id']),
-      'source'=>'/source.php?id='.rawurlencode((string)$row['object_public_id']),
-      'upload'=>'/research-workspace-file.php?id='.rawurlencode((string)$row['object_public_id']),
-      'bookmark'=>(string)((json_decode((string)($row['metadata_json']??''),true)?:[])['url']??''),
+      'annotation'=>'/annotation.php?id='.rawurlencode($id),
+      'source'=>'/source.php?id='.rawurlencode($id),
+      'upload'=>'/research-workspace-file.php?id='.rawurlencode($id),
+      'bookmark'=>(string)($metadata['url']??''),
+      'claim'=>'/research-claim.php?id='.rawurlencode($id),
+      'finding'=>'/research-finding.php?id='.rawurlencode($id),
+      'entity'=>'/research-entity.php?id='.rawurlencode($id),
+      'task'=>!empty($metadata['agent_public_id'])?'/research-tasks.php?agent='.rawurlencode((string)$metadata['agent_public_id']).'&task='.rawurlencode($id):'',
+      'program'=>!empty($metadata['agent_public_id'])?'/research-programs.php?agent='.rawurlencode((string)$metadata['agent_public_id']).'&program='.rawurlencode($id):'',
+      'document'=>!empty($metadata['system_report_id'])?'/home.php?agent='.rawurlencode((string)($metadata['agent_conversation_id']??'')).'&doc='.rawurlencode($id):'',
       default=>''
     };
 }
@@ -429,12 +449,13 @@ function research_retrieval_snippet(string $content,string $query,int $max=360):
 function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $projectPublicId,string $query,array $filters=[],int $limit=30,bool $audit=true): array {
     $current=research_retrieval_ensure_current($pdo,$config,$viewer,$projectPublicId);$project=$current['project'];$state=$current['state'];$projectId=(int)$project['id'];
     $query=mb_substr(trim((string)preg_replace('/\s+/u',' ',$query)),0,1000);$limit=max(1,min(60,$limit));
-    $type=strtolower(trim((string)($filters['type']??'all')));$allowedTypes=['all','source','annotation','document','bookmark','sticky','upload','recording','transcript'];if(!in_array($type,$allowedTypes,true))$type='all';
+    $type=strtolower(trim((string)($filters['type']??'all')));$allowedTypes=['all','source','annotation','document','bookmark','sticky','upload','recording','transcript','claim','finding','entity','task','program','report'];if(!in_array($type,$allowedTypes,true))$type='all';
     $folder=trim((string)($filters['folder_id']??''));$status=trim((string)($filters['status']??''));$dateFrom=trim((string)($filters['date_from']??''));$dateTo=trim((string)($filters['date_to']??''));$creator=trim((string)($filters['creator']??''));
     $folderScope=$folder!==''?research_retrieval_folder_scope($pdo,$projectId,$folder):[];
 
     $params=[$projectId];$where=['d.project_id=?'];
     if($type==='transcript'){$where[]="d.object_type='recording'";$where[]="d.source_status='ready'";}
+    elseif($type==='report'){$where[]="d.object_type='document'";$where[]="JSON_UNQUOTE(JSON_EXTRACT(d.metadata_json,'$.system_report_type')) IS NOT NULL";}
     elseif($type!=='all'){$where[]='d.object_type=?';$params[]=$type;}
     if($status!==''){$where[]='d.source_status=?';$params[]=$status;}
     if($dateFrom!==''&&preg_match('/^\d{4}-\d{2}-\d{2}$/',$dateFrom)){$where[]='d.source_updated_at>=?';$params[]=$dateFrom.' 00:00:00';}
