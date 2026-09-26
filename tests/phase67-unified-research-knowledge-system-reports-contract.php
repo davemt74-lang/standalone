@@ -35,7 +35,7 @@ $must('home.php',[
  '/research-agent-knowledge.php?agent=','/research-reports.php?agent='
 ],'Phase 67 Research Agent canvas');
 $must('research.php',['Knowledge','Reports','/research-agent-knowledge.php','/research-reports.php'],'Phase 67 Research Agents navigation');
-$must('api/research-system-reports.php',["\$action==='types'","\$action==='knowledge'","\$action==='generate'","\$action==='archive'"],'Phase 67 report API');
+$must('api/research-system-reports.php',["\$action==='types'","\$action==='knowledge'","\$action==='generate'","\$action==='archive'","METHOD_NOT_ALLOWED","require_api_mutation_auth","in_array(\$action,['generate','archive'],true)"],'Phase 67 report API');
 $must('docs/phase-67-unified-research-knowledge-system-reports.md',[
  'One Research knowledge universe','Research Agent Knowledge view','Unified Research Library','System Reports','research.create_system_report','Desktop / Library / Knowledge responsibilities'
 ],'Phase 67 architecture');
