@@ -22,13 +22,15 @@ $csrf=csrf_token();
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research Programs · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css?v=59.0">
+<link rel="stylesheet" href="/assets/css/app.css?v=64.0">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-programs">
 <main class="researchLibraryCanvas researchProgramsCanvas">
   <section class="researchLibraryToolbar" aria-label="Research workspace tools">
     <nav class="researchLibraryTabs researchPrimaryActions">
       <a href="/research.php">Research Agents</a>
+      <a href="/research-agent-knowledge.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Knowledge</a>
+      <a href="/research-reports.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Reports</a>
       <a href="/research-monitoring.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Monitoring</a>
       <a href="/research-tasks.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Tasks</a>
       <a class="active" href="/research-programs.php<?= $selectedAgentId!==''?'?agent='.rawurlencode($selectedAgentId):''?>">Programs</a>
