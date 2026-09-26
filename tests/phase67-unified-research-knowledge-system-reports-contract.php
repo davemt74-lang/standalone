@@ -14,7 +14,7 @@ $must('app/research-system-reports.php',[
  'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports'
 ],'Phase 67 reports runtime');
 $must('app/research-retrieval.php',[
- "'claim'","'finding'","'entity'","'task'","'program'","'report'",
+ "'claim'","'finding'","'entity'","'claim_relation'","'entity_relation'","'task'","'program'","'report'",
  'research_retrieval_project_object_allowed','system_report_type','JSON_UNQUOTE(JSON_EXTRACT','research_claims','research_findings','research_entities'
 ],'Phase 67 unified retrieval');
 $must('app/agent-chat.php',[
@@ -31,7 +31,7 @@ $must('research-reports.php',[
  'RESEARCH AGENT · SYSTEM REPORTS','Process the same research in different ways','REPORT HISTORY','REPORT PROVENANCE','Create report'
 ],'Phase 67 Reports surface');
 $must('home.php',[
- 'data-research-library-filter="claim"','data-research-library-filter="finding"','data-research-library-filter="entity"','data-research-library-filter="report"',
+ 'data-research-library-filter="claim"','data-research-library-filter="finding"','data-research-library-filter="entity"','data-research-library-filter="relation"','data-research-library-filter="report"',
  '/research-agent-knowledge.php?agent=','/research-reports.php?agent='
 ],'Phase 67 Research Agent canvas');
 $must('research.php',['Knowledge','Reports','/research-agent-knowledge.php','/research-reports.php'],'Phase 67 Research Agents navigation');
