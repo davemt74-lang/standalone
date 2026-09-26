@@ -101,6 +101,35 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
         $q=$pdo->prepare("SELECT s.public_id,s.title,s.canonical_url,s.domain,sv.extracted_text FROM sources s LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE s.id=?");$q->execute([$s['id']]);$r=$q->fetch();if(!$r)return null;
         return ['type'=>'source','public_id'=>$publicId,'label'=>$r['title']?:$r['domain'],'text'=>"[SOURCE {$r['public_id']}]\n".($r['title']?:$r['canonical_url'])."\n".mb_substr((string)$r['extracted_text'],0,9000),'refs'=>[['type'=>'source','id'=>$publicId]]];
     }
+    if($type==='claim'&&function_exists('research_claim_access')){
+        $claim=research_claim_access($pdo,$viewer,$publicId);if(!$claim)return null;$evidence=function_exists('research_claim_evidence_rows')?research_claim_evidence_rows($pdo,(int)$claim['id']):[];$lines=[];$refs=[['type'=>'claim','id'=>$publicId]];
+        foreach($evidence as $row){$target='';if(!empty($row['annotation_public_id'])){$target='[ANNOTATION '.$row['annotation_public_id'].']';$refs[]=['type'=>'annotation','id'=>(string)$row['annotation_public_id']];}elseif(!empty($row['source_public_id'])){$target='[SOURCE '.$row['source_public_id'].']';$refs[]=['type'=>'source','id'=>(string)$row['source_public_id']];}$lines[]=(string)$row['relationship'].' '.$target.(!empty($row['note'])?' — '.$row['note']:'');}
+        $text="[CLAIM {$publicId}]\nStatus: ".(string)$claim['status']."\nType: ".(string)$claim['claim_type']."\nStatement: ".(string)$claim['statement'].(!empty($claim['resolution_note'])?"\nResolution: ".$claim['resolution_note']:'').($lines?"\nEvidence:\n".implode("\n",$lines):"\nEvidence: none");
+        return ['type'=>'claim','public_id'=>$publicId,'label'=>mb_substr((string)$claim['statement'],0,100),'text'=>mb_substr($text,0,18000),'refs'=>$refs];
+    }
+    if($type==='finding'&&function_exists('research_finding_access')){
+        $finding=research_finding_access($pdo,$viewer,$publicId);if(!$finding)return null;$rows=function_exists('research_finding_claim_rows')?research_finding_claim_rows($pdo,(int)$finding['id']):[];$refs=[['type'=>'finding','id'=>$publicId]];$claims=[];
+        foreach($rows as $row){$claims[]=(string)$row['relationship'].' [CLAIM '.(string)$row['public_id'].'] '.(string)$row['statement'];$refs[]=['type'=>'claim','id'=>(string)$row['public_id']];}
+        $text="[FINDING {$publicId}]\nStatus: ".(string)$finding['status']."\nTitle: ".(string)$finding['title']."\nSummary: ".(string)$finding['summary'].($claims?"\nClaims:\n".implode("\n",$claims):"\nClaims: none");
+        return ['type'=>'finding','public_id'=>$publicId,'label'=>(string)$finding['title'],'text'=>mb_substr($text,0,18000),'refs'=>$refs];
+    }
+    if($type==='entity'&&function_exists('research_entity_access')){
+        $entity=research_entity_access($pdo,$viewer,$publicId);if(!$entity)return null;$mentions=function_exists('research_entity_mentions')?research_entity_mentions($pdo,(int)$entity['project_id'],(int)$entity['id']):[];$relations=function_exists('research_entity_relation_rows')?research_entity_relation_rows($pdo,(int)$entity['project_id'],(int)$entity['id']):[];$refs=[['type'=>'entity','id'=>$publicId]];$parts=[];
+        foreach(array_slice($mentions,0,30) as $m){if(!empty($m['claim_public_id'])){$parts[]='Mentioned in [CLAIM '.$m['claim_public_id'].']';$refs[]=['type'=>'claim','id'=>(string)$m['claim_public_id']];}elseif(!empty($m['finding_public_id'])){$parts[]='Mentioned in [FINDING '.$m['finding_public_id'].']';$refs[]=['type'=>'finding','id'=>(string)$m['finding_public_id']];}elseif(!empty($m['annotation_public_id'])){$parts[]='Mentioned in [ANNOTATION '.$m['annotation_public_id'].']';$refs[]=['type'=>'annotation','id'=>(string)$m['annotation_public_id']];}elseif(!empty($m['source_public_id'])){$parts[]='Mentioned in [SOURCE '.$m['source_public_id'].']';$refs[]=['type'=>'source','id'=>(string)$m['source_public_id']];}}
+        foreach(array_slice($relations,0,20) as $rel)$parts[]='Relationship: '.(string)$rel['source_name'].' '.(string)$rel['relation_type'].' '.(string)$rel['target_name'];
+        $text="[ENTITY {$publicId}]\nType: ".(string)$entity['entity_type']."\nStatus: ".(string)$entity['status']."\nName: ".(string)$entity['canonical_name'].(!empty($entity['description'])?"\nDescription: ".$entity['description']:'').($parts?"\n".implode("\n",$parts):'');
+        return ['type'=>'entity','public_id'=>$publicId,'label'=>(string)$entity['canonical_name'],'text'=>mb_substr($text,0,18000),'refs'=>$refs];
+    }
+    if($type==='task'&&function_exists('research_task_access')){
+        $task=research_task_access($pdo,$viewer,$publicId);if(!$task)return null;
+        $text="[RESEARCH TASK {$publicId}]\nTitle: ".(string)$task['title']."\nType: ".(string)$task['task_type']."\nPriority: ".(string)$task['priority']."\nStatus: ".(string)$task['status']."\n".(string)($task['description']??'');
+        return ['type'=>'task','public_id'=>$publicId,'label'=>(string)$task['title'],'text'=>mb_substr($text,0,12000),'refs'=>[['type'=>'task','id'=>$publicId],['type'=>'research_project','id'=>(string)$task['project_public_id']]];
+    }
+    if($type==='program'&&function_exists('research_program_access')){
+        $program=research_program_access($pdo,$viewer,$publicId);if(!$program)return null;
+        $text="[RESEARCH PROGRAM {$publicId}]\nTitle: ".(string)$program['title']."\nStatus: ".(string)$program['status']."\nCadence: ".(string)$program['cadence']."\nObjective: ".(string)$program['objective'].(!empty($program['next_run_at'])?"\nNext run: ".$program['next_run_at']:'');
+        return ['type'=>'program','public_id'=>$publicId,'label'=>(string)$program['title'],'text'=>mb_substr($text,0,14000),'refs'=>[['type'=>'program','id'=>$publicId],['type'=>'research_project','id'=>(string)$program['project_public_id']]];
+    }
     if($type==='research'){
         $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;
         $ctx=(function_exists('research_retrieval_ready')&&research_retrieval_ready($pdo))?['text'=>'','refs'=>[]]:ai_research_context($pdo,(int)$p['id']);
