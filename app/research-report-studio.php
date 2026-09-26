@@ -170,7 +170,7 @@ function research_report_studio_preset_list(PDO $pdo,array $viewer,string $agent
 function research_report_studio_preset_save(PDO $pdo,array $viewer,string $agentPublic,array $input): array {
     $agent=research_system_report_agent($pdo,$viewer,$agentPublic);$project=research_agent_workspace_project($pdo,$viewer,$agentPublic);if(!$project)throw new RuntimeException('Research Agent workspace not found.');research_agent_workspace_require_write($project);
     $name=mb_substr(trim((string)($input['name']??'')),0,190);if($name==='')throw new InvalidArgumentException('Preset name is required.');
-    $type=research_system_report_type((string)($input['report_type']??''));$options=research_report_studio_options($input);$title=mb_substr(trim((string)($input['title_template']??'')),0,255);
+    $type=research_system_report_type((string)($input['report_type']??''));$options=research_report_studio_options($input);$title=mb_substr(trim((string)($input['title_template']??$input['title']??'')),0,255);
     $programId=null;$programPublic=trim((string)($input['program_id']??''));
     if($programPublic!==''){if(!function_exists('research_program_access'))throw new RuntimeException('Research Programs are unavailable.');$program=research_program_access($pdo,$viewer,$programPublic);if(!$program||(int)$program['research_agent_id']!==(int)$agent['id'])throw new InvalidArgumentException('Selected Research Program does not belong to this Research Agent.');$programId=(int)$program['id'];}
     $public=ulid_like();$pdo->prepare("INSERT INTO research_report_presets(public_id,research_agent_id,project_id,program_id,created_by_user_id,name,report_type,title_template,parameters_json,scope_json)
