@@ -185,6 +185,8 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
 <div class="researchAgentCanvasTopActions" data-research-canvas-controls>
   <button type="button" class="researchLibraryOpenButton" data-research-library-open>LIBRARY</button>
   <button type="button" class="researchDesktopOpenButton" data-research-desktop-open>DESKTOP</button>
+  <a class="researchCanvasTopLink" href="/research-agent-knowledge.php?agent=<?=h(rawurlencode((string)$requestedResearchAgent['public_id']))?>">KNOWLEDGE</a>
+  <a class="researchCanvasTopLink" href="/research-reports.php?agent=<?=h(rawurlencode((string)$requestedResearchAgent['public_id']))?>">REPORTS</a>
   <button type="button" class="agentChatPanelClose" data-agent-panel-close aria-label="Close Research Agent">×</button>
 </div>
 <?php endif?>
@@ -258,6 +260,11 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
       <button type="button" data-research-library-filter="transcript">Transcripts</button>
       <button type="button" data-research-library-filter="bookmark">Bookmarks</button>
       <button type="button" data-research-library-filter="sticky">Stickies</button>
+      <button type="button" data-research-library-filter="claim">Claims</button>
+      <button type="button" data-research-library-filter="finding">Findings</button>
+      <button type="button" data-research-library-filter="entity">Entities</button>
+      <button type="button" data-research-library-filter="relation">Relationships</button>
+      <button type="button" data-research-library-filter="report">Reports</button>
       <button type="button" data-research-library-filter="monitoring">Monitoring</button>
       <button type="button" data-research-library-filter="tasks">Tasks</button>
       <button type="button" data-research-library-filter="programs">Programs</button>
