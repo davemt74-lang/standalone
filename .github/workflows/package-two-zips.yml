@@ -312,6 +312,13 @@ jobs:
           test -f package-website/tests/phase68-research-agent-report-studio-contract.php
           test -f package-website/tests/phase68-research-agent-report-studio-db.php
           test -f package-website/tests/ci/phase68-upgrade-from-081.php
+          test -f package-website/database/migrations/20260926_083_research_intelligence_delivery_subscriptions.sql
+          test -f package-website/docs/phase-69-research-intelligence-delivery-subscriptions.md
+          test -f package-website/app/research-intelligence-delivery.php
+          test -f package-website/api/research-intelligence-delivery.php
+          test -f package-website/tests/phase69-research-intelligence-delivery-subscriptions-contract.php
+          test -f package-website/tests/phase69-research-intelligence-delivery-subscriptions-db.php
+          test -f package-website/tests/ci/phase69-upgrade-from-082.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
