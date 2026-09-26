@@ -111,7 +111,7 @@ Delivery failures are non-fatal to the Program itself and are recorded in delive
 
 Migration 083 adds:
 
-- `research_report_subscriptions`
+- `research_intelligence_subscriptions`
 - `research_report_deliveries`
 - `research_report_delivery_events`
 
