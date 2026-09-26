@@ -137,12 +137,12 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
     if($type==='task'&&function_exists('research_task_access')){
         $task=research_task_access($pdo,$viewer,$publicId);if(!$task)return null;
         $text="[RESEARCH TASK {$publicId}]\nTitle: ".(string)$task['title']."\nType: ".(string)$task['task_type']."\nPriority: ".(string)$task['priority']."\nStatus: ".(string)$task['status']."\n".(string)($task['description']??'');
-        return ['type'=>'task','public_id'=>$publicId,'label'=>(string)$task['title'],'text'=>mb_substr($text,0,12000),'refs'=>[['type'=>'task','id'=>$publicId],['type'=>'research_project','id'=>(string)$task['project_public_id']]];
+        return ['type'=>'task','public_id'=>$publicId,'label'=>(string)$task['title'],'text'=>mb_substr($text,0,12000),'refs'=>[['type'=>'task','id'=>$publicId],['type'=>'research_project','id'=>(string)$task['project_public_id']]]];
     }
     if($type==='program'&&function_exists('research_program_access')){
         $program=research_program_access($pdo,$viewer,$publicId);if(!$program)return null;
         $text="[RESEARCH PROGRAM {$publicId}]\nTitle: ".(string)$program['title']."\nStatus: ".(string)$program['status']."\nCadence: ".(string)$program['cadence']."\nObjective: ".(string)$program['objective'].(!empty($program['next_run_at'])?"\nNext run: ".$program['next_run_at']:'');
-        return ['type'=>'program','public_id'=>$publicId,'label'=>(string)$program['title'],'text'=>mb_substr($text,0,14000),'refs'=>[['type'=>'program','id'=>$publicId],['type'=>'research_project','id'=>(string)$program['project_public_id']]];
+        return ['type'=>'program','public_id'=>$publicId,'label'=>(string)$program['title'],'text'=>mb_substr($text,0,14000),'refs'=>[['type'=>'program','id'=>$publicId],['type'=>'research_project','id'=>(string)$program['project_public_id']]]];
     }
     if($type==='research'){
         $p=project_access($pdo,(int)$viewer['id'],$publicId);if(!$p)return null;
