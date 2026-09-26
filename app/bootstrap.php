@@ -111,5 +111,6 @@ require_once __DIR__ . '/data-model-campaigns.php';
 require_once __DIR__ . '/intelligence-release-audit.php';
 require_once __DIR__ . '/research-verification.php';
 require_once __DIR__ . '/research-evidence-packs.php';
+require_once __DIR__ . '/research-system-reports.php';
 require_once __DIR__ . '/research-workflow.php';
 require_once __DIR__ . '/vp3-connector.php';
