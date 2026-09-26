@@ -282,7 +282,7 @@ function research_retrieval_collect_records(PDO $pdo,int $projectId): array {
 }
 
 function research_retrieval_records_hash(array $records): string {
-    $parts=[];foreach($records as $r)$parts[]=$r['object_type'].':'.$r['object_public_id'].':'.$r['content_hash'].':'.($r['folder_public_id']??'').':'.$r['source_status'];
+    $parts=[];foreach($records as $r)$parts[]=$r['object_type'].':'.$r['object_public_id'].':'.$r['content_hash'].':'.($r['folder_public_id']??'').':'.$r['source_status'].':'.hash('sha256',json_encode((array)($r['metadata']??[]),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
     sort($parts,SORT_STRING);return hash('sha256',implode("\n",$parts));
 }
 
