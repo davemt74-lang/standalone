@@ -86,6 +86,7 @@ function research_report_studio_scope_snapshot(PDO $pdo,array $config,array $vie
         $snapshot['recent_evidence']=array_slice($results,0,research_report_studio_limit(['studio'=>$o],12,30,80));
     }
     $snapshot['studio']=$o;
+    $snapshot['coverage']['scoped_counts']=['claims'=>count((array)$snapshot['claims']),'findings'=>count((array)$snapshot['findings']),'entities'=>count((array)$snapshot['entities']),'sources'=>count((array)$snapshot['sources']),'recent_evidence'=>count((array)$snapshot['recent_evidence'])];
     $basis=$snapshot;unset($basis['generated_at']);$snapshot['state_hash']=hash('sha256',json_encode($basis,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
     return $snapshot;
 }
