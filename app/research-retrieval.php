@@ -190,6 +190,91 @@ function research_retrieval_collect_records(PDO $pdo,int $projectId): array {
         }
         $records[]=research_retrieval_record($type,(string)$row['public_id'],(string)$row['title'],$content,$row['folder_public_id']??null,(string)$row['updated_at'],$metadata,$status,$chunks);
     }
+    if(installer_table_exists($pdo,'research_system_reports')){
+        $q=$pdo->prepare("SELECT rsr.public_id report_public_id,rsr.report_type,rsr.document_object_id,rwo.public_id document_public_id
+          FROM research_system_reports rsr JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
+          WHERE rsr.project_id=? AND rsr.status='ready'");
+        $q->execute([$projectId]);$reportDocs=[];foreach($q->fetchAll()?:[] as $row)$reportDocs[(string)$row['document_public_id']]=['system_report_id'=>(string)$row['report_public_id'],'system_report_type'=>(string)$row['report_type']];
+        if($reportDocs)foreach($records as &$record)if($record['object_type']==='document'&&isset($reportDocs[$record['object_public_id']]))$record['metadata']=array_merge((array)$record['metadata'],$reportDocs[$record['object_public_id']]);unset($record);
+    }
+
+    if(installer_table_exists($pdo,'research_claims')){
+        $q=$pdo->prepare("SELECT rc.public_id,rc.statement,rc.claim_type,rc.status,rc.resolution_note,rc.updated_at,
+          COUNT(ce.id) evidence_count,
+          SUM(ce.relationship='supports') supports_count,
+          SUM(ce.relationship='contradicts') contradicts_count,
+          SUM(ce.relationship='primary') primary_count
+          FROM research_claims rc LEFT JOIN claim_evidence ce ON ce.claim_id=rc.id
+          WHERE rc.project_id=? GROUP BY rc.id ORDER BY rc.updated_at DESC");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Claim type: ".(string)$row['claim_type']."\nStatus: ".(string)$row['status']."\nStatement: ".(string)$row['statement'];
+            if(trim((string)($row['resolution_note']??''))!=='')$content.="\nResolution: ".trim((string)$row['resolution_note']);
+            $content.="\nEvidence: ".(int)$row['evidence_count']." total; ".(int)$row['supports_count']." supports; ".(int)$row['contradicts_count']." contradicts; ".(int)$row['primary_count']." primary.";
+            $records[]=research_retrieval_record('claim',(string)$row['public_id'],mb_substr((string)$row['statement'],0,255),$content,null,(string)$row['updated_at'],[
+              'claim_type'=>(string)$row['claim_type'],'claim_status'=>(string)$row['status'],'evidence_count'=>(int)$row['evidence_count']
+            ],'ready',research_retrieval_chunk_text($content,'claim','Claim'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_findings')){
+        $q=$pdo->prepare("SELECT rf.public_id,rf.title,rf.summary,rf.status,rf.updated_at,
+          GROUP_CONCAT(CONCAT(rc.public_id,': ',rc.statement) ORDER BY fc.position SEPARATOR '\n') linked_claims
+          FROM research_findings rf
+          LEFT JOIN finding_claims fc ON fc.finding_id=rf.id LEFT JOIN research_claims rc ON rc.id=fc.claim_id
+          WHERE rf.project_id=? AND rf.status<>'archived' GROUP BY rf.id ORDER BY rf.updated_at DESC");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Finding status: ".(string)$row['status']."\nSummary: ".(string)$row['summary'];
+            if(trim((string)($row['linked_claims']??''))!=='')$content.="\nLinked Claims:\n".(string)$row['linked_claims'];
+            $records[]=research_retrieval_record('finding',(string)$row['public_id'],(string)$row['title'],$content,null,(string)$row['updated_at'],['finding_status'=>(string)$row['status']],'ready',research_retrieval_chunk_text($content,'finding','Finding'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_entities')){
+        $q=$pdo->prepare("SELECT re.public_id,re.entity_type,re.canonical_name,re.description,re.status,re.updated_at,
+          COUNT(DISTINCT rem.id) mention_count,COUNT(DISTINCT rr.id) relation_count
+          FROM research_entities re
+          LEFT JOIN research_entity_mentions rem ON rem.entity_id=re.id
+          LEFT JOIN research_entity_relations rr ON rr.source_entity_id=re.id OR rr.target_entity_id=re.id
+          WHERE re.project_id=? AND re.status<>'archived'
+          GROUP BY re.id ORDER BY re.updated_at DESC");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Entity type: ".(string)$row['entity_type']."\nStatus: ".(string)$row['status']."\nName: ".(string)$row['canonical_name'];
+            if(trim((string)($row['description']??''))!=='')$content.="\nDescription: ".trim((string)$row['description']);
+            $content.="\nMentions: ".(int)$row['mention_count']."; relationships: ".(int)$row['relation_count'].".";
+            $records[]=research_retrieval_record('entity',(string)$row['public_id'],(string)$row['canonical_name'],$content,null,(string)$row['updated_at'],[
+              'entity_type'=>(string)$row['entity_type'],'entity_status'=>(string)$row['status'],'mention_count'=>(int)$row['mention_count'],'relation_count'=>(int)$row['relation_count']
+            ],'ready',research_retrieval_chunk_text($content,'entity','Entity'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_tasks')){
+        $q=$pdo->prepare("SELECT public_id,title,description,task_type,priority,status,due_at,updated_at FROM research_tasks
+          WHERE project_id=? AND status<>'archived' ORDER BY updated_at DESC LIMIT 300");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Task type: ".(string)$row['task_type']."\nPriority: ".(string)$row['priority']."\nStatus: ".(string)$row['status']."\n".trim((string)($row['description']??''));
+            $records[]=research_retrieval_record('task',(string)$row['public_id'],(string)$row['title'],$content,null,(string)$row['updated_at'],[
+              'task_type'=>(string)$row['task_type'],'priority'=>(string)$row['priority'],'task_status'=>(string)$row['status'],'due_at'=>$row['due_at']??null
+            ],'ready',research_retrieval_chunk_text($content,'task','Task'));
+        }
+    }
+
+    if(installer_table_exists($pdo,'research_programs')){
+        $q=$pdo->prepare("SELECT public_id,title,objective,status,cadence,next_run_at,updated_at FROM research_programs
+          WHERE project_id=? AND status<>'archived' ORDER BY updated_at DESC LIMIT 200");
+        $q->execute([$projectId]);
+        foreach($q->fetchAll()?:[] as $row){
+            $content="Program status: ".(string)$row['status']."\nCadence: ".(string)$row['cadence']."\nObjective: ".(string)$row['objective'];
+            if(!empty($row['next_run_at']))$content.="\nNext run: ".(string)$row['next_run_at'];
+            $records[]=research_retrieval_record('program',(string)$row['public_id'],(string)$row['title'],$content,null,(string)$row['updated_at'],[
+              'program_status'=>(string)$row['status'],'cadence'=>(string)$row['cadence'],'next_run_at'=>$row['next_run_at']??null
+            ],'ready',research_retrieval_chunk_text($content,'program','Program'));
+        }
+    }
+
     return $records;
 }
 
