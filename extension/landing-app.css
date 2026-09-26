@@ -3524,3 +3524,47 @@
 .researchKnowledgeGrid li{line-height:1.4}.researchKnowledgeGrid li span,.researchKnowledgeGrid li small{display:block;color:var(--muted,#666);margin-top:2px}.researchKnowledgeGrid li a{font-weight:700}
 .researchKnowledgeEvidenceGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.researchKnowledgeEvidenceGrid .card{display:grid;gap:7px;align-content:start}.researchKnowledgeEvidenceGrid h3{margin:0}.researchKnowledgeEvidenceGrid p{margin:0;color:var(--muted,#666);line-height:1.45}.researchKnowledgeEvidenceGrid a{font-weight:750}
 @media(max-width:760px){.researchReportsHero,.researchKnowledgeHero,.researchReportRow{align-items:stretch;flex-direction:column}.researchKnowledgeGrid{grid-template-columns:1fr}.researchReportsHero label,.researchKnowledgeHero label{min-width:0;width:100%}}
+
+/* Phase 68 — Research Agent Report Studio */
+.reportStudioTabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+.reportStudioTabs a{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 14px;border:1px solid var(--line,#d8d8d3);border-radius:999px;background:var(--panel,#fff);color:inherit;text-decoration:none;font-size:.78rem;font-weight:800}
+.reportStudioTabs a.active{background:var(--ink,#171717);color:var(--panel,#fff);border-color:var(--ink,#171717)}
+.reportStudioTabs a span{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:rgba(127,127,127,.14);font-size:.68rem}
+.researchSystemReportType.is-active{outline:2px solid var(--ink,#171717);outline-offset:1px}
+.researchSystemReportType small{color:var(--muted,#666)}
+.reportStudioBuilder{margin-top:18px}
+.reportStudioForm{display:grid;gap:18px}
+.reportStudioFieldGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.reportStudioFieldGrid label,.presetName,.presetProgram{display:grid;gap:6px;font-size:.74rem;font-weight:800}
+.reportStudioFieldGrid .span2{grid-column:1/-1}
+.reportStudioFieldGrid input,.reportStudioFieldGrid select,.presetName input,.presetProgram select{width:100%}
+.reportStudioFieldGrid select[multiple]{min-height:126px}
+.reportStudioScope{border:1px solid var(--line,#dfdfda);border-radius:12px;padding:12px 14px}
+.reportStudioScope summary{cursor:pointer;font-weight:800}
+.reportStudioScope[open] summary{margin-bottom:12px}
+.reportStudioSections{margin:0;border:1px solid var(--line,#dfdfda);border-radius:12px;padding:14px}
+.reportStudioSections legend{padding:0 6px;font-weight:800}
+.reportStudioSections>p{margin:0 0 10px;color:var(--muted,#666)}
+.reportStudioSections>div,.reportSectionPicker{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.reportStudioSections label,.reportSectionPicker label{display:flex;align-items:flex-start;gap:8px;font-size:.78rem;line-height:1.35}
+.reportStudioActions{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+.reportStudioActions .presetName{min-width:220px;flex:1}
+.reportStudioActions .presetProgram{min-width:220px;flex:1}
+.reportRunViewer{display:grid;gap:14px;margin-top:18px}
+.reportRunHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.reportRunHeader h2{margin:.25rem 0 .35rem}.reportRunHeader p{margin:0 0 6px;color:var(--muted,#666)}
+.reportRunBody{overflow:auto;line-height:1.55}
+.reportRunBody h1{font-size:1.8rem}.reportRunBody h2{margin-top:1.8rem}.reportRunBody table{width:100%;border-collapse:collapse}
+.reportRunBody th,.reportRunBody td{padding:8px 10px;border-bottom:1px solid var(--line,#e2e2dd);text-align:left;vertical-align:top}
+.reportRunBody aside{padding:12px 14px;border:1px solid var(--line,#dfdfda);border-radius:12px;background:var(--soft,#fafaf8)}
+.reportRunTools{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr);gap:14px}
+.reportRunTools .card{display:grid;gap:10px;align-content:start}.reportRunTools h3{margin:0}
+.reportSectionPicker{margin:10px 0 14px}
+.reportComparison{display:grid;gap:10px}
+.reportComparison h3{margin:.1rem 0}
+.reportCompareGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
+.reportCompareGrid>div{display:grid;gap:3px;padding:10px 12px;border:1px solid var(--line,#dfdfda);border-radius:10px}
+.reportCompareGrid span{font-size:.78rem;color:var(--muted,#666)}
+.reportArchiveForm{display:flex;justify-content:flex-end}
+@media(max-width:760px){.reportStudioFieldGrid,.reportRunTools{grid-template-columns:1fr}.reportStudioFieldGrid .span2{grid-column:auto}.reportRunHeader{flex-direction:column}.reportStudioActions{align-items:stretch}.reportStudioActions>*{width:100%}}
+
