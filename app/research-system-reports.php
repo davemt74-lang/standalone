@@ -202,10 +202,11 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
     return $snapshot;
 }
 
-function research_system_report_refs(array $snapshot,int $limit=250): array {
-    $refs=[];$seen=[];
-    $push=function(string $type,string $id,?string $label=null)use(&$refs,&$seen,$limit): void{
-        $id=trim($id);if($id===''||count($refs)>=$limit)return;$key=$type.':'.$id;if(isset($seen[$key]))return;$seen[$key]=true;
+function research_system_report_ref_bundle(array $snapshot,int $limit=1000): array {
+    $limit=max(50,min(5000,$limit));$refs=[];$seen=[];$totalUnique=0;
+    $push=function(string $type,string $id,?string $label=null)use(&$refs,&$seen,&$totalUnique,$limit): void{
+        $id=trim($id);if($id==='')return;$key=$type.':'.$id;if(isset($seen[$key]))return;$seen[$key]=true;$totalUnique++;
+        if(count($refs)>=$limit)return;
         $refs[]=['type'=>$type,'id'=>$id]+($label!==null&&$label!==''?['label'=>mb_substr($label,0,220)]:[]);
     };
     foreach((array)($snapshot['recent_evidence']??[]) as $r)$push((string)($r['object_type']??'evidence'),(string)($r['public_id']??''),(string)($r['title']??''));
@@ -217,8 +218,9 @@ function research_system_report_refs(array $snapshot,int $limit=250): array {
     foreach((array)($snapshot['entity_relations']??[]) as $r)$push('entity_relation',(string)($r['public_id']??''),(string)($r['relation_type']??'Entity relationship'));
     foreach((array)($snapshot['tasks']['items']??[]) as $r)$push('task',(string)($r['public_id']??''),(string)($r['title']??''));
     foreach((array)($snapshot['programs']['items']??[]) as $r)$push('program',(string)($r['public_id']??''),(string)($r['title']??''));
-    return $refs;
+    return ['refs'=>$refs,'total_unique'=>$totalUnique,'limit'=>$limit,'truncated'=>$totalUnique>count($refs)];
 }
+function research_system_report_refs(array $snapshot,int $limit=1000): array {return research_system_report_ref_bundle($snapshot,$limit)['refs'];}
 
 function research_system_report_escape(string $v): string {return htmlspecialchars($v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
 function research_system_report_li(string $title,string $detail='',string $meta=''): string {
@@ -350,10 +352,11 @@ function research_system_report_generate(PDO $pdo,array $config,array $viewer,st
     research_agent_workspace_require_write($project);$type=research_system_report_type($reportType);
     $snapshot=research_system_report_snapshot($pdo,$config,$viewer,$agent);$render=research_system_report_render((string)$type['key'],$snapshot);
     $title=mb_substr(trim($customTitle)!==''?trim($customTitle):(string)$render['title'],0,240);if($title==='')$title=(string)$type['label'];
-    $refs=research_system_report_refs($snapshot);$metrics=[
+    $refBundle=research_system_report_ref_bundle($snapshot);$refs=$refBundle['refs'];$metrics=[
       'sources'=>count((array)$snapshot['sources']),'claims'=>count((array)$snapshot['claims']),'findings'=>count((array)$snapshot['findings']),
       'entities'=>count((array)$snapshot['entities']),'claim_relations'=>count((array)$snapshot['claim_relations']),'entity_relations'=>count((array)$snapshot['entity_relations']),
-      'evidence_refs'=>count($refs),'gaps'=>count((array)($snapshot['workspace']['gaps']??[])),'conflicts'=>count((array)($snapshot['workspace']['conflicts']??[])),
+      'evidence_refs'=>count($refs),'provenance_total_unique'=>(int)$refBundle['total_unique'],'provenance_reference_limit'=>(int)$refBundle['limit'],'provenance_truncated'=>$refBundle['truncated']?1:0,
+      'gaps'=>count((array)($snapshot['workspace']['gaps']??[])),'conflicts'=>count((array)($snapshot['workspace']['conflicts']??[])),
       'coverage_truncated'=>count((array)($snapshot['coverage']['truncated']??[])),'diagnostic_count'=>count((array)($snapshot['diagnostics']??[]))
     ];
     $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
