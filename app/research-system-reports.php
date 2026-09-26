@@ -2,10 +2,10 @@
 declare(strict_types=1);
 
 /**
- * Phase 67 — Research Agent Knowledge & System Reports
+ * Phase 67/68 — Research Agent Knowledge, System Reports & Report Studio
  *
  * System Reports are deterministic views over authoritative Research project
- * state. Every generated report is stored as a normal versioned Research Doc.
+ * state. Phase 68 separates Report Runs from optional derived Research Docs.
  */
 
 function research_system_reports_ready(PDO $pdo): bool {
@@ -17,16 +17,17 @@ function research_system_reports_ready(PDO $pdo): bool {
 }
 
 function research_system_report_types(): array {
+    $scope=['project','focus_query','date_range','sources','claims','findings','entities','folders'];
     return [
-      'research_brief'=>['label'=>'Research Brief','description'=>'A concise state-of-research briefing: strongest findings, evidence, risks, gaps and next actions.','category'=>'overview'],
-      'evidence_audit'=>['label'=>'Evidence Audit','description'=>'Audits the evidence corpus, source coverage, provenance, freshness and unsupported areas.','category'=>'evidence'],
-      'claims_verification'=>['label'=>'Claims & Verification','description'=>'Processes structured Claims by verification state, evidence depth, support and contradiction.','category'=>'knowledge'],
-      'contradictions_gaps'=>['label'=>'Contradictions & Gaps','description'=>'Focuses on disputed knowledge, conflicting evidence and missing evidence.','category'=>'intelligence'],
-      'source_freshness'=>['label'=>'Source Freshness & Change','description'=>'Surfaces source recency, changed evidence, source risks and downstream research impact.','category'=>'evidence'],
-      'entity_map'=>['label'=>'Entities & Relationships','description'=>'Summarizes people, companies, organizations, places, topics and relationships in the project.','category'=>'knowledge'],
-      'timeline'=>['label'=>'Research Timeline','description'=>'Reconstructs the project chronologically from Claims, evidence, Findings and source changes.','category'=>'history'],
-      'action_plan'=>['label'=>'Research Action Plan','description'=>'Turns current gaps, risks, monitoring signals and task state into prioritized follow-up.','category'=>'work'],
-      'full_intelligence'=>['label'=>'Full Intelligence Report','description'=>'A comprehensive synthesis across evidence, Claims, Findings, entities, monitoring, work and open questions.','category'=>'overview'],
+      'research_brief'=>['label'=>'Research Brief','description'=>'A concise state-of-research briefing: strongest findings, evidence, risks, gaps and next actions.','category'=>'overview','default_depth'=>'standard','scope'=>$scope,'sections'=>['research_state','strongest_findings','open_gaps','contradictions','next_research_actions','verification_review_workflow']],
+      'evidence_audit'=>['label'=>'Evidence Audit','description'=>'Audits the evidence corpus, source coverage, provenance, freshness and unsupported areas.','category'=>'evidence','default_depth'=>'standard','scope'=>$scope,'sections'=>['evidence_inventory','recent_indexed_evidence','source_risks','unsupported_or_thinly_supported_knowledge','provenance_verification_reproducibility']],
+      'claims_verification'=>['label'=>'Claims & Verification','description'=>'Processes structured Claims by verification state, evidence depth, support and contradiction.','category'=>'knowledge','default_depth'=>'standard','scope'=>$scope,'sections'=>['claim_verification_matrix','evidence_gaps','conflicting_claims']],
+      'contradictions_gaps'=>['label'=>'Contradictions & Gaps','description'=>'Focuses on disputed knowledge, conflicting evidence and missing evidence.','category'=>'intelligence','default_depth'=>'standard','scope'=>$scope,'sections'=>['evidence_gaps','contradictions_disputes','source_risks_that_may_affect_conclusions','recommended_follow_up']],
+      'source_freshness'=>['label'=>'Source Freshness & Change','description'=>'Surfaces source recency, changed evidence, source risks and downstream research impact.','category'=>'evidence','default_depth'=>'standard','scope'=>$scope,'sections'=>['source_inventory_freshness','current_source_risks','recent_monitoring_changes']],
+      'entity_map'=>['label'=>'Entities & Relationships','description'=>'Summarizes people, companies, organizations, places, topics and relationships in the project.','category'=>'knowledge','default_depth'=>'standard','scope'=>$scope,'sections'=>['entity_map']],
+      'timeline'=>['label'=>'Research Timeline','description'=>'Reconstructs the project chronologically from Claims, evidence, Findings and source changes.','category'=>'history','default_depth'=>'standard','scope'=>$scope,'sections'=>['research_timeline']],
+      'action_plan'=>['label'=>'Research Action Plan','description'=>'Turns current gaps, risks, monitoring signals and task state into prioritized follow-up.','category'=>'work','default_depth'=>'standard','scope'=>$scope,'sections'=>['priority_research_actions','active_tasks','evidence_gaps','contradictions','workflow_outcomes_downstream_impact']],
+      'full_intelligence'=>['label'=>'Full Intelligence Report','description'=>'A comprehensive synthesis across evidence, Claims, Findings, entities, monitoring, work and open questions.','category'=>'overview','default_depth'=>'deep','scope'=>$scope,'sections'=>['research_state','findings','claims_verification','evidence_gaps','contradictions','source_risks','entities','next_actions','extended_research_intelligence']],
     ];
 }
 
@@ -52,28 +53,34 @@ function research_system_report_event(PDO $pdo,int $reportId,string $event,strin
 function research_system_report_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!research_system_reports_ready($pdo))return null;
     $q=$pdo->prepare("SELECT rsr.*,ra.public_id agent_public_id,ra.name agent_name,rp.public_id project_public_id,rp.title project_title,
-      rwo.public_id document_public_id,rwo.title document_title,rwd.revision_number document_revision
+      rwo.public_id document_public_id,rwo.title document_title,rwd.revision_number document_revision,rrp.public_id preset_public_id,rrp.name preset_name
       FROM research_system_reports rsr
       JOIN research_agents ra ON ra.id=rsr.research_agent_id
       JOIN research_projects rp ON rp.id=rsr.project_id
-      JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
-      JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
+      LEFT JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
+      LEFT JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
+      LEFT JOIN research_report_presets rrp ON rrp.id=rsr.preset_id
       WHERE rsr.public_id=? LIMIT 1");
     $q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;
     if(!research_agent_access($pdo,$viewer,(string)$row['agent_public_id']))return null;
     $row['evidence_refs']=json_decode((string)($row['evidence_refs_json']??''),true)?:[];
     $row['metrics']=json_decode((string)($row['metrics_json']??''),true)?:[];
+    $row['parameters']=json_decode((string)($row['parameters_json']??''),true)?:[];
+    $row['scope']=json_decode((string)($row['scope_json']??''),true)?:[];
+    $row['sections']=json_decode((string)($row['sections_json']??''),true)?:[];
+    $row['knowledge_manifest']=json_decode((string)($row['knowledge_manifest_json']??''),true)?:[];
     return $row;
 }
 
 function research_system_report_list(PDO $pdo,array $viewer,string $agentPublic,int $limit=50): array {
     if(!research_system_reports_ready($pdo))return [];
     $agent=research_system_report_agent($pdo,$viewer,$agentPublic);$limit=max(1,min(200,$limit));
-    $q=$pdo->prepare("SELECT rsr.public_id,rsr.report_type,rsr.title,rsr.status,rsr.input_state_hash,rsr.created_at,rsr.updated_at,
-      rwo.public_id document_public_id,rwd.revision_number document_revision
+    $q=$pdo->prepare("SELECT rsr.public_id,rsr.report_type,rsr.title,rsr.status,rsr.input_state_hash,rsr.freshness_state,rsr.generation_mode,rsr.created_at,rsr.updated_at,
+      rsr.document_created_at,rsr.refreshed_from_report_id,rwo.public_id document_public_id,rwd.revision_number document_revision,rrp.public_id preset_public_id,rrp.name preset_name
       FROM research_system_reports rsr
-      JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
-      JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
+      LEFT JOIN research_workspace_objects rwo ON rwo.id=rsr.document_object_id
+      LEFT JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
+      LEFT JOIN research_report_presets rrp ON rrp.id=rsr.preset_id
       WHERE rsr.research_agent_id=? ORDER BY rsr.created_at DESC,rsr.id DESC LIMIT ".$limit);
     $q->execute([(int)$agent['id']]);$rows=$q->fetchAll()?:[];$types=research_system_report_types();
     foreach($rows as &$row){$row['type_label']=$types[(string)$row['report_type']]['label']??ucwords(str_replace('_',' ',(string)$row['report_type']));}unset($row);
