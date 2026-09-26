@@ -200,3 +200,79 @@ function research_system_report_claim_matrix(array $claims): string {
     foreach($claims as $c)$html.='<tr><td>'.$e((string)$c['statement']).'</td><td>'.$e((string)$c['status']).'</td><td>'.(int)($c['evidence_count']??0).'</td><td>'.(int)($c['supports_count']??0).'</td><td>'.(int)($c['contradicts_count']??0).'</td><td>'.(int)($c['primary_count']??0).'</td></tr>';
     return $html.'</tbody></table>';
 }
+
+
+function research_system_report_common_sections(array $s): array {
+    $workspace=(array)($s['workspace']??[]);$gaps=(array)($workspace['gaps']??[]);$conflicts=(array)($workspace['conflicts']??[]);$risks=(array)($workspace['source_risks']??[]);$next=(array)($workspace['next_actions']??[]);
+    $findings=(array)($s['findings']??[]);$recent=(array)($s['recent_evidence']??[]);
+    $findingsHtml='<ul>';foreach(array_slice($findings,0,12) as $x)$findingsHtml.=research_system_report_li((string)$x['title'],(string)($x['summary']??''),(string)($x['status']??''));$findingsHtml.='</ul>';if(!$findings)$findingsHtml=research_system_report_empty('No active Findings are recorded yet.');
+    $gapsHtml='<ul>';foreach(array_slice($gaps,0,20) as $x)$gapsHtml.=research_system_report_li((string)($x['title']??'Evidence gap'),(string)($x['detail']??''),(string)($x['priority']??''));$gapsHtml.='</ul>';if(!$gaps)$gapsHtml=research_system_report_empty('No structured evidence gaps are currently detected.');
+    $conflictsHtml='<ul>';foreach(array_slice($conflicts,0,20) as $x)$conflictsHtml.=research_system_report_li((string)($x['title']??'Conflict'),(string)($x['detail']??''),(string)($x['priority']??''));$conflictsHtml.='</ul>';if(!$conflicts)$conflictsHtml=research_system_report_empty('No structured contradictions are currently detected.');
+    $risksHtml='<ul>';foreach(array_slice($risks,0,20) as $x)$risksHtml.=research_system_report_li((string)($x['title']??$x['domain']??'Source'),(string)($x['latest_diff']??''),!empty($x['target_changed'])?'changed':'review');$risksHtml.='</ul>';if(!$risks)$risksHtml=research_system_report_empty('No current source risks are detected.');
+    $nextHtml='<ol>';foreach(array_slice($next,0,15) as $x)$nextHtml.=research_system_report_li((string)($x['title']??'Next step'),(string)($x['reason']??$x['detail']??''),(string)($x['priority']??''));$nextHtml.='</ol>';if(!$next)$nextHtml=research_system_report_empty('No deterministic next actions are currently queued by Research Intelligence.');
+    $recentHtml='<ul>';foreach(array_slice($recent,0,24) as $r)$recentHtml.=research_system_report_li((string)($r['title']??'Evidence'),(string)($r['snippet']??''),strtoupper((string)($r['object_type']??'evidence')).(!empty($r['locator_label'])?' · '.$r['locator_label']:''));$recentHtml.='</ul>';if(!$recent)$recentHtml=research_system_report_empty('No indexed Research evidence is available.');
+    return compact('findingsHtml','gapsHtml','conflictsHtml','risksHtml','nextHtml','recentHtml');
+}
+
+function research_system_report_render(string $type,array $s): array {
+    $meta=research_system_report_type($type);$esc='research_system_report_escape';
+    $project=(string)($s['project']['title']??'Research');$title=$project.' — '.$meta['label'];
+    $body='<h1>'.$esc($title).'</h1><p><strong>Research Agent:</strong> '.$esc((string)($s['agent']['name']??'Research Agent')).'<br><strong>Generated:</strong> '.$esc((string)($s['generated_at']??date('c'))).'<br><strong>Data state:</strong> <code>'.$esc(substr((string)($s['state_hash']??''),0,16)).'</code></p>';
+    $sections=research_system_report_common_sections($s);$claims=(array)($s['claims']??[]);$entities=(array)($s['entities']??[]);$sources=(array)($s['sources']??[]);
+
+    if($type==='research_brief'){
+        $body.=research_system_report_section('Research state',research_system_report_summary_block($s));
+        $body.=research_system_report_section('Strongest Findings',$sections['findingsHtml']);
+        $body.=research_system_report_section('Open gaps',$sections['gapsHtml']);
+        $body.=research_system_report_section('Contradictions',$sections['conflictsHtml']);
+        $body.=research_system_report_section('Next research actions',$sections['nextHtml']);
+    } elseif($type==='evidence_audit'){
+        $body.=research_system_report_section('Evidence inventory',research_system_report_summary_block($s));
+        $body.=research_system_report_section('Recent indexed evidence',$sections['recentHtml']);
+        $body.=research_system_report_section('Source risks',$sections['risksHtml']);
+        $body.=research_system_report_section('Unsupported or thinly supported knowledge',$sections['gapsHtml']);
+    } elseif($type==='claims_verification'){
+        $body.=research_system_report_section('Claim verification matrix',research_system_report_claim_matrix($claims));
+        $body.=research_system_report_section('Evidence gaps',$sections['gapsHtml']);
+        $body.=research_system_report_section('Conflicting Claims',$sections['conflictsHtml']);
+    } elseif($type==='contradictions_gaps'){
+        $body.=research_system_report_section('Evidence gaps',$sections['gapsHtml']);
+        $body.=research_system_report_section('Contradictions & disputes',$sections['conflictsHtml']);
+        $body.=research_system_report_section('Source risks that may affect conclusions',$sections['risksHtml']);
+        $body.=research_system_report_section('Recommended follow-up',$sections['nextHtml']);
+    } elseif($type==='source_freshness'){
+        $html='<table><thead><tr><th>Source</th><th>Status</th><th>Version</th><th>Captured / checked</th><th>Changed in 30d</th></tr></thead><tbody>';
+        foreach($sources as $src)$html.='<tr><td>'.$esc((string)($src['title']?:$src['domain']?:$src['public_id'])).'</td><td>'.$esc((string)$src['status']).'</td><td>'.(int)($src['version_number']??0).'</td><td>'.$esc((string)($src['captured_at']?:$src['last_checked_at']?:'')).'</td><td>'.(!empty($src['changed_30d'])?'Yes':'No').'</td></tr>';
+        $html.='</tbody></table>';if(!$sources)$html=research_system_report_empty('No project Sources are recorded.');
+        $body.=research_system_report_section('Source inventory & freshness',$html);
+        $body.=research_system_report_section('Current source risks',$sections['risksHtml']);
+        $events=(array)($s['monitoring']['events']??[]);$eh='<ul>';foreach(array_slice($events,0,20) as $e)$eh.=research_system_report_li((string)($e['summary']??$e['event_type']??'Monitoring event'),'',(string)($e['importance']??''));$eh.='</ul>';if(!$events)$eh=research_system_report_empty('No recent monitoring events are available.');
+        $body.=research_system_report_section('Recent monitoring changes',$eh);
+    } elseif($type==='entity_map'){
+        $html='<table><thead><tr><th>Entity</th><th>Type</th><th>Status</th><th>Mentions</th><th>Relationships</th></tr></thead><tbody>';
+        foreach($entities as $e)$html.='<tr><td>'.$esc((string)$e['canonical_name']).'</td><td>'.$esc((string)$e['entity_type']).'</td><td>'.$esc((string)$e['status']).'</td><td>'.(int)($e['mention_count']??0).'</td><td>'.(int)($e['relation_count']??0).'</td></tr>';
+        $html.='</tbody></table>';if(!$entities)$html=research_system_report_empty('No structured entities have been identified yet.');
+        $body.=research_system_report_section('Entity map',$html);
+    } elseif($type==='timeline'){
+        $timeline=(array)($s['timeline']??[]);$html='<ol>';foreach(array_slice($timeline,0,100) as $e)$html.=research_system_report_li((string)($e['title']??$e['event']??'Research event'),(string)($e['detail']??''),(string)($e['created_at']??''));$html.='</ol>';if(!$timeline)$html=research_system_report_empty('No Research timeline events are available.');
+        $body.=research_system_report_section('Research timeline',$html);
+    } elseif($type==='action_plan'){
+        $body.=research_system_report_section('Priority Research actions',$sections['nextHtml']);
+        $tasks=(array)($s['tasks']['items']??[]);$html='<ul>';foreach($tasks as $t)$html.=research_system_report_li((string)$t['title'],(string)($t['description']??''),(string)$t['priority'].' · '.(string)$t['status']);$html.='</ul>';if(!$tasks)$html=research_system_report_empty('No active Research tasks are currently recorded.');
+        $body.=research_system_report_section('Active tasks',$html);
+        $body.=research_system_report_section('Evidence gaps',$sections['gapsHtml']);
+        $body.=research_system_report_section('Contradictions',$sections['conflictsHtml']);
+    } else {
+        $body.=research_system_report_section('Research state',research_system_report_summary_block($s));
+        $body.=research_system_report_section('Findings',$sections['findingsHtml']);
+        $body.=research_system_report_section('Claims & verification',research_system_report_claim_matrix($claims));
+        $body.=research_system_report_section('Evidence gaps',$sections['gapsHtml']);
+        $body.=research_system_report_section('Contradictions',$sections['conflictsHtml']);
+        $body.=research_system_report_section('Source risks',$sections['risksHtml']);
+        $entitiesHtml='<ul>';foreach(array_slice($entities,0,30) as $e)$entitiesHtml.=research_system_report_li((string)$e['canonical_name'],(string)($e['description']??''),(string)$e['entity_type']);$entitiesHtml.='</ul>';if(!$entities)$entitiesHtml=research_system_report_empty('No structured entities are currently available.');
+        $body.=research_system_report_section('Entities',$entitiesHtml);
+        $body.=research_system_report_section('Next actions',$sections['nextHtml']);
+    }
+    $body.='<hr><p><small>This System Report is a deterministic processing of the Research Agent\'s authorized project data at the recorded data-state hash. Source evidence, Claims, Findings and authoritative Research objects remain independently inspectable.</small></p>';
+    return ['title'=>$title,'html'=>$body,'summary'=>(string)$meta['description']];
+}
