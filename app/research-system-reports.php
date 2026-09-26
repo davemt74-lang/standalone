@@ -84,7 +84,7 @@ function research_system_report_findings(PDO $pdo,int $projectId,int $limit=50):
     $limit=max(1,min(100,$limit));$q=$pdo->prepare("SELECT rf.public_id,rf.title,rf.summary,rf.status,rf.updated_at,
       (SELECT COUNT(*) FROM finding_claims fc WHERE fc.finding_id=rf.id) claim_count
       FROM research_findings rf WHERE rf.project_id=? AND rf.status<>'archived'
-      ORDER BY FIELD(rf.status,'published','final','draft'),rf.updated_at DESC LIMIT ".$limit);
+      ORDER BY FIELD(rf.status,'final','draft'),rf.updated_at DESC LIMIT ".$limit);
     $q->execute([$projectId]);return $q->fetchAll()?:[];
 }
 
@@ -105,34 +105,71 @@ function research_system_report_active_programs(PDO $pdo,int $agentId,int $limit
 }
 
 
+function research_system_report_component_error(string $component,Throwable $e,array &$diagnostics): void {
+    $diagnostics[]=['component'=>$component,'status'=>'unavailable'];
+    error_log('[Annotated System Report '.$component.'] '.$e->getMessage());
+}
+
+function research_system_report_coverage_counts(PDO $pdo,int $projectId): array {
+    $counts=[];
+    foreach([
+      'claims'=>"SELECT COUNT(*) FROM research_claims WHERE project_id=?",
+      'findings'=>"SELECT COUNT(*) FROM research_findings WHERE project_id=? AND status<>'archived'",
+      'entities'=>"SELECT COUNT(*) FROM research_entities WHERE project_id=? AND status<>'archived'",
+      'claim_relations'=>"SELECT COUNT(*) FROM claim_relations WHERE project_id=?",
+      'entity_relations'=>"SELECT COUNT(*) FROM research_entity_relations WHERE project_id=?",
+      'sources'=>"SELECT COUNT(*) FROM project_sources WHERE project_id=?",
+      'tasks'=>"SELECT COUNT(*) FROM research_tasks WHERE project_id=? AND status NOT IN ('done','complete','archived')",
+      'programs'=>"SELECT COUNT(*) FROM research_programs WHERE project_id=? AND status<>'archived'"
+    ] as $key=>$sql){
+        try{$q=$pdo->prepare($sql);$q->execute([$projectId]);$counts[$key]=(int)$q->fetchColumn();}
+        catch(Throwable $e){$counts[$key]=null;}
+    }
+    return $counts;
+}
+
 function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,array $agent): array {
-    $projectId=(int)$agent['project_id'];$projectPublic=(string)$agent['project_public_id'];
+    $projectId=(int)$agent['project_id'];$projectPublic=(string)$agent['project_public_id'];$diagnostics=[];
     $workspace=function_exists('research_workspace_deterministic_snapshot')?research_workspace_deterministic_snapshot($pdo,$projectId):[];
     $claims=function_exists('research_workspace_claim_rows')?research_workspace_claim_rows($pdo,$projectId):[];
     $findings=research_system_report_findings($pdo,$projectId,60);
     $entities=function_exists('research_project_entity_rows')?research_project_entity_rows($pdo,$projectId):[];
+    $claimRelations=function_exists('research_project_graph_rows')?research_project_graph_rows($pdo,$projectId):[];
+    $entityRelations=function_exists('research_entity_relation_rows')?research_entity_relation_rows($pdo,$projectId):[];
     $timeline=function_exists('research_project_timeline')?research_project_timeline($pdo,$projectId):[];
     $monitoring=[];$monitorEvents=[];
     if(function_exists('research_monitor_ready')&&research_monitor_ready($pdo)){
-        try{$monitoring=research_monitor_summary($pdo,$viewer,(string)$agent['public_id']);$monitorEvents=research_monitor_events($pdo,$viewer,(string)$agent['public_id'],30);}catch(Throwable $e){}
+        try{$monitoring=research_monitor_summary($pdo,$viewer,(string)$agent['public_id']);$monitorEvents=research_monitor_events($pdo,$viewer,(string)$agent['public_id'],30);}
+        catch(Throwable $e){research_system_report_component_error('monitoring',$e,$diagnostics);}
     }
     $tasks=[];$taskSummary=[];
     if(function_exists('research_tasks_ready')&&research_tasks_ready($pdo)){
-        try{$taskSummary=research_task_summary($pdo,$viewer,(string)$agent['public_id']);$tasks=research_system_report_active_tasks($pdo,(int)$agent['id']);}catch(Throwable $e){}
+        try{$taskSummary=research_task_summary($pdo,$viewer,(string)$agent['public_id']);$tasks=research_system_report_active_tasks($pdo,(int)$agent['id']);}
+        catch(Throwable $e){research_system_report_component_error('tasks',$e,$diagnostics);}
     }
     $programs=[];$programSummary=[];
     if(function_exists('research_programs_ready')&&research_programs_ready($pdo)){
-        try{$programSummary=research_program_summary($pdo,$viewer,(string)$agent['public_id']);$programs=research_system_report_active_programs($pdo,(int)$agent['id']);}catch(Throwable $e){}
+        try{$programSummary=research_program_summary($pdo,$viewer,(string)$agent['public_id']);$programs=research_system_report_active_programs($pdo,(int)$agent['id']);}
+        catch(Throwable $e){research_system_report_component_error('programs',$e,$diagnostics);}
     }
     $recent=[];$index=[];
     if(function_exists('research_retrieval_ready')&&research_retrieval_ready($pdo)){
-        try{$search=research_retrieval_search($pdo,$config,$viewer,$projectPublic,'',[],24,false);$recent=$search['results']??[];$index=$search['index']??[];}catch(Throwable $e){}
+        try{$search=research_retrieval_search($pdo,$config,$viewer,$projectPublic,'',[],24,false);$recent=$search['results']??[];$index=$search['index']??[];}
+        catch(Throwable $e){research_system_report_component_error('retrieval',$e,$diagnostics);}
     }
     $q=$pdo->prepare("SELECT s.public_id,s.title,s.domain,s.status,s.last_checked_at,sv.version_number,sv.captured_at,
       EXISTS(SELECT 1 FROM source_change_events sce WHERE sce.source_id=s.id AND sce.created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY)) changed_30d
       FROM project_sources ps JOIN sources s ON s.id=ps.source_id LEFT JOIN source_versions sv ON sv.id=s.current_version_id
       WHERE ps.project_id=? ORDER BY COALESCE(sv.captured_at,s.last_checked_at) DESC,s.id DESC LIMIT 100");
     $q->execute([$projectId]);$sourceRows=$q->fetchAll()?:[];
+
+    $totals=research_system_report_coverage_counts($pdo,$projectId);
+    $included=[
+      'claims'=>count($claims),'findings'=>count($findings),'entities'=>count($entities),
+      'claim_relations'=>count($claimRelations),'entity_relations'=>count($entityRelations),
+      'sources'=>count($sourceRows),'tasks'=>count($tasks),'programs'=>count($programs)
+    ];
+    $truncated=[];foreach($included as $key=>$count)if(isset($totals[$key])&&$totals[$key]!==null&&$count<(int)$totals[$key])$truncated[$key]=['included'=>$count,'total'=>(int)$totals[$key]];
 
     $snapshot=[
       'schema'=>'annotated-system-report-v1',
@@ -142,6 +179,8 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
       'claims'=>$claims,
       'findings'=>$findings,
       'entities'=>$entities,
+      'claim_relations'=>$claimRelations,
+      'entity_relations'=>$entityRelations,
       'sources'=>$sourceRows,
       'timeline'=>$timeline,
       'monitoring'=>['summary'=>$monitoring,'events'=>$monitorEvents],
@@ -149,8 +188,12 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
       'programs'=>['summary'=>$programSummary,'items'=>$programs],
       'recent_evidence'=>$recent,
       'retrieval_index'=>$index,
+      'coverage'=>['totals'=>$totals,'included'=>$included,'truncated'=>$truncated],
+      'diagnostics'=>$diagnostics,
     ];
-    $snapshot['state_hash']=hash('sha256',json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
+    $stateBasis=$snapshot;
+    $stateBasis['generated_at']=null;
+    $snapshot['state_hash']=hash('sha256',json_encode($stateBasis,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
     $snapshot['generated_at']=date('c');
     return $snapshot;
 }
@@ -166,6 +209,10 @@ function research_system_report_refs(array $snapshot,int $limit=250): array {
     foreach((array)($snapshot['findings']??[]) as $r)$push('finding',(string)($r['public_id']??''),(string)($r['title']??''));
     foreach((array)($snapshot['entities']??[]) as $r)$push('entity',(string)($r['public_id']??''),(string)($r['canonical_name']??''));
     foreach((array)($snapshot['sources']??[]) as $r)$push('source',(string)($r['public_id']??''),(string)($r['title']??$r['domain']??''));
+    foreach((array)($snapshot['claim_relations']??[]) as $r)$push('claim_relation',(string)($r['public_id']??''),(string)($r['relation_type']??'Claim relationship'));
+    foreach((array)($snapshot['entity_relations']??[]) as $r)$push('entity_relation',(string)($r['public_id']??''),(string)($r['relation_type']??'Entity relationship'));
+    foreach((array)($snapshot['tasks']['items']??[]) as $r)$push('task',(string)($r['public_id']??''),(string)($r['title']??''));
+    foreach((array)($snapshot['programs']['items']??[]) as $r)$push('program',(string)($r['public_id']??''),(string)($r['title']??''));
     return $refs;
 }
 
@@ -218,6 +265,13 @@ function research_system_report_render(string $type,array $s): array {
     $meta=research_system_report_type($type);$esc='research_system_report_escape';
     $project=(string)($s['project']['title']??'Research');$title=$project.' — '.$meta['label'];
     $body='<h1>'.$esc($title).'</h1><p><strong>Research Agent:</strong> '.$esc((string)($s['agent']['name']??'Research Agent')).'<br><strong>Generated:</strong> '.$esc((string)($s['generated_at']??date('c'))).'<br><strong>Data state:</strong> <code>'.$esc(substr((string)($s['state_hash']??''),0,16)).'</code></p>';
+    $coverage=(array)($s['coverage']??[]);$truncated=(array)($coverage['truncated']??[]);$diagnostics=(array)($s['diagnostics']??[]);
+    if($truncated||$diagnostics){
+        $body.='<aside><strong>Coverage notice</strong><ul>';
+        foreach($truncated as $key=>$row)$body.='<li>'.$esc(ucwords(str_replace('_',' ',$key))).': '.$esc((string)($row['included']??0)).' of '.$esc((string)($row['total']??0)).' records are rendered in this report. The data-state hash still tracks the complete indexed project corpus.</li>';
+        foreach($diagnostics as $row)$body.='<li>'.$esc(ucwords(str_replace('_',' ',(string)($row['component']??'component')))).' data was unavailable during generation.</li>';
+        $body.='</ul></aside>';
+    }
     $sections=research_system_report_common_sections($s);$claims=(array)($s['claims']??[]);$entities=(array)($s['entities']??[]);$sources=(array)($s['sources']??[]);
 
     if($type==='research_brief'){
@@ -292,24 +346,33 @@ function research_system_report_generate(PDO $pdo,array $config,array $viewer,st
     research_agent_workspace_require_write($project);$type=research_system_report_type($reportType);
     $snapshot=research_system_report_snapshot($pdo,$config,$viewer,$agent);$render=research_system_report_render((string)$type['key'],$snapshot);
     $title=mb_substr(trim($customTitle)!==''?trim($customTitle):(string)$render['title'],0,240);if($title==='')$title=(string)$type['label'];
-    $folder=research_system_report_folder($pdo,$viewer,$project);
-    $doc=research_agent_workspace_create_document($pdo,$viewer,$project,[
-      'title'=>$title,'document_type'=>'report','content_html'=>(string)$render['html'],'summary'=>(string)$render['summary'],'parent_id'=>(string)$folder['public_id']
-    ],$byAgent);
     $refs=research_system_report_refs($snapshot);$metrics=[
       'sources'=>count((array)$snapshot['sources']),'claims'=>count((array)$snapshot['claims']),'findings'=>count((array)$snapshot['findings']),
-      'entities'=>count((array)$snapshot['entities']),'evidence_refs'=>count($refs),
-      'gaps'=>count((array)($snapshot['workspace']['gaps']??[])),'conflicts'=>count((array)($snapshot['workspace']['conflicts']??[]))
+      'entities'=>count((array)$snapshot['entities']),'claim_relations'=>count((array)$snapshot['claim_relations']),'entity_relations'=>count((array)$snapshot['entity_relations']),
+      'evidence_refs'=>count($refs),'gaps'=>count((array)($snapshot['workspace']['gaps']??[])),'conflicts'=>count((array)($snapshot['workspace']['conflicts']??[])),
+      'coverage_truncated'=>count((array)($snapshot['coverage']['truncated']??[])),'diagnostic_count'=>count((array)($snapshot['diagnostics']??[]))
     ];
-    $public=ulid_like();$pdo->prepare("INSERT INTO research_system_reports(public_id,research_agent_id,project_id,requested_by_user_id,report_type,title,status,document_object_id,input_state_hash,evidence_refs_json,metrics_json)
-      VALUES(?,?,?,?,?,?,'ready',?,?,?,?)")
-      ->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],(string)$type['key'],$title,(int)$doc['id'],(string)$snapshot['state_hash'],
-        json_encode($refs,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($metrics,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)]);
-    $reportId=(int)$pdo->lastInsertId();
-    research_system_report_event($pdo,$reportId,'generated',$byAgent?'agent':'user',(int)$viewer['id'],['report_type'=>$type['key'],'document_id'=>$doc['public_id'],'state_hash'=>$snapshot['state_hash']]);
+    $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+    try{
+        $folder=research_system_report_folder($pdo,$viewer,$project);
+        $doc=research_agent_workspace_create_document($pdo,$viewer,$project,[
+          'title'=>$title,'document_type'=>'report','content_html'=>(string)$render['html'],'summary'=>(string)$render['summary'],'parent_id'=>(string)$folder['public_id']
+        ],$byAgent);
+        $public=ulid_like();$pdo->prepare("INSERT INTO research_system_reports(public_id,research_agent_id,project_id,requested_by_user_id,report_type,title,status,document_object_id,input_state_hash,evidence_refs_json,metrics_json)
+          VALUES(?,?,?,?,?,?,'ready',?,?,?,?)")
+          ->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],(string)$type['key'],$title,(int)$doc['id'],(string)$snapshot['state_hash'],
+            json_encode($refs,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),json_encode($metrics,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
+        $reportId=(int)$pdo->lastInsertId();
+        research_system_report_event($pdo,$reportId,'generated',$byAgent?'agent':'user',(int)$viewer['id'],['report_type'=>$type['key'],'document_id'=>$doc['public_id'],'state_hash'=>$snapshot['state_hash']]);
+        if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$project['id']);
     if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$project['id'],(int)$viewer['id'],'workspace_change','A Research System Report was generated.');
-    $message=null;if($byAgent&&function_exists('research_agent_workspace_post_document_to_chat'))$message=research_agent_workspace_post_document_to_chat($pdo,$viewer,(string)$doc['public_id'],$parentMessageId);
+    $message=null;
+    if($byAgent&&function_exists('research_agent_workspace_post_document_to_chat')){
+        try{$message=research_agent_workspace_post_document_to_chat($pdo,$viewer,(string)$doc['public_id'],$parentMessageId);}
+        catch(Throwable $e){research_system_report_event($pdo,$reportId,'chat_post_failed','system',(int)$viewer['id']);error_log('[Annotated System Report chat-post] '.$e->getMessage());}
+    }
     $report=research_system_report_access($pdo,$viewer,$public)??['public_id'=>$public,'report_type'=>$type['key'],'title'=>$title,'document_public_id'=>$doc['public_id'],'metrics'=>$metrics,'evidence_refs'=>$refs];
     $report['agent_message']=$message;return $report;
 }
@@ -320,6 +383,8 @@ function research_system_report_archive(PDO $pdo,array $viewer,string $publicId)
     research_agent_workspace_require_write($project);
     $pdo->prepare("UPDATE research_system_reports SET status='archived',updated_at=NOW() WHERE id=?")->execute([(int)$report['id']]);
     research_system_report_event($pdo,(int)$report['id'],'archived','user',(int)$viewer['id']);
+    if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$report['project_id']);
+    if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$report['project_id'],(int)$viewer['id'],'workspace_change','A Research System Report was archived.');
     return research_system_report_access($pdo,$viewer,$publicId)??$report;
 }
 
