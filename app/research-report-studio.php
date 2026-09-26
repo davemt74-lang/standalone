@@ -194,7 +194,7 @@ function research_report_studio_scope_snapshot(PDO $pdo,array $config,array $vie
           'recent_evidence'=>$evidenceState
         ];
     }else{
-        $basis=$snapshot;unset($basis['generated_at'],$basis['state_hash']);
+        $basis=$snapshot;unset($basis['generated_at'],$basis['state_hash'],$basis['longitudinal']);
         $basis['retrieval_index']=['input_hash'=>(string)($snapshot['retrieval_index']['input_hash']??'')];
     }
     $snapshot['state_hash']=hash('sha256',json_encode($basis,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
