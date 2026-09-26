@@ -101,6 +101,16 @@ function research_report_studio_sections(string $html): array {
     return $sections;
 }
 
+function research_report_studio_filter_render(array $render,array $options): array {
+    $sections=research_report_studio_sections((string)($render['html']??''));$wanted=research_report_studio_clean_ids($options['include_sections']??[],40);
+    if(!$wanted)return [$render,$sections];
+    $kept=[];$html='<h1>'.research_system_report_escape((string)($render['title']??'Research Report')).'</h1>';
+    foreach($sections as $section)if(in_array((string)$section['key'],$wanted,true)){$kept[]=$section;$html.=(string)$section['html'];}
+    if(!$kept)throw new InvalidArgumentException('None of the selected report sections are available for this report type.');
+    $html.='<hr><p><small>This Report Run contains only the sections selected in Report Studio. The recorded provenance and data-state hash identify the scoped Research data used for generation.</small></p>';
+    $render['html']=$html;return [$render,$kept];
+}
+
 function research_report_studio_manifest(array $snapshot): array {
     $out=[];$map=[
       'claims'=>['statement','status','evidence_count','supports_count','contradicts_count'],
@@ -174,6 +184,18 @@ function research_report_studio_freshness(PDO $pdo,array $config,array $viewer,a
     else{$old=json_decode((string)($report['knowledge_manifest_json']??''),true)?:[];$d=research_report_studio_compare_manifests($old,research_report_studio_manifest($snapshot));$age=time()-strtotime((string)$report['created_at']);$state=$d['material_change_count']>0?'materially_changed':'changed';if($age>30*86400)$state='stale';}
     if(($report['freshness_state']??'')!==$state)$pdo->prepare('UPDATE research_system_reports SET freshness_state=? WHERE id=?')->execute([$state,(int)$report['id']]);
     return ['state'=>$state,'current_state_hash'=>$snapshot['state_hash']];
+}
+
+function research_report_studio_run_preset(PDO $pdo,array $config,array $viewer,string $agentPublic,string $presetPublic,bool $byAgent=false): array {
+    $preset=research_report_studio_preset_access($pdo,$viewer,$presetPublic);if(!$preset||!hash_equals((string)$preset['agent_public_id'],$agentPublic)||($preset['status']??'')!=='active')throw new RuntimeException('Report preset not found.');
+    $opts=research_report_studio_preset_options($preset);$report=research_system_report_generate($pdo,$config,$viewer,$agentPublic,(string)$preset['report_type'],(string)($preset['title_template']??''),$byAgent,null,$opts,(int)$preset['id'],null,$byAgent?'agent':'user');
+    $pdo->prepare('UPDATE research_report_presets SET last_run_at=NOW(),updated_at=NOW() WHERE id=?')->execute([(int)$preset['id']]);return $report;
+}
+
+function research_report_studio_refresh(PDO $pdo,array $config,array $viewer,string $agentPublic,string $reportPublic): array {
+    $report=research_system_report_access($pdo,$viewer,$reportPublic);if(!$report||!hash_equals((string)$report['agent_public_id'],$agentPublic))throw new RuntimeException('Report Run not found.');
+    $opts=array_merge((array)$report['parameters'],(array)$report['scope']);
+    return research_system_report_generate($pdo,$config,$viewer,$agentPublic,(string)$report['report_type'],(string)$report['title'],false,null,$opts,$report['preset_id']!==null?(int)$report['preset_id']:null,(int)$report['id'],'user');
 }
 
 function research_report_studio_create_document(PDO $pdo,array $viewer,string $agentPublic,string $reportPublic,array $sectionKeys=[]): array {
