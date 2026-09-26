@@ -18,7 +18,7 @@ $must('database/migrations/20260926_081_phase67_system_report_provenance_hardeni
 $must('app/research-system-reports.php',[
  'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge','research_system_report_coverage_counts','research_system_report_component_error','research_system_report_ref_bundle','research_system_report_extended_intelligence','research_system_report_review_context',
  "'research_brief'","'evidence_audit'","'claims_verification'","'contradictions_gaps'","'source_freshness'","'entity_map'","'timeline'","'action_plan'","'full_intelligence'",
- 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports','coverage','diagnostics','claim_relations','entity_relations','extended_intelligence','beginTransaction','rollBack','chat_post_failed','provenance_truncated','provenance_total_unique'
+ 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports','coverage','diagnostics','claim_relations','entity_relations','extended_intelligence','beginTransaction','rollBack','chat_post_failed','research_system_report_nonfatal_event','retrieval_queue_failed','autonomy_queue_failed','provenance_truncated','provenance_total_unique'
 ],'Phase 67 reports runtime');
 $avoid('app/research-system-reports.php',['cross_research_context(','research_outcome_context(','research_network_project_context('],'Persisted System Reports permission boundary');
 $must('app/research-retrieval.php',[
@@ -43,7 +43,7 @@ $must('home.php',[
  '/research-agent-knowledge.php?agent=','/research-reports.php?agent='
 ],'Phase 67 Research Agent canvas');
 $must('research.php',['Knowledge','Reports','/research-agent-knowledge.php','/research-reports.php'],'Phase 67 Research Agents navigation');
-$must('api/research-system-reports.php',["\$action==='types'","\$action==='knowledge'","\$action==='generate'","\$action==='archive'","METHOD_NOT_ALLOWED","require_api_mutation_auth","in_array(\$action,['generate','archive'],true)"],'Phase 67 report API');
+$must('api/research-system-reports.php',["\$action==='types'","\$action==='knowledge'","\$action==='generate'","\$action==='archive'","METHOD_NOT_ALLOWED","require_api_mutation_auth","in_array(\$action,['generate','archive'],true)","research_system_report_archive(\$pdo,\$viewer,(string)(\$input['report_id']??''),\$agent)"],'Phase 67 report API');
 $must('docs/phase-67-unified-research-knowledge-system-reports.md',[
  'One Research knowledge universe','Research Agent Knowledge view','Unified Research Library','System Reports','research.create_system_report','Desktop / Library / Knowledge responsibilities'
 ],'Phase 67 architecture');
