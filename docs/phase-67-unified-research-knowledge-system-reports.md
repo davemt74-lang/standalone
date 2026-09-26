@@ -136,6 +136,12 @@ It adds:
 - `research_system_reports`
 - `research_system_report_events`
 
+Phase 67 hardening adds migration:
+
+`20260926_081_phase67_system_report_provenance_hardening.sql`
+
+Migration 081 preserves report provenance if the requesting account is later hard-deleted by making `requested_by_user_id` nullable with `ON DELETE SET NULL`.
+
 No worker, scheduler, queue, second retrieval index, or second document store is added.
 
 ## Release acceptance
