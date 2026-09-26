@@ -32,6 +32,11 @@ $pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_
 $pdo->prepare("INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,source_version_id,relationship,note) VALUES(?,?,?,'source',?,'primary','Primary market evidence')")
   ->execute([$pub('ev'),$claimId,(int)$owner['id'],$versionId]);
 
+$claim2Public=$pub('claim');$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,?, 'interpretation','unverified')")
+  ->execute([$claim2Public,(int)$project['id'],(int)$owner['id'],'Implementation risk may constrain Mercury Orchard growth.']);$claim2Id=(int)$pdo->lastInsertId();
+$claimRelPublic=$pub('claimrel');$pdo->prepare("INSERT INTO claim_relations(public_id,project_id,source_claim_id,target_claim_id,added_by_user_id,relation_type,note) VALUES(?,?,?,?,?,'context','Growth and implementation risk should be evaluated together')")
+  ->execute([$claimRelPublic,(int)$project['id'],$claimId,$claim2Id,(int)$owner['id']]);
+
 $findingPublic=$pub('finding');$pdo->prepare("INSERT INTO research_findings(public_id,project_id,created_by_user_id,title,summary,status) VALUES(?,?,?,?,?,'draft')")
   ->execute([$findingPublic,(int)$project['id'],(int)$owner['id'],'Demand is accelerating','Available evidence indicates stronger Mercury orchard demand.']);$findingId=(int)$pdo->lastInsertId();
 $pdo->prepare("INSERT INTO finding_claims(finding_id,claim_id,added_by_user_id,relationship,position) VALUES(?,?,?,'supports',0)")
@@ -39,9 +44,12 @@ $pdo->prepare("INSERT INTO finding_claims(finding_id,claim_id,added_by_user_id,r
 
 $entity=research_entity_upsert($pdo,(int)$project['id'],(int)$owner['id'],'Mercury Orchard','company','The company referenced by the demand evidence.','manual');
 research_entity_attach_reference($pdo,(int)$project['id'],(int)$entity['id'],(int)$owner['id'],'claim',$claimPublic,'Claim mention');
+$market=research_entity_upsert($pdo,(int)$project['id'],(int)$owner['id'],'Orchard Market','topic','The market context for Mercury Orchard.','manual');
+$entityRelPublic=$pub('entityrel');$pdo->prepare("INSERT INTO research_entity_relations(public_id,project_id,source_entity_id,target_entity_id,added_by_user_id,relation_type,note) VALUES(?,?,?,?,?,'associated_with','Market relationship')")
+  ->execute([$entityRelPublic,(int)$project['id'],(int)$entity['id'],(int)$market['id'],(int)$owner['id']]);
 
 $records=research_retrieval_collect_records($pdo,(int)$project['id']);$recordTypes=array_count_values(array_map(fn($x)=>(string)$x['object_type'],$records));
-foreach(['source','claim','finding','entity'] as $type)p67(($recordTypes[$type]??0)>=1,'Unified retrieval includes structured '.$type.' knowledge.');
+foreach(['source','claim','finding','entity','claim_relation','entity_relation'] as $type)p67(($recordTypes[$type]??0)>=1,'Unified retrieval includes structured '.$type.' knowledge.');
 research_retrieval_rebuild_project($pdo,[],(int)$project['id'],$records,false);
 
 $claimSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'18 percent',['type'=>'claim'],10,true);
@@ -50,11 +58,16 @@ $findingSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public
 p67(count(array_filter($findingSearch['results'],fn($x)=>($x['public_id']??'')===$findingPublic))===1,'Research Library search finds a structured Finding.');
 $entitySearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'Mercury Orchard',['type'=>'entity'],10,true);
 p67(count(array_filter($entitySearch['results'],fn($x)=>($x['public_id']??'')===$entity['public_id']))===1,'Research Library search finds a structured Entity.');
+$relationSearch=research_retrieval_search($pdo,[],$owner,(string)$project['public_id'],'associated with',['type'=>'relation'],10,true);
+p67(count(array_filter($relationSearch['results'],fn($x)=>($x['public_id']??'')===$entityRelPublic))===1,'Research Library searches knowledge-graph relationships alongside nodes.');
 
 $claimCtx=agent_chat_context_item($pdo,$owner,'claim',$claimPublic);$findingCtx=agent_chat_context_item($pdo,$owner,'finding',$findingPublic);$entityCtx=agent_chat_context_item($pdo,$owner,'entity',(string)$entity['public_id']);
 p67($claimCtx&&str_contains((string)$claimCtx['text'],$statement),'Selected Claim becomes authoritative Agent context.');
 p67($findingCtx&&str_contains((string)$findingCtx['text'],'Demand is accelerating'),'Selected Finding becomes authoritative Agent context.');
 p67($entityCtx&&str_contains((string)$entityCtx['text'],'Mercury Orchard'),'Selected Entity becomes authoritative Agent context.');
+$claimRelCtx=agent_chat_context_item($pdo,$owner,'claim_relation',$claimRelPublic);$entityRelCtx=agent_chat_context_item($pdo,$owner,'entity_relation',$entityRelPublic);
+p67($claimRelCtx&&str_contains((string)$claimRelCtx['text'],'Relationship: context'),'Selected Claim relationship becomes authoritative Agent context.');
+p67($entityRelCtx&&str_contains((string)$entityRelCtx['text'],'Relationship: associated_with'),'Selected Entity relationship becomes authoritative Agent context.');
 
 $report=research_system_report_generate($pdo,[],$owner,(string)$agent['public_id'],'research_brief','Market Research Brief',false);
 p67(($report['report_type']??'')==='research_brief'&&!empty($report['document_public_id']),'User can generate a Research Brief as a versioned Research document.');
