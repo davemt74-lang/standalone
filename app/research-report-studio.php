@@ -168,6 +168,7 @@ function research_report_studio_scope_snapshot(PDO $pdo,array $config,array $vie
     }
 
     $snapshot['studio']=$o;
+    if(isset($snapshot['longitudinal'])&&function_exists('research_longitudinal_filter_report_data'))$snapshot['longitudinal']=research_longitudinal_filter_report_data((array)$snapshot['longitudinal'],$o);
     $counts=['claims'=>count($snapshot['claims']),'findings'=>count($snapshot['findings']),'entities'=>count($snapshot['entities']),'sources'=>count($snapshot['sources']),'recent_evidence'=>count($snapshot['recent_evidence'])];
     $snapshot['coverage']=$scoped?['scoped'=>true,'totals'=>$counts,'included'=>$counts,'truncated'=>[],'scoped_counts'=>$counts]:array_merge((array)($snapshot['coverage']??[]),['scoped_counts'=>$counts]);
     if($scoped){
