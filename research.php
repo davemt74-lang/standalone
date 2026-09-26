@@ -27,13 +27,13 @@ unset($agent);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css?v=59.0">
+<link rel="stylesheet" href="/assets/css/app.css?v=64.0">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research">
 <main class="researchLibraryCanvas">
   <section class="researchLibraryToolbar" aria-label="Research workspace tools">
     <nav class="researchLibraryTabs researchPrimaryActions">
-      <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a><a href="/vp3-library.php">VP3 Library</a>
+      <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a><a href="/vp3-library.php">VP3 Library</a><a href="/research-agent-knowledge.php<?=!empty($researchAgents)?'?agent='.h(rawurlencode((string)$researchAgents[0]['public_id'])):''?>">Knowledge</a><a href="/research-reports.php<?=!empty($researchAgents)?'?agent='.h(rawurlencode((string)$researchAgents[0]['public_id'])):''?>">Reports</a>
       <a href="/research-monitoring.php">Monitoring</a>
       <a href="/research-tasks.php">Tasks</a>
       <a href="/research-programs.php">Programs</a>
@@ -98,6 +98,8 @@ unset($agent);
           <a href="/research-project.php?id=<?=h(rawurlencode((string)$agent['project_public_id']))?>">Workspace</a>
           <a href="/research-tasks.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Tasks</a>
           <a href="/research-programs.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Programs</a>
+          <a href="/research-agent-knowledge.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Knowledge</a>
+          <a href="/research-reports.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Reports</a>
         </footer>
       </article>
       <?php endforeach?>
