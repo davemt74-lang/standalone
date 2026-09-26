@@ -163,11 +163,6 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $topics=[];foreach(array_slice((array)($args['topics']??[]),0,30) as $topic){$topic=$s($topic,160);if($topic!==''&&!in_array($topic,$topics,true))$topics[]=$topic;}
         return ['title'=>$title,'objective'=>$objective,'cadence'=>$cadence,'timezone_name'=>$s($args['timezone_name']??'UTC',64),'run_time_local'=>$s($args['run_time_local']??'09:00',8),'weekday'=>max(0,min(6,(int)($args['weekday']??1))),'day_of_month'=>max(1,min(28,(int)($args['day_of_month']??1))),'priority'=>$priority,'deliverable_type'=>$deliverable,'quiet_mode'=>$quiet,'materiality_threshold'=>$materiality,'catch_up_mode'=>$catch,'scope'=>['topics'=>$topics,'include_annotations'=>true,'include_workspace'=>true],'token_budget_per_run'=>max(1000,min(2000000,(int)($args['token_budget_per_run']??60000))),'monthly_run_limit'=>max(1,min(1000,(int)($args['monthly_run_limit']??31)))];
     }
-    if($capability==='research.create_document_from_report'){
-        if(!isset($seen['report:'.$args['report_id']]))return false;
-        if(!function_exists('research_system_report_access'))return false;$report=research_system_report_access($pdo,$viewer,(string)$args['report_id']);
-        return $report&&(int)$report['project_id']===$projectId;
-    }
     if($capability==='research.prepare_publication_review'){
         $document=$s($args['document_id']??'',64);if($document==='')throw new InvalidArgumentException('Research document ID is required.');
         $reviewers=[];foreach(array_slice((array)($args['reviewer_ids']??[]),0,30) as $id){$id=$s($id,64);if($id!==''&&!in_array($id,$reviewers,true))$reviewers[]=$id;}if(!$reviewers)throw new InvalidArgumentException('At least one reviewer is required.');
@@ -273,6 +268,12 @@ function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $p
     if($capability==='research.link_claims'){
         if(!isset($seen['claim:'.$args['source_claim_id']],$seen['claim:'.$args['target_claim_id']]))return false;
         return agent_action_claim_row($pdo,$projectId,(string)$args['source_claim_id'])!==null&&agent_action_claim_row($pdo,$projectId,(string)$args['target_claim_id'])!==null;
+    }
+    if($capability==='research.create_document_from_report'){
+        if(!isset($seen['report:'.$args['report_id']]))return false;
+        if(!function_exists('research_system_report_access'))return false;
+        $report=research_system_report_access($pdo,$viewer,(string)$args['report_id']);
+        return $report&&(int)$report['project_id']===$projectId;
     }
     if($capability==='research.prepare_publication_review'){
         if(!isset($seen['document:'.$args['document_id']]))return false;
