@@ -15,7 +15,7 @@ $supported=array_values(array_filter($claims,fn($x)=>($x['status']??'')==='suppo
 $counts=(array)($workspace['counts']??[]);
 ?><!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Research Agent Knowledge · Annotated</title><link rel="stylesheet" href="/assets/css/app.css?v=67.0"></head>
+<title>Research Agent Knowledge · Annotated</title><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-agent-knowledge">
 <main class="researchLibraryCanvas researchKnowledgeCanvas">
   <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions">
