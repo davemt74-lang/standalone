@@ -29,7 +29,7 @@ $reportId=trim((string)($_GET['report']??''));$active=$reportId!==''?research_sy
 $conversation=(string)($selected['conversation_public_id']??'');
 ?><!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>System Reports · Annotated</title><link rel="stylesheet" href="/assets/css/app.css?v=64.0"></head>
+<title>System Reports · Annotated</title><link rel="stylesheet" href="/assets/css/app.css?v=67.0"></head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-reports">
 <main class="researchLibraryCanvas researchReportsCanvas">
   <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions">
