@@ -10,7 +10,7 @@ p67(research_system_reports_ready($pdo),'Phase 67 System Reports schema is ready
 $nullable=(string)$pdo->query("SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='research_system_reports' AND COLUMN_NAME='requested_by_user_id'")->fetchColumn();
 $deleteRule=(string)$pdo->query("SELECT DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() AND TABLE_NAME='research_system_reports' AND CONSTRAINT_NAME='fk_system_reports_requester'")->fetchColumn();
 p67($nullable==='YES'&&strtoupper($deleteRule)==='SET NULL','System Report provenance survives requester deletion via nullable SET NULL ownership.');
-$types=research_system_report_types();p67(count($types)===9&&isset($types['research_brief'],$types['full_intelligence']),'Phase 67 ships the complete nine-report system catalog.');
+$types=research_system_report_types();$phase67Types=['research_brief','evidence_audit','claims_verification','contradictions_gaps','source_freshness','entity_map','timeline','action_plan','full_intelligence'];p67(count(array_diff($phase67Types,array_keys($types)))===0,'Phase 67 preserves its complete original nine-report system catalog as later processors are added.');
 
 $run='p67'.substr(bin2hex(random_bytes(5)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
 $makeUser=function(string $name,string $role='user')use($pdo,$run,$pub): array{
