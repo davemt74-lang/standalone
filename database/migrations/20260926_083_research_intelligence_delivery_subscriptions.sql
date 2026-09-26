@@ -1,7 +1,7 @@
 -- Phase 69 — Research Intelligence Delivery & Subscriptions
 -- Uses existing Research Program scheduling. No second scheduler or worker is introduced.
 
-CREATE TABLE IF NOT EXISTS research_report_subscriptions (
+CREATE TABLE IF NOT EXISTS research_intelligence_subscriptions (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   public_id VARCHAR(40) NOT NULL UNIQUE,
   research_agent_id BIGINT UNSIGNED NOT NULL,
