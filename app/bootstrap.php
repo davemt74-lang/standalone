@@ -113,5 +113,6 @@ require_once __DIR__ . '/research-verification.php';
 require_once __DIR__ . '/research-evidence-packs.php';
 require_once __DIR__ . '/research-system-reports.php';
 require_once __DIR__ . '/research-report-studio.php';
+require_once __DIR__ . '/research-intelligence-delivery.php';
 require_once __DIR__ . '/research-workflow.php';
 require_once __DIR__ . '/vp3-connector.php';

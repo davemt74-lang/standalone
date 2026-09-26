@@ -270,6 +270,7 @@ jobs:
           php tests/phase66-production-acceptance-db.php
           php tests/phase67-unified-research-knowledge-system-reports-db.php
           php tests/phase68-research-agent-report-studio-db.php
+          php tests/phase69-research-intelligence-delivery-subscriptions-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -467,6 +468,13 @@ jobs:
           DB_PASS: root
           PHASE68_RESET_DB: '1'
         run: php tests/ci/phase68-upgrade-from-081.php
+      - name: MySQL 8 Phase 69 upgrade rehearsal from migration 082 through 083
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase69_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE69_RESET_DB: '1'
+        run: php tests/ci/phase69-upgrade-from-082.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')

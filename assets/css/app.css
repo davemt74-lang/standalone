@@ -3568,3 +3568,25 @@
 .reportArchiveForm{display:flex;justify-content:flex-end}
 @media(max-width:760px){.reportStudioFieldGrid,.reportRunTools{grid-template-columns:1fr}.reportStudioFieldGrid .span2{grid-column:auto}.reportRunHeader{flex-direction:column}.reportStudioActions{align-items:stretch}.reportStudioActions>*{width:100%}}
 
+/* Phase 69 — Research Intelligence Delivery & Subscriptions */
+.reportSubscriptionLayout{display:grid;grid-template-columns:minmax(300px,.75fr) minmax(0,1.25fr);gap:16px;align-items:start}
+.reportSubscriptionBuilder{display:grid;gap:10px;position:sticky;top:16px}
+.reportSubscriptionBuilder h2,.reportSubscriptionEditor h2,.reportDeliveryDetail h2{margin:.2rem 0}
+.reportSubscriptionBuilder>p,.reportSubscriptionNote,.reportDeliveryDetail>p{color:var(--muted,#666);line-height:1.45}
+.reportSubscriptionForm{display:grid;gap:12px}
+.reportSubscriptionForm>label{display:grid;gap:6px;font-size:.76rem;font-weight:800}
+.reportSubscriptionForm input,.reportSubscriptionForm select{width:100%}
+.reportSubscriptionChecks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px;border:1px solid var(--line,#dfdfda);border-radius:12px}
+.reportSubscriptionChecks label{display:flex;align-items:flex-start;gap:8px;font-size:.78rem;font-weight:700}
+.reportSubscriptionEditor{display:grid;gap:12px;margin-top:16px}
+.reportSubscriptionLifecycle{padding-top:4px;border-top:1px solid var(--line,#e0e0dc)}
+.reportSubscriptionNote{margin:0}
+.reportDeliveryRow p{margin:.35rem 0;color:var(--muted,#666);max-width:780px}
+.reportDeliveryDetail{display:grid;gap:12px;margin-top:16px}
+.reportDeliveryDetail .researchReportMetrics{margin:0}
+.reportDeliveryDetail .reportCompareGrid{margin-top:4px}
+.reportDeliveryRow .eyebrow{letter-spacing:.08em}
+.reportDeliveryRow.is-active{outline:2px solid var(--ink,#171717);outline-offset:1px}
+@media(max-width:900px){.reportSubscriptionLayout{grid-template-columns:1fr}.reportSubscriptionBuilder{position:static}}
+@media(max-width:620px){.reportSubscriptionChecks{grid-template-columns:1fr}}
+

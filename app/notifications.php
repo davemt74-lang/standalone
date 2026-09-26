@@ -89,6 +89,9 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
     if($type==='research_program'){
         return function_exists('research_program_access')&&research_program_access($pdo,$viewer,$public)!==null;
     }
+    if($type==='research_report_delivery'){
+        return function_exists('research_report_delivery_access')&&research_report_delivery_access($pdo,$viewer,$public)!==null;
+    }
     if($type==='research_intelligence_portfolio'){
         return function_exists('research_intelligence_portfolio_access')&&research_intelligence_portfolio_access($pdo,$viewer,$public)!==null;
     }
@@ -124,6 +127,12 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
         if(!function_exists('research_program_access'))return null;$p=research_program_access($pdo,$viewer,$public);if(!$p)return null;
         $url='/research-programs.php?agent='.rawurlencode((string)$p['agent_public_id']).'&program='.rawurlencode($public);
         if(!empty($context['run_id']))$url.='&run='.rawurlencode((string)$context['run_id']);
+        return $url;
+    }
+    if($type==='research_report_delivery'){
+        if(!function_exists('research_report_delivery_access'))return null;$d=research_report_delivery_access($pdo,$viewer,$public);if(!$d)return null;
+        $url='/research-reports.php?agent='.rawurlencode((string)$d['agent_public_id']).'&view=inbox&delivery='.rawurlencode($public);
+        if(!empty($d['report_public_id']))$url.='&report='.rawurlencode((string)$d['report_public_id']);
         return $url;
     }
     if($type==='research_intelligence_portfolio'){

@@ -53,6 +53,18 @@ function agent_action_capabilities(): array {
         'label'=>'Create document from Report Run','description'=>'Create a durable editable Research Document from an existing Report Run after user confirmation. The Report Run remains unchanged.',
         'arguments'=>['report_id'=>'Report Run public ID','section_keys'=>'array optional']
       ],
+      'research.create_report_subscription'=>[
+        'label'=>'Create Report subscription','description'=>'Subscribe this user to a saved Report preset driven by an existing Research Program. The Program remains the scheduler and the user must confirm the subscription.',
+        'arguments'=>['preset_id'=>'saved Report preset public ID','program_id'=>'Research Program public ID','name'=>'string optional','delivery_policy'=>'every_run|if_changed|material_change_only|if_stale optional','stale_after_hours'=>'integer optional','notify_in_app'=>'boolean optional','notify_agent_chat'=>'boolean optional','include_summary'=>'boolean optional','include_comparison'=>'boolean optional']
+      ],
+      'research.update_report_subscription'=>[
+        'label'=>'Update Report subscription','description'=>'Change delivery policy or notification preferences for one of this user’s Report subscriptions. The user must confirm the change.',
+        'arguments'=>['subscription_id'=>'Report subscription public ID','name'=>'string optional','delivery_policy'=>'every_run|if_changed|material_change_only|if_stale optional','stale_after_hours'=>'integer optional','notify_in_app'=>'boolean optional','notify_agent_chat'=>'boolean optional','include_summary'=>'boolean optional','include_comparison'=>'boolean optional']
+      ],
+      'research.set_report_subscription_status'=>[
+        'label'=>'Pause, resume, or archive Report subscription','description'=>'Change the lifecycle status of one of this user’s Report subscriptions after confirmation.',
+        'arguments'=>['subscription_id'=>'Report subscription public ID','status'=>'active|paused|archived']
+      ],
       'research.create_sticky'=>[
         'label'=>'Create sticky note','description'=>'Pin a concise colored sticky note to the current Research Agent canvas after user confirmation.',
         'arguments'=>['body'=>'string','color'=>'yellow|pink|blue|green|purple|gray optional']
@@ -204,6 +216,25 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $sections=[];foreach(array_slice((array)($args['section_keys']??[]),0,40) as $key){$key=$s($key,80);if($key!==''&&!in_array($key,$sections,true))$sections[]=$key;}
         return ['report_id'=>$report,'section_keys'=>$sections];
     }
+    if($capability==='research.create_report_subscription'){
+        $preset=$s($args['preset_id']??'',64);$program=$s($args['program_id']??'',64);if($preset===''||$program==='')throw new InvalidArgumentException('Report preset and Research Program IDs are required.');
+        $policy=(string)($args['delivery_policy']??'material_change_only');$policies=function_exists('research_report_subscription_policies')?research_report_subscription_policies():array_fill_keys(['every_run','if_changed','material_change_only','if_stale'],true);if(!isset($policies[$policy]))$policy='material_change_only';
+        return ['preset_id'=>$preset,'program_id'=>$program,'name'=>$s($args['name']??'',190),'delivery_policy'=>$policy,'stale_after_hours'=>max(1,min(8760,(int)($args['stale_after_hours']??168))),
+          'notify_in_app'=>array_key_exists('notify_in_app',$args)?(bool)$args['notify_in_app']:true,'notify_agent_chat'=>array_key_exists('notify_agent_chat',$args)?(bool)$args['notify_agent_chat']:true,
+          'include_summary'=>array_key_exists('include_summary',$args)?(bool)$args['include_summary']:true,'include_comparison'=>array_key_exists('include_comparison',$args)?(bool)$args['include_comparison']:true];
+    }
+    if($capability==='research.update_report_subscription'){
+        $id=$s($args['subscription_id']??'',64);if($id==='')throw new InvalidArgumentException('Report subscription ID is required.');$out=['subscription_id'=>$id];
+        if(array_key_exists('name',$args))$out['name']=$s($args['name'],190);
+        if(array_key_exists('delivery_policy',$args)){$policy=(string)$args['delivery_policy'];$policies=function_exists('research_report_subscription_policies')?research_report_subscription_policies():array_fill_keys(['every_run','if_changed','material_change_only','if_stale'],true);if(!isset($policies[$policy]))throw new InvalidArgumentException('Invalid Report subscription delivery policy.');$out['delivery_policy']=$policy;}
+        if(array_key_exists('stale_after_hours',$args))$out['stale_after_hours']=max(1,min(8760,(int)$args['stale_after_hours']));
+        foreach(['notify_in_app','notify_agent_chat','include_summary','include_comparison'] as $key)if(array_key_exists($key,$args))$out[$key]=(bool)$args[$key];
+        return $out;
+    }
+    if($capability==='research.set_report_subscription_status'){
+        $id=$s($args['subscription_id']??'',64);$status=(string)($args['status']??'');if($id===''||!in_array($status,['active','paused','archived'],true))throw new InvalidArgumentException('Report subscription ID and a valid status are required.');
+        return ['subscription_id'=>$id,'status'=>$status];
+    }
     if($capability==='research.create_sticky'){
         $body=$s($args['body']??'',10000);if($body==='')throw new InvalidArgumentException('Sticky note body is required.');
         return ['body'=>$body,'color'=>research_agent_workspace_sticky_color((string)($args['color']??'yellow'))];
@@ -274,6 +305,15 @@ function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $p
         if(!function_exists('research_system_report_access'))return false;
         $report=research_system_report_access($pdo,$viewer,(string)$args['report_id']);
         return $report&&(int)$report['project_id']===$projectId;
+    }
+    if($capability==='research.create_report_subscription'){
+        if(!function_exists('research_report_subscription_validate_links'))return false;
+        $aq=$pdo->prepare("SELECT public_id FROM research_agents WHERE project_id=? AND status<>'archived' ORDER BY is_default DESC,id LIMIT 1");$aq->execute([$projectId]);$agentPublic=(string)($aq->fetchColumn()?:'');if($agentPublic==='')return false;
+        try{research_report_subscription_validate_links($pdo,$viewer,$agentPublic,(string)$args['preset_id'],(string)$args['program_id']);return true;}catch(Throwable $e){return false;}
+    }
+    if(in_array($capability,['research.update_report_subscription','research.set_report_subscription_status'],true)){
+        if(!function_exists('research_report_subscription_access'))return false;$sub=research_report_subscription_access($pdo,$viewer,(string)$args['subscription_id']);
+        return $sub&&(int)$sub['project_id']===$projectId;
     }
     if($capability==='research.prepare_publication_review'){
         if(!isset($seen['document:'.$args['document_id']]))return false;
@@ -389,6 +429,22 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         if($agentPublic==='')throw new RuntimeException('This project has no active Research Agent.');
         $doc=research_report_studio_create_document($pdo,$viewer,$agentPublic,(string)$args['report_id'],(array)$args['section_keys']);
         return ['type'=>'document','public_id'=>(string)$doc['public_id'],'label'=>(string)$doc['title'],'url'=>'/home.php?agent='.rawurlencode((string)($doc['conversation_public_id']??'')).'&doc='.rawurlencode((string)$doc['public_id']),'document_type'=>'report'];
+    }
+    if($capability==='research.create_report_subscription'){
+        if(!function_exists('research_intelligence_delivery_ready')||!research_intelligence_delivery_ready($pdo))throw new RuntimeException('Research Intelligence Delivery requires the latest database upgrade.');
+        $agent=research_task_agent_for_project($pdo,$viewer,(string)$project['public_id']);if(!$agent)throw new RuntimeException('This project has no active Research Agent.');
+        $sub=research_report_subscription_create($pdo,$viewer,(string)$agent['public_id'],$args,true);
+        return ['type'=>'research_report_subscription','public_id'=>(string)$sub['public_id'],'label'=>(string)$sub['name'],'url'=>'/research-reports.php?agent='.rawurlencode((string)$agent['public_id']).'&view=subscriptions&subscription='.rawurlencode((string)$sub['public_id']),'status'=>(string)$sub['status']];
+    }
+    if($capability==='research.update_report_subscription'){
+        if(!function_exists('research_report_subscription_update'))throw new RuntimeException('Research Intelligence Delivery is unavailable.');
+        $sub=research_report_subscription_update($pdo,$viewer,(string)$args['subscription_id'],$args,true);
+        return ['type'=>'research_report_subscription','public_id'=>(string)$sub['public_id'],'label'=>(string)$sub['name'],'url'=>'/research-reports.php?agent='.rawurlencode((string)$sub['agent_public_id']).'&view=subscriptions&subscription='.rawurlencode((string)$sub['public_id']),'status'=>(string)$sub['status']];
+    }
+    if($capability==='research.set_report_subscription_status'){
+        if(!function_exists('research_report_subscription_set_status'))throw new RuntimeException('Research Intelligence Delivery is unavailable.');
+        $sub=research_report_subscription_set_status($pdo,$viewer,(string)$args['subscription_id'],(string)$args['status'],true);
+        return ['type'=>'research_report_subscription','public_id'=>(string)$sub['public_id'],'label'=>(string)$sub['name'],'url'=>'/research-reports.php?agent='.rawurlencode((string)$sub['agent_public_id']).'&view=subscriptions&subscription='.rawurlencode((string)$sub['public_id']),'status'=>(string)$sub['status']];
     }
     if($capability==='research.create_sticky'){
         if(!function_exists('research_agent_workspace_create_sticky'))throw new RuntimeException('Research sticky workspace is unavailable.');
