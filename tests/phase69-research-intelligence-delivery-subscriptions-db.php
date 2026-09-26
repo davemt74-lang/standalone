@@ -105,6 +105,13 @@ $chatAfter=(int)$pdo->query('SELECT COUNT(*) FROM conversation_messages WHERE co
 p69($chatBefore===$chatAfter,'Team-chat privacy guard creates no message.');
 
 $viewed=research_report_delivery_mark_viewed($pdo,$owner,(string)$delivery3['public_id']);p69(($viewed['status']??'')==='viewed'&&!empty($viewed['viewed_at']),'User can mark an intelligence delivery reviewed.');
+$q=$pdo->prepare("SELECT COUNT(*) FROM research_report_delivery_events WHERE delivery_id=? AND event_type='viewed'");$q->execute([(int)$delivery3['id']]);$viewEvents=(int)$q->fetchColumn();
+research_report_delivery_mark_viewed($pdo,$owner,(string)$delivery3['public_id']);$q->execute([(int)$delivery3['id']]);p69($viewEvents===1&&(int)$q->fetchColumn()===1,'Mark reviewed is idempotent and does not duplicate delivery audit events.');
+
+$retryRun=$makeRun(1);$freshSub=research_report_subscription_access($pdo,$owner,(string)$sub['public_id']);$reserve1=research_intelligence_delivery_reserve($pdo,$freshSub,$retryRun,'program_completed');
+$pdo->prepare("UPDATE research_report_deliveries SET status='failed',reason_code='fixture_failure' WHERE id=?")->execute([(int)$reserve1['id']]);
+$reserve2=research_intelligence_delivery_reserve($pdo,$freshSub,$retryRun,'program_completed');p69(!empty($reserve2['existing'])&&!empty($reserve2['retryable'])&&(string)$reserve2['public_id']===(string)$reserve1['public_id'],'Failed same-cycle reservation is retryable without creating a duplicate delivery row.');
+$pdo->prepare("UPDATE research_report_deliveries SET status='suppressed',reason_code='fixture_cleanup' WHERE id=?")->execute([(int)$reserve1['id']]);$finishRun($retryRun,'skipped');
 
 $sub=research_report_subscription_set_status($pdo,$owner,(string)$sub['public_id'],'paused',false);p69(($sub['status']??'')==='paused','Subscription can be paused without deleting history.');
 $manual=research_intelligence_delivery_run_manual($pdo,[],$owner,(string)$sub['public_id']);
