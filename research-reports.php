@@ -19,7 +19,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             header('Location: /research-reports.php?agent='.rawurlencode($selectedId).'&report='.rawurlencode((string)$report['public_id']).'&created=1');exit;
         }
         if($op==='archive'){
-            $report=research_system_report_archive($pdo,$u,(string)($_POST['report_id']??''));
+            $report=research_system_report_archive($pdo,$u,(string)($_POST['report_id']??''),$selectedId);
             header('Location: /research-reports.php?agent='.rawurlencode($selectedId));exit;
         }
     }catch(Throwable $e){$error=$e->getMessage();}

@@ -566,7 +566,7 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
     if($semanticConfigured){$eq=$pdo->prepare("SELECT COUNT(*) FROM research_retrieval_chunks c JOIN research_retrieval_documents d ON d.id=c.document_id WHERE d.project_id=? AND c.embedding_status='ready'");$eq->execute([$projectId]);$embeddedCount=(int)$eq->fetchColumn();}
     $chunkCount=(int)($state['chunk_count']??0);
     return ['project'=>['public_id'=>$projectPublicId,'title'=>$project['title']],'query'=>$query,'mode'=>$mode,'filters'=>$filters,'index'=>[
-      'status'=>$state['status']??'ready','indexed_at'=>$state['indexed_at']??null,'document_count'=>(int)($state['document_count']??0),'chunk_count'=>$chunkCount,
+      'status'=>$state['status']??'ready','indexed_at'=>$state['indexed_at']??null,'input_hash'=>$state['state_hash']??null,'document_count'=>(int)($state['document_count']??0),'chunk_count'=>$chunkCount,
       'semantic_available'=>$semanticConfigured,'embedded_chunk_count'=>$embeddedCount,'semantic_ready'=>$semanticConfigured&&$chunkCount>0&&$embeddedCount>=$chunkCount
     ],'results'=>$results];
 }

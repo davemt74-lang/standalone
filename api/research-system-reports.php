@@ -5,7 +5,10 @@ api_headers();
 $action=(string)($_GET['action']??'list');
 $input=$_SERVER['REQUEST_METHOD']==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 try{
-    $viewer=$_SERVER['REQUEST_METHOD']==='POST'?require_api_mutation_auth($pdo):require_api_user($pdo);
+    $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
+    $isMutation=in_array($action,['generate','archive'],true);
+    if($isMutation&&$method!=='POST')json_response(['ok'=>false,'error'=>['code'=>'METHOD_NOT_ALLOWED','message'=>'This System Report action requires POST.']],405);
+    $viewer=$isMutation?require_api_mutation_auth($pdo):require_api_user($pdo);
     if(!research_system_reports_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Research System Reports require the latest database upgrade.']],503);
     if($action==='types')json_response(['ok'=>true,'data'=>['types'=>research_system_report_types()]]);
     $agent=trim((string)($input['agent_id']??''));if($agent==='')throw new InvalidArgumentException('Research Agent is required.');
@@ -24,7 +27,7 @@ try{
     }
     if($action==='archive'){
         rate_limit_api_or_429($pdo,'research-system-reports-write','user:'.$viewer['id'],120,3600);
-        $report=research_system_report_archive($pdo,$viewer,(string)($input['report_id']??''));
+        $report=research_system_report_archive($pdo,$viewer,(string)($input['report_id']??''),$agent);
         json_response(['ok'=>true,'data'=>['report'=>$report]]);
     }
     json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);

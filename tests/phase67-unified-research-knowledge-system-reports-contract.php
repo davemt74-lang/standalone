@@ -5,17 +5,25 @@ $must=function(string $file,array $needles,string $label)use($root,&$fail): void
     $path=$root.'/'.$file;if(!is_file($path)){$fail[]=$label.' file missing: '.$file;return;}
     $body=(string)file_get_contents($path);foreach($needles as $needle)if(!str_contains($body,$needle))$fail[]=$label.' missing in '.$file.': '.$needle;
 };
+$avoid=function(string $file,array $needles,string $label)use($root,&$fail): void{
+    $path=$root.'/'.$file;if(!is_file($path))return;$body=(string)file_get_contents($path);
+    foreach($needles as $needle)if(str_contains($body,$needle))$fail[]=$label.' must not contain '.$needle;
+};
 $must('database/migrations/20260925_080_research_agent_knowledge_system_reports.sql',[
  'research_system_reports','research_system_report_events','input_state_hash','evidence_refs_json','document_object_id'
 ],'Phase 67 migration');
+$must('database/migrations/20260926_081_phase67_system_report_provenance_hardening.sql',[
+ 'requested_by_user_id BIGINT UNSIGNED NULL','ON DELETE SET NULL','fk_system_reports_requester'
+],'Phase 67 provenance hardening migration');
 $must('app/research-system-reports.php',[
- 'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge',
+ 'research_system_report_types','research_system_report_snapshot','research_system_report_generate','research_system_report_knowledge','research_system_report_coverage_counts','research_system_report_component_error','research_system_report_ref_bundle','research_system_report_extended_intelligence','research_system_report_review_context',
  "'research_brief'","'evidence_audit'","'claims_verification'","'contradictions_gaps'","'source_freshness'","'entity_map'","'timeline'","'action_plan'","'full_intelligence'",
- 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports'
+ 'research_agent_workspace_create_document','research_retrieval_queue_project','state_hash','System Reports','coverage','diagnostics','claim_relations','entity_relations','extended_intelligence','beginTransaction','rollBack','chat_post_failed','research_system_report_nonfatal_event','retrieval_queue_failed','autonomy_queue_failed','provenance_truncated','provenance_total_unique'
 ],'Phase 67 reports runtime');
+$avoid('app/research-system-reports.php',['cross_research_context(','research_outcome_context(','research_network_project_context('],'Persisted System Reports permission boundary');
 $must('app/research-retrieval.php',[
  "'claim'","'finding'","'entity'","'claim_relation'","'entity_relation'","'task'","'program'","'report'",
- 'research_retrieval_project_object_allowed','system_report_type','JSON_UNQUOTE(JSON_EXTRACT','research_claims','research_findings','research_entities'
+ 'research_retrieval_project_object_allowed','system_report_type','JSON_UNQUOTE(JSON_EXTRACT','research_claims','research_findings','research_entities',"'input_hash'=>\$state['state_hash']??null"
 ],'Phase 67 unified retrieval');
 $must('app/agent-chat.php',[
  "if(\$type==='claim'","if(\$type==='finding'","if(\$type==='entity'","if(\$type==='task'","if(\$type==='program'"
@@ -35,7 +43,7 @@ $must('home.php',[
  '/research-agent-knowledge.php?agent=','/research-reports.php?agent='
 ],'Phase 67 Research Agent canvas');
 $must('research.php',['Knowledge','Reports','/research-agent-knowledge.php','/research-reports.php'],'Phase 67 Research Agents navigation');
-$must('api/research-system-reports.php',["\$action==='types'","\$action==='knowledge'","\$action==='generate'","\$action==='archive'"],'Phase 67 report API');
+$must('api/research-system-reports.php',["\$action==='types'","\$action==='knowledge'","\$action==='generate'","\$action==='archive'","METHOD_NOT_ALLOWED","require_api_mutation_auth","in_array(\$action,['generate','archive'],true)","research_system_report_archive(\$pdo,\$viewer,(string)(\$input['report_id']??''),\$agent)"],'Phase 67 report API');
 $must('docs/phase-67-unified-research-knowledge-system-reports.md',[
  'One Research knowledge universe','Research Agent Knowledge view','Unified Research Library','System Reports','research.create_system_report','Desktop / Library / Knowledge responsibilities'
 ],'Phase 67 architecture');
@@ -47,7 +55,7 @@ if(is_file($root.'/worker/research-system-report-worker.php')||is_file($root.'/w
 $must('tests/ci/run-full-regression.sh',['tests/phase67-unified-research-knowledge-system-reports-db.php'],'Phase 67 regression gate');
 $must('.github/workflows/full-regression.yml',['phase67-upgrade-from-079.php','phase67-unified-research-knowledge-system-reports-db.php'],'Phase 67 MySQL gate');
 $must('.github/workflows/package-two-zips.yml',[
- '20260925_080_research_agent_knowledge_system_reports.sql','phase-67-unified-research-knowledge-system-reports.md','research-system-reports.php','research-agent-knowledge.php','research-reports.php'
+ '20260925_080_research_agent_knowledge_system_reports.sql','20260926_081_phase67_system_report_provenance_hardening.sql','phase-67-unified-research-knowledge-system-reports.md','research-system-reports.php','research-agent-knowledge.php','research-reports.php'
 ],'Phase 67 production package');
 if($fail){fwrite(STDERR,implode("\n",array_values(array_unique($fail)))."\n");exit(1);}
 echo "Phase 67 Unified Research Knowledge & System Reports static contracts passed.\n";

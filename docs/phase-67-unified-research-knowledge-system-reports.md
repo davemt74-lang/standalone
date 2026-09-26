@@ -94,6 +94,10 @@ A System Report records:
 
 The rendered report is written into a normal versioned Research Doc under the managed **System Reports** Desktop folder. The report can therefore be edited, retrieved, reviewed, published and cited through existing Annotated systems.
 
+Persisted System Reports deliberately include only project-contained intelligence. Dynamic Agent Chat may also use viewer-specific outcomes, cross-project intelligence, or access-controlled citation-network context, but those contexts are not copied into a shared project document because doing so could broaden their audience beyond the original permission scope.
+
+Report generation records explicit coverage, diagnostics, provenance-reference completeness, and a deterministic data-state hash anchored to the complete unified retrieval corpus. If a renderer intentionally caps a large section, the generated report says so instead of presenting the subset as exhaustive.
+
 No separate report-content store is introduced.
 
 ## 67E — Research Agent report creation
@@ -135,6 +139,12 @@ It adds:
 
 - `research_system_reports`
 - `research_system_report_events`
+
+Phase 67 hardening adds migration:
+
+`20260926_081_phase67_system_report_provenance_hardening.sql`
+
+Migration 081 preserves report provenance if the requesting account is later hard-deleted by making `requested_by_user_id` nullable with `ON DELETE SET NULL`.
 
 No worker, scheduler, queue, second retrieval index, or second document store is added.
 

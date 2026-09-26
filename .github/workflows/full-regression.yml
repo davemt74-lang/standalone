@@ -214,7 +214,7 @@ jobs:
           DB_PASS: root
           ADMIN_V260_RESET_DB: '1'
         run: php tests/ci/admin-v2-60-upgrade-from-078.php
-      - name: Phase 67 upgrade rehearsal from migration 079 through 080
+      - name: Phase 67 upgrade rehearsal from migration 079 through 081
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase67_upgrade;charset=utf8mb4
           DB_USER: root
@@ -452,7 +452,7 @@ jobs:
           DB_PASS: root
           ADMIN_V260_RESET_DB: '1'
         run: php tests/ci/admin-v2-60-upgrade-from-078.php
-      - name: MySQL 8 Phase 67 upgrade rehearsal from migration 079 through 080
+      - name: MySQL 8 Phase 67 upgrade rehearsal from migration 079 through 081
         env:
           DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase67_upgrade;charset=utf8mb4
           DB_USER: root

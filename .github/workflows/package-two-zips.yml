@@ -297,6 +297,7 @@ jobs:
           test -f package-website/tests/phase66-production-acceptance-contract.php
           test -f package-website/tests/phase66-production-acceptance-db.php
           test -f package-website/database/migrations/20260925_080_research_agent_knowledge_system_reports.sql
+          test -f package-website/database/migrations/20260926_081_phase67_system_report_provenance_hardening.sql
           test -f package-website/docs/phase-67-unified-research-knowledge-system-reports.md
           test -f package-website/app/research-system-reports.php
           test -f package-website/api/research-system-reports.php
