@@ -115,7 +115,7 @@
   function safeClientId(){return globalThis.crypto?.randomUUID?.()||('desktop-'+Date.now()+'-'+Math.random().toString(16).slice(2));}
 
   function iconGlyph(type){
-    return ({folder:'📁',document:'📄',bookmark:'🔖',annotation:'📝',upload:'📦',recording:'🎙️',claim:'◆',finding:'✦',entity:'◎',task:'✓',program:'↻',trash:'🗑️'})[type]||'📎';
+    return ({folder:'📁',document:'📄',bookmark:'🔖',annotation:'📝',upload:'📦',recording:'🎙️',claim:'◆',finding:'✦',entity:'◎',claim_relation:'⇄',entity_relation:'⇄',task:'✓',program:'↻',trash:'🗑️'})[type]||'📎';
   }
   function defaultIconPosition(index){
     const height=Math.max(420,(surface?.clientHeight||720)-70),rows=Math.max(1,Math.floor(height/106));
