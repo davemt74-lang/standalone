@@ -137,22 +137,24 @@ function research_task_plan_create(PDO $pdo,array $viewer,array $input,bool $cre
     $deliverable=(string)($input['deliverable_type']??'research_brief');if(!isset(research_task_deliverable_types()[$deliverable]))$deliverable='research_brief';
     $deliverableTitle=mb_substr(trim((string)($input['deliverable_title']??'')),0,255);if($deliverableTitle==='')$deliverableTitle=$title;
     $hash=research_task_plan_hash($title,$objective,$priority,$due,$deliverable,$deliverableTitle);$public=ulid_like();$tasks=is_array($input['tasks']??null)?array_slice($input['tasks'],0,30):[];
+    $initialStatus=(string)($input['initial_status']??'active');if(!in_array($initialStatus,['active','paused'],true))$initialStatus='active';
+    $createDeliverable=array_key_exists('create_deliverable',$input)?(bool)$input['create_deliverable']:true;
     $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
     try{
         $programRunId=max(0,(int)($input['program_run_id']??0));
         if($programRunId>0)$pdo->prepare("INSERT INTO research_task_plans(public_id,research_agent_id,project_id,program_run_id,created_by_user_id,created_by_agent,title,objective,status,priority,due_at,deliverable_type,deliverable_title,current_revision,plan_hash)
-          VALUES(?,?,?,?,?,?,?,?,'active',?,?,?,?,1,?)")->execute([$public,(int)$agent['id'],(int)$project['id'],$programRunId,(int)$viewer['id'],$createdByAgent?1:0,$title,$objective,$priority,$due,$deliverable,$deliverableTitle,$hash]);
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1,?)")->execute([$public,(int)$agent['id'],(int)$project['id'],$programRunId,(int)$viewer['id'],$createdByAgent?1:0,$title,$objective,$initialStatus,$priority,$due,$deliverable,$deliverableTitle,$hash]);
         else $pdo->prepare("INSERT INTO research_task_plans(public_id,research_agent_id,project_id,created_by_user_id,created_by_agent,title,objective,status,priority,due_at,deliverable_type,deliverable_title,current_revision,plan_hash)
-          VALUES(?,?,?,?,?,?,?,'active',?,?,?,?,1,?)")->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],$createdByAgent?1:0,$title,$objective,$priority,$due,$deliverable,$deliverableTitle,$hash]);
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?)")->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],$createdByAgent?1:0,$title,$objective,$initialStatus,$priority,$due,$deliverable,$deliverableTitle,$hash]);
         $planId=(int)$pdo->lastInsertId();$created=[];$position=0;
         foreach($tasks as $raw){if(!is_array($raw))continue;$raw['position']=$position++;$created[]=research_task_create($pdo,$viewer,$agent,$project,$raw,$planId,$createdByAgent);}
         foreach($tasks as $idx=>$raw){if(!is_array($raw)||empty($raw['depends_on'])||!isset($created[$idx]))continue;$taskId=(int)$created[$idx]['id'];foreach(array_slice((array)$raw['depends_on'],0,12) as $depIndex){$di=(int)$depIndex;if($di<0||!isset($created[$di])||$di===$idx)continue;$pdo->prepare("INSERT IGNORE INTO research_task_dependencies(task_id,depends_on_task_id,dependency_type) VALUES(?,?,'finish_to_start')")->execute([$taskId,(int)$created[$di]['id']]);}}
         $q=$pdo->prepare('SELECT * FROM research_task_plans WHERE id=?');$q->execute([$planId]);$plan=$q->fetch();research_task_plan_snapshot($pdo,$plan,'Initial plan',(int)$viewer['id'],$createdByAgent);
-        research_task_event($pdo,(int)$project['id'],$planId,null,'plan_created',$createdByAgent?'agent':'user',(int)$viewer['id'],['task_count'=>count($created),'deliverable_type'=>$deliverable]);
+        research_task_event($pdo,(int)$project['id'],$planId,null,'plan_created',$createdByAgent?'agent':'user',(int)$viewer['id'],['task_count'=>count($created),'deliverable_type'=>$deliverable,'initial_status'=>$initialStatus]);
         if($ownsTransaction)$pdo->commit();
     }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
-    research_task_queue_ready($pdo,$planId,(int)$viewer['id'],'dependency_ready');
-    research_task_refresh_deliverable($pdo,$viewer,$public);
+    if($initialStatus==='active')research_task_queue_ready($pdo,$planId,(int)$viewer['id'],'dependency_ready');
+    if($createDeliverable)research_task_refresh_deliverable($pdo,$viewer,$public);
     return research_task_plan_access($pdo,$viewer,$public)??['public_id'=>$public,'title'=>$title];
 }
 
