@@ -81,7 +81,7 @@ $caseAfterReview=research_decision_set_reconsideration_status($pdo,$owner,(strin
 $caseReviewAfterChange=research_review_access($pdo,$owner,(string)$caseReview['public_id']);
 p71s7(!empty($caseReviewAfterChange['is_stale']),'Changing reconsideration state makes its prior pinned Team Review stale.');
 
-$beforeStatus=(string)$decision['status'];$beforeRevision=(int)$decision['current_revision'];
+$decisionCurrent=research_decision_detail($pdo,$owner,(string)$decision['public_id']);$beforeStatus=(string)$decisionCurrent['status'];$beforeRevision=(int)$decisionCurrent['current_revision'];
 $center=research_decision_command_center($pdo,$owner,'attention',200);
 $ids=array_column((array)$center['decisions'],'public_id');
 p71s7(in_array($decision['public_id'],$ids,true),'Decision Command Center attention view includes the reviewed Decision with active critical review state.');
