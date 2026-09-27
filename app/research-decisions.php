@@ -160,6 +160,7 @@ function research_decision_detail(PDO $pdo,array $viewer,string $publicId): ?arr
     $decision['handoff']=research_decision_handoff_for_decision($pdo,(int)$decision['id']);
     $decision['challenges']=research_decision_challenges($pdo,(int)$decision['id']);
     $decision['outcomes']=research_decision_outcomes($pdo,$viewer,(int)$decision['id']);
+    $decision['reconsiderations']=research_decision_reconsiderations($pdo,$viewer,(int)$decision['id']);
     return $decision;
 }
 
@@ -569,5 +570,112 @@ function research_decision_update_outcome(PDO $pdo,array $viewer,string $outcome
 function research_decision_outcome_summary(PDO $pdo,array $viewer,string $decisionPublic): array {
     $decision=research_decision_access($pdo,$viewer,$decisionPublic);if(!$decision)return ['total'=>0,'assessments'=>[],'follow_up'=>0,'reopened'=>0];$items=research_decision_outcomes($pdo,$viewer,(int)$decision['id'],200);
     $assessments=[];$follow=0;$reopened=0;foreach($items as $r){$assessments[$r['assessment']]=($assessments[$r['assessment']]??0)+1;if($r['follow_up_state']==='follow_up')$follow++;if($r['follow_up_state']==='reopened')$reopened++;}return ['total'=>count($items),'assessments'=>$assessments,'follow_up'=>$follow,'reopened'=>$reopened];
+}
+
+function research_decision_reconsiderations_ready(PDO $pdo): bool {
+    try{return installer_table_exists($pdo,'research_decision_reconsiderations')&&installer_table_exists($pdo,'research_decision_reconsideration_events');}
+    catch(Throwable $e){return false;}
+}
+function research_decision_reconsideration_trigger_types(): array {
+    return ['manual'=>'Manual review','evidence_change'=>'Evidence change','challenge'=>'Open challenge','outcome'=>'Observed outcome','reversal_condition'=>'Reversal condition','assumption'=>'Assumption changed'];
+}
+function research_decision_reconsideration_statuses(): array {return ['open'=>'Open','reviewing'=>'Reviewing','resolved'=>'Resolved','dismissed'=>'Dismissed'];}
+function research_decision_reconsideration_actions(): array {return ['undetermined'=>'Undetermined','retain'=>'Retain','reopen'=>'Reopen','supersede'=>'Supersede','defer'=>'Defer'];}
+function research_decision_reconsideration_materiality(): array {return ['low'=>'Low','medium'=>'Medium','high'=>'High','critical'=>'Critical'];}
+
+function research_decision_reconsideration_event(PDO $pdo,int $caseId,string $type,string $actorType,?int $userId,array $payload=[]): void {
+    $pdo->prepare("INSERT INTO research_decision_reconsideration_events(public_id,reconsideration_id,event_type,actor_type,actor_user_id,payload_json) VALUES(?,?,?,?,?,?)")
+      ->execute([ulid_like(),$caseId,$type,in_array($actorType,['user','agent','system'],true)?$actorType:'system',$userId,$payload?json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION):null]);
+}
+function research_decision_reconsideration_events(PDO $pdo,int $caseId,int $limit=100): array {
+    if(!research_decision_reconsiderations_ready($pdo))return [];
+    $q=$pdo->prepare("SELECT public_id,event_type,actor_type,actor_user_id,payload_json,created_at FROM research_decision_reconsideration_events WHERE reconsideration_id=? ORDER BY id DESC LIMIT ".max(1,min(200,$limit)));
+    $q->execute([$caseId]);$rows=$q->fetchAll()?:[];foreach($rows as &$r)$r['payload']=research_decision_json($r['payload_json']??null);unset($r);return $rows;
+}
+function research_decision_reconsideration_row(PDO $pdo,int $id): ?array {
+    $q=$pdo->prepare("SELECT rdr.*,rd.public_id decision_public_id,rd.project_id FROM research_decision_reconsiderations rdr JOIN research_decisions rd ON rd.id=rdr.decision_id WHERE rdr.id=? LIMIT 1");
+    $q->execute([$id]);$row=$q->fetch();if(!$row)return null;$row['opening_snapshot']=research_decision_json($row['opening_snapshot_json']??null);$row['events']=research_decision_reconsideration_events($pdo,(int)$row['id'],100);return $row;
+}
+function research_decision_reconsideration_access(PDO $pdo,array $viewer,string $publicId): ?array {
+    if(!research_decision_reconsiderations_ready($pdo))return null;
+    $q=$pdo->prepare("SELECT id,decision_id FROM research_decision_reconsiderations WHERE public_id=? LIMIT 1");$q->execute([trim($publicId)]);$base=$q->fetch();if(!$base)return null;
+    $decision=research_decision_by_id($pdo,(int)$base['decision_id']);if(!$decision||!research_decision_access($pdo,$viewer,(string)$decision['public_id']))return null;return research_decision_reconsideration_row($pdo,(int)$base['id']);
+}
+function research_decision_reconsiderations(PDO $pdo,array $viewer,int $decisionId,int $limit=100): array {
+    if(!research_decision_reconsiderations_ready($pdo))return [];$decision=research_decision_by_id($pdo,$decisionId);if(!$decision||!research_decision_access($pdo,$viewer,(string)$decision['public_id']))return [];
+    $q=$pdo->prepare("SELECT id FROM research_decision_reconsiderations WHERE decision_id=? ORDER BY FIELD(status,'open','reviewing','resolved','dismissed'),updated_at DESC,id DESC LIMIT ".max(1,min(200,$limit)));$q->execute([$decisionId]);$out=[];
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$row=research_decision_reconsideration_row($pdo,(int)$id);if($row)$out[]=$row;}return $out;
+}
+function research_decision_reconsideration_signals(PDO $pdo,array $viewer,string $decisionPublic): array {
+    $decision=research_decision_detail($pdo,$viewer,$decisionPublic);if(!$decision)throw new RuntimeException('Decision not found.');
+    $signals=[];$add=function(array $signal)use(&$signals): void{$key=implode('|',[(string)$signal['trigger_type'],(string)($signal['trigger_public_id']??''),(string)$signal['title']]);$signals[$key]=$signal;};
+    foreach((array)$decision['refs'] as $ref)if((string)($ref['ref_role']??'')==='contradicts')$add([
+      'trigger_type'=>'evidence_change','trigger_public_id'=>(string)$ref['public_id'],'materiality'=>(float)($ref['strength']??0)>=0.75?'high':'medium',
+      'title'=>'Contradicting evidence is attached to this Decision','reason'=>'A Decision reference explicitly contradicts the current position.','source'=>['type'=>(string)$ref['ref_type'],'public_id'=>(string)$ref['ref_public_id']]
+    ]);
+    foreach((array)$decision['challenges'] as $challenge){
+      if(!in_array((string)$challenge['status'],['open','accepted'],true))continue;$severity=(string)$challenge['severity'];$materiality=in_array($severity,['critical','high','medium','low'],true)?$severity:'medium';
+      $trigger=(string)$challenge['challenge_type']==='reversal_condition'?'reversal_condition':((string)$challenge['challenge_type']==='assumption'?'assumption':'challenge');
+      $add(['trigger_type'=>$trigger,'trigger_public_id'=>(string)$challenge['public_id'],'materiality'=>$materiality,'title'=>(string)$challenge['title'],'reason'=>(string)($challenge['detail']?:'An unresolved Decision challenge requires review.'),'source'=>['type'=>'decision_challenge','public_id'=>(string)$challenge['public_id']]]);
+    }
+    foreach((array)$decision['outcomes'] as $outcome){
+      $assessment=(string)$outcome['assessment'];$follow=(string)$outcome['follow_up_state'];if($assessment==='success'&&$follow==='none')continue;
+      $materiality=$assessment==='failure'?'critical':($assessment==='mixed'||$follow==='reopened'?'high':($assessment==='partial'||$follow==='follow_up'?'medium':'low'));
+      $add(['trigger_type'=>'outcome','trigger_public_id'=>(string)$outcome['public_id'],'materiality'=>$materiality,'title'=>'Observed outcome may warrant Decision review','reason'=>(string)$outcome['actual_summary'],'source'=>['type'=>'decision_outcome','public_id'=>(string)$outcome['public_id'],'assessment'=>$assessment,'follow_up_state'=>$follow]]);
+    }
+    $rank=['critical'=>4,'high'=>3,'medium'=>2,'low'=>1];$signals=array_values($signals);usort($signals,fn($a,$b)=>($rank[$b['materiality']]??0)<=>($rank[$a['materiality']]??0)?:strcmp((string)$a['title'],(string)$b['title']));
+    return ['decision_id'=>(string)$decision['public_id'],'decision_status'=>(string)$decision['status'],'decision_revision'=>(int)$decision['current_revision'],'signals'=>$signals,'counts'=>array_count_values(array_map(fn($s)=>(string)$s['materiality'],$signals))];
+}
+function research_decision_reconsideration_opening_snapshot(PDO $pdo,array $viewer,array $decision): array {
+    $graph=research_decision_evidence_graph($pdo,$viewer,(string)$decision['public_id']);$outcomeSummary=research_decision_outcome_summary($pdo,$viewer,(string)$decision['public_id']);$signals=research_decision_reconsideration_signals($pdo,$viewer,(string)$decision['public_id']);
+    return ['decision_public_id'=>(string)$decision['public_id'],'decision_revision'=>(int)$decision['current_revision'],'decision_status'=>(string)$decision['status'],'statement'=>(string)$decision['statement'],'rationale'=>(string)$decision['rationale'],'confidence'=>$decision['confidence']!==null?(float)$decision['confidence']:null,'graph_counts'=>$graph['counts'],'outcome_summary'=>$outcomeSummary,'signals'=>$signals['signals']];
+}
+function research_decision_open_reconsideration(PDO $pdo,array $viewer,string $decisionPublic,array $input,bool $byAgent=false): array {
+    if(!research_decision_reconsiderations_ready($pdo))throw new RuntimeException('Decision Reconsideration requires the latest database upgrade.');
+    $decision=research_decision_access($pdo,$viewer,$decisionPublic);if(!$decision)throw new RuntimeException('Decision not found.');
+    if(!in_array((string)$decision['status'],['accepted','rejected','deferred','superseded'],true))throw new InvalidArgumentException('Only a recorded Decision disposition can enter reconsideration.');
+    $trigger=(string)($input['trigger_type']??'manual');if(!isset(research_decision_reconsideration_trigger_types()[$trigger]))throw new InvalidArgumentException('Invalid reconsideration trigger type.');
+    $triggerId=research_decision_text((string)($input['trigger_public_id']??''),160);$title=research_decision_text((string)($input['title']??'Reconsider '.(string)$decision['title']),255);if($title==='')throw new InvalidArgumentException('Reconsideration title is required.');
+    $reason=research_decision_text((string)($input['reason']??''),64000);if($reason==='')throw new InvalidArgumentException('Reconsideration reason is required.');
+    $materiality=(string)($input['materiality']??'medium');if(!isset(research_decision_reconsideration_materiality()[$materiality]))throw new InvalidArgumentException('Invalid reconsideration materiality.');
+    $snapshot=research_decision_reconsideration_opening_snapshot($pdo,$viewer,$decision);$snapshotJson=json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION);$hash=hash('sha256',$snapshotJson);$public=ulid_like();
+    $pdo->prepare("INSERT INTO research_decision_reconsiderations(public_id,decision_id,trigger_type,trigger_public_id,title,reason,materiality,status,recommended_action,decision_revision_opened,decision_status_opened,opening_context_hash,opening_snapshot_json,opened_by_user_id,created_by_agent)
+      VALUES(?,?,?,?,?,?,?,'open','undetermined',?,?,?,?,?,?)")->execute([$public,(int)$decision['id'],$trigger,$triggerId!==''?$triggerId:null,$title,$reason,$materiality,(int)$decision['current_revision'],(string)$decision['status'],$hash,$snapshotJson,(int)$viewer['id'],$byAgent?1:0]);
+    $id=(int)$pdo->lastInsertId();research_decision_reconsideration_event($pdo,$id,'reconsideration_opened',$byAgent?'agent':'user',(int)$viewer['id'],['trigger_type'=>$trigger,'trigger_public_id'=>$triggerId,'materiality'=>$materiality,'decision_revision'=>(int)$decision['current_revision'],'decision_status'=>(string)$decision['status'],'opening_context_hash'=>$hash]);
+    research_decision_event($pdo,$decision,'decision_reconsideration_opened',$byAgent?'agent':'user',(int)$viewer['id'],['reconsideration_id'=>$public,'trigger_type'=>$trigger,'materiality'=>$materiality,'opening_context_hash'=>$hash]);
+    return research_decision_reconsideration_access($pdo,$viewer,$public)??['public_id'=>$public];
+}
+function research_decision_set_reconsideration_status(PDO $pdo,array $viewer,string $casePublic,string $status,array $input=[],bool $byAgent=false): array {
+    $case=research_decision_reconsideration_access($pdo,$viewer,$casePublic);if(!$case)throw new RuntimeException('Decision reconsideration not found.');if(!isset(research_decision_reconsideration_statuses()[$status]))throw new InvalidArgumentException('Invalid reconsideration status.');
+    $current=(string)$case['status'];if($current===$status)return $case;$allowed=['open'=>['reviewing','resolved','dismissed'],'reviewing'=>['open','resolved','dismissed'],'resolved'=>['open'],'dismissed'=>['open']];if(!in_array($status,$allowed[$current]??[],true))throw new InvalidArgumentException('That reconsideration status transition is not allowed.');
+    $action=(string)($input['recommended_action']??($case['recommended_action']??'undetermined'));if(!isset(research_decision_reconsideration_actions()[$action]))throw new InvalidArgumentException('Invalid reconsideration recommendation.');
+    $resolution=research_decision_text((string)($input['resolution']??''),64000);if(in_array($status,['resolved','dismissed'],true)&&$resolution==='')throw new InvalidArgumentException('A resolution is required to close a reconsideration.');
+    if($status==='resolved'&&$action==='undetermined')throw new InvalidArgumentException('A resolved reconsideration requires an explicit recommendation.');
+    if($status==='open')$pdo->prepare("UPDATE research_decision_reconsiderations SET status='open',recommended_action='undetermined',resolution=NULL,resolved_by_user_id=NULL,resolved_at=NULL,updated_at=NOW() WHERE id=?")->execute([(int)$case['id']]);
+    elseif($status==='reviewing')$pdo->prepare("UPDATE research_decision_reconsiderations SET status='reviewing',recommended_action=?,resolution=NULL,resolved_by_user_id=NULL,resolved_at=NULL,updated_at=NOW() WHERE id=?")->execute([$action,(int)$case['id']]);
+    else $pdo->prepare("UPDATE research_decision_reconsiderations SET status=?,recommended_action=?,resolution=?,resolved_by_user_id=?,resolved_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$status,$action,$resolution,(int)$viewer['id'],(int)$case['id']]);
+    research_decision_reconsideration_event($pdo,(int)$case['id'],'reconsideration_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['from'=>$current,'to'=>$status,'recommended_action'=>$action,'resolution'=>$resolution]);
+    $decision=research_decision_by_id($pdo,(int)$case['decision_id']);if($decision)research_decision_event($pdo,$decision,'decision_reconsideration_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['reconsideration_id'=>$casePublic,'from'=>$current,'to'=>$status,'recommended_action'=>$action]);
+    return research_decision_reconsideration_access($pdo,$viewer,$casePublic)??$case;
+}
+function research_decision_apply_reconsideration(PDO $pdo,array $viewer,string $casePublic,bool $byAgent=false): array {
+    $case=research_decision_reconsideration_access($pdo,$viewer,$casePublic);if(!$case)throw new RuntimeException('Decision reconsideration not found.');if((string)$case['status']!=='resolved')throw new InvalidArgumentException('Resolve the reconsideration before applying it.');
+    $action=(string)$case['recommended_action'];if($action==='undetermined')throw new InvalidArgumentException('Reconsideration has no explicit recommendation.');
+    $decision=research_decision_detail($pdo,$viewer,(string)$case['decision_public_id']);if(!$decision)throw new RuntimeException('Decision not found.');$before=(string)$decision['status'];$after=$before;
+    if($action==='reopen'){$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'reopened',$byAgent);$after=(string)$decision['status'];}
+    elseif($action==='supersede'){$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'superseded',$byAgent);$after=(string)$decision['status'];}
+    elseif($action==='defer'){if((string)$decision['status']!=='reopened')$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'reopened',$byAgent);$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'deferred',$byAgent);$after=(string)$decision['status'];}
+    elseif($action!=='retain')throw new InvalidArgumentException('Unsupported reconsideration action.');
+    research_decision_reconsideration_event($pdo,(int)$case['id'],'reconsideration_applied',$byAgent?'agent':'user',(int)$viewer['id'],['recommended_action'=>$action,'decision_status_before'=>$before,'decision_status_after'=>$after]);
+    research_decision_event($pdo,$decision,'decision_reconsideration_applied',$byAgent?'agent':'user',(int)$viewer['id'],['reconsideration_id'=>$casePublic,'recommended_action'=>$action,'status_before'=>$before,'status_after'=>$after]);
+    return ['reconsideration'=>research_decision_reconsideration_access($pdo,$viewer,$casePublic),'decision'=>research_decision_detail($pdo,$viewer,(string)$decision['public_id'])];
+}
+function research_decision_evolution_timeline(PDO $pdo,array $viewer,string $decisionPublic,int $limit=250): array {
+    $decision=research_decision_detail($pdo,$viewer,$decisionPublic);if(!$decision)throw new RuntimeException('Decision not found.');$items=[];
+    foreach((array)$decision['versions'] as $v)$items[]=['kind'=>'decision_revision','public_id'=>(string)$v['public_id'],'timestamp'=>(string)$v['created_at'],'title'=>'Decision revision '.(int)$v['revision_number'],'meta'=>['revision'=>(int)$v['revision_number'],'reason'=>(string)($v['change_reason']??'')]];
+    foreach((array)$decision['events'] as $e)$items[]=['kind'=>'decision_event','public_id'=>(string)$e['public_id'],'timestamp'=>(string)$e['created_at'],'title'=>(string)$e['event_type'],'meta'=>['payload'=>$e['payload']??[]]];
+    foreach((array)$decision['outcomes'] as $o){$items[]=['kind'=>'decision_outcome','public_id'=>(string)$o['public_id'],'timestamp'=>(string)$o['observed_at'],'title'=>'Outcome: '.(string)$o['assessment'],'meta'=>['actual_summary'=>(string)$o['actual_summary'],'follow_up_state'=>(string)$o['follow_up_state']]];foreach((array)$o['versions'] as $v)$items[]=['kind'=>'outcome_revision','public_id'=>(string)$v['public_id'],'timestamp'=>(string)$v['created_at'],'title'=>'Outcome revision '.(int)$v['revision_number'],'meta'=>['revision'=>(int)$v['revision_number'],'reason'=>(string)($v['change_reason']??'')]];}
+    foreach((array)$decision['reconsiderations'] as $r){$items[]=['kind'=>'reconsideration','public_id'=>(string)$r['public_id'],'timestamp'=>(string)$r['opened_at'],'title'=>(string)$r['title'],'meta'=>['status'=>(string)$r['status'],'materiality'=>(string)$r['materiality'],'recommended_action'=>(string)$r['recommended_action']]];foreach((array)$r['events'] as $e)$items[]=['kind'=>'reconsideration_event','public_id'=>(string)$e['public_id'],'timestamp'=>(string)$e['created_at'],'title'=>(string)$e['event_type'],'meta'=>['payload'=>$e['payload']??[]]];}
+    usort($items,fn($a,$b)=>strcmp((string)$b['timestamp'],(string)$a['timestamp'])?:strcmp((string)$b['public_id'],(string)$a['public_id']));return ['decision_id'=>(string)$decision['public_id'],'current_status'=>(string)$decision['status'],'current_revision'=>(int)$decision['current_revision'],'items'=>array_slice($items,0,max(1,min(500,$limit)))];
 }
 
