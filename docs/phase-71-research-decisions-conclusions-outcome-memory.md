@@ -178,6 +178,63 @@ A Decision-specific assessment is layered on top of that event with:
 - team-visible Decision Outcome Memory does not depend on the original recorder still being the viewer
 - no scheduler, worker, cron, queue, or autonomous outcome judgment is introduced
 
+
+## Section 5 — Decision Evolution & Reconsideration
+
+Section 5 turns Decision history into an explicit review workflow without allowing new evidence or Agent reasoning to silently change a recorded Decision.
+
+### Deterministic reconsideration signals
+
+The runtime can surface review signals from durable Decision state:
+
+- contradicting Decision evidence
+- open or accepted challenges
+- explicit reversal conditions
+- assumption challenges
+- partial, mixed, failed, follow-up, or reopened observed outcomes
+
+Signals are descriptive. They do not create a reconsideration case and they never mutate Decision status.
+
+### Reconsideration cases
+
+A user may explicitly open a reconsideration against a recorded Decision disposition. Each case freezes:
+
+- Decision status and immutable revision at opening
+- evidence/challenge graph counts
+- current Outcome Memory summary
+- current deterministic review signals
+- a canonical context hash
+- trigger, materiality, reason, author, and timestamps
+
+Non-manual cases must reference a signal that is still current. Duplicate attempts against the same active signal/context reuse the existing case.
+
+### Review and apply
+
+A case moves through Open → Reviewing → Resolved or Dismissed. Resolving requires an explicit recommendation: retain, reopen, supersede, or defer.
+
+Resolution itself does **not** alter the Decision. A separate explicit Apply action is required. Apply is transactionally retry-safe, leaves an audit event, and refuses stale cases when the Decision revision or status changed after the opening snapshot.
+
+### Evolution timeline
+
+The Decision evolution API composes a chronological view of:
+
+- immutable Decision revisions
+- Decision lifecycle/audit events
+- observed outcomes and Outcome Memory revisions
+- reconsideration cases and their audit events
+
+This is a read model over existing durable ledgers; it does not rewrite them.
+
+### Section 5 invariants
+
+- signals never auto-open cases
+- opening/reviewing/resolving/dismissing a case never changes Decision disposition
+- only an explicit Apply action may enact a resolved recommendation
+- applied cases are immutable and retry-safe
+- stale cases cannot be applied after Decision status/revision changes
+- non-manual triggers must point to current deterministic signals
+- no hidden score, autonomous vote, scheduler, worker, cron, queue, or auto-reconsideration loop is introduced
+
 ## Planned Phase 71 sections
 
 1. Decision & Conclusion Ledger Foundation

@@ -43,6 +43,7 @@ php tests/phase71-section1-decision-ledger-contract.php
 php tests/phase71-section2-mission-decision-handoff-contract.php
 php tests/phase71-section3-decision-evidence-challenge-graph-contract.php
 php tests/phase71-section4-outcome-memory-contract.php
+php tests/phase71-section5-decision-evolution-reconsideration-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
