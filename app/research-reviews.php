@@ -83,6 +83,14 @@ function research_review_subject(PDO $pdo,array $viewer,string $type,string $pub
         if(!research_report_version_access($pdo,$reportMeta,(int)$r['version_number'],$viewer))return null;
         return ['type'=>'report_version','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>$r['project_public_id'],'project_title'=>$r['project_title'],'title'=>'Report v'.(int)$r['version_number'].': '.(string)$r['title'],'hash'=>(string)$r['snapshot_hash'],'version_label'=>'Report version '.(int)$r['version_number'],'url'=>'/research-report.php?id='.rawurlencode((string)$r['report_public_id']).'&v='.(int)$r['version_number'],'summary'=>(string)($r['summary']??''),'report_public_id'=>$r['report_public_id'],'version_number'=>(int)$r['version_number'],'version_id'=>(int)$r['id'],'current_version_id'=>(int)($r['current_version_id']??0)];
     }
+    if($type==='mission'&&function_exists('research_mission_access')){
+        $r=research_mission_access($pdo,$viewer,$publicId);if(!$r)return null;
+        $hash=research_mission_review_state_hash($pdo,$r);
+        $summary='Question: '.(string)$r['research_question'].' Objective: '.(string)$r['objective'];
+        return ['type'=>'mission','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>(string)$r['project_public_id'],'project_title'=>(string)$r['project_title'],
+          'title'=>'Mission: '.(string)$r['title'],'hash'=>$hash,'version_label'=>'Mission revision '.(int)$r['current_revision'].' · '.ucfirst((string)$r['status']),
+          'url'=>'/research-missions.php?agent='.rawurlencode((string)$r['agent_public_id']).'&mission='.rawurlencode($publicId),'summary'=>mb_substr($summary,0,2000)];
+    }
     if($type==='document'){
         if(!function_exists('research_agent_workspace_object'))return null;$r=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$r||($r['object_type']??'')!=='document')return null;
         $hash=hash('sha256',json_encode(['public_id'=>$r['public_id'],'title'=>$r['title'],'revision_number'=>(int)$r['revision_number'],'content_hash'=>(string)$r['content_hash'],'summary'=>(string)($r['document_summary']??'')],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));

@@ -116,6 +116,9 @@ if($selectedMission&&!empty($selectedMission['plan']['tasks']))foreach($selected
           <p><?=nl2br(h((string)$selectedMission['objective']))?></p>
         </div>
         <div class="researchMissionCommandActions">
+          <a class="button secondary" href="/research-reviews.php?type=mission&subject=<?=rawurlencode((string)$selectedMission['public_id'])?>">Request team review</a>
+          <a class="button secondary" href="/research-reports.php?agent=<?=rawurlencode($selectedAgentId)?>&view=run&type=mission_brief&focus_query=<?=rawurlencode((string)$selectedMission['title'])?>">Run Mission Brief</a>
+          <a class="button secondary" href="/research-reports.php?agent=<?=rawurlencode($selectedAgentId)?>&view=run&type=mission_review&focus_query=<?=rawurlencode((string)$selectedMission['title'])?>">Run Review Brief</a>
           <?php if(empty($selectedMission['plan_public_id'])):?><button type="button" class="button" data-mission-action="create_plan">Build Mission Plan</button>
           <?php elseif(($plan['status']??'')==='paused'):?><button type="button" class="button" data-mission-action="start">Start Mission</button>
           <?php elseif(($plan['status']??'')==='active'):?><button type="button" data-mission-action="pause">Pause execution</button><?php endif?>

@@ -121,6 +121,27 @@ Section 5 adds the full-width user-facing Mission workspace without changing the
 - archived/cancelled/completed state changes remain explicit governed user actions
 - evidence, Task, Program, revision, and event history all come from existing durable records
 
+## Section 6 — Agent Cognition, Collaboration & Reporting
+
+Section 6 makes Missions first-class intelligence objects across existing Annotated systems.
+
+- **Agent Chat** automatically receives a compact Mission context for the active Research Agent. It can explain Mission status, current synthesis, blockers, and completion readiness, but cannot silently complete or approve a Mission.
+- Mission objects can also be attached directly to Agent Chat and preserve Mission, Research Project, Plan, and Program references.
+- **Now / Cognitive Feed** surfaces Missions that are blocked, ready for review, actively progressing, or recently reactivated by material Program changes.
+- **Governed Agent actions** can propose creating a draft Research Mission. User confirmation remains mandatory, and confirmation creates only the Mission definition—no Plan, Tasks, Program, queue, or autonomous execution.
+- **Collaborative Review Center** accepts Mission subjects using the existing reviewer assignment, response, comment, staleness, restart, notification, and frozen-completion model.
+- Mission review state is pinned to the exact Mission revision plus success-criterion, sub-question, and Plan state. Later Mission changes make the prior review visibly stale.
+- **Report Studio** adds Mission Brief and Mission Review Brief report types. Mission state participates in deterministic state hashes, manifests, focus filtering, freshness comparison, and Report Run metrics.
+- The Mission Command Center links directly to team review and focused Mission Report Studio runs.
+
+### Section 6 invariants
+
+- Agents may summarize and propose but cannot cast review votes, approve reviews, complete Missions, or bypass explicit confirmation.
+- Mission review reuses the existing Review Center; no Mission-specific review table, reviewer system, or approval engine is introduced.
+- Mission reports are deterministic views over durable Mission state and do not create new Mission state.
+- Now and Agent Chat use permission-checked Mission access and do not leak Missions across Research Agent or Team boundaries.
+- Migration 086 only extends the existing review subject enum to include `mission`; it does not rewrite existing reviews.
+
 ## Lifecycle
 
 `draft → active → blocked/review → completed` is the normal path. Missions may also be cancelled or archived. Completed, cancelled, and archived Missions can be explicitly reactivated; every transition is recorded.

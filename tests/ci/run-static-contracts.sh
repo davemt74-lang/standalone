@@ -37,6 +37,7 @@ php tests/research-missions-v1-section2-contract.php
 php tests/research-missions-v1-section3-contract.php
 php tests/research-missions-v1-section4-contract.php
 php tests/research-missions-v1-section5-contract.php
+php tests/research-missions-v1-section6-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
