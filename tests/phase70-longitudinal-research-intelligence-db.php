@@ -25,7 +25,7 @@ $project=research_agent_workspace_project($pdo,$owner,(string)$agent['public_id'
 
 $source=ensure_source($pdo,'https://example.com/'.$run.'/longitudinal','Phase 70 Market Source');$text1='Mercury orchard demand increased 18 percent with strong buyer interest.';
 $pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash) VALUES(?,1,?,?,?,?)")
-  ->execute([(int)$source['id'],'https://example.com/'.$run.'/longitudinal','Phase 70 Market Source',$text1,hash('sha256',$text1)]);
+  ->execute([(int)$source['id'],'https://example.com/'.$run.'/longitudinal','Phase 70 Market Source',$text1,hash('sha256',$text1)));
 $version1=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=?,last_checked_at=NOW() WHERE id=?')->execute([$version1,(int)$source['id']]);
 $pdo->prepare('INSERT INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([(int)$project['id'],(int)$source['id'],(int)$owner['id']]);
 
@@ -38,6 +38,13 @@ $findingPublic=$pub('finding');$pdo->prepare("INSERT INTO research_findings(publ
   ->execute([$findingPublic,(int)$project['id'],(int)$owner['id'],'Mercury demand is accelerating','Initial evidence supports stronger Mercury orchard demand.']);$findingId=(int)$pdo->lastInsertId();
 $pdo->prepare("INSERT INTO finding_claims(finding_id,claim_id,added_by_user_id,relationship,position) VALUES(?,?,?,'supports',0)")->execute([$findingId,$claimId,(int)$owner['id']]);
 
+for($i=1;$i<=85;$i++){
+    $extra=$pub('bulkclaim');$pdo->prepare("INSERT INTO research_claims(public_id,project_id,created_by_user_id,statement,claim_type,status) VALUES(?,?,?,?, 'factual','unverified')")
+      ->execute([$extra,(int)$project['id'],(int)$owner['id'],'Longitudinal completeness fixture claim '.$i.'.']);
+}
+$fullState=research_longitudinal_state($pdo,$owner,(string)$agent['public_id']);
+p70(count((array)$fullState['objects']['claim'])>=86,'Longitudinal state captures the complete Claim set beyond the 80-row workspace UI helper limit.');
+
 $baseline=research_longitudinal_capture($pdo,$owner,(string)$agent['public_id'],'manual',null);
 p70(!empty($baseline['created'])&&($baseline['snapshot']['trigger_type']??'')==='baseline','First capture establishes a baseline snapshot.');
 p70(count((array)$baseline['changes'])===0&&count((array)$baseline['milestones'])===0,'Baseline does not mislabel existing Research objects as newly introduced.');
@@ -48,7 +55,7 @@ p70(empty($duplicate['created'])&&($duplicate['snapshot']['public_id']??'')===$b
 
 $text2='Mercury orchard demand increased 26 percent with verified enterprise buyer interest.';
 $pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash) VALUES(?,2,?,?,?,?)")
-  ->execute([(int)$source['id'],'https://example.com/'.$run.'/longitudinal','Phase 70 Market Source',$text2,hash('sha256',$text2)]);
+  ->execute([(int)$source['id'],'https://example.com/'.$run.'/longitudinal','Phase 70 Market Source',$text2,hash('sha256',$text2)));
 $version2=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=?,last_checked_at=NOW() WHERE id=?')->execute([$version2,(int)$source['id']]);
 $pdo->prepare("INSERT INTO claim_evidence(public_id,claim_id,added_by_user_id,evidence_type,source_version_id,relationship,note) VALUES(?,?,?,'source_version',?,'supports','Additional Phase 70 evidence')")
   ->execute([$pub('ev'),$claimId,(int)$owner['id'],$version2]);
