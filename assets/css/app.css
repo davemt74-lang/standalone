@@ -3628,3 +3628,94 @@
 @media(max-width:900px){.researchEvolutionGrid,.researchEvolutionReports{grid-template-columns:1fr}.researchEvolutionHero{flex-direction:column}.researchEvolutionHero label{width:100%}.researchEvolutionSnapshotRows>div{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.researchEvolutionActions>*{width:100%}.researchEvolutionActions form button,.researchEvolutionActions a{width:100%;justify-content:center}.researchEvolutionSnapshotRows>div{grid-template-columns:1fr}.researchEvolutionLedgerRows article{grid-template-columns:1fr}}
 
+/* Research Missions V1 — Section 5 Mission Command Center */
+.researchMissionsCanvas{display:grid;gap:18px}
+.researchMissionsHero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.researchMissionsHero h1{margin:.25rem 0 .4rem}
+.researchMissionsHero p{max-width:880px;margin:0;color:var(--muted,#666);line-height:1.5}
+.researchMissionsHero label{display:grid;gap:6px;min-width:220px;font-size:.75rem;font-weight:800}
+.researchMissionsStats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.researchMissionsStats>div{display:grid;gap:4px;padding:14px 16px;border:1px solid var(--line,#dfdfda);border-radius:14px;background:var(--panel,#fff)}
+.researchMissionsStats strong{font-size:1.45rem}
+.researchMissionsStats span{font-size:.74rem;color:var(--muted,#666)}
+.researchMissionsTopGrid{display:grid;grid-template-columns:minmax(290px,.72fr) minmax(0,1.28fr);gap:16px;align-items:start}
+.researchMissionsCreate{display:grid;gap:10px;position:sticky;top:16px}
+.researchMissionsCreate h2,.researchMissionsList h2{margin:.2rem 0}
+.researchMissionsCreate form{display:grid;gap:11px}
+.researchMissionsCreate label{display:grid;gap:6px;font-size:.76rem;font-weight:800}
+.researchMissionsCreate label small{font-weight:600;color:var(--muted,#666)}
+.researchMissionsCreate input,.researchMissionsCreate textarea,.researchMissionsCreate select{width:100%}
+.researchMissionsList{display:grid;gap:10px}
+.researchMissionsList>header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.researchMissionsList>header small{color:var(--muted,#666)}
+.researchMissionCardGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.researchMissionCard{display:grid;gap:10px}
+.researchMissionCard.is-selected{outline:2px solid var(--ink,#171717);outline-offset:1px}
+.researchMissionCard>a{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;text-decoration:none;color:inherit}
+.researchMissionCard>a div{min-width:0}
+.researchMissionCard>a span{font-size:.66rem;font-weight:900;letter-spacing:.06em}
+.researchMissionCard h3{margin:.2rem 0 0}
+.researchMissionCard>a>strong{font-size:.72rem;white-space:nowrap}
+.researchMissionCard>p{margin:0;color:var(--muted,#666);line-height:1.45}
+.researchMissionProgress{height:7px;border-radius:999px;background:var(--soft,#efefeb);overflow:hidden}
+.researchMissionProgress>span{display:block;height:100%;background:var(--ink,#171717);border-radius:inherit}
+.researchMissionMeta{display:flex;gap:10px;flex-wrap:wrap;font-size:.72rem;color:var(--muted,#666)}
+.researchMissionCommandCenter{display:grid;gap:14px}
+.researchMissionCommandHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.researchMissionCommandHeader h2{margin:.2rem 0 .35rem}
+.researchMissionCommandHeader>div:first-child{min-width:0;max-width:900px}
+.researchMissionCommandHeader p{line-height:1.5}
+.researchMissionQuestion{font-weight:800;margin:.45rem 0}
+.researchMissionCommandActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;min-width:230px}
+.researchMissionProgressGrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.researchMissionProgressGrid .card{display:grid;gap:6px;align-content:start}
+.researchMissionProgressGrid .card>strong{font-size:1.5rem}
+.researchMissionProgressGrid .card>p{margin:0;color:var(--muted,#666);font-size:.77rem;line-height:1.35}
+.researchMissionProgressHero{grid-column:span 2}
+.researchMissionAttention{display:grid;gap:10px}
+.researchMissionAttention h3{margin:.2rem 0}
+.researchMissionAttention ul{margin:0;padding-left:1.15rem}
+.researchMissionBlocker{display:grid;gap:3px;padding:10px 0;border-top:1px solid var(--line,#e2e2dd)}
+.researchMissionBlocker span,.researchMissionBlocker p{font-size:.78rem;color:var(--muted,#666);margin:0}
+.researchMissionWorkspaceGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.researchMissionWorkspaceGrid .card{display:grid;gap:10px;align-content:start}
+.researchMissionWorkspaceGrid h3,.researchMissionPlanPanel h3,.researchMissionProgramPanel h3{margin:.2rem 0}
+.researchMissionQuestionRow,.researchMissionCriterionRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:11px 0;border-top:1px solid var(--line,#e2e2dd)}
+.researchMissionQuestionRow:first-of-type,.researchMissionCriterionRow:first-of-type{border-top:0}
+.researchMissionQuestionRow p,.researchMissionCriterionRow p{margin:.3rem 0 0;color:var(--muted,#666);font-size:.82rem;line-height:1.4}
+.researchMissionQuestionRow>span,.researchMissionCriterionRow>span{font-size:.72rem;font-weight:800;white-space:nowrap}
+.researchMissionSuccessDefinition{margin:.2rem 0 .4rem;color:var(--muted,#666);line-height:1.45}
+.researchMissionPlanPanel{display:grid;gap:12px}
+.researchMissionPlanPanel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.researchMissionPlanPanel>header p{margin:.25rem 0 0;color:var(--muted,#666)}
+.researchMissionPanelLinks{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.researchMissionPanelLinks a{display:inline-flex;align-items:center;min-height:34px;padding:0 11px;border:1px solid var(--line,#d9d9d5);border-radius:9px;text-decoration:none;color:inherit;font-size:.74rem;font-weight:800}
+.researchMissionTaskGraph{display:grid;gap:8px}
+.researchMissionTaskNode{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line,#e2e2dd)}
+.researchMissionTaskNode:first-child{border-top:0}
+.researchMissionTaskNode>span{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line,#d8d8d3);border-radius:50%;font-size:.72rem;font-weight:900}
+.researchMissionTaskNode div{display:grid;gap:3px}
+.researchMissionTaskNode small{color:var(--muted,#666);font-size:.72rem}
+.researchMissionTaskNode p{margin:.25rem 0 0;color:var(--muted,#666);font-size:.82rem;line-height:1.4}
+.researchMissionTaskNode.is-complete>span,.researchMissionTaskNode.is-done>span{background:var(--ink,#171717);color:var(--panel,#fff);border-color:var(--ink,#171717)}
+.researchMissionEvidence>div{display:grid;gap:2px;padding:9px 0;border-top:1px solid var(--line,#e2e2dd)}
+.researchMissionEvidence>div:first-of-type{border-top:0}
+.researchMissionEvidence span,.researchMissionEvidence small{font-size:.72rem;color:var(--muted,#666)}
+.researchMissionAnswer p{margin:.2rem 0;line-height:1.55}
+.researchMissionProgramPanel{display:grid;gap:12px}
+.researchMissionProgramPanel>header p{margin:.25rem 0 0;color:var(--muted,#666)}
+.researchMissionProgramBound{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-top:10px;border-top:1px solid var(--line,#e2e2dd)}
+.researchMissionProgramBound>div:first-child{display:grid;gap:3px}
+.researchMissionProgramBound span,.researchMissionProgramBound small{font-size:.76rem;color:var(--muted,#666)}
+.researchMissionProgramActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.researchMissionProgramActions a{display:inline-flex;align-items:center;padding:0 10px;min-height:34px;border:1px solid var(--line,#d9d9d5);border-radius:9px;text-decoration:none;color:inherit;font-size:.74rem;font-weight:800}
+.researchMissionProgramBind{display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,.4fr) auto;gap:10px;align-items:end}
+.researchMissionProgramBind label{display:grid;gap:6px;font-size:.76rem;font-weight:800}
+.researchMissionHistory{display:grid;gap:0}
+.researchMissionHistory>div{display:grid;gap:2px;padding:9px 0;border-top:1px solid var(--line,#e2e2dd)}
+.researchMissionHistory>div:first-child{border-top:0}
+.researchMissionHistory span{font-size:.72rem;color:var(--muted,#666)}
+@media(max-width:1180px){.researchMissionsStats{grid-template-columns:repeat(3,minmax(0,1fr))}.researchMissionProgressGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.researchMissionsHero,.researchMissionCommandHeader,.researchMissionPlanPanel>header,.researchMissionProgramBound{flex-direction:column}.researchMissionsHero label{width:100%}.researchMissionsTopGrid,.researchMissionWorkspaceGrid{grid-template-columns:1fr}.researchMissionsCreate{position:static}.researchMissionCardGrid{grid-template-columns:1fr}.researchMissionCommandActions,.researchMissionPanelLinks,.researchMissionProgramActions{justify-content:flex-start}.researchMissionProgramBind{grid-template-columns:1fr}}
+@media(max-width:620px){.researchMissionsStats,.researchMissionProgressGrid{grid-template-columns:1fr}.researchMissionProgressHero{grid-column:auto}.researchMissionQuestionRow,.researchMissionCriterionRow{grid-template-columns:1fr}.researchMissionCommandActions>*{width:100%}.researchMissionPanelLinks>*{width:100%;justify-content:center}}
+
