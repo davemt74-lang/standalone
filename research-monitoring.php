@@ -29,6 +29,7 @@ $csrf=csrf_token();
       <a href="/research-agent-knowledge.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Knowledge</a>
       <a href="/research-reports.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Reports</a>
       <a class="active" href="/research-monitoring.php">Monitoring</a>
+      <a href="/research-missions.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Missions</a>
       <a href="/research-tasks.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Tasks</a>
       <a href="/research-programs.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Programs</a>
       <a href="/research-portfolio.php">Portfolio</a>
