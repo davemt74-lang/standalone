@@ -12,10 +12,10 @@ $must('app/research-decisions.php',[
  'research_decision_review_overview','research_decision_command_center','attention_reasons'
 ],'Decision Command Center model');
 $must('app/research-reviews.php',[
- "$type==='decision'","$type==='decision_reconsideration'",'research_decision_review_state_hash',
+ '$type===\'decision\'','$type===\'decision_reconsideration\'','research_decision_review_state_hash',
  'research_decision_reconsideration_review_state_hash','/research-decisions.php?decision='
 ],'Native Decision Team Review');
-$must('api/research-decisions.php',["'command_center'","$action==='command_center'"],'Decision Command Center API');
+$must('api/research-decisions.php',["'command_center'",'$action===\'command_center\''],'Decision Command Center API');
 $must('research-decisions.php',[
  'Decision Command Center','Request Team Review','Request review of this reconsideration','Explicit Decision action',
  'Team review is advisory'
