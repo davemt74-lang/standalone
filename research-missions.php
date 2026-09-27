@@ -10,7 +10,7 @@ $selectedAgentId=trim((string)($_GET['agent']??($agents[0]['public_id']??'')));$
 foreach($agents as $agent)if(hash_equals((string)$agent['public_id'],$selectedAgentId)){$selectedAgent=$agent;break;}
 if(!$selectedAgent&&$agents){$selectedAgent=$agents[0];$selectedAgentId=(string)$selectedAgent['public_id'];}
 
-$missions=$selectedAgent?research_mission_list($pdo,$u,$selectedAgentId,150):[];
+$missions=$selectedAgent?research_mission_list($pdo,$u,$selectedAgentId,60):[];
 $missionSummary=$selectedAgent?research_mission_summary($pdo,$u,$selectedAgentId):['missions'=>0,'statuses'=>[],'criteria'=>['total'=>0,'satisfied'=>0],'subquestions'=>['total'=>0,'answered'=>0]];
 $selectedMissionId=trim((string)($_GET['mission']??($missions[0]['public_id']??'')));
 $selectedMission=$selectedMissionId!==''?research_mission_detail($pdo,$u,$selectedMissionId):null;
@@ -18,8 +18,12 @@ if(!$selectedMission&&$missions){$selectedMissionId=(string)$missions[0]['public
 $programs=$selectedAgent?research_program_list($pdo,$u,$selectedAgentId,100):[];
 $csrf=csrf_token();
 
-$missionPct=function(array $mission)use($pdo,$u): int{
-    try{return (int)(research_mission_progress($pdo,$u,(string)$mission['public_id'])['percent_complete']??0);}catch(Throwable $e){return 0;}
+$missionPct=function(array $mission): int{
+    $parts=[];
+    $questions=(int)($mission['subquestion_count']??0);if($questions>0)$parts[]=100*((int)($mission['subquestion_answered']??0)/$questions);
+    $criteria=(int)($mission['criteria_count']??0);if($criteria>0)$parts[]=100*((int)($mission['criteria_satisfied']??0)/$criteria);
+    if((string)($mission['status']??'')==='completed')return 100;
+    return $parts?(int)round(array_sum($parts)/count($parts)):0;
 };
 $eventLabel=fn(string $v)=>ucwords(str_replace('_',' ',$v));
 $evidence=[];
