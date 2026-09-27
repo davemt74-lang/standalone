@@ -90,6 +90,7 @@ require_once __DIR__ . '/research-missions.php';
 require_once __DIR__ . '/cross-research.php';
 require_once __DIR__ . '/research-outcomes.php';
 require_once __DIR__ . '/research-decisions.php';
+require_once __DIR__ . '/research-action-plans.php';
 require_once __DIR__ . '/research-reviews.php';
 require_once __DIR__ . '/change-impact.php';
 require_once __DIR__ . '/research-portfolio.php';
