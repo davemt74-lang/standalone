@@ -436,6 +436,10 @@ function research_system_report_generate(PDO $pdo,array $config,array $viewer,st
     $project=research_agent_workspace_project($pdo,$viewer,(string)$agent['public_id']);if(!$project)throw new RuntimeException('Research Agent workspace not found.');
     research_agent_workspace_require_write($project);$type=research_system_report_type($reportType);
     $options=research_report_studio_options($studioOptions);
+    if(in_array((string)$type['key'],['research_evolution','what_changed','confidence_contradictions','open_questions_evolution','entity_theme_evolution'],true)
+      &&function_exists('research_longitudinal_capture')&&research_longitudinal_ready($pdo)){
+        try{research_longitudinal_capture($pdo,$viewer,$agentPublic,'report_generated',null);}catch(Throwable $e){error_log('[Annotated Longitudinal Report capture] '.$e->getMessage());}
+    }
     $snapshot=research_system_report_snapshot($pdo,$config,$viewer,$agent);
     $snapshot=research_report_studio_scope_snapshot($pdo,$config,$viewer,$agent,$snapshot,$options);
     $render=research_system_report_render((string)$type['key'],$snapshot);
