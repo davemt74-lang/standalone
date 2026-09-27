@@ -14,11 +14,11 @@ try{
     if($action==='summary'){
         rate_limit_api_or_429($pdo,'research-longitudinal-read','user:'.$viewer['id'],600,3600);
         $days=max(1,min(3650,(int)($input['days']??30)));$since=date('Y-m-d H:i:s',strtotime('-'.$days.' days'));
-        json_response(['ok'=>true,'data'=>['latest'=>research_longitudinal_latest_snapshot($pdo,$viewer,$agent),'summary'=>research_longitudinal_summary($pdo,$viewer,$agent,$since),'days'=>$days]]);
+        json_response(['ok'=>true,'data'=>['latest_snapshot'=>research_longitudinal_latest_snapshot($pdo,$viewer,$agent),'summary'=>research_longitudinal_summary($pdo,$viewer,$agent,$since),'days'=>$days]]);
     }
     if($action==='snapshots'){
         rate_limit_api_or_429($pdo,'research-longitudinal-read','user:'.$viewer['id'],600,3600);
-        json_response(['ok'=>true,'data'=>['snapshots'=>research_longitudinal_snapshot_list($pdo,$viewer,$agent,(int)($input['limit']??60))]]);
+        json_response(['ok'=>true,'data'=>['snapshots'=>research_longitudinal_snapshot_list($pdo,$viewer,$agent,(int)($input['limit']??80))]]);
     }
     if($action==='changes'){
         rate_limit_api_or_429($pdo,'research-longitudinal-read','user:'.$viewer['id'],600,3600);
@@ -27,9 +27,15 @@ try{
     }
     if($action==='compare'){
         rate_limit_api_or_429($pdo,'research-longitudinal-read','user:'.$viewer['id'],300,3600);
-        $comparison=research_longitudinal_compare_snapshots($pdo,$viewer,(string)($input['older_snapshot_id']??''),(string)($input['newer_snapshot_id']??''));
-        if(!hash_equals((string)$comparison['newer']['agent_public_id'],$agent))throw new RuntimeException('Snapshot is unavailable.');
+        $older=trim((string)($input['older_snapshot_id']??''));$newer=trim((string)($input['newer_snapshot_id']??''));if($older===''||$newer==='')throw new InvalidArgumentException('Two longitudinal snapshot IDs are required.');
+        $comparison=research_longitudinal_compare_snapshots($pdo,$viewer,$older,$newer);
+        if(!hash_equals((string)$comparison['newer']['agent_public_id'],$agent))throw new RuntimeException('Longitudinal snapshot not found.');
         json_response(['ok'=>true,'data'=>['comparison'=>$comparison]]);
+    }
+    if($action==='context'){
+        rate_limit_api_or_429($pdo,'research-longitudinal-read','user:'.$viewer['id'],300,3600);
+        $since=trim((string)($input['since']??''));$resolved=$since!==''?research_longitudinal_since_token($pdo,$viewer,$agent,$since):date('Y-m-d H:i:s',strtotime('-30 days'));
+        json_response(['ok'=>true,'data'=>['text'=>research_longitudinal_context_since($pdo,$viewer,$agent,$resolved,(int)($input['limit']??24)),'since'=>$resolved]]);
     }
     if($action==='capture'){
         rate_limit_api_or_429($pdo,'research-longitudinal-write','user:'.$viewer['id'],120,3600);
