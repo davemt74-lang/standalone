@@ -8,7 +8,7 @@ $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
 $input=$method==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $readActions=['list','summary','detail'];
+    $readActions=['list','summary','detail','progress'];
     $viewer=in_array($action,$readActions,true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_missions_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Research Missions require the latest database upgrade.']],503);
 
@@ -24,6 +24,10 @@ try{
         $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
         $row=research_mission_detail($pdo,$viewer,$mission);if(!$row)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
         json_response(['ok'=>true,'data'=>['mission'=>$row]]);
+    }
+    if($action==='progress'){
+        $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
+        json_response(['ok'=>true,'data'=>['progress'=>research_mission_progress($pdo,$viewer,$mission)]]);
     }
 
     if($method!=='POST')json_response(['ok'=>false,'error'=>['code'=>'METHOD_NOT_ALLOWED','message'=>'Mission changes require POST.']],405);
