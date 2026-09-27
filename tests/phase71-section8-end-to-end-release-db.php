@@ -140,7 +140,7 @@ $centerAfter=research_decision_command_center($pdo,$owner,'reopened',200);
 p71s8(in_array($decision['public_id'],array_column((array)$centerAfter['decisions'],'public_id'),true),'Decision Command Center Reopened view reflects the explicit reconsideration Apply.');
 
 $q=$pdo->prepare('SELECT COUNT(*) FROM research_decision_handoffs WHERE decision_id=?');$q->execute([(int)$decision['id']]);p71s8((int)$q->fetchColumn()===1,'Final lifecycle retains one authoritative Mission handoff.');
-$q=$pdo->prepare('SELECT COUNT(*) FROM research_decision_outcomes WHERE decision_id=?');$q->execute([(int)$decision['id']);p71s8((int)$q->fetchColumn()===1,'Final lifecycle retains one authoritative observed Decision outcome.');
+$q=$pdo->prepare('SELECT COUNT(*) FROM research_decision_outcomes WHERE decision_id=?');$q->execute([(int)$decision['id']]);p71s8((int)$q->fetchColumn()===1,'Final lifecycle retains one authoritative observed Decision outcome.');
 
 p71s8(research_decision_access($pdo,$outsider,(string)$decision['public_id'])===null,'Outsider cannot access Team Decision Memory.');
 $pdo->prepare('DELETE FROM team_members WHERE team_id=? AND user_id=?')->execute([$teamId,(int)$reviewer['id']]);
