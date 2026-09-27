@@ -55,7 +55,7 @@ $createRecipients=$canCreate?research_review_eligible_reviewers($pdo,$u,(string)
 $selectedRecipientIds=[];if($workflow)foreach((array)$workflow['distribution_targets'] as $target)if($target['target_type']==='user'&&!empty($target['target_user_id']))$selectedRecipientIds[(int)$target['target_user_id']]=true;
 $statuses=research_publication_statuses();$csrf=csrf_token();
 ?><!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Research Publishing · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Research Publishing · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=71.1"></head>
 <body>
 <header class="topbar"><a class="brand" href="/home.php">Annotated</a><nav><a href="/research.php">Research</a><a href="/research-reviews.php">Review Center</a><a href="/research-publications.php">Publishing</a></nav></header>
 <main class="publicationCenter">

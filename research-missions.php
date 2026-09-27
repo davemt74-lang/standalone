@@ -33,7 +33,7 @@ if($selectedMission&&!empty($selectedMission['plan']['tasks']))foreach($selected
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research Missions · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css?v=59.0">
+<link rel="stylesheet" href="/assets/css/app.css?v=71.1">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-missions">
 <main class="researchLibraryCanvas researchMissionsCanvas">

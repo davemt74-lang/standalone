@@ -47,6 +47,7 @@ php tests/phase71-section5-decision-evolution-reconsideration-contract.php
 php tests/phase71-section6-agent-now-report-integration-contract.php
 php tests/phase71-section7-decision-command-center-team-review-contract.php
 php tests/phase71-section8-end-to-end-release-contract.php
+php tests/post-phase71-research-publications-ui-hotfix-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php

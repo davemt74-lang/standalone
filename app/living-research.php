@@ -104,7 +104,7 @@ function living_research_subscribed_reports(PDO $pdo,array $viewer,int $limit=10
 }
 
 function living_research_managed_reports(PDO $pdo,array $viewer,int $limit=100): array {
-    $limit=max(1,min(200,$limit));$uid=(int)$viewer['id'];$q=$pdo->prepare("SELECT DISTINCT rr.public_id FROM research_reports rr JOIN research_projects rp ON rp.id=rr.project_id LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.role IN ('owner','admin') ORDER BY rr.updated_at DESC LIMIT ".$limit);$q->execute([$uid,$uid]);$out=[];
+    $limit=max(1,min(200,$limit));$uid=(int)$viewer['id'];$q=$pdo->prepare("SELECT DISTINCT rr.public_id,rr.updated_at,rr.id FROM research_reports rr JOIN research_projects rp ON rp.id=rr.project_id LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.role IN ('owner','admin') ORDER BY rr.updated_at DESC,rr.id DESC LIMIT ".$limit);$q->execute([$uid,$uid]);$out=[];
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $public){$report=research_report_access($pdo,(string)$public,$viewer);if(!$report)continue;$report['topics']=living_research_topics($pdo,(int)$report['id']);$report['subscriber_count']=living_research_subscriber_count($pdo,(int)$report['id']);$report['staleness']=living_research_staleness($pdo,$viewer,$report);$out[]=$report;}return $out;
 }
 
