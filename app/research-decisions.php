@@ -159,6 +159,7 @@ function research_decision_detail(PDO $pdo,array $viewer,string $publicId): ?arr
     $decision['refs']=research_decision_refs($pdo,(int)$decision['id']);$decision['versions']=research_decision_versions($pdo,(int)$decision['id'],50);$decision['events']=research_decision_events($pdo,(int)$decision['id'],100);
     $decision['handoff']=research_decision_handoff_for_decision($pdo,(int)$decision['id']);
     $decision['challenges']=research_decision_challenges($pdo,(int)$decision['id']);
+    $decision['outcomes']=research_decision_outcomes($pdo,$viewer,(int)$decision['id']);
     return $decision;
 }
 
@@ -440,5 +441,110 @@ function research_decision_evidence_graph(PDO $pdo,array $viewer,string $decisio
         foreach((array)$challenge['refs'] as $ref){$nid=$addRefNode($ref);$edges[]=['from'=>$nid,'to'=>$cid,'relationship'=>(string)$ref['ref_role'],'strength'=>$ref['strength']!==null?(float)$ref['strength']:null,'note'=>(string)($ref['note']??'')];}
     }
     return ['decision_id'=>(string)$decision['public_id'],'revision'=>(int)$decision['current_revision'],'counts'=>$counts,'nodes'=>array_values($nodes),'edges'=>$edges];
+}
+
+function research_decision_outcomes_ready(PDO $pdo): bool {
+    try{return installer_table_exists($pdo,'research_decision_outcomes')&&installer_table_exists($pdo,'research_decision_outcome_versions')&&research_outcomes_ready($pdo);}
+    catch(Throwable $e){return false;}
+}
+function research_decision_outcome_assessments(): array {return ['unresolved'=>'Unresolved','success'=>'Success','partial'=>'Partial success','failure'=>'Failure','mixed'=>'Mixed'];}
+function research_decision_outcome_follow_up_states(): array {return ['none'=>'None','follow_up'=>'Follow up','resolved'=>'Resolved','reopened'=>'Reopened'];}
+function research_decision_outcome_phase20_type(string $assessment): string {
+    return match($assessment){'success'=>'completed','failure'=>'failed',default=>'recorded'};
+}
+function research_decision_outcome_versions(PDO $pdo,int $decisionOutcomeId,int $limit=50): array {
+    if(!research_decision_outcomes_ready($pdo))return [];
+    $q=$pdo->prepare("SELECT public_id,revision_number,snapshot_json,change_reason,edited_by_user_id,edited_by_agent,created_at FROM research_decision_outcome_versions WHERE decision_outcome_id=? ORDER BY revision_number DESC,id DESC LIMIT ".max(1,min(100,$limit)));
+    $q->execute([$decisionOutcomeId]);$rows=$q->fetchAll()?:[];foreach($rows as &$r)$r['snapshot']=research_decision_json($r['snapshot_json']??null);unset($r);return $rows;
+}
+function research_decision_outcome_event_refs(PDO $pdo,int $outcomeEventId): array {
+    $q=$pdo->prepare("SELECT ref_type,ref_public_id,ref_role,created_at FROM research_outcome_refs WHERE outcome_id=? ORDER BY ref_role,ref_type,ref_public_id");
+    $q->execute([$outcomeEventId]);return $q->fetchAll()?:[];
+}
+function research_decision_outcome_row(PDO $pdo,int $id): ?array {
+    $q=$pdo->prepare("SELECT rdo.*,roe.public_id outcome_event_public_id,roe.user_id outcome_event_user_id,roe.title outcome_event_title,roe.summary outcome_event_summary,roe.note outcome_event_note,roe.metadata_json outcome_event_metadata_json,roe.occurred_at outcome_event_occurred_at,rd.public_id decision_public_id
+      FROM research_decision_outcomes rdo JOIN research_outcome_events roe ON roe.id=rdo.outcome_event_id JOIN research_decisions rd ON rd.id=rdo.decision_id WHERE rdo.id=? LIMIT 1");
+    $q->execute([$id]);$row=$q->fetch();if(!$row)return null;
+    $row['outcome_event_metadata']=research_decision_json($row['outcome_event_metadata_json']??null);$row['refs']=research_decision_outcome_event_refs($pdo,(int)$row['outcome_event_id']);$row['versions']=research_decision_outcome_versions($pdo,(int)$row['id'],50);return $row;
+}
+function research_decision_outcomes(PDO $pdo,array $viewer,int $decisionId,int $limit=100): array {
+    if(!research_decision_outcomes_ready($pdo))return [];
+    $decision=research_decision_by_id($pdo,$decisionId);if(!$decision||!research_decision_access($pdo,$viewer,(string)$decision['public_id']))return [];
+    $q=$pdo->prepare("SELECT id FROM research_decision_outcomes WHERE decision_id=? ORDER BY observed_at DESC,id DESC LIMIT ".max(1,min(200,$limit)));$q->execute([$decisionId]);$out=[];
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$row=research_decision_outcome_row($pdo,(int)$id);if($row)$out[]=$row;}return $out;
+}
+function research_decision_outcome_access(PDO $pdo,array $viewer,string $publicId): ?array {
+    if(!research_decision_outcomes_ready($pdo))return null;$q=$pdo->prepare("SELECT id,decision_id FROM research_decision_outcomes WHERE public_id=? LIMIT 1");$q->execute([trim($publicId)]);$base=$q->fetch();if(!$base)return null;
+    $decision=research_decision_by_id($pdo,(int)$base['decision_id']);if(!$decision||!research_decision_access($pdo,$viewer,(string)$decision['public_id']))return null;return research_decision_outcome_row($pdo,(int)$base['id']);
+}
+function research_decision_outcome_snapshot_payload(array $row): array {
+    return [
+      'assessment'=>(string)$row['assessment'],'expected_summary'=>(string)($row['expected_summary']??''),'actual_summary'=>(string)$row['actual_summary'],
+      'variance_summary'=>(string)($row['variance_summary']??''),'lessons'=>(string)($row['lessons']??''),
+      'confidence'=>$row['confidence']!==null?(float)$row['confidence']:null,'follow_up_state'=>(string)$row['follow_up_state'],
+      'observed_at'=>(string)$row['observed_at'],'outcome_event_public_id'=>(string)$row['outcome_event_public_id'],
+      'refs'=>array_map(fn($r)=>['ref_type'=>(string)$r['ref_type'],'ref_public_id'=>(string)$r['ref_public_id'],'ref_role'=>(string)$r['ref_role']],(array)($row['refs']??[]))
+    ];
+}
+function research_decision_outcome_write_version(PDO $pdo,array $row,string $reason,?int $userId,bool $byAgent=false): void {
+    $q=$pdo->prepare("SELECT COALESCE(MAX(revision_number),0)+1 FROM research_decision_outcome_versions WHERE decision_outcome_id=?");$q->execute([(int)$row['id']]);$revision=(int)$q->fetchColumn();
+    $pdo->prepare("INSERT INTO research_decision_outcome_versions(public_id,decision_outcome_id,revision_number,snapshot_json,change_reason,edited_by_user_id,edited_by_agent) VALUES(?,?,?,?,?,?,?)")
+      ->execute([ulid_like(),(int)$row['id'],$revision,json_encode(research_decision_outcome_snapshot_payload($row),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION),research_decision_text($reason,1000)?:null,$userId,$byAgent?1:0]);
+}
+function research_decision_outcome_normalize(array $input,array $current=[]): array {
+    $assessment=(string)($input['assessment']??($current['assessment']??'unresolved'));if(!isset(research_decision_outcome_assessments()[$assessment]))throw new InvalidArgumentException('Invalid Decision outcome assessment.');
+    $expected=array_key_exists('expected_summary',$input)?research_decision_text((string)$input['expected_summary'],64000):(string)($current['expected_summary']??'');
+    $actual=array_key_exists('actual_summary',$input)?research_decision_text((string)$input['actual_summary'],64000):(string)($current['actual_summary']??'');if($actual==='')throw new InvalidArgumentException('Actual outcome summary is required.');
+    $variance=array_key_exists('variance_summary',$input)?research_decision_text((string)$input['variance_summary'],64000):(string)($current['variance_summary']??'');
+    $lessons=array_key_exists('lessons',$input)?research_decision_text((string)$input['lessons'],64000):(string)($current['lessons']??'');
+    $confidence=array_key_exists('confidence',$input)?($input['confidence']===''?null:(float)$input['confidence']):($current&&$current['confidence']!==null?(float)$current['confidence']:null);if($confidence!==null&&($confidence<0||$confidence>1))throw new InvalidArgumentException('Outcome confidence must be between 0 and 1.');
+    $follow=(string)($input['follow_up_state']??($current['follow_up_state']??'none'));if(!isset(research_decision_outcome_follow_up_states()[$follow]))throw new InvalidArgumentException('Invalid Decision outcome follow-up state.');
+    $observed=trim((string)($input['observed_at']??($current['observed_at']??'')));if($observed===''||strtotime($observed)===false)$observed=date('Y-m-d H:i:s');
+    return ['assessment'=>$assessment,'expected_summary'=>$expected,'actual_summary'=>$actual,'variance_summary'=>$variance,'lessons'=>$lessons,'confidence'=>$confidence,'follow_up_state'=>$follow,'observed_at'=>date('Y-m-d H:i:s',strtotime($observed))];
+}
+function research_decision_outcome_refs(PDO $pdo,array $viewer,array $decision,array $input): array {
+    $refs=research_outcome_normalize_refs((array)($input['refs']??[]));
+    $refs[]=['type'=>'decision','public_id'=>(string)$decision['public_id'],'role'=>'source'];$refs[]=['type'=>'project','public_id'=>(string)$decision['project_public_id'],'role'=>'context'];
+    $refs=research_outcome_normalize_refs($refs);foreach($refs as $ref)if(!research_outcome_ref_access($pdo,$viewer,(string)$ref['type'],(string)$ref['public_id']))throw new InvalidArgumentException('Outcome evidence is unavailable in this Research context.');return $refs;
+}
+function research_decision_record_outcome(PDO $pdo,array $viewer,string $decisionPublic,array $input,bool $byAgent=false): array {
+    if(!research_decision_outcomes_ready($pdo))throw new RuntimeException('Decision Outcome Memory requires the latest database upgrade.');
+    $decision=research_decision_access($pdo,$viewer,$decisionPublic);if(!$decision)throw new RuntimeException('Decision not found.');
+    if(!in_array((string)$decision['status'],['accepted','rejected','deferred','superseded'],true))throw new InvalidArgumentException('Record an explicit Decision disposition before recording its outcome.');
+    $x=research_decision_outcome_normalize($input);$refs=research_decision_outcome_refs($pdo,$viewer,$decision,$input);
+    $public=ulid_like();$idempotency=trim((string)($input['idempotency_key']??''));if($idempotency==='')$idempotency=hash('sha256',json_encode([(string)$decision['public_id'],$x['assessment'],$x['actual_summary'],$x['observed_at']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+    $event=research_outcome_record($pdo,$viewer,[
+      'event_type'=>'decision_outcome','decision_type'=>research_decision_outcome_phase20_type($x['assessment']),'source_type'=>'research_decision','source_public_id'=>(string)$decision['public_id'],
+      'project_public_id'=>(string)$decision['project_public_id'],'object_type'=>'decision','object_public_id'=>(string)$decision['public_id'],
+      'title'=>'Decision outcome · '.(string)$decision['title'],'summary'=>$x['actual_summary'],'note'=>$x['lessons'],'refs'=>$refs,'is_manual'=>!$byAgent,
+      'occurred_at'=>$x['observed_at'],'dedupe_key'=>'decision_outcome:'.(string)$decision['public_id'].':'.$idempotency,
+      'metadata'=>['assessment'=>$x['assessment'],'expected_summary'=>$x['expected_summary'],'variance_summary'=>$x['variance_summary'],'confidence'=>$x['confidence'],'follow_up_state'=>$x['follow_up_state'],'decision_revision'=>(int)$decision['current_revision'],'decision_status'=>(string)$decision['status']]
+    ]);
+    if(!$event)throw new RuntimeException('Outcome Learning event could not be recorded.');
+    $q=$pdo->prepare("SELECT id FROM research_decision_outcomes WHERE outcome_event_id=? LIMIT 1");$q->execute([(int)$event['id']]);$existing=(int)($q->fetchColumn()?:0);if($existing>0)return research_decision_outcome_row($pdo,$existing)??[];
+    $pdo->prepare("INSERT INTO research_decision_outcomes(public_id,decision_id,outcome_event_id,assessment,expected_summary,actual_summary,variance_summary,lessons,confidence,follow_up_state,recorded_by_user_id,created_by_agent,observed_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([$public,(int)$decision['id'],(int)$event['id'],$x['assessment'],$x['expected_summary']!==''?$x['expected_summary']:null,$x['actual_summary'],$x['variance_summary']!==''?$x['variance_summary']:null,$x['lessons']!==''?$x['lessons']:null,$x['confidence'],$x['follow_up_state'],(int)$viewer['id'],$byAgent?1:0,$x['observed_at']]);
+    $row=research_decision_outcome_row($pdo,(int)$pdo->lastInsertId());if(!$row)throw new RuntimeException('Decision Outcome Memory could not be loaded.');
+    research_decision_outcome_write_version($pdo,$row,'Initial observed outcome',(int)$viewer['id'],$byAgent);
+    research_decision_event($pdo,$decision,'decision_outcome_recorded',$byAgent?'agent':'user',(int)$viewer['id'],['decision_outcome_id'=>$public,'outcome_event_id'=>$event['public_id'],'assessment'=>$x['assessment'],'follow_up_state'=>$x['follow_up_state']]);
+    return research_decision_outcome_access($pdo,$viewer,$public)??$row;
+}
+function research_decision_update_outcome(PDO $pdo,array $viewer,string $outcomePublic,array $input,bool $byAgent=false): array {
+    $row=research_decision_outcome_access($pdo,$viewer,$outcomePublic);if(!$row)throw new RuntimeException('Decision outcome not found.');$decision=research_decision_access($pdo,$viewer,(string)$row['decision_public_id']);if(!$decision)throw new RuntimeException('Decision not found.');
+    $x=research_decision_outcome_normalize($input,$row);$refs=array_key_exists('refs',$input)?research_decision_outcome_refs($pdo,$viewer,$decision,$input):(array)$row['refs'];
+    $pdo->prepare("UPDATE research_decision_outcomes SET assessment=?,expected_summary=?,actual_summary=?,variance_summary=?,lessons=?,confidence=?,follow_up_state=?,observed_at=?,updated_at=NOW() WHERE id=?")
+      ->execute([$x['assessment'],$x['expected_summary']!==''?$x['expected_summary']:null,$x['actual_summary'],$x['variance_summary']!==''?$x['variance_summary']:null,$x['lessons']!==''?$x['lessons']:null,$x['confidence'],$x['follow_up_state'],$x['observed_at'],(int)$row['id']]);
+    $metadata=['assessment'=>$x['assessment'],'expected_summary'=>$x['expected_summary'],'variance_summary'=>$x['variance_summary'],'confidence'=>$x['confidence'],'follow_up_state'=>$x['follow_up_state'],'decision_revision'=>(int)$decision['current_revision'],'decision_status'=>(string)$decision['status']];
+    $pdo->prepare("UPDATE research_outcome_events SET decision_type=?,title=?,summary=?,note=?,metadata_json=?,occurred_at=?,updated_at=NOW() WHERE id=?")
+      ->execute([research_decision_outcome_phase20_type($x['assessment']),'Decision outcome · '.(string)$decision['title'],mb_substr($x['actual_summary'],0,1200),$x['lessons']!==''?$x['lessons']:null,json_encode($metadata,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$x['observed_at'],(int)$row['outcome_event_id']]);
+    if(array_key_exists('refs',$input)){$pdo->prepare("DELETE FROM research_outcome_refs WHERE outcome_id=?")->execute([(int)$row['outcome_event_id']]);$ins=$pdo->prepare("INSERT IGNORE INTO research_outcome_refs(outcome_id,ref_type,ref_public_id,ref_role) VALUES(?,?,?,?)");foreach($refs as $ref)$ins->execute([(int)$row['outcome_event_id'],$ref['type']??$ref['ref_type'],$ref['public_id']??$ref['ref_public_id'],$ref['role']??$ref['ref_role']]);}
+    $fresh=research_decision_outcome_row($pdo,(int)$row['id']);if(!$fresh)throw new RuntimeException('Updated Decision outcome could not be loaded.');
+    research_decision_outcome_write_version($pdo,$fresh,research_decision_text((string)($input['reason']??'Decision outcome updated'),1000),(int)$viewer['id'],$byAgent);
+    research_decision_event($pdo,$decision,'decision_outcome_updated',$byAgent?'agent':'user',(int)$viewer['id'],['decision_outcome_id'=>$outcomePublic,'assessment'=>$x['assessment'],'follow_up_state'=>$x['follow_up_state']]);
+    return research_decision_outcome_access($pdo,$viewer,$outcomePublic)??$fresh;
+}
+function research_decision_outcome_summary(PDO $pdo,array $viewer,string $decisionPublic): array {
+    $decision=research_decision_access($pdo,$viewer,$decisionPublic);if(!$decision)return ['total'=>0,'assessments'=>[],'follow_up'=>0,'reopened'=>0];$items=research_decision_outcomes($pdo,$viewer,(int)$decision['id'],200);
+    $assessments=[];$follow=0;$reopened=0;foreach($items as $r){$assessments[$r['assessment']]=($assessments[$r['assessment']]??0)+1;if($r['follow_up_state']==='follow_up')$follow++;if($r['follow_up_state']==='reopened')$reopened++;}return ['total'=>count($items),'assessments'=>$assessments,'follow_up'=>$follow,'reopened'=>$reopened];
 }
 
