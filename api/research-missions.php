@@ -57,6 +57,18 @@ try{
         $sub=trim((string)($input['subquestion_id']??''));if($sub==='')throw new InvalidArgumentException('Mission sub-question is required.');
         json_response(['ok'=>true,'data'=>['subquestion'=>research_mission_update_subquestion($pdo,$viewer,$sub,$input,false)]]);
     }
+    if($action==='create_plan'){
+        $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
+        json_response(['ok'=>true,'data'=>['mission'=>research_mission_create_plan($pdo,$viewer,$mission,$input,false)]],201);
+    }
+    if($action==='start'){
+        $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
+        json_response(['ok'=>true,'data'=>['mission'=>research_mission_start($pdo,$viewer,$mission,false)]]);
+    }
+    if($action==='pause'){
+        $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
+        json_response(['ok'=>true,'data'=>['mission'=>research_mission_pause($pdo,$viewer,$mission,false)]]);
+    }
     json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);
 }catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_INPUT','message'=>$e->getMessage()]],422);}
 catch(RuntimeException $e){json_response(['ok'=>false,'error'=>['code'=>'RESEARCH_MISSION_ERROR','message'=>$e->getMessage()]],403);}
