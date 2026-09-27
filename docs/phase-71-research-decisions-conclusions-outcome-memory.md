@@ -91,6 +91,51 @@ Section 2 adds an explicit bridge from a completed Research Mission execution cy
 - handoff retries cannot create duplicate Decisions for the same idempotency key
 - later Mission revisions cannot mutate an earlier handoff snapshot
 
+
+## Section 3 — Decision Evidence & Challenge Graph
+
+Section 3 makes every Decision inspectable from both sides without automatically changing its disposition.
+
+### Challenge model
+
+A Decision may carry explicit:
+
+- contradictions
+- assumptions that need validation
+- uncertainty requiring follow-up
+- alternatives that remain viable
+- open questions
+- reversal conditions: concrete evidence or events that would justify reconsidering the Decision
+
+Each challenge has a severity, lifecycle, resolution note, and its own project-scoped evidence/context references.
+
+### Graph
+
+The deterministic Decision Evidence Graph contains:
+
+- the Decision root
+- supporting and contradicting Decision references
+- assumptions, uncertainty, and alternatives already stored on the Decision
+- challenge nodes
+- challenge evidence that supports or counters each challenge
+- explicit reversal-condition nodes
+
+The graph is descriptive. It does not infer confidence, score the Decision, or change Decision status.
+
+### Revision behavior
+
+Challenge creation, edits, status changes, and challenge-reference changes participate in the existing immutable Decision configuration stream. The exact evidence/challenge picture can therefore be reconstructed for any Decision revision.
+
+### Section 3 invariants
+
+- challenge status never automatically changes Decision status
+- challenge evidence remains a pointer to existing accessible Research objects; content is never copied
+- cross-project challenge references are rejected
+- closing or accepting a challenge requires an explicit resolution note
+- reopening a challenge preserves its historical events and prior revisions
+- reversal conditions describe what would justify reconsideration but do not themselves reopen the Decision
+- no autonomous scoring, voting, acceptance, rejection, scheduler, worker, cron, or queue is introduced
+
 ## Planned Phase 71 sections
 
 1. Decision & Conclusion Ledger Foundation

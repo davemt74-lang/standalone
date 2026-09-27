@@ -112,7 +112,8 @@ function research_decision_config(PDO $pdo,array $decision): array {
       'rationale'=>(string)($decision['rationale']??''),'confidence'=>$decision['confidence']!==null?(float)$decision['confidence']:null,
       'assumptions'=>research_decision_json($decision['assumptions_json']??null),'uncertainty'=>research_decision_json($decision['uncertainty_json']??null),
       'alternatives'=>research_decision_json($decision['alternatives_json']??null),'accountable_user_public_id'=>(string)($decision['accountable_user_public_id']??''),
-      'source_mission_public_id'=>(string)($decision['source_mission_public_id']??''),'refs'=>$refs
+      'source_mission_public_id'=>(string)($decision['source_mission_public_id']??''),'refs'=>$refs,
+      'challenges'=>research_decision_challenge_config_rows($pdo,(int)$decision['id'])
     ];
 }
 function research_decision_hash(array $config): string {return hash('sha256',json_encode($config,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));}
@@ -157,6 +158,7 @@ function research_decision_detail(PDO $pdo,array $viewer,string $publicId): ?arr
     $decision['assumptions']=research_decision_json($decision['assumptions_json']??null);$decision['uncertainty']=research_decision_json($decision['uncertainty_json']??null);$decision['alternatives']=research_decision_json($decision['alternatives_json']??null);
     $decision['refs']=research_decision_refs($pdo,(int)$decision['id']);$decision['versions']=research_decision_versions($pdo,(int)$decision['id'],50);$decision['events']=research_decision_events($pdo,(int)$decision['id'],100);
     $decision['handoff']=research_decision_handoff_for_decision($pdo,(int)$decision['id']);
+    $decision['challenges']=research_decision_challenges($pdo,(int)$decision['id']);
     return $decision;
 }
 
@@ -308,5 +310,135 @@ function research_decision_from_mission(PDO $pdo,array $viewer,string $missionPu
         if($owns)$pdo->commit();
     }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return research_decision_detail($pdo,$viewer,(string)$decision['public_id'])??$decision;
+}
+
+function research_decision_challenges_ready(PDO $pdo): bool {
+    try{return installer_table_exists($pdo,'research_decision_challenges')&&installer_table_exists($pdo,'research_decision_challenge_refs');}
+    catch(Throwable $e){return false;}
+}
+function research_decision_challenge_types(): array {
+    return ['contradiction'=>'Contradiction','assumption'=>'Assumption','uncertainty'=>'Uncertainty','alternative'=>'Alternative','reversal_condition'=>'What would change this decision','question'=>'Open question'];
+}
+function research_decision_challenge_statuses(): array {return ['open'=>'Open','resolved'=>'Resolved','accepted'=>'Accepted concern','dismissed'=>'Dismissed'];}
+function research_decision_challenge_severities(): array {return ['low'=>'Low','medium'=>'Medium','high'=>'High','critical'=>'Critical'];}
+function research_decision_challenge_ref_roles(): array {return ['supports_challenge'=>'Supports challenge','counters_challenge'=>'Counters challenge','context'=>'Context','source'=>'Source'];}
+
+function research_decision_challenge_ref_rows(PDO $pdo,int $challengeId): array {
+    if(!research_decision_challenges_ready($pdo))return [];
+    $q=$pdo->prepare("SELECT public_id,ref_type,ref_public_id,ref_role,strength,note,added_by_user_id,added_by_agent,created_at,updated_at FROM research_decision_challenge_refs WHERE challenge_id=? ORDER BY FIELD(ref_role,'supports_challenge','counters_challenge','source','context'),id");
+    $q->execute([$challengeId]);return $q->fetchAll()?:[];
+}
+function research_decision_challenges(PDO $pdo,int $decisionId): array {
+    if(!research_decision_challenges_ready($pdo))return [];
+    $q=$pdo->prepare("SELECT * FROM research_decision_challenges WHERE decision_id=? ORDER BY FIELD(status,'open','accepted','resolved','dismissed'),FIELD(severity,'critical','high','medium','low'),updated_at DESC,id DESC");
+    $q->execute([$decisionId]);$rows=$q->fetchAll()?:[];
+    foreach($rows as &$row)$row['refs']=research_decision_challenge_ref_rows($pdo,(int)$row['id']);unset($row);
+    return $rows;
+}
+function research_decision_challenge_config_rows(PDO $pdo,int $decisionId): array {
+    if(!research_decision_challenges_ready($pdo))return [];
+    $rows=[];foreach(research_decision_challenges($pdo,$decisionId) as $row){
+        $refs=[];foreach((array)$row['refs'] as $ref)$refs[]=[
+          'ref_type'=>(string)$ref['ref_type'],'ref_public_id'=>(string)$ref['ref_public_id'],'ref_role'=>(string)$ref['ref_role'],
+          'strength'=>$ref['strength']!==null?(float)$ref['strength']:null,'note'=>(string)($ref['note']??'')
+        ];
+        usort($refs,fn($a,$b)=>strcmp(implode('|',[$a['ref_role'],$a['ref_type'],$a['ref_public_id']]),implode('|',[$b['ref_role'],$b['ref_type'],$b['ref_public_id']])));
+        $rows[]=[
+          'public_id'=>(string)$row['public_id'],'challenge_type'=>(string)$row['challenge_type'],'title'=>(string)$row['title'],'detail'=>(string)($row['detail']??''),
+          'severity'=>(string)$row['severity'],'status'=>(string)$row['status'],'resolution'=>(string)($row['resolution']??''),'refs'=>$refs
+        ];
+    }
+    usort($rows,fn($a,$b)=>strcmp((string)$a['public_id'],(string)$b['public_id']));return $rows;
+}
+function research_decision_challenge_access(PDO $pdo,array $viewer,string $publicId): ?array {
+    if(!research_decision_challenges_ready($pdo))return null;
+    $q=$pdo->prepare("SELECT rdc.*,rd.public_id decision_public_id,rd.project_id FROM research_decision_challenges rdc JOIN research_decisions rd ON rd.id=rdc.decision_id WHERE rdc.public_id=? LIMIT 1");
+    $q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;
+    if(!research_decision_access($pdo,$viewer,(string)$row['decision_public_id']))return null;
+    $row['refs']=research_decision_challenge_ref_rows($pdo,(int)$row['id']);return $row;
+}
+function research_decision_challenge_normalize(array $input,array $current=[]): array {
+    $type=(string)($input['challenge_type']??$input['type']??($current['challenge_type']??'question'));if(!isset(research_decision_challenge_types()[$type]))throw new InvalidArgumentException('Invalid challenge type.');
+    $title=research_decision_text((string)($input['title']??($current['title']??'')),255);if($title==='')throw new InvalidArgumentException('Challenge title is required.');
+    $detail=array_key_exists('detail',$input)?research_decision_text((string)$input['detail'],64000):(string)($current['detail']??'');
+    $severity=(string)($input['severity']??($current['severity']??'medium'));if(!isset(research_decision_challenge_severities()[$severity]))throw new InvalidArgumentException('Invalid challenge severity.');
+    return ['challenge_type'=>$type,'title'=>$title,'detail'=>$detail,'severity'=>$severity];
+}
+function research_decision_challenge_store_ref(PDO $pdo,array $viewer,array $challenge,array $raw,bool $byAgent=false,bool $refresh=true): array {
+    $type=strtolower(trim((string)($raw['type']??$raw['ref_type']??'')));$id=trim((string)($raw['id']??$raw['public_id']??$raw['ref_public_id']??''));
+    if($type==='research_project'||$type==='research')$type='project';if($type==='research_mission')$type='mission';if($type==='research_review')$type='review';
+    $role=(string)($raw['role']??$raw['ref_role']??'context');if(!isset(research_decision_challenge_ref_roles()[$role]))$role='context';
+    $strength=array_key_exists('strength',$raw)&&$raw['strength']!==''?(float)$raw['strength']:null;if($strength!==null&&($strength<0||$strength>1))throw new InvalidArgumentException('Challenge reference strength must be between 0 and 1.');
+    $note=research_decision_text((string)($raw['note']??''),2000);
+    if($type===''||$id==='')throw new InvalidArgumentException('Challenge reference type and ID are required.');
+    if(!research_decision_ref_access($pdo,$viewer,(int)$challenge['project_id'],$type,$id))throw new InvalidArgumentException('Challenge reference is unavailable in this Research project.');
+    $pdo->prepare("INSERT INTO research_decision_challenge_refs(public_id,challenge_id,ref_type,ref_public_id,ref_role,strength,note,added_by_user_id,added_by_agent)
+      VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE strength=VALUES(strength),note=VALUES(note),added_by_user_id=VALUES(added_by_user_id),added_by_agent=VALUES(added_by_agent),updated_at=NOW()")
+      ->execute([ulid_like(),(int)$challenge['id'],$type,$id,$role,$strength,$note!==''?$note:null,(int)$viewer['id'],$byAgent?1:0]);
+    if($refresh){$fresh=research_decision_refresh_revision($pdo,(int)$challenge['decision_id'],(int)$viewer['id'],'Decision challenge evidence updated',$byAgent);research_decision_event($pdo,$fresh,'decision_challenge_reference_added',$byAgent?'agent':'user',(int)$viewer['id'],['challenge_id'=>$challenge['public_id'],'ref_type'=>$type,'ref_public_id'=>$id,'ref_role'=>$role]);}
+    $q=$pdo->prepare("SELECT public_id,ref_type,ref_public_id,ref_role,strength,note,added_by_user_id,added_by_agent,created_at,updated_at FROM research_decision_challenge_refs WHERE challenge_id=? AND ref_type=? AND ref_public_id=? AND ref_role=? LIMIT 1");$q->execute([(int)$challenge['id'],$type,$id,$role]);return $q->fetch()?:[];
+}
+function research_decision_add_challenge(PDO $pdo,array $viewer,string $decisionPublic,array $input,bool $byAgent=false): array {
+    $decision=research_decision_access($pdo,$viewer,$decisionPublic);if(!$decision)throw new RuntimeException('Decision not found.');if(!research_decision_challenges_ready($pdo))throw new RuntimeException('Decision Challenge Graph requires the latest database upgrade.');
+    $x=research_decision_challenge_normalize($input);$public=ulid_like();$owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
+    try{
+      $pdo->prepare("INSERT INTO research_decision_challenges(public_id,decision_id,challenge_type,title,detail,severity,status,created_by_user_id,created_by_agent) VALUES(?,?,?,?,?,?,'open',?,?)")
+        ->execute([$public,(int)$decision['id'],$x['challenge_type'],$x['title'],$x['detail']!==''?$x['detail']:null,$x['severity'],(int)$viewer['id'],$byAgent?1:0]);
+      $challenge=research_decision_challenge_access($pdo,$viewer,$public);if(!$challenge)throw new RuntimeException('Decision challenge could not be loaded.');
+      foreach(array_slice((array)($input['refs']??[]),0,60) as $ref)if(is_array($ref))research_decision_challenge_store_ref($pdo,$viewer,$challenge,$ref,$byAgent,false);
+      $fresh=research_decision_refresh_revision($pdo,(int)$decision['id'],(int)$viewer['id'],'Decision challenge added',$byAgent);
+      research_decision_event($pdo,$fresh,'decision_challenge_added',$byAgent?'agent':'user',(int)$viewer['id'],['challenge_id'=>$public,'challenge_type'=>$x['challenge_type'],'severity'=>$x['severity']]);
+      if($owns)$pdo->commit();
+    }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+    return research_decision_challenge_access($pdo,$viewer,$public)??['public_id'=>$public];
+}
+function research_decision_update_challenge(PDO $pdo,array $viewer,string $challengePublic,array $input,bool $byAgent=false): array {
+    $challenge=research_decision_challenge_access($pdo,$viewer,$challengePublic);if(!$challenge)throw new RuntimeException('Decision challenge not found.');$x=research_decision_challenge_normalize($input,$challenge);
+    $pdo->prepare("UPDATE research_decision_challenges SET challenge_type=?,title=?,detail=?,severity=?,updated_at=NOW() WHERE id=?")
+      ->execute([$x['challenge_type'],$x['title'],$x['detail']!==''?$x['detail']:null,$x['severity'],(int)$challenge['id']]);
+    $fresh=research_decision_refresh_revision($pdo,(int)$challenge['decision_id'],(int)$viewer['id'],'Decision challenge updated',$byAgent);
+    research_decision_event($pdo,$fresh,'decision_challenge_updated',$byAgent?'agent':'user',(int)$viewer['id'],['challenge_id'=>$challengePublic,'challenge_type'=>$x['challenge_type'],'severity'=>$x['severity']]);
+    return research_decision_challenge_access($pdo,$viewer,$challengePublic)??$challenge;
+}
+function research_decision_set_challenge_status(PDO $pdo,array $viewer,string $challengePublic,string $status,string $resolution='',bool $byAgent=false): array {
+    $challenge=research_decision_challenge_access($pdo,$viewer,$challengePublic);if(!$challenge)throw new RuntimeException('Decision challenge not found.');if(!isset(research_decision_challenge_statuses()[$status]))throw new InvalidArgumentException('Invalid challenge status.');
+    $current=(string)$challenge['status'];if($current===$status)return $challenge;$allowed=['open'=>['resolved','accepted','dismissed'],'resolved'=>['open'],'accepted'=>['open','resolved','dismissed'],'dismissed'=>['open']];if(!in_array($status,$allowed[$current]??[],true))throw new InvalidArgumentException('That challenge status transition is not allowed.');
+    $resolution=research_decision_text($resolution,64000);if($status!=='open'&&$resolution==='')throw new InvalidArgumentException('A resolution note is required when closing or accepting a challenge.');
+    if($status==='open')$pdo->prepare("UPDATE research_decision_challenges SET status='open',resolution=NULL,resolved_by_user_id=NULL,resolved_at=NULL,updated_at=NOW() WHERE id=?")->execute([(int)$challenge['id']]);
+    else $pdo->prepare("UPDATE research_decision_challenges SET status=?,resolution=?,resolved_by_user_id=?,resolved_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$status,$resolution,(int)$viewer['id'],(int)$challenge['id']]);
+    $fresh=research_decision_refresh_revision($pdo,(int)$challenge['decision_id'],(int)$viewer['id'],'Decision challenge status changed',$byAgent);
+    research_decision_event($pdo,$fresh,'decision_challenge_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['challenge_id'=>$challengePublic,'from'=>$current,'to'=>$status,'resolution'=>$resolution]);
+    return research_decision_challenge_access($pdo,$viewer,$challengePublic)??$challenge;
+}
+function research_decision_add_challenge_ref(PDO $pdo,array $viewer,string $challengePublic,array $input,bool $byAgent=false): array {
+    $challenge=research_decision_challenge_access($pdo,$viewer,$challengePublic);if(!$challenge)throw new RuntimeException('Decision challenge not found.');return research_decision_challenge_store_ref($pdo,$viewer,$challenge,$input,$byAgent,true);
+}
+function research_decision_remove_challenge_ref(PDO $pdo,array $viewer,string $challengePublic,string $refPublic,bool $byAgent=false): array {
+    $challenge=research_decision_challenge_access($pdo,$viewer,$challengePublic);if(!$challenge)throw new RuntimeException('Decision challenge not found.');
+    $q=$pdo->prepare("SELECT * FROM research_decision_challenge_refs WHERE challenge_id=? AND public_id=? LIMIT 1");$q->execute([(int)$challenge['id'],trim($refPublic)]);$ref=$q->fetch();if(!$ref)throw new RuntimeException('Challenge reference not found.');
+    $pdo->prepare('DELETE FROM research_decision_challenge_refs WHERE id=?')->execute([(int)$ref['id']]);
+    $fresh=research_decision_refresh_revision($pdo,(int)$challenge['decision_id'],(int)$viewer['id'],'Decision challenge evidence updated',$byAgent);
+    research_decision_event($pdo,$fresh,'decision_challenge_reference_removed',$byAgent?'agent':'user',(int)$viewer['id'],['challenge_id'=>$challengePublic,'ref_type'=>$ref['ref_type'],'ref_public_id'=>$ref['ref_public_id'],'ref_role'=>$ref['ref_role']]);
+    return research_decision_challenge_access($pdo,$viewer,$challengePublic)??$challenge;
+}
+
+function research_decision_evidence_graph(PDO $pdo,array $viewer,string $decisionPublic): array {
+    $decision=research_decision_detail($pdo,$viewer,$decisionPublic);if(!$decision)throw new RuntimeException('Decision not found.');
+    $nodes=[];$edges=[];$root='decision:'.$decision['public_id'];$nodes[$root]=['id'=>$root,'kind'=>'decision','public_id'=>$decision['public_id'],'label'=>$decision['title'],'status'=>$decision['status']];
+    $addRefNode=function(array $ref)use(&$nodes): string{$id='ref:'.(string)$ref['ref_type'].':'.(string)$ref['ref_public_id'];if(!isset($nodes[$id]))$nodes[$id]=['id'=>$id,'kind'=>'reference','ref_type'=>$ref['ref_type'],'public_id'=>$ref['ref_public_id']];return $id;};
+    foreach((array)$decision['refs'] as $ref){$nid=$addRefNode($ref);$edges[]=['from'=>$nid,'to'=>$root,'relationship'=>(string)$ref['ref_role'],'strength'=>$ref['strength']!==null?(float)$ref['strength']:null,'note'=>(string)($ref['note']??'')];}
+    foreach((array)$decision['assumptions'] as $i=>$value){$id='assumption:'.$i;$nodes[$id]=['id'=>$id,'kind'=>'assumption','label'=>is_scalar($value)?(string)$value:json_encode($value,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)];$edges[]=['from'=>$id,'to'=>$root,'relationship'=>'assumption'];}
+    foreach((array)$decision['uncertainty'] as $i=>$value){$id='uncertainty:'.$i;$nodes[$id]=['id'=>$id,'kind'=>'uncertainty','label'=>is_scalar($value)?(string)$value:json_encode($value,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)];$edges[]=['from'=>$id,'to'=>$root,'relationship'=>'uncertainty'];}
+    foreach((array)$decision['alternatives'] as $i=>$value){$id='alternative:'.$i;$nodes[$id]=['id'=>$id,'kind'=>'alternative','label'=>is_scalar($value)?(string)$value:(string)($value['title']??json_encode($value,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE))];$edges[]=['from'=>$id,'to'=>$root,'relationship'=>'alternative'];}
+    $counts=['supports'=>0,'contradicts'=>0,'open_challenges'=>0,'high_open_challenges'=>0,'reversal_conditions'=>0];
+    foreach((array)$decision['refs'] as $ref){if(($ref['ref_role']??'')==='supports')$counts['supports']++;if(($ref['ref_role']??'')==='contradicts')$counts['contradicts']++;}
+    foreach((array)$decision['challenges'] as $challenge){
+        $cid='challenge:'.$challenge['public_id'];$nodes[$cid]=['id'=>$cid,'kind'=>'challenge','public_id'=>$challenge['public_id'],'challenge_type'=>$challenge['challenge_type'],'label'=>$challenge['title'],'severity'=>$challenge['severity'],'status'=>$challenge['status'],'detail'=>$challenge['detail'],'resolution'=>$challenge['resolution']];
+        $edges[]=['from'=>$cid,'to'=>$root,'relationship'=>(string)$challenge['challenge_type']];
+        if((string)$challenge['status']==='open'){$counts['open_challenges']++;if(in_array((string)$challenge['severity'],['high','critical'],true))$counts['high_open_challenges']++;}
+        if((string)$challenge['challenge_type']==='reversal_condition')$counts['reversal_conditions']++;
+        foreach((array)$challenge['refs'] as $ref){$nid=$addRefNode($ref);$edges[]=['from'=>$nid,'to'=>$cid,'relationship'=>(string)$ref['ref_role'],'strength'=>$ref['strength']!==null?(float)$ref['strength']:null,'note'=>(string)($ref['note']??'')];}
+    }
+    return ['decision_id'=>(string)$decision['public_id'],'revision'=>(int)$decision['current_revision'],'counts'=>$counts,'nodes'=>array_values($nodes),'edges'=>$edges];
 }
 
