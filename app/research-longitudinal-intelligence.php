@@ -234,12 +234,12 @@ function research_longitudinal_capture(PDO $pdo,array $viewer,string $agentPubli
     $allowed=['baseline','manual','program_completed','program_quiet','report_generated','system'];if(!in_array($trigger,$allowed,true))$trigger='system';
     $agent=research_longitudinal_agent($pdo,$viewer,$agentPublic);$project=research_agent_workspace_project($pdo,$viewer,$agentPublic);if(!$project)throw new RuntimeException('Research Agent workspace not found.');research_agent_workspace_require_write($project);
     $state=research_longitudinal_state($pdo,$viewer,$agentPublic);$agent=$state['agent'];
-    $q=$pdo->prepare('SELECT public_id FROM research_longitudinal_snapshots WHERE project_id=? AND state_hash=? LIMIT 1');$q->execute([(int)$agent['project_id'],$state['state_hash']]);$same=(string)($q->fetchColumn()?:'');
-    if($same!=='')return ['snapshot'=>research_longitudinal_snapshot_access($pdo,$viewer,$same),'created'=>false,'changes'=>[],'milestones'=>[]];
-
-    $previous=research_longitudinal_latest_snapshot($pdo,$viewer,$agentPublic);if(!$previous)$trigger='baseline';
     $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
     try{
+        $lock=$pdo->prepare('SELECT id FROM research_projects WHERE id=? FOR UPDATE');$lock->execute([(int)$agent['project_id']]);if(!$lock->fetchColumn())throw new RuntimeException('Research project not found.');
+        $q=$pdo->prepare('SELECT public_id FROM research_longitudinal_snapshots WHERE project_id=? AND state_hash=? LIMIT 1');$q->execute([(int)$agent['project_id'],$state['state_hash']]);$same=(string)($q->fetchColumn()?:'');
+        if($same!==''){if($owns)$pdo->commit();return ['snapshot'=>research_longitudinal_snapshot_access($pdo,$viewer,$same),'created'=>false,'changes'=>[],'milestones'=>[]];}
+        $previous=research_longitudinal_latest_snapshot($pdo,$viewer,$agentPublic);if(!$previous)$trigger='baseline';
         $public=ulid_like();$pdo->prepare("INSERT INTO research_longitudinal_snapshots(public_id,research_agent_id,project_id,captured_by_user_id,trigger_type,trigger_public_id,state_hash,state_json,counts_json)
           VALUES(?,?,?,?,?,?,?,?,?)")->execute([$public,(int)$agent['id'],(int)$agent['project_id'],(int)$viewer['id'],$trigger,$triggerPublic?mb_substr($triggerPublic,0,64):null,$state['state_hash'],
             json_encode($state['objects'],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),json_encode($state['counts'],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
