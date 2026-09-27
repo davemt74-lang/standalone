@@ -327,6 +327,13 @@ jobs:
           test -f package-website/tests/phase70-longitudinal-research-intelligence-contract.php
           test -f package-website/tests/phase70-longitudinal-research-intelligence-db.php
           test -f package-website/tests/ci/phase70-upgrade-from-083.php
+          test -f package-website/database/migrations/20260926_085_research_missions_v1.sql
+          test -f package-website/docs/research-missions-v1.md
+          test -f package-website/app/research-missions.php
+          test -f package-website/api/research-missions.php
+          test -f package-website/tests/research-missions-v1-contract.php
+          test -f package-website/tests/research-missions-v1-db.php
+          test -f package-website/tests/ci/research-missions-v1-upgrade-from-084.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
