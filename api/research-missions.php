@@ -73,6 +73,18 @@ try{
         $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
         json_response(['ok'=>true,'data'=>['mission'=>research_mission_pause($pdo,$viewer,$mission,false)]]);
     }
+    if($action==='bind_program'){
+        $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
+        json_response(['ok'=>true,'data'=>['mission'=>research_mission_bind_program($pdo,$viewer,$mission,$input)]]);
+    }
+    if($action==='unbind_program'){
+        $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
+        json_response(['ok'=>true,'data'=>['mission'=>research_mission_unbind_program($pdo,$viewer,$mission)]]);
+    }
+    if($action==='set_program_status'){
+        $mission=trim((string)($input['mission_id']??''));$status=trim((string)($input['status']??''));if($mission===''||$status==='')throw new InvalidArgumentException('Research Mission and Program status are required.');
+        json_response(['ok'=>true,'data'=>['mission'=>research_mission_set_program_status($pdo,$viewer,$mission,$status)]]);
+    }
     json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);
 }catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_INPUT','message'=>$e->getMessage()]],422);}
 catch(RuntimeException $e){json_response(['ok'=>false,'error'=>['code'=>'RESEARCH_MISSION_ERROR','message'=>$e->getMessage()]],403);}
