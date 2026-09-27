@@ -373,6 +373,8 @@ jobs:
           test -f package-website/tests/phase71-section5-decision-evolution-reconsideration-contract.php
           test -f package-website/tests/phase71-section5-decision-evolution-reconsideration-db.php
           test -f package-website/tests/ci/phase71-section5-upgrade-from-090.php
+          test -f package-website/tests/phase71-section6-agent-now-report-integration-contract.php
+          test -f package-website/tests/phase71-section6-agent-now-report-integration-db.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
