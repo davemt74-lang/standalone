@@ -183,6 +183,7 @@ function research_mission_detail(PDO $pdo,array $viewer,string $publicId): ?arra
     $mission=research_mission_access($pdo,$viewer,$publicId);if(!$mission)return null;
     $mission['scope']=research_mission_json_object($mission['scope_json']??null);$mission['constraints']=research_mission_json_object($mission['constraints_json']??null);
     $mission['criteria']=research_mission_criteria($pdo,(int)$mission['id']);$mission['subquestions']=research_mission_subquestions($pdo,(int)$mission['id']);$mission['events']=research_mission_events($pdo,(int)$mission['id'],100);
+    $mission['plan']=!empty($mission['plan_public_id'])?research_mission_plan_detail($pdo,$viewer,$mission):null;
     return $mission;
 }
 function research_mission_criterion_access(PDO $pdo,array $viewer,string $publicId): ?array {
@@ -226,3 +227,107 @@ function research_mission_update_subquestion(PDO $pdo,array $viewer,string $subq
     $fresh=research_mission_refresh_revision($pdo,(int)$mission['id'],(int)$viewer['id'],'Sub-question updated',$byAgent);research_mission_event($pdo,$fresh,'subquestion_updated',$byAgent?'agent':'user',(int)$viewer['id'],['subquestion_id'=>$subquestionPublic,'status'=>$status]);
     return research_mission_subquestion_access($pdo,$viewer,$subquestionPublic)??$sub;
 }
+
+function research_mission_plan_detail(PDO $pdo,array $viewer,array $mission): ?array {
+    $public=trim((string)($mission['plan_public_id']??''));if($public==='')return null;
+    $plan=research_task_plan_access($pdo,$viewer,$public);if(!$plan)return null;
+    $plan['tasks']=research_task_plan_structure($pdo,(int)$plan['id']);
+    return $plan;
+}
+
+function research_mission_plan_blueprint(PDO $pdo,array $mission): array {
+    $subquestions=research_mission_subquestions($pdo,(int)$mission['id']);$tasks=[];$indexes=[];
+    foreach($subquestions as $sub){
+        $question=trim((string)$sub['question']);$short=preg_replace('/\s+/u',' ',$question)?:$question;
+        $description='Mission sub-question: '.$question."\nMission objective: ".(string)$mission['objective'];
+        if(trim((string)($sub['rationale']??''))!=='')$description.="\nWhy it matters: ".trim((string)$sub['rationale']);
+        $description.="\nUse accessible Research evidence, preserve provenance, and identify uncertainty or contradictory evidence.";
+        $indexes[]=count($tasks);
+        $tasks[]=[
+          'title'=>mb_substr('Investigate: '.$short,0,255),'description'=>mb_substr($description,0,12000),'task_type'=>'general',
+          'priority'=>(string)$sub['priority'],'depends_on'=>[],
+          'gates'=>[['type'=>'min_sources','required'=>['count'=>1]],['type'=>'citations','required'=>['count'=>1]]]
+        ];
+    }
+    if(!$tasks){
+        $indexes[] = 0;
+        $tasks[]=[
+          'title'=>'Investigate primary Mission question',
+          'description'=>mb_substr('Primary question: '.(string)$mission['research_question']."\nObjective: ".(string)$mission['objective']."\nGather and verify cited Research evidence before synthesis.",0,12000),
+          'task_type'=>'general','priority'=>(string)$mission['priority'],'depends_on'=>[],
+          'gates'=>[['type'=>'min_sources','required'=>['count'=>2]],['type'=>'citations','required'=>['count'=>1]]]
+        ];
+    }
+    $success=trim((string)($mission['success_definition']??''));
+    $synthesis='Answer the Mission research question from the completed evidence work. Distinguish evidence from inference, surface contradictions and unresolved uncertainty, and explain whether the stated success definition has been met.';
+    if($success!=='')$synthesis.="\nSuccess definition: ".$success;
+    $tasks[]=[
+      'title'=>'Synthesize Mission answer','description'=>mb_substr($synthesis,0,12000),'task_type'=>'synthesize',
+      'priority'=>(string)$mission['priority'],'depends_on'=>$indexes
+    ];
+    return ['tasks'=>$tasks,'subquestion_count'=>count($subquestions),'task_count'=>count($tasks)];
+}
+
+function research_mission_create_plan(PDO $pdo,array $viewer,string $missionPublic,array $input=[],bool $byAgent=false): array {
+    $mission=research_mission_access($pdo,$viewer,$missionPublic);if(!$mission)throw new RuntimeException('Research Mission not found.');
+    if(in_array((string)$mission['status'],['completed','cancelled','archived'],true))throw new RuntimeException('Reactivate this Mission before creating a new execution plan.');
+    if(!empty($mission['plan_public_id']))return research_mission_detail($pdo,$viewer,$missionPublic)??$mission;
+    $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
+    try{
+        $lock=$pdo->prepare('SELECT plan_id FROM research_missions WHERE id=? FOR UPDATE');$lock->execute([(int)$mission['id']]);$existing=(int)($lock->fetchColumn()?:0);
+        if($existing>0){
+            if($owns)$pdo->commit();
+            return research_mission_detail($pdo,$viewer,$missionPublic)??$mission;
+        }
+        $mission=research_mission_by_id($pdo,(int)$mission['id']);$blueprint=research_mission_plan_blueprint($pdo,$mission);
+        $constraints=research_mission_json_object($mission['constraints_json']??null);
+        $due=$input['due_at']??($constraints['deadline']??null);
+        $plan=research_task_plan_create($pdo,$viewer,[
+          'agent_id'=>(string)$mission['agent_public_id'],
+          'title'=>research_mission_text((string)($input['title']??((string)$mission['title'].' — Mission Plan')),255),
+          'objective'=>research_mission_text((string)$mission['objective']."\nPrimary question: ".(string)$mission['research_question'],16000),
+          'priority'=>(string)$mission['priority'],'due_at'=>$due,
+          'deliverable_type'=>(string)($input['deliverable_type']??'research_brief'),
+          'deliverable_title'=>research_mission_text((string)($input['deliverable_title']??((string)$mission['title'].' — Mission Brief')),255),
+          'tasks'=>$blueprint['tasks'],'initial_status'=>'paused','create_deliverable'=>false
+        ],$byAgent);
+        if(empty($plan['id'])){$resolved=research_task_plan_access($pdo,$viewer,(string)$plan['public_id']);if(!$resolved)throw new RuntimeException('Mission plan could not be resolved.');$plan=$resolved;}
+        $planId=(int)$plan['id'];$pdo->prepare('UPDATE research_missions SET plan_id=?,updated_at=NOW() WHERE id=?')->execute([$planId,(int)$mission['id']]);
+        $subquestions=research_mission_subquestions($pdo,(int)$mission['id']);
+        if($subquestions){
+            $q=$pdo->prepare('SELECT id FROM research_tasks WHERE plan_id=? ORDER BY position,id');$q->execute([$planId]);$taskIds=array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN)?:[]);
+            foreach($subquestions as $i=>$sub)if(isset($taskIds[$i]))$pdo->prepare('UPDATE research_mission_subquestions SET linked_task_id=?,updated_at=NOW() WHERE id=?')->execute([$taskIds[$i],(int)$sub['id']]);
+        }
+        $fresh=research_mission_by_id($pdo,(int)$mission['id']);
+        research_mission_event($pdo,$fresh,'mission_plan_created',$byAgent?'agent':'user',(int)$viewer['id'],[
+          'plan_id'=>(string)$plan['public_id'],'task_count'=>(int)$blueprint['task_count'],'subquestion_count'=>(int)$blueprint['subquestion_count'],'plan_status'=>'paused'
+        ]);
+        if($owns)$pdo->commit();
+    }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+    return research_mission_detail($pdo,$viewer,$missionPublic)??$mission;
+}
+
+function research_mission_start(PDO $pdo,array $viewer,string $missionPublic,bool $byAgent=false): array {
+    $mission=research_mission_access($pdo,$viewer,$missionPublic);if(!$mission)throw new RuntimeException('Research Mission not found.');
+    if(empty($mission['plan_public_id']))throw new RuntimeException('Create and review the Mission plan before starting execution.');
+    if(in_array((string)$mission['status'],['completed','cancelled','archived'],true))throw new RuntimeException('Reactivate this Mission before starting execution.');
+    $plan=research_task_plan_access($pdo,$viewer,(string)$mission['plan_public_id']);if(!$plan)throw new RuntimeException('Mission plan is unavailable.');
+    $changed=false;
+    if((string)$mission['status']!=='active'){research_mission_set_status($pdo,$viewer,$missionPublic,'active',$byAgent);$changed=true;}
+    if((string)$plan['status']!=='active'){research_task_plan_set_status($pdo,$viewer,(string)$plan['public_id'],'active');$changed=true;}
+    research_task_refresh_deliverable($pdo,$viewer,(string)$plan['public_id']);
+    if($changed){$fresh=research_mission_by_id($pdo,(int)$mission['id']);research_mission_event($pdo,$fresh,'mission_execution_started',$byAgent?'agent':'user',(int)$viewer['id'],['plan_id'=>(string)$plan['public_id']]);}
+    return research_mission_detail($pdo,$viewer,$missionPublic)??$mission;
+}
+
+function research_mission_pause(PDO $pdo,array $viewer,string $missionPublic,bool $byAgent=false): array {
+    $mission=research_mission_access($pdo,$viewer,$missionPublic);if(!$mission)throw new RuntimeException('Research Mission not found.');
+    if(empty($mission['plan_public_id']))throw new RuntimeException('Mission plan is unavailable.');
+    $plan=research_task_plan_access($pdo,$viewer,(string)$mission['plan_public_id']);if(!$plan)throw new RuntimeException('Mission plan is unavailable.');
+    if((string)$plan['status']==='active'){
+        research_task_plan_set_status($pdo,$viewer,(string)$plan['public_id'],'paused');
+        $fresh=research_mission_by_id($pdo,(int)$mission['id']);research_mission_event($pdo,$fresh,'mission_execution_paused',$byAgent?'agent':'user',(int)$viewer['id'],['plan_id'=>(string)$plan['public_id']]);
+    }
+    return research_mission_detail($pdo,$viewer,$missionPublic)??$mission;
+}
+
