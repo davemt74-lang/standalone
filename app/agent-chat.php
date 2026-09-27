@@ -146,7 +146,7 @@ function agent_chat_context_item(PDO $pdo,array $viewer,string $type,string $pub
     }
     if($type==='mission'&&function_exists('research_mission_detail')){
         $mission=research_mission_detail($pdo,$viewer,$publicId);if(!$mission)return null;$p=(array)$mission['progress'];
-        $refs=[['type'=>'mission','id'=>$publicId],['type'=>'research_project','id'=>(string)$mission['project_public_id']];
+        $refs=[['type'=>'mission','id'=>$publicId],['type'=>'research_project','id'=>(string)$mission['project_public_id']]];
         if(!empty($mission['plan_public_id']))$refs[]=['type'=>'research_plan','id'=>(string)$mission['plan_public_id']];
         if(!empty($mission['program_public_id']))$refs[]=['type'=>'program','id'=>(string)$mission['program_public_id']];
         $text="[RESEARCH MISSION {$publicId}]\nTitle: ".(string)$mission['title']."\nStatus: ".(string)$mission['status']."\nPriority: ".(string)$mission['priority']."\nQuestion: ".(string)$mission['research_question']."\nObjective: ".(string)$mission['objective']."\nProgress: ".(int)($p['percent_complete']??0)."%";
