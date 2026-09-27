@@ -698,3 +698,74 @@ function research_decision_evolution_timeline(PDO $pdo,array $viewer,string $dec
     usort($items,fn($a,$b)=>strcmp((string)$b['timestamp'],(string)$a['timestamp'])?:strcmp((string)$b['public_id'],(string)$a['public_id']));return ['decision_id'=>(string)$decision['public_id'],'current_status'=>(string)$decision['status'],'current_revision'=>(int)$decision['current_revision'],'items'=>array_slice($items,0,max(1,min(500,$limit)))];
 }
 
+function research_decision_agent_context(PDO $pdo,array $viewer,string $agentPublic,int $limit=8): array {
+    if(!research_decisions_ready($pdo))return ['text'=>'','refs'=>[]];
+    $limit=max(1,min(16,$limit));$rows=research_decision_list($pdo,$viewer,$agentPublic,100);if(!$rows)return ['text'=>'','refs'=>[]];
+    $rank=['reopened'=>0,'proposed'=>1,'deferred'=>2,'accepted'=>3,'rejected'=>4,'superseded'=>5,'draft'=>6,'archived'=>7];
+    usort($rows,fn($a,$b)=>(($rank[(string)$a['status']]??9)<=>($rank[(string)$b['status']]??9))?:strcmp((string)$b['updated_at'],(string)$a['updated_at']));
+    $lines=["[DECISION MEMORY]","Decision state is durable application state. Explain it, but never claim a Decision was accepted, rejected, reopened, superseded, deferred, or otherwise changed unless the stored state says so."];
+    $refs=[];$shown=0;
+    foreach($rows as $d){
+        if($shown>=$limit||($d['status']??'')==='archived')continue;$shown++;
+        $signals=research_decision_reconsideration_signals($pdo,$viewer,(string)$d['public_id']);$outcomes=(array)($d['outcomes']??[]);$latest=$outcomes[0]??null;$openCases=0;foreach((array)($d['reconsiderations']??[]) as $case)if(in_array((string)$case['status'],['open','reviewing'],true))$openCases++;
+        $line='[DECISION '.(string)$d['public_id'].'] '.(string)$d['title'].' · '.strtoupper((string)$d['decision_type']).' · status '.(string)$d['status'].' · revision '.(int)$d['current_revision'];
+        $line.="
+Statement: ".mb_substr((string)$d['statement'],0,1200);
+        if(trim((string)($d['rationale']??''))!=='')$line.="
+Rationale: ".mb_substr((string)$d['rationale'],0,1500);
+        if($d['confidence']!==null)$line.="
+Decision confidence: ".number_format((float)$d['confidence'],2,'.','');
+        $counts=(array)($signals['counts']??[]);$signalTotal=count((array)($signals['signals']??[]));if($signalTotal)$line.="
+Review signals: ".$signalTotal." total · critical ".(int)($counts['critical']??0)." · high ".(int)($counts['high']??0)." · open/reviewing cases ".$openCases;
+        if($latest)$line.="
+Latest observed outcome: ".strtoupper((string)$latest['assessment']).' · '.mb_substr((string)$latest['actual_summary'],0,900).($latest['follow_up_state']!=='none'?' · follow-up '.(string)$latest['follow_up_state']:'');
+        $lines[]=$line;
+        foreach((array)$d['refs'] as $ref)$refs[]=['type'=>(string)$ref['ref_type'],'id'=>(string)$ref['ref_public_id']];
+        if(!empty($d['source_mission_public_id']))$refs[]=['type'=>'mission','id'=>(string)$d['source_mission_public_id']];
+    }
+    $seen=[];$dedup=[];foreach($refs as $ref){$k=$ref['type'].'|'.$ref['id'];if(isset($seen[$k]))continue;$seen[$k]=true;$dedup[]=$ref;}
+    return ['text'=>$shown?implode("
+
+",$lines):'','refs'=>$dedup,'agent_id'=>$agentPublic];
+}
+
+function research_decision_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limit=20): void {
+    if(!research_decisions_ready($pdo)||!function_exists('cognitive_feed_projects'))return;$limit=max(1,min(60,$limit));$shown=0;
+    foreach(cognitive_feed_projects($pdo,$viewer,8) as $project){
+        if($shown>=$limit)break;$q=$pdo->prepare("SELECT rd.public_id,ra.public_id agent_public_id FROM research_decisions rd JOIN research_agents ra ON ra.id=rd.research_agent_id WHERE rd.project_id=? AND rd.status<>'archived' ORDER BY rd.updated_at DESC,rd.id DESC LIMIT 40");$q->execute([(int)$project['id']]);
+        foreach($q->fetchAll() as $row){
+            if($shown>=$limit)break;$d=research_decision_detail($pdo,$viewer,(string)$row['public_id']);if(!$d)continue;
+            $signals=research_decision_reconsideration_signals($pdo,$viewer,(string)$d['public_id']);$signalRows=(array)($signals['signals']??[]);$critical=0;$high=0;foreach($signalRows as $s){if(($s['materiality']??'')==='critical')$critical++;if(($s['materiality']??'')==='high')$high++;}
+            $openCases=[];foreach((array)($d['reconsiderations']??[]) as $case)if(in_array((string)$case['status'],['open','reviewing'],true))$openCases[]=$case;
+            if(!$openCases&&$critical===0&&$high===0&&(string)$d['status']!=='reopened')continue;
+            $priority=$critical>0?'critical':(($high>0||$openCases||(string)$d['status']==='reopened')?'high':'medium');
+            $body=[];if($critical||$high)$body[]=($critical+$high).' high-impact review signal'.(($critical+$high)===1?'':'s');if($openCases)$body[]=count($openCases).' active reconsideration case'.(count($openCases)===1?'':'s');if((string)$d['status']==='reopened')$body[]='Decision is reopened';
+            $actions=[cognitive_feed_action_link('Open Research','/research-project.php?id='.rawurlencode((string)$project['public_id']))];
+            if(function_exists('cognitive_feed_action_agent'))$actions[]=cognitive_feed_action_agent('Ask Agent why', 'Explain why the Decision "'.(string)$d['title'].'" needs review, what evidence changed, and what would change the Decision. Do not change Decision state.',[['type'=>'research','public_id'=>(string)$project['public_id']]]);
+            cognitive_feed_add($items,[
+              'key'=>cognitive_feed_key('decision_reconsideration','research_decision',(string)$d['public_id'],(string)$d['updated_at'].'|'.(string)$d['status'].'|'.$critical.'|'.$high.'|'.count($openCases)),
+              'type'=>'decision_reconsideration','section'=>'needs_attention','priority'=>$priority,'created_at'=>(string)$d['updated_at'],
+              'score_extra'=>$critical>0?14:($high>0?9:6),'title'=>'Decision needs review: '.(string)$d['title'],
+              'body'=>implode(' · ',$body).'.','meta'=>['decision_id'=>(string)$d['public_id'],'decision_status'=>(string)$d['status'],'critical_signals'=>$critical,'high_signals'=>$high,'active_reconsiderations'=>count($openCases)],
+              'actions'=>$actions
+            ]);$shown++;
+        }
+    }
+}
+
+function research_decision_report_snapshot(PDO $pdo,array $viewer,array $project,string $visibility): array {
+    if(!research_decisions_ready($pdo))return [];$public=$visibility==='public';$q=$pdo->prepare("SELECT public_id FROM research_decisions WHERE project_id=? AND status<>'archived' ORDER BY updated_at,id");$q->execute([(int)$project['id']]);$out=[];
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){
+        $d=research_decision_detail($pdo,$viewer,(string)$id);if(!$d)continue;if($public&&!in_array((string)$d['status'],['accepted','superseded'],true))continue;
+        $item=['id'=>(string)$d['public_id'],'type'=>(string)$d['decision_type'],'status'=>(string)$d['status'],'title'=>(string)$d['title'],'statement'=>(string)$d['statement'],'rationale'=>(string)($d['rationale']??''),'confidence'=>$d['confidence']!==null?(float)$d['confidence']:null,'revision'=>(int)$d['current_revision'],'decided_at'=>$d['decided_at'],'source_mission_id'=>(string)($d['source_mission_public_id']??''),'evidence'=>[],'outcomes'=>[]];
+        foreach((array)$d['refs'] as $ref)$item['evidence'][]=['type'=>(string)$ref['ref_type'],'id'=>(string)$ref['ref_public_id'],'role'=>(string)$ref['ref_role'],'strength'=>$ref['strength']!==null?(float)$ref['strength']:null,'note'=>(string)($ref['note']??'')];
+        foreach((array)$d['outcomes'] as $o)$item['outcomes'][]=['id'=>(string)$o['public_id'],'assessment'=>(string)$o['assessment'],'expected'=>(string)($o['expected_summary']??''),'actual'=>(string)$o['actual_summary'],'variance'=>(string)($o['variance_summary']??''),'lessons'=>(string)($o['lessons']??''),'confidence'=>$o['confidence']!==null?(float)$o['confidence']:null,'follow_up_state'=>(string)$o['follow_up_state'],'observed_at'=>(string)$o['observed_at']];
+        if(!$public){
+            $item['challenges']=array_map(fn($ch)=>['id'=>(string)$ch['public_id'],'type'=>(string)$ch['challenge_type'],'title'=>(string)$ch['title'],'detail'=>(string)($ch['detail']??''),'severity'=>(string)$ch['severity'],'status'=>(string)$ch['status'],'resolution'=>(string)($ch['resolution']??'')],(array)$d['challenges']);
+            $item['reconsiderations']=array_map(fn($case)=>['id'=>(string)$case['public_id'],'trigger_type'=>(string)$case['trigger_type'],'title'=>(string)$case['title'],'reason'=>(string)$case['reason'],'materiality'=>(string)$case['materiality'],'status'=>(string)$case['status'],'recommended_action'=>(string)$case['recommended_action'],'resolution'=>(string)($case['resolution']??''),'opened_at'=>(string)$case['opened_at'],'applied_at'=>(string)($case['applied_at']??'')],(array)$d['reconsiderations']);
+        }
+        $out[]=$item;
+    }
+    return $out;
+}
+
