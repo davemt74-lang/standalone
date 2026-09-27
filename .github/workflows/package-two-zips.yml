@@ -350,6 +350,13 @@ jobs:
           test -f package-website/tests/research-missions-v1-section7-db.php
           test -f package-website/tests/ci/research-missions-v1-final-upgrade-from-084.php
           test -f package-website/tests/ci/research-missions-v1-upgrade-from-084.php
+          test -f package-website/database/migrations/20260927_087_research_decisions_conclusions_foundation.sql
+          test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
+          test -f package-website/app/research-decisions.php
+          test -f package-website/api/research-decisions.php
+          test -f package-website/tests/phase71-section1-decision-ledger-contract.php
+          test -f package-website/tests/phase71-section1-decision-ledger-db.php
+          test -f package-website/tests/ci/phase71-section1-upgrade-from-086.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
