@@ -25,16 +25,19 @@ $mission=research_mission_create($pdo,$owner,[
 p71s2throws(fn()=>research_decision_from_mission($pdo,$owner,(string)$mission['public_id'],[]),'Draft Mission cannot be handed off to a Decision.');
 
 $mission=research_mission_create_plan($pdo,$owner,(string)$mission['public_id'],[]);$mission=research_mission_start($pdo,$owner,(string)$mission['public_id']);
-$url='https://8.8.8.8/'.$run.'/handoff-source';$source=ensure_source($pdo,$url,'Mission Handoff Source');$body='Mission handoff evidence '.$run;
-$pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,captured_at) VALUES(?,1,?,?,?,?,NOW())")
- ->execute([(int)$source['id'],$url,'Mission Handoff Source',$body,hash('sha256',$body)]);
-$sourceVersion=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=?,last_checked_at=NOW() WHERE id=?')->execute([$sourceVersion,(int)$source['id']]);
-$pdo->prepare('INSERT IGNORE INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([(int)$project['id'],(int)$source['id'],(int)$owner['id']]);
+$sources=[];
+foreach([1,2] as $sourceIndex){
+    $url='https://8.8.8.8/'.$run.'/handoff-source-'.$sourceIndex;$source=ensure_source($pdo,$url,'Mission Handoff Source '.$sourceIndex);$body='Mission handoff evidence '.$sourceIndex.' '.$run;
+    $pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,captured_at) VALUES(?,1,?,?,?,?,NOW())")
+      ->execute([(int)$source['id'],$url,'Mission Handoff Source '.$sourceIndex,$body,hash('sha256',$body)]);
+    $sourceVersion=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=?,last_checked_at=NOW() WHERE id=?')->execute([$sourceVersion,(int)$source['id']]);
+    $pdo->prepare('INSERT IGNORE INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([(int)$project['id'],(int)$source['id'],(int)$owner['id']]);$sources[]=$source;
+}
 
 foreach((array)$mission['plan']['tasks'] as $index=>$task){
     $refs=[
-      ['type'=>'source','id'=>(string)$source['public_id'],'locator'=>'Mission handoff evidence','relationship'=>'primary'],
-      ['type'=>'source','id'=>(string)$source['public_id'],'locator'=>'Mission handoff evidence','relationship'=>'supports']
+      ['type'=>'source','id'=>(string)$sources[0]['public_id'],'locator'=>'Mission handoff evidence A','relationship'=>'primary'],
+      ['type'=>'source','id'=>(string)$sources[1]['public_id'],'locator'=>'Mission handoff evidence B','relationship'=>'supports']
     ];
     research_task_store_refs($pdo,(int)$task['id'],(int)$project['id'],$refs);
     $summary=$index===0?'Demand evidence supports a controlled market entry.':'The evidence supports entering the market with bounded rollout controls.';
