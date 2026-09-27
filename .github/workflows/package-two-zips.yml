@@ -380,6 +380,8 @@ jobs:
           test -f package-website/tests/phase71-section7-decision-command-center-team-review-db.php
           test -f package-website/tests/ci/phase71-section7-upgrade-from-091.php
           test -f package-website/tests/phase71-section8-end-to-end-release-contract.php
+          test -f package-website/tests/post-phase71-research-publications-ui-hotfix-contract.php
+          test -f package-website/tests/post-phase71-research-publications-ui-hotfix-db.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
