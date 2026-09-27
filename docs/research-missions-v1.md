@@ -79,6 +79,25 @@ Section 3 derives Mission state from the existing Research Task execution system
 - Task execution remains owned by the existing Research Task worker and queue
 - no Mission worker, scheduler, cron path, or Mission-specific job queue is added
 
+## Section 4 — Programs & Change Response
+
+Section 4 binds Missions to the existing Research Program scheduler for recurring monitoring and material-change response.
+
+- a Mission may bind an existing same-Agent/same-project Research Program
+- a Mission may explicitly create a Mission Watch Program from its objective and scope; newly created Mission Watch Programs start paused and require explicit activation
+- Program cadence, timezone, materiality threshold, catch-up behavior, queueing, worker execution, and run history remain owned by the existing Research Program runtime
+- completed existing Program runs are observed by Missions after normal Program reconciliation/delivery/longitudinal processing
+- only a Program run with a recorded positive material-change count can reactivate a Mission that is completed, in review, or blocked
+- quiet/no-material Program runs are recorded in Mission history but do not reactivate it
+- unbinding a Program removes only the Mission association; it does not delete or archive the Research Program
+
+### Section 4 invariants
+
+- no Mission cadence, next-run field, cron, worker, scheduler, or Mission run queue is introduced
+- Program binding is permission checked and constrained to the same Research Agent/project
+- automatic Mission reactivation is evidence-driven by the existing Program run material-change ledger
+- a newly created watch Program is paused by default so binding never silently begins recurring execution
+
 ## Lifecycle
 
 `draft → active → blocked/review → completed` is the normal path. Missions may also be cancelled or archived. Completed, cancelled, and archived Missions can be explicitly reactivated; every transition is recorded.
