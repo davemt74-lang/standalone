@@ -72,7 +72,8 @@ $privateIds=array_column((array)$private['decisions'],'id');
 p71s6(in_array($accepted['public_id'],$privateIds,true)&&in_array($draft['public_id'],$privateIds,true)&&in_array($rejected['public_id'],$privateIds,true),'Private report snapshot includes non-archived Decision working state.');
 $privateAccepted=null;foreach($private['decisions'] as $d)if($d['id']===$accepted['public_id']){$privateAccepted=$d;break;}
 p71s6($privateAccepted!==null&&!empty($privateAccepted['challenges'])&&!empty($privateAccepted['reconsiderations'])&&!empty($privateAccepted['outcomes']),'Private report projection includes challenges, reconsiderations, and Outcome Memory.');
-p71s6(($privateAccepted['evidence'][0]['note']??'')!=='','Private report projection preserves internal Decision evidence notes.');
+$privateHasNote=false;foreach((array)$privateAccepted['evidence'] as $edge)if(trim((string)($edge['note']??''))!=='')$privateHasNote=true;
+p71s6($privateHasNote,'Private report projection preserves internal Decision evidence notes.');
 
 $public=research_report_build_snapshot($pdo,$project,'public','Public Decision Report','Public integration snapshot',$owner);
 $publicIds=array_column((array)$public['decisions'],'id');
