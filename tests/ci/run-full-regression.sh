@@ -100,6 +100,7 @@ db_tests=(
   tests/phase71-section5-decision-evolution-reconsideration-db.php
   tests/phase71-section6-agent-now-report-integration-db.php
   tests/phase71-section7-decision-command-center-team-review-db.php
+  tests/phase71-section8-end-to-end-release-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
