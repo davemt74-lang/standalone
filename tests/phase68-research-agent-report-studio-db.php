@@ -8,7 +8,7 @@ function p68(bool $ok,string $m): void {if(!$ok)throw new RuntimeException('FAIL
 function p68throws(callable $fn,string $m): void {try{$fn();}catch(Throwable $e){echo "PASS: $m\n";return;}throw new RuntimeException('FAIL: '.$m);}
 
 p68(research_report_studio_ready($pdo),'Phase 68 Report Studio schema is ready.');
-$types=research_system_report_types();p68(count($types)===9&&isset($types['research_brief']['default_depth'],$types['full_intelligence']['sections']),'Nine built-in report definitions expose Studio metadata.');
+$types=research_system_report_types();p68(count($types)>=14&&isset($types['research_brief']['default_depth'],$types['full_intelligence']['sections'],$types['research_evolution']['sections'],$types['what_changed']['sections']),'Report Studio preserves the Phase 68 catalog and exposes later longitudinal processors.');
 
 $run='p68'.substr(bin2hex(random_bytes(5)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
 $makeUser=function(string $name,string $role='user')use($pdo,$run,$pub): array{

@@ -61,6 +61,7 @@ function cognitive_feed_base_score(string $type): int {
       'related_conflict'=>86,
       'source_change'=>82,
       'research_report_delivery'=>84,
+      'research_longitudinal_change'=>86,
       'research_gap'=>78,
       'new_evidence'=>68,
       'research_opportunity'=>64,
@@ -427,6 +428,7 @@ function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): 
     if(function_exists('research_tasks_ready')&&research_tasks_ready($pdo))research_task_cognitive_observations($pdo,$viewer,$items,24);
     if(function_exists('research_programs_ready')&&research_programs_ready($pdo))research_program_cognitive_observations($pdo,$viewer,$items,20);
     if(function_exists('research_intelligence_delivery_ready')&&research_intelligence_delivery_ready($pdo))research_intelligence_delivery_cognitive_observations($pdo,$viewer,$items,14);
+    if(function_exists('research_longitudinal_ready')&&research_longitudinal_ready($pdo))research_longitudinal_cognitive_observations($pdo,$viewer,$items,14);
     if(function_exists('research_publications_ready')&&research_publications_ready($pdo))research_publication_cognitive_observations($pdo,$viewer,$items,24);
     if(function_exists('research_intelligence_portfolios_ready')&&research_intelligence_portfolios_ready($pdo))research_intelligence_portfolio_cognitive_observations($pdo,$viewer,$items,20);
     if(function_exists('research_intelligence_portfolio_operations_ready')&&research_intelligence_portfolio_operations_ready($pdo))research_intelligence_portfolio_operations_cognitive_observations($pdo,$viewer,$items,20);

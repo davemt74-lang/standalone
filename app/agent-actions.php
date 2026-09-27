@@ -47,7 +47,7 @@ function agent_action_capabilities(): array {
       ],
       'research.create_system_report'=>[
         'label'=>'Run Research Report','description'=>'Run a governed per-Research-Agent System Report over the current project data. This creates a Report Run, not a Research Document. The user must confirm the report run.',
-        'arguments'=>['report_type'=>'research_brief|evidence_audit|claims_verification|contradictions_gaps|source_freshness|entity_map|timeline|action_plan|full_intelligence','title'=>'string optional','depth'=>'quick|standard|deep optional','focus_query'=>'string optional','date_from'=>'YYYY-MM-DD optional','date_to'=>'YYYY-MM-DD optional','source_ids'=>'array optional','claim_ids'=>'array optional','finding_ids'=>'array optional','entity_ids'=>'array optional','folder_ids'=>'array optional','include_sections'=>'array optional']
+        'arguments'=>['report_type'=>'research_brief|evidence_audit|claims_verification|contradictions_gaps|source_freshness|entity_map|timeline|action_plan|full_intelligence|research_evolution|what_changed|confidence_contradictions|open_questions_evolution|entity_theme_evolution','title'=>'string optional','depth'=>'quick|standard|deep optional','focus_query'=>'string optional','date_from'=>'YYYY-MM-DD optional','date_to'=>'YYYY-MM-DD optional','source_ids'=>'array optional','claim_ids'=>'array optional','finding_ids'=>'array optional','entity_ids'=>'array optional','folder_ids'=>'array optional','include_sections'=>'array optional']
       ],
       'research.create_document_from_report'=>[
         'label'=>'Create document from Report Run','description'=>'Create a durable editable Research Document from an existing Report Run after user confirmation. The Report Run remains unchanged.',

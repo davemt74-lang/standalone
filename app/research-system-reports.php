@@ -29,6 +29,11 @@ function research_system_report_types(): array {
       'timeline'=>['label'=>'Research Timeline','description'=>'Reconstructs the project chronologically from Claims, evidence, Findings and source changes.','category'=>'history','default_depth'=>'standard','scope'=>$scope,'sections'=>['research_timeline']],
       'action_plan'=>['label'=>'Research Action Plan','description'=>'Turns current gaps, risks, monitoring signals and task state into prioritized follow-up.','category'=>'work','default_depth'=>'standard','scope'=>$scope,'sections'=>['priority_research_actions','active_tasks','evidence_gaps','contradictions','workflow_outcomes_downstream_impact']],
       'full_intelligence'=>['label'=>'Full Intelligence Report','description'=>'A comprehensive synthesis across evidence, Claims, Findings, entities, monitoring, work and open questions.','category'=>'overview','default_depth'=>'deep','scope'=>$scope,'sections'=>['research_state','findings','claims_verification','evidence_gaps','contradictions','source_risks','entities','next_actions','extended_research_intelligence']],
+      'research_evolution'=>['label'=>'Research Evolution Brief','description'=>'Explains how this Research Agent’s knowledge has evolved over time, including major milestones, strengthening and weakening conclusions, and persistent change.','category'=>'history','default_depth'=>'deep','scope'=>$scope,'sections'=>['evolution_summary','major_milestones','strengthening_and_weakening','persistent_change','what_to_review_next']],
+      'what_changed'=>['label'=>'What Changed Brief','description'=>'Summarizes meaningful Research changes since prior longitudinal state, emphasizing material Claim, Finding, Source, contradiction, and open-question movement.','category'=>'history','default_depth'=>'standard','scope'=>$scope,'sections'=>['change_summary','material_changes','resolved_items','new_questions_and_contradictions','next_review']],
+      'confidence_contradictions'=>['label'=>'Confidence & Contradictions Brief','description'=>'Tracks how Claim confidence and contradictions have strengthened, weakened, become disputed, verified, or resolved over time.','category'=>'intelligence','default_depth'=>'deep','scope'=>$scope,'sections'=>['confidence_movement','verification_milestones','contradiction_history','at_risk_knowledge']],
+      'open_questions_evolution'=>['label'=>'Open Questions Brief','description'=>'Tracks unresolved questions and evidence gaps across time, including newly opened, persistent, changed, and resolved questions.','category'=>'intelligence','default_depth'=>'standard','scope'=>$scope,'sections'=>['open_question_state','new_questions','persistent_questions','resolved_questions','recommended_follow_up']],
+      'entity_theme_evolution'=>['label'=>'Entity & Theme Evolution Brief','description'=>'Shows how important entities, relationships, and recurring Research themes are changing across longitudinal state.','category'=>'knowledge','default_depth'=>'deep','scope'=>$scope,'sections'=>['entity_movement','relationship_changes','emerging_themes','persistent_themes','implications']],
     ];
 }
 
@@ -250,6 +255,10 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
       'chunk_count'=>(int)($index['chunk_count']??0)
     ];
     $snapshot['state_hash']=hash('sha256',json_encode($stateBasis,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
+    if(function_exists('research_longitudinal_report_data')&&research_longitudinal_ready($pdo)){
+        try{$snapshot['longitudinal']=research_longitudinal_report_data($pdo,$viewer,(string)$agent['public_id'],3650);}
+        catch(Throwable $e){research_system_report_component_error('longitudinal',$e,$diagnostics);$snapshot['longitudinal']=['ready'=>false,'summary'=>[]];}
+    }else $snapshot['longitudinal']=['ready'=>false,'summary'=>[]];
     $snapshot['generated_at']=date('c');
     return $snapshot;
 }
@@ -374,6 +383,8 @@ function research_system_report_render(string $type,array $s): array {
     } elseif($type==='timeline'){
         $timeline=(array)($s['timeline']??[]);$shownTimeline=array_slice($timeline,0,function_exists('research_report_studio_limit')?research_report_studio_limit($s,40,100,250):100);$html='<ol>';foreach($shownTimeline as $e)$html.=research_system_report_li((string)($e['title']??$e['event']??'Research event'),(string)($e['detail']??''),(string)($e['created_at']??''));$html.='</ol>'.research_system_report_limit_note(count($shownTimeline),count($timeline),'timeline events');if(!$timeline)$html=research_system_report_empty('No Research timeline events are available.');
         $body.=research_system_report_section('Research timeline',$html);
+    } elseif(in_array($type,['research_evolution','what_changed','confidence_contradictions','open_questions_evolution','entity_theme_evolution'],true)){
+        $body.=function_exists('research_longitudinal_render_report')?research_longitudinal_render_report($type,$s):research_system_report_section('Longitudinal Research intelligence',research_system_report_empty('No longitudinal Research baseline is available yet.'));
     } elseif($type==='action_plan'){
         $body.=research_system_report_section('Priority Research actions',$sections['nextHtml']);
         $tasks=(array)($s['tasks']['items']??[]);$html='<ul>';foreach($tasks as $t)$html.=research_system_report_li((string)$t['title'],(string)($t['description']??''),(string)$t['priority'].' · '.(string)$t['status']);$html.='</ul>';if(!$tasks)$html=research_system_report_empty('No active Research tasks are currently recorded.');

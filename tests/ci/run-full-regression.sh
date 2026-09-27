@@ -85,6 +85,7 @@ db_tests=(
   tests/phase67-unified-research-knowledge-system-reports-db.php
   tests/phase68-research-agent-report-studio-db.php
   tests/phase69-research-intelligence-delivery-subscriptions-db.php
+  tests/phase70-longitudinal-research-intelligence-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php

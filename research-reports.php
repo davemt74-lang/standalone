@@ -96,6 +96,7 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
   <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions">
     <a href="/research.php">Research Agents</a>
     <a href="/research-agent-knowledge.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Knowledge</a>
+    <a href="/research-evolution.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Evolution</a>
     <a class="active" href="/research-reports.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Reports</a>
     <a href="/research-monitoring.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Monitoring</a>
     <a href="/research-tasks.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Tasks</a>
@@ -186,7 +187,8 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
         <?php if(!$subscriptions):?><div class="card empty">No Report subscriptions for this Research Agent yet.</div><?php endif?>
         <div class="researchReportsList"><?php foreach($subscriptions as $s):?><article class="card researchReportRow <?=$activeSubscription&&$activeSubscription['public_id']===$s['public_id']?'is-active':''?>">
           <div><span class="eyebrow"><?=h(strtoupper((string)$s['status']))?> · <?=h(strtoupper(str_replace('_',' ',(string)$s['delivery_policy'])))?></span><h3><?=h((string)$s['name'])?></h3><small><?=h((string)$s['preset_name'])?> · <?=h((string)$s['program_title'])?> · <?=h((string)$s['program_cadence'])?><?php if(!empty($s['program_next_run_at'])):?> · Next <?=h((string)$s['program_next_run_at'])?><?php endif?><?php if(!empty($s['last_delivered_at'])):?> · Last delivered <?=h((string)$s['last_delivered_at'])?><?php endif?></small></div>
-          <div class="inlineActions"><a href="/research-reports.php?agent=<?=h(rawurlencode($selectedId))?>&view=subscriptions&subscription=<?=h(rawurlencode((string)$s['public_id']))?>">Configure</a>
+          <div class="inlineActions"><a href="/research-evolution.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Evolution</a>
+    <a href="/research-reports.php?agent=<?=h(rawurlencode($selectedId))?>&view=subscriptions&subscription=<?=h(rawurlencode((string)$s['public_id']))?>">Configure</a>
             <?php if($s['status']!=='archived'):?><form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent" value="<?=h($selectedId)?>"><input type="hidden" name="subscription_id" value="<?=h((string)$s['public_id'])?>"><button class="button secondary" name="op" value="deliver_now">Deliver now</button></form><?php endif?>
           </div>
         </article><?php endforeach?></div>

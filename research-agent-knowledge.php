@@ -20,6 +20,7 @@ $counts=(array)($workspace['counts']??[]);
 <main class="researchLibraryCanvas researchKnowledgeCanvas">
   <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions">
     <a href="/research.php">Research Agents</a><a class="active" href="/research-agent-knowledge.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Knowledge</a>
+    <a href="/research-evolution.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Evolution</a>
     <a href="/research-reports.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Reports</a>
     <a href="/research-monitoring.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Monitoring</a>
     <a href="/research-tasks.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Tasks</a><a href="/research-programs.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Programs</a>
