@@ -163,8 +163,9 @@ A Decision-specific assessment is layered on top of that event with:
 - a Decision must have an explicit disposition before an outcome can be recorded
 - Outcome Memory never auto-accepts, rejects, reopens, or supersedes the Decision
 - outcome revisions do not rewrite Decision configuration revisions
-- updating expected-vs-actual assessment updates the linked Phase 20 outcome projection while preserving immutable Outcome Memory revisions
+- updating expected-vs-actual assessment updates a Decision-created Phase 20 outcome projection while preserving immutable Outcome Memory revisions; an explicitly linked pre-existing Phase 20 event remains read-only
 - one Decision may accumulate multiple observed outcomes over time
+- an existing user-owned Outcome Learning event from the same Research project may be explicitly linked instead of duplicated
 - idempotency prevents accidental duplicate recording of the same observed outcome
 
 ### Section 4 invariants
