@@ -15,6 +15,7 @@ $url='https://example.com/'.$run.'/living-source';$sourcePublic=$pub('source');$
 $pdo->prepare("INSERT INTO source_versions(source_id,version_number,final_url,title,extracted_text,content_hash,captured_at) VALUES(?,1,?,'Living Research Source','Version one evidence.',?,DATE_SUB(NOW(),INTERVAL 2 HOUR))")->execute([$sourceId,$url,hash('sha256','p24-v1-'.$run)]);$sv1=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE sources SET current_version_id=? WHERE id=?')->execute([$sv1,$sourceId]);$pdo->prepare('INSERT INTO project_sources(project_id,source_id,added_by_user_id) VALUES(?,?,?)')->execute([$projectId,$sourceId,$owner['id']]);
 
 $r1=research_report_publish($pdo,$project,$owner,'team','Living Team Report','Versioned team publication.','Broadband, Phoenix');p24(($r1['version_number']??0)===1,'first publish creates immutable report version 1');
+$managedForOwner=living_research_managed_reports($pdo,$owner,20);p24(in_array((string)$r1['public_id'],array_column($managedForOwner,'public_id'),true),'publisher managed-report listing is MySQL 8 compatible and includes owned reports');
 $report=research_report_access($pdo,(string)$r1['public_id'],$member);p24($report!==null&&(int)$report['version_number']===1,'Team member can access published Team report');
 $v1=research_report_version($pdo,$report,1);$v1Hash=(string)$v1['snapshot_hash'];$v1Json=(string)$v1['snapshot_json'];
 $topics=living_research_topics($pdo,(int)$report['id']);p24(array_column($topics,'topic_slug')===['broadband','phoenix'],'publisher topics are normalized and stored explicitly');
