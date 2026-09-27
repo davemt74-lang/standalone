@@ -100,6 +100,16 @@ function research_review_subject(PDO $pdo,array $viewer,string $type,string $pub
           'url'=>'/research-decisions.php?decision='.rawurlencode($publicId),'summary'=>mb_substr($summary,0,2000),
           'decision_status'=>(string)$r['status'],'decision_revision'=>(int)$r['current_revision']];
     }
+    if($type==='decision_reconsideration'&&function_exists('research_decision_reconsideration_access')){
+        $r=research_decision_reconsideration_access($pdo,$viewer,$publicId);if(!$r)return null;
+        $decision=research_decision_access($pdo,$viewer,(string)$r['decision_public_id']);if(!$decision)return null;
+        $hash=research_decision_reconsideration_review_state_hash($pdo,$viewer,$publicId);
+        $summary='Reason: '.(string)$r['reason'].' Recommendation: '.(string)$r['recommended_action'].'. Resolution: '.(string)($r['resolution']??'');
+        return ['type'=>'decision_reconsideration','public_id'=>$publicId,'project_id'=>(int)$decision['project_id'],'project_public_id'=>(string)$decision['project_public_id'],'project_title'=>(string)$decision['project_title'],
+          'title'=>'Decision reconsideration: '.(string)$r['title'],'hash'=>$hash,'version_label'=>'Reconsideration '.ucfirst((string)$r['status']).' · Decision revision '.(int)$r['decision_revision_opened'],
+          'url'=>'/research-decisions.php?decision='.rawurlencode((string)$r['decision_public_id']).'&reconsideration='.rawurlencode($publicId),'summary'=>mb_substr($summary,0,2000),
+          'reconsideration_status'=>(string)$r['status'],'recommended_action'=>(string)$r['recommended_action']];
+    }
     if($type==='document'){
         if(!function_exists('research_agent_workspace_object'))return null;$r=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$r||($r['object_type']??'')!=='document')return null;
         $hash=hash('sha256',json_encode(['public_id'=>$r['public_id'],'title'=>$r['title'],'revision_number'=>(int)$r['revision_number'],'content_hash'=>(string)$r['content_hash'],'summary'=>(string)($r['document_summary']??'')],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
