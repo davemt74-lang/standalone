@@ -20,7 +20,7 @@ $must('app/research-decisions.php',[
  'research_decision_add_ref','research_decision_remove_ref','research_decision_detail','research_decision_summary'
 ],'Decision ledger runtime');
 $must('api/research-decisions.php',[
- "'list','summary','detail'","$action==='create'","$action==='update'","$action==='set_status'","$action==='add_ref'","$action==='remove_ref'",
+ "'list','summary','detail'",'$action===\'create\'','$action===\'update\'','$action===\'set_status\'','$action===\'add_ref\'','$action===\'remove_ref\'',
  'require_api_mutation_auth','rate_limit_api_or_429'
 ],'Decision ledger API');
 $must('app/bootstrap.php',["require_once __DIR__ . '/research-decisions.php';"],'Decision bootstrap');
