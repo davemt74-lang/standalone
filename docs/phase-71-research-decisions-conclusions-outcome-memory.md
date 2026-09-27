@@ -136,6 +136,48 @@ Challenge creation, edits, status changes, and challenge-reference changes parti
 - reversal conditions describe what would justify reconsideration but do not themselves reopen the Decision
 - no autonomous scoring, voting, acceptance, rejection, scheduler, worker, cron, or queue is introduced
 
+
+## Section 4 — Outcome Memory
+
+Section 4 connects a recorded Decision disposition to what actually happened afterward.
+
+### Architecture
+
+Outcome Memory reuses the existing Phase 20 `research_outcome_events` ledger. A Decision outcome therefore remains visible to existing Outcome Learning and feedback systems instead of creating a parallel event model.
+
+A Decision-specific assessment is layered on top of that event with:
+
+- expected result
+- actual result
+- success / partial success / failure / mixed / unresolved assessment
+- variance between expectation and reality
+- lessons learned
+- explicit outcome confidence, when known
+- follow-up / resolved / reopened state
+- observation timestamp
+- project-scoped follow-up evidence pointers
+- immutable Outcome Memory revisions
+
+### Lifecycle rules
+
+- a Decision must have an explicit disposition before an outcome can be recorded
+- Outcome Memory never auto-accepts, rejects, reopens, or supersedes the Decision
+- outcome revisions do not rewrite Decision configuration revisions
+- updating expected-vs-actual assessment updates a Decision-created Phase 20 outcome projection while preserving immutable Outcome Memory revisions; an explicitly linked pre-existing Phase 20 event remains read-only
+- one Decision may accumulate multiple observed outcomes over time
+- an existing user-owned Outcome Learning event from the same Research project may be explicitly linked instead of duplicated
+- idempotency prevents accidental duplicate recording of the same observed outcome
+
+### Section 4 invariants
+
+- Phase 20 Outcome Learning tables remain authoritative event storage and are not replaced
+- Outcome Memory never fabricates a Decision disposition
+- actual outcome and assessment must be explicit; no hidden success score is inferred
+- Decision outcome confidence is explicit and bounded to 0–1
+- follow-up evidence remains pointers to accessible Research objects
+- team-visible Decision Outcome Memory does not depend on the original recorder still being the viewer
+- no scheduler, worker, cron, queue, or autonomous outcome judgment is introduced
+
 ## Planned Phase 71 sections
 
 1. Decision & Conclusion Ledger Foundation

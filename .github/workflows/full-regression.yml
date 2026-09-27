@@ -282,6 +282,7 @@ jobs:
           php tests/phase71-section1-decision-ledger-db.php
           php tests/phase71-section2-mission-decision-handoff-db.php
           php tests/phase71-section3-decision-evidence-challenge-graph-db.php
+          php tests/phase71-section4-outcome-memory-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -535,6 +536,13 @@ jobs:
           DB_PASS: root
           PHASE71_SECTION3_RESET_DB: '1'
         run: php tests/ci/phase71-section3-upgrade-from-088.php
+      - name: MySQL 8 Phase 71 Section 4 Outcome Memory upgrade rehearsal from migration 089 through 090
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase71_section4_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE71_SECTION4_RESET_DB: '1'
+        run: php tests/ci/phase71-section4-upgrade-from-089.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')

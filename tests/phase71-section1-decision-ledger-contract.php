@@ -28,7 +28,11 @@ $must('docs/phase-71-research-decisions-conclusions-outcome-memory.md',[
  '## Section 1 — Decision & Conclusion Ledger Foundation','Existing Outcome Learning history is not migrated','No decision is created automatically by a Mission',
  'No scheduler, worker, cron, queue'
 ],'Phase 71 Section 1 architecture');
-$avoid('app/research-decisions.php',['research_decision_jobs','research_decision_worker','research_program_enqueue(','research_outcome_events SET'],'Decision foundation isolation');
+$avoid('app/research-decisions.php',['research_decision_jobs','research_decision_worker','research_program_enqueue('],'Decision foundation isolation');
+$decisionRuntime=(string)file_get_contents($root.'/app/research-decisions.php');
+foreach(['research_decision_create','research_decision_update','research_decision_set_status'] as $fn){
+    if(preg_match('/function\\s+'.preg_quote($fn,'/').'\\b.*?(?=\\nfunction\\s+|\\z)/s',$decisionRuntime,$m)&&str_contains($m[0],'research_outcome_'))$fail[]='Decision foundation function '.$fn.' must not write Outcome Learning state.';
+}
 foreach(['research-decision-worker.php','research-decisions-worker.php','decision-worker.php'] as $worker)if(is_file($root.'/worker/'.$worker))$fail[]='Phase 71 Section 1 must not add a Decision worker: '.$worker;
 $must('tests/ci/run-full-regression.sh',['tests/phase71-section1-decision-ledger-db.php'],'Phase 71 Section 1 regression gate');
 $must('.github/workflows/full-regression.yml',['phase71-section1-upgrade-from-086.php'],'Phase 71 Section 1 MySQL upgrade gate');

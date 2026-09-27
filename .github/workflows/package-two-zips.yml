@@ -365,6 +365,10 @@ jobs:
           test -f package-website/tests/phase71-section3-decision-evidence-challenge-graph-contract.php
           test -f package-website/tests/phase71-section3-decision-evidence-challenge-graph-db.php
           test -f package-website/tests/ci/phase71-section3-upgrade-from-088.php
+          test -f package-website/database/migrations/20260927_090_research_decision_outcome_memory.sql
+          test -f package-website/tests/phase71-section4-outcome-memory-contract.php
+          test -f package-website/tests/phase71-section4-outcome-memory-db.php
+          test -f package-website/tests/ci/phase71-section4-upgrade-from-089.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
