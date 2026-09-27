@@ -49,7 +49,9 @@ foreach($baselines as $baseline=>$expected){
           ->execute([$tag.'-review',$projectId,$userId,$tag.'-claim']);
         $before=$pdo->prepare("SELECT public_id,project_id,requested_by_user_id,subject_type,subject_public_id,subject_hash,subject_version_label,title,status FROM research_reviews WHERE public_id=?");$before->execute([$tag.'-review']);$beforeRow=$before->fetch();
 
-        $applied=migration_apply_pending($pdo,$root.'/database/migrations',100);
+        $phase71Final='20260927_092_research_decision_command_center_team_review.sql';
+        foreach(glob($root.'/database/migrations/*.sql')?:[] as $file){$base=basename($file);if(strcmp($base,$baseline)>0&&strcmp($base,$phase71Final)<=0)copy($file,$tmp.'/'.$base);}
+        $applied=migration_apply_pending($pdo,$tmp,100);
         foreach($expected as $migration)if(!in_array($migration,$applied,true))throw new RuntimeException($baseline.' did not apply expected migration '.$migration.'.');
         $unexpected=array_values(array_diff($applied,$expected));if($unexpected)throw new RuntimeException($baseline.' applied unexpected migrations: '.implode(', ',$unexpected));
 
@@ -65,8 +67,8 @@ foreach($baselines as $baseline=>$expected){
           if((int)$pdo->query('SELECT COUNT(*) FROM '.$table)->fetchColumn()!==0)throw new RuntimeException($baseline.' upgrade fabricated state in '.$table.'.');
         if((int)$pdo->query("SELECT COUNT(*) FROM research_reviews WHERE subject_type IN ('decision','decision_reconsideration')")->fetchColumn()!==0)throw new RuntimeException($baseline.' upgrade fabricated Decision Team Reviews.');
 
-        $pending=installer_pending_migrations($pdo,$root.'/database/migrations');if($pending)throw new RuntimeException($baseline.' left pending migrations: '.implode(', ',$pending));
-        $again=migration_apply_pending($pdo,$root.'/database/migrations',100);if($again)throw new RuntimeException($baseline.' repeat pass is not a no-op: '.implode(', ',$again));
+        $pending=installer_pending_migrations($pdo,$tmp);if($pending)throw new RuntimeException($baseline.' left pending Phase 71 migrations: '.implode(', ',$pending));
+        $again=migration_apply_pending($pdo,$tmp,100);if($again)throw new RuntimeException($baseline.' repeat pass is not a no-op: '.implode(', ',$again));
         echo "PASS: Phase 71 supported upgrade ".$baseline." → 092 preserved existing review state, created no synthetic Decision state, and is repeat-safe.\n";
     }finally{
         foreach(glob($tmp.'/*')?:[] as $file)@unlink($file);@rmdir($tmp);$pdo=null;
