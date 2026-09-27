@@ -95,11 +95,20 @@ $legacy=research_outcome_record($pdo,$owner,[
  'project_public_id'=>$project['public_id'],'title'=>'Existing operational observation','summary'=>'An existing Phase 20 observation can be attached after the fact.',
  'refs'=>[['type'=>'source','public_id'=>$source['public_id'],'role'=>'source']],'is_manual'=>true,'dedupe_key'=>'legacy-outcome-link-'.$run
 ]);
+$legacyBefore=$pdo->query("SELECT title,summary,note,decision_type,source_type,source_public_id,occurred_at FROM research_outcome_events WHERE id=".(int)$legacy['id'])->fetch();
 $linked=research_decision_record_outcome($pdo,$owner,(string)$decision['public_id'],[
  'outcome_event_id'=>$legacy['public_id'],'idempotency_key'=>'legacy-link','assessment'=>'unresolved',
  'expected_summary'=>'Operational observation may affect the rollout decision.','variance_summary'=>'Still under review.'
 ]);
 p71s4(($linked['outcome_event_public_id']??'')===$legacy['public_id'],'Existing Phase 20 Outcome Learning event can be explicitly attached to a Decision without copying it.');
+$linkedUpdated=research_decision_update_outcome($pdo,$owner,(string)$linked['public_id'],[
+ 'assessment'=>'mixed','actual_summary'=>'The operational observation remains valid, while its Decision implication is now mixed.',
+ 'variance_summary'=>'The same historical event now supports a more nuanced Decision assessment.','lessons'=>'Interpretation may evolve without rewriting the source event.',
+ 'follow_up_state'=>'follow_up','reason'=>'Decision-specific interpretation updated'
+]);
+$legacyAfter=$pdo->query("SELECT title,summary,note,decision_type,source_type,source_public_id,occurred_at FROM research_outcome_events WHERE id=".(int)$legacy['id'])->fetch();
+p71s4($legacyAfter===$legacyBefore,'Revising Decision Outcome Memory does not rewrite a pre-existing linked Phase 20 event.');
+p71s4(count((array)$linkedUpdated['versions'])===2,'Linked historical outcome keeps independent immutable Decision Outcome revisions.');
 p71s4((research_decision_outcome_summary($pdo,$owner,(string)$decision['public_id'])['total']??0)===2,'One Decision may accumulate multiple observed outcomes over time.');
 
 echo "Phase 71 Section 4 Outcome Memory database journey passed.\n";
