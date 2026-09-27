@@ -318,12 +318,14 @@ function research_task_mark_failed(PDO $pdo,string $taskPublic,string $message):
     $pdo->prepare("UPDATE research_tasks SET status='failed',blocking_reason=?,updated_at=NOW() WHERE id=?")->execute([mb_substr($message,0,1000),(int)$task['id']]);
     $pdo->prepare("UPDATE research_task_runs SET status='failed',last_error=?,completed_at=NOW() WHERE task_id=? AND status IN ('processing','queued_ai') ORDER BY id DESC LIMIT 1")->execute([mb_substr($message,0,1000),(int)$task['id']]);
     research_task_event($pdo,(int)$task['project_id'],$task['plan_id']?(int)$task['plan_id']:null,(int)$task['id'],'failed','system',null,['error'=>mb_substr($message,0,1000)]);
+    if($task['plan_id']&&function_exists('research_mission_sync_execution'))research_mission_sync_execution($pdo,(int)$task['plan_id']);
 }
 
 function research_task_plan_recalculate(PDO $pdo,int $planId): void {
     $q=$pdo->prepare("SELECT COUNT(*) total,SUM(CASE WHEN status IN ('complete','done','archived') THEN 1 ELSE 0 END) completed FROM research_tasks WHERE plan_id=?");$q->execute([$planId]);$x=$q->fetch()?:['total'=>0,'completed'=>0];
     if((int)$x['total']>0&&(int)$x['total']===(int)$x['completed'])$pdo->prepare("UPDATE research_task_plans SET status='completed',completed_at=COALESCE(completed_at,NOW()),updated_at=NOW() WHERE id=? AND status='active'")->execute([$planId]);
     else $pdo->prepare("UPDATE research_task_plans SET status=CASE WHEN status='completed' THEN 'active' ELSE status END,completed_at=CASE WHEN status='completed' THEN NULL ELSE completed_at END,updated_at=NOW() WHERE id=?")->execute([$planId]);
+    if(function_exists('research_mission_sync_execution'))research_mission_sync_execution($pdo,$planId);
 }
 
 function research_task_deliverable_document_type(string $type): string {
@@ -430,6 +432,7 @@ function research_task_update(PDO $pdo,array $viewer,string $taskPublic,array $i
     $pdo->prepare('DELETE FROM research_task_evidence_refs WHERE task_id=?')->execute([(int)$task['id']]);
     research_task_event($pdo,(int)$task['project_id'],$task['plan_id']?(int)$task['plan_id']:null,(int)$task['id'],'revised','user',(int)$viewer['id'],['task_type'=>$type,'priority'=>$priority]);
     if($task['plan_id']){$q=$pdo->prepare("UPDATE research_task_plans SET current_revision=current_revision+1,status=CASE WHEN status='completed' THEN 'active' ELSE status END,completed_at=CASE WHEN status='completed' THEN NULL ELSE completed_at END,updated_at=NOW() WHERE id=?");$q->execute([(int)$task['plan_id']]);$q=$pdo->prepare("SELECT * FROM research_task_plans WHERE id=?");$q->execute([(int)$task['plan_id']]);$plan=$q->fetch();research_task_plan_snapshot($pdo,$plan,'Task revised',(int)$viewer['id'],false);}
+    if($task['plan_id']&&function_exists('research_mission_sync_execution'))research_mission_sync_execution($pdo,(int)$task['plan_id']);
     research_task_queue($pdo,(int)$task['id'],(int)$viewer['id'],'replan');if($task['plan_id'])research_task_refresh_deliverable_by_plan_id($pdo,(int)$task['plan_id']);
     return research_task_access($pdo,$viewer,$taskPublic)??$task;
 }
