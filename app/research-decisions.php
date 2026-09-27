@@ -156,6 +156,7 @@ function research_decision_detail(PDO $pdo,array $viewer,string $publicId): ?arr
     $decision=research_decision_access($pdo,$viewer,$publicId);if(!$decision)return null;
     $decision['assumptions']=research_decision_json($decision['assumptions_json']??null);$decision['uncertainty']=research_decision_json($decision['uncertainty_json']??null);$decision['alternatives']=research_decision_json($decision['alternatives_json']??null);
     $decision['refs']=research_decision_refs($pdo,(int)$decision['id']);$decision['versions']=research_decision_versions($pdo,(int)$decision['id'],50);$decision['events']=research_decision_events($pdo,(int)$decision['id'],100);
+    $decision['handoff']=research_decision_handoff_for_decision($pdo,(int)$decision['id']);
     return $decision;
 }
 
@@ -236,3 +237,76 @@ function research_decision_summary(PDO $pdo,array $viewer,string $agentPublic): 
     $q=$pdo->prepare('SELECT status,COUNT(*) c FROM research_decisions WHERE research_agent_id=? AND project_id=? GROUP BY status');$q->execute([(int)$agent['id'],(int)$project['id']]);$statuses=[];$total=0;foreach($q->fetchAll() as $r){$statuses[(string)$r['status']]=(int)$r['c'];$total+=(int)$r['c'];}
     $q=$pdo->prepare('SELECT decision_type,COUNT(*) c FROM research_decisions WHERE research_agent_id=? AND project_id=? GROUP BY decision_type');$q->execute([(int)$agent['id'],(int)$project['id']]);$types=[];foreach($q->fetchAll() as $r)$types[(string)$r['decision_type']]=(int)$r['c'];return ['total'=>$total,'statuses'=>$statuses,'types'=>$types];
 }
+
+function research_decision_handoffs_ready(PDO $pdo): bool {
+    try{return installer_table_exists($pdo,'research_decision_handoffs');}catch(Throwable $e){return false;}
+}
+
+function research_decision_handoff_for_decision(PDO $pdo,int $decisionId): ?array {
+    if(!research_decision_handoffs_ready($pdo))return null;
+    $q=$pdo->prepare("SELECT rdh.*,rm.public_id mission_public_id,rd.public_id decision_public_id FROM research_decision_handoffs rdh JOIN research_missions rm ON rm.id=rdh.mission_id JOIN research_decisions rd ON rd.id=rdh.decision_id WHERE rdh.decision_id=? LIMIT 1");
+    $q->execute([$decisionId]);$row=$q->fetch();if(!$row)return null;$row['snapshot']=research_decision_json($row['snapshot_json']??null);return $row;
+}
+
+function research_decision_mission_snapshot(array $mission): array {
+    $progress=(array)($mission['progress']??[]);$criteria=[];$questions=[];
+    foreach((array)($mission['criteria']??[]) as $c)$criteria[]=['public_id'=>(string)$c['public_id'],'label'=>(string)$c['label'],'status'=>(string)$c['status'],'evaluation'=>research_decision_json($c['evaluation_json']??null)];
+    foreach((array)($mission['subquestions']??[]) as $q)$questions[]=['public_id'=>(string)$q['public_id'],'question'=>(string)$q['question'],'status'=>(string)$q['status'],'answer_summary'=>(string)($q['answer_summary']??''),'confidence'=>$q['confidence']!==null?(float)$q['confidence']:null,'linked_task_public_id'=>(string)($q['linked_task_public_id']??'')];
+    return [
+      'mission_public_id'=>(string)$mission['public_id'],'mission_revision'=>(int)$mission['current_revision'],'mission_config_hash'=>(string)$mission['config_hash'],
+      'mission_status'=>(string)$mission['status'],'title'=>(string)$mission['title'],'research_question'=>(string)$mission['research_question'],'objective'=>(string)$mission['objective'],
+      'success_definition'=>(string)($mission['success_definition']??''),'plan_public_id'=>(string)($mission['plan_public_id']??''),'plan_status'=>(string)($mission['plan']['status']??''),
+      'program_public_id'=>(string)($mission['program_public_id']??''),'primary_answer'=>(string)($progress['primary_answer']['summary']??''),
+      'percent_complete'=>(int)($progress['percent_complete']??0),'completion_readiness'=>(array)($progress['completion_readiness']??[]),
+      'confidence'=>(array)($progress['confidence']??[]),'criteria'=>$criteria,'subquestions'=>$questions
+    ];
+}
+
+function research_decision_mission_refs(array $mission): array {
+    $refs=[['type'=>'mission','id'=>(string)$mission['public_id'],'role'=>'context','note'=>'Source Research Mission']];
+    if(!empty($mission['plan_public_id']))$refs[]=['type'=>'plan','id'=>(string)$mission['plan_public_id'],'role'=>'context','note'=>'Mission execution Plan'];
+    if(!empty($mission['program_public_id']))$refs[]=['type'=>'program','id'=>(string)$mission['program_public_id'],'role'=>'context','note'=>'Mission change-response Program'];
+    foreach((array)($mission['plan']['tasks']??[]) as $task){
+        foreach((array)($task['evidence_refs']??[]) as $e){
+            $role=(string)($e['relationship']??'context');if($role==='primary')$role='source';if(!isset(research_decision_ref_roles()[$role]))$role='context';
+            $refs[]=['type'=>(string)($e['ref_type']??''),'id'=>(string)($e['ref_public_id']??''),'role'=>$role,'note'=>research_decision_text('Mission task evidence: '.(string)($task['title']??''),2000)];
+        }
+    }
+    $out=[];$seen=[];foreach($refs as $r){$key=strtolower((string)$r['type']).'|'.(string)$r['id'].'|'.(string)$r['role'];if(($r['id']??'')===''||isset($seen[$key]))continue;$seen[$key]=true;$out[]=$r;}return array_slice($out,0,100);
+}
+
+function research_decision_from_mission(PDO $pdo,array $viewer,string $missionPublic,array $input=[],bool $byAgent=false): array {
+    if(!research_decision_handoffs_ready($pdo))throw new RuntimeException('Mission Decision handoff requires the latest database upgrade.');
+    $mission=research_mission_detail($pdo,$viewer,trim($missionPublic));if(!$mission)throw new RuntimeException('Research Mission not found.');
+    if(!in_array((string)$mission['status'],['review','completed'],true))throw new InvalidArgumentException('Only a Mission in Review or Completed state can be handed off to a Decision.');
+    if((string)($mission['plan']['status']??'')!=='completed')throw new InvalidArgumentException('Mission execution must be complete before Decision handoff.');
+    $answer=trim((string)($mission['progress']['primary_answer']['summary']??''));if($answer==='')throw new InvalidArgumentException('Mission synthesis is required before Decision handoff.');
+    $snapshot=research_decision_mission_snapshot($mission);$snapshotJson=json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION);$stateHash=hash('sha256',$snapshotJson);
+    $type=(string)($input['decision_type']??$input['type']??'conclusion');if(!isset(research_decision_types()[$type]))throw new InvalidArgumentException('Invalid decision type.');
+    $title=research_decision_text((string)($input['title']??((string)$mission['title'].' — '.research_decision_types()[$type])),255);
+    $statement=research_decision_text((string)($input['statement']??$answer),64000);if($statement==='')throw new InvalidArgumentException('Decision statement is required.');
+    $idempotencyRaw=trim((string)($input['idempotency_key']??''));if($idempotencyRaw==='')$idempotencyRaw=json_encode(['mission'=>$mission['public_id'],'revision'=>$mission['current_revision'],'state'=>$stateHash,'type'=>$type,'title'=>$title,'statement'=>$statement],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION);
+    $idempotency=hash('sha256',$idempotencyRaw);
+    $find=$pdo->prepare("SELECT rd.public_id FROM research_decision_handoffs rdh JOIN research_decisions rd ON rd.id=rdh.decision_id WHERE rdh.mission_id=? AND rdh.idempotency_key=? LIMIT 1");$find->execute([(int)$mission['id'],$idempotency]);$existing=(string)($find->fetchColumn()?:'');if($existing!=='')return research_decision_detail($pdo,$viewer,$existing)??['public_id'=>$existing];
+
+    $refs=research_decision_mission_refs($mission);foreach(array_slice((array)($input['refs']??[]),0,40) as $ref)if(is_array($ref))$refs[]=$ref;
+    $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
+    try{
+        $lock=$pdo->prepare('SELECT current_revision,status FROM research_missions WHERE id=? FOR UPDATE');$lock->execute([(int)$mission['id']]);$locked=$lock->fetch();
+        if(!$locked||(int)$locked['current_revision']!==(int)$mission['current_revision']||(string)$locked['status']!==(string)$mission['status'])throw new RuntimeException('Mission changed during handoff. Reload it and try again.');
+        $find->execute([(int)$mission['id'],$idempotency]);$existing=(string)($find->fetchColumn()?:'');
+        if($existing!==''){if($owns)$pdo->commit();return research_decision_detail($pdo,$viewer,$existing)??['public_id'=>$existing];}
+        $decision=research_decision_create($pdo,$viewer,[
+          'agent_id'=>(string)$mission['agent_public_id'],'mission_id'=>(string)$mission['public_id'],'decision_type'=>$type,'title'=>$title,'statement'=>$statement,
+          'rationale'=>(string)($input['rationale']??''),'confidence'=>$input['confidence']??'','assumptions'=>$input['assumptions']??[],
+          'uncertainty'=>$input['uncertainty']??[],'alternatives'=>$input['alternatives']??[],'accountable_user_id'=>$input['accountable_user_id']??$input['accountable_user_public_id']??($viewer['public_id']??''),'refs'=>$refs
+        ],$byAgent);
+        $decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'proposed',$byAgent);
+        $handoffPublic=ulid_like();$pdo->prepare("INSERT INTO research_decision_handoffs(public_id,mission_id,decision_id,mission_revision,mission_status,mission_state_hash,snapshot_json,requested_by_user_id,created_by_agent,idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?)")
+          ->execute([$handoffPublic,(int)$mission['id'],(int)$decision['id'],(int)$mission['current_revision'],(string)$mission['status'],$stateHash,$snapshotJson,(int)$viewer['id'],$byAgent?1:0,$idempotency]);
+        $fresh=research_decision_by_id($pdo,(int)$decision['id']);research_decision_event($pdo,$fresh,'decision_created_from_mission',$byAgent?'agent':'user',(int)$viewer['id'],['handoff_id'=>$handoffPublic,'mission_id'=>(string)$mission['public_id'],'mission_revision'=>(int)$mission['current_revision'],'mission_state_hash'=>$stateHash]);
+        if($owns)$pdo->commit();
+    }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+    return research_decision_detail($pdo,$viewer,(string)$decision['public_id'])??$decision;
+}
+
