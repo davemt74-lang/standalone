@@ -635,10 +635,19 @@ function research_decision_open_reconsideration(PDO $pdo,array $viewer,string $d
     $decision=research_decision_access($pdo,$viewer,$decisionPublic);if(!$decision)throw new RuntimeException('Decision not found.');
     if(!in_array((string)$decision['status'],['accepted','rejected','deferred','superseded'],true))throw new InvalidArgumentException('Only a recorded Decision disposition can enter reconsideration.');
     $trigger=(string)($input['trigger_type']??'manual');if(!isset(research_decision_reconsideration_trigger_types()[$trigger]))throw new InvalidArgumentException('Invalid reconsideration trigger type.');
-    $triggerId=research_decision_text((string)($input['trigger_public_id']??''),160);$title=research_decision_text((string)($input['title']??'Reconsider '.(string)$decision['title']),255);if($title==='')throw new InvalidArgumentException('Reconsideration title is required.');
+    $triggerId=research_decision_text((string)($input['trigger_public_id']??''),160);
+    $signals=research_decision_reconsideration_signals($pdo,$viewer,(string)$decision['public_id']);
+    if($trigger!=='manual'){
+      if($triggerId==='')throw new InvalidArgumentException('A reconsideration signal is required for this trigger type.');
+      $matched=false;foreach((array)$signals['signals'] as $signal)if((string)$signal['trigger_type']===$trigger&&(string)($signal['trigger_public_id']??'')===$triggerId){$matched=true;break;}
+      if(!$matched)throw new InvalidArgumentException('That reconsideration signal is no longer current.');
+    }
+    $title=research_decision_text((string)($input['title']??'Reconsider '.(string)$decision['title']),255);if($title==='')throw new InvalidArgumentException('Reconsideration title is required.');
     $reason=research_decision_text((string)($input['reason']??''),64000);if($reason==='')throw new InvalidArgumentException('Reconsideration reason is required.');
     $materiality=(string)($input['materiality']??'medium');if(!isset(research_decision_reconsideration_materiality()[$materiality]))throw new InvalidArgumentException('Invalid reconsideration materiality.');
-    $snapshot=research_decision_reconsideration_opening_snapshot($pdo,$viewer,$decision);$snapshotJson=json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION);$hash=hash('sha256',$snapshotJson);$public=ulid_like();
+    $snapshot=research_decision_reconsideration_opening_snapshot($pdo,$viewer,$decision);$snapshotJson=json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION);$hash=hash('sha256',$snapshotJson);
+    $dup=$pdo->prepare("SELECT public_id FROM research_decision_reconsiderations WHERE decision_id=? AND trigger_type=? AND COALESCE(trigger_public_id,'')=? AND opening_context_hash=? AND status IN ('open','reviewing') ORDER BY id DESC LIMIT 1");$dup->execute([(int)$decision['id'],$trigger,$triggerId,$hash]);$existing=(string)($dup->fetchColumn()?:'');if($existing!=='')return research_decision_reconsideration_access($pdo,$viewer,$existing)??['public_id'=>$existing];
+    $public=ulid_like();
     $pdo->prepare("INSERT INTO research_decision_reconsiderations(public_id,decision_id,trigger_type,trigger_public_id,title,reason,materiality,status,recommended_action,decision_revision_opened,decision_status_opened,opening_context_hash,opening_snapshot_json,opened_by_user_id,created_by_agent)
       VALUES(?,?,?,?,?,?,?,'open','undetermined',?,?,?,?,?,?)")->execute([$public,(int)$decision['id'],$trigger,$triggerId!==''?$triggerId:null,$title,$reason,$materiality,(int)$decision['current_revision'],(string)$decision['status'],$hash,$snapshotJson,(int)$viewer['id'],$byAgent?1:0]);
     $id=(int)$pdo->lastInsertId();research_decision_reconsideration_event($pdo,$id,'reconsideration_opened',$byAgent?'agent':'user',(int)$viewer['id'],['trigger_type'=>$trigger,'trigger_public_id'=>$triggerId,'materiality'=>$materiality,'decision_revision'=>(int)$decision['current_revision'],'decision_status'=>(string)$decision['status'],'opening_context_hash'=>$hash]);
@@ -647,6 +656,7 @@ function research_decision_open_reconsideration(PDO $pdo,array $viewer,string $d
 }
 function research_decision_set_reconsideration_status(PDO $pdo,array $viewer,string $casePublic,string $status,array $input=[],bool $byAgent=false): array {
     $case=research_decision_reconsideration_access($pdo,$viewer,$casePublic);if(!$case)throw new RuntimeException('Decision reconsideration not found.');if(!isset(research_decision_reconsideration_statuses()[$status]))throw new InvalidArgumentException('Invalid reconsideration status.');
+    if(!empty($case['applied_at']))throw new InvalidArgumentException('An applied reconsideration is immutable.');
     $current=(string)$case['status'];if($current===$status)return $case;$allowed=['open'=>['reviewing','resolved','dismissed'],'reviewing'=>['open','resolved','dismissed'],'resolved'=>['open'],'dismissed'=>['open']];if(!in_array($status,$allowed[$current]??[],true))throw new InvalidArgumentException('That reconsideration status transition is not allowed.');
     $action=(string)($input['recommended_action']??($case['recommended_action']??'undetermined'));if(!isset(research_decision_reconsideration_actions()[$action]))throw new InvalidArgumentException('Invalid reconsideration recommendation.');
     $resolution=research_decision_text((string)($input['resolution']??''),64000);if(in_array($status,['resolved','dismissed'],true)&&$resolution==='')throw new InvalidArgumentException('A resolution is required to close a reconsideration.');
@@ -662,6 +672,7 @@ function research_decision_apply_reconsideration(PDO $pdo,array $viewer,string $
     $case=research_decision_reconsideration_access($pdo,$viewer,$casePublic);if(!$case)throw new RuntimeException('Decision reconsideration not found.');if((string)$case['status']!=='resolved')throw new InvalidArgumentException('Resolve the reconsideration before applying it.');
     $decision=research_decision_detail($pdo,$viewer,(string)$case['decision_public_id']);if(!$decision)throw new RuntimeException('Decision not found.');
     if(!empty($case['applied_at']))return ['reconsideration'=>$case,'decision'=>$decision];
+    if((int)$decision['current_revision']!==(int)$case['decision_revision_opened']||(string)$decision['status']!==(string)$case['decision_status_opened'])throw new InvalidArgumentException('Decision changed after reconsideration opened. Open a new reconsideration from current state.');
     $action=(string)$case['recommended_action'];if($action==='undetermined')throw new InvalidArgumentException('Reconsideration has no explicit recommendation.');$before=(string)$decision['status'];$after=$before;
     $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
     try{
