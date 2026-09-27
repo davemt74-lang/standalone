@@ -37,7 +37,7 @@ $mission=research_mission_set_status($pdo,$owner,(string)$mission['public_id'],'
 
 $feed=[];research_mission_cognitive_observations($pdo,$owner,$feed,20);
 $missionCards=array_values(array_filter(array_values($feed),fn($x)=>str_starts_with((string)($x['type']??''),'research_mission_')));
-rmv16(count($missionCards)>=1&&str_contains((string)$missionCards[0]['actions'][0]['url'],'research-missions.php'),'Mission state surfaces in Now with a Command Center action.');
+rmv16(count($missionCards)>=1&&str_contains((string)$missionCards[0]['actions'][0]['href'],'research-missions.php'),'Mission state surfaces in Now with a Command Center action.');
 
 $review=research_review_create($pdo,$owner,'mission',(string)$mission['public_id'],[(int)$reviewer['id']],null,'Check the Mission question, progress, and current evidence.');
 rmv16(($review['subject_type']??'')==='mission'&&!empty($review['subject']['url']),'Mission uses the existing Review Center as a first-class review subject.');
