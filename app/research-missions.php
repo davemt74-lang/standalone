@@ -121,7 +121,7 @@ function research_mission_create(PDO $pdo,array $viewer,array $input,bool $byAge
     try{
         $placeholder=str_repeat('0',64);
         $pdo->prepare("INSERT INTO research_missions(public_id,research_agent_id,project_id,created_by_user_id,title,research_question,objective,success_definition,status,priority,scope_json,constraints_json,current_revision,config_hash)
-          VALUES(?,?,?,?,?,?,?,?, 'draft',?,?,?,?,1,?)")
+          VALUES(?,?,?,?,?,?,?,?, 'draft',?,?,?,1,?)")
           ->execute([$public,(int)$agent['id'],(int)$project['id'],(int)$viewer['id'],$title,$question,$objective,$success!==''?$success:null,$priority,$scope?json_encode($scope,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null,$constraints?json_encode($constraints,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null,$placeholder]);
         $missionId=(int)$pdo->lastInsertId();
         foreach($criteria as $criterion)research_mission_insert_criterion($pdo,$missionId,$criterion);
