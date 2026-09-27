@@ -8,11 +8,11 @@ $must('database/migrations/20260927_090_research_decision_outcome_memory.sql',[
  'CREATE TABLE IF NOT EXISTS research_decision_outcomes','CREATE TABLE IF NOT EXISTS research_decision_outcome_versions',
  "ENUM('unresolved','success','partial','failure','mixed')","FOREIGN KEY(outcome_event_id) REFERENCES research_outcome_events"
 ],'Phase 71 Section 4 migration');
-$must('app/research-outcomes.php',["$type==='decision'",'research_decision_access'],'Outcome Learning Decision reference compatibility');
+$must('app/research-outcomes.php',['$type===\'decision\'','research_decision_access'],'Outcome Learning Decision reference compatibility');
 $must('app/research-decisions.php',[
  'research_decision_outcomes_ready','research_decision_record_outcome','research_decision_update_outcome',
  'research_decision_outcome_versions','research_decision_outcome_summary','research_outcome_record',
- 'decision_outcome_recorded','decision_outcome_updated'
+ 'decision_outcome_recorded','decision_outcome_updated','outcome_event_id','outcome_event_source_type'
 ],'Decision Outcome Memory runtime');
 $must('api/research-decisions.php',[
  "'outcome_detail','outcome_summary'",'$action===\'record_outcome\'','$action===\'update_outcome\''
