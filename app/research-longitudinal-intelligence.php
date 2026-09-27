@@ -33,16 +33,40 @@ function research_longitudinal_derived_id(string $prefix,array $row): string {
     return $prefix.'-'.substr(hash('sha256',implode('|',$basis)),0,32);
 }
 
+function research_longitudinal_claim_evidence_fingerprints(PDO $pdo,int $projectId): array {
+    $q=$pdo->prepare("SELECT rc.public_id claim_public_id,
+      GROUP_CONCAT(CONCAT_WS(':',ce.public_id,ce.relationship,COALESCE(s.public_id,''),COALESCE(sv.content_hash,'')) ORDER BY ce.public_id SEPARATOR '|') evidence_basis
+      FROM research_claims rc
+      LEFT JOIN claim_evidence ce ON ce.claim_id=rc.id
+      LEFT JOIN source_versions sv ON sv.id=ce.source_version_id
+      LEFT JOIN sources s ON s.id=sv.source_id
+      WHERE rc.project_id=? GROUP BY rc.id");
+    $q->execute([$projectId]);$out=[];foreach($q->fetchAll()?:[] as $r)$out[(string)$r['claim_public_id']]=hash('sha256',(string)($r['evidence_basis']??''));return $out;
+}
+
+function research_longitudinal_finding_claim_fingerprints(PDO $pdo,int $projectId): array {
+    $q=$pdo->prepare("SELECT rf.public_id finding_public_id,
+      GROUP_CONCAT(CONCAT_WS(':',rc.public_id,fc.relationship,fc.position) ORDER BY fc.position,rc.public_id SEPARATOR '|') claim_basis
+      FROM research_findings rf
+      LEFT JOIN finding_claims fc ON fc.finding_id=rf.id
+      LEFT JOIN research_claims rc ON rc.id=fc.claim_id
+      WHERE rf.project_id=? GROUP BY rf.id");
+    $q->execute([$projectId]);$out=[];foreach($q->fetchAll()?:[] as $r)$out[(string)$r['finding_public_id']]=hash('sha256',(string)($r['claim_basis']??''));return $out;
+}
+
 function research_longitudinal_state(PDO $pdo,array $viewer,string $agentPublic): array {
     $agent=research_longitudinal_agent($pdo,$viewer,$agentPublic);$projectId=(int)$agent['project_id'];
     $workspace=function_exists('research_workspace_deterministic_snapshot')?research_workspace_deterministic_snapshot($pdo,$projectId):[];
+    $claimEvidence=research_longitudinal_claim_evidence_fingerprints($pdo,$projectId);$findingClaims=research_longitudinal_finding_claim_fingerprints($pdo,$projectId);
     $claims=[];foreach((array)(function_exists('research_workspace_claim_rows')?research_workspace_claim_rows($pdo,$projectId):[]) as $r)$claims[]=[
       'public_id'=>(string)$r['public_id'],'statement'=>(string)$r['statement'],'claim_type'=>(string)$r['claim_type'],'status'=>(string)$r['status'],
       'evidence_count'=>(int)($r['evidence_count']??0),'source_count'=>(int)($r['source_count']??0),'supports_count'=>(int)($r['supports_count']??0),
-      'contradicts_count'=>(int)($r['contradicts_count']??0),'primary_count'=>(int)($r['primary_count']??0)
+      'contradicts_count'=>(int)($r['contradicts_count']??0),'primary_count'=>(int)($r['primary_count']??0),
+      'evidence_fingerprint'=>(string)($claimEvidence[(string)$r['public_id']]??hash('sha256',''))
     ];
     $findings=[];foreach((array)(function_exists('research_system_report_findings')?research_system_report_findings($pdo,$projectId,100):[]) as $r)$findings[]=[
-      'public_id'=>(string)$r['public_id'],'title'=>(string)$r['title'],'summary'=>(string)($r['summary']??''),'status'=>(string)$r['status'],'claim_count'=>(int)($r['claim_count']??0)
+      'public_id'=>(string)$r['public_id'],'title'=>(string)$r['title'],'summary'=>(string)($r['summary']??''),'status'=>(string)$r['status'],'claim_count'=>(int)($r['claim_count']??0),
+      'claim_fingerprint'=>(string)($findingClaims[(string)$r['public_id']]??hash('sha256',''))
     ];
     $entities=[];foreach((array)(function_exists('research_project_entity_rows')?research_project_entity_rows($pdo,$projectId):[]) as $r)$entities[]=[
       'public_id'=>(string)$r['public_id'],'canonical_name'=>(string)$r['canonical_name'],'entity_type'=>(string)$r['entity_type'],'status'=>(string)$r['status'],
@@ -166,7 +190,8 @@ function research_longitudinal_object_title(string $type,array $row): string {
 
 function research_longitudinal_capture(PDO $pdo,array $viewer,string $agentPublic,string $trigger='manual',?string $triggerPublic=null): array {
     if(!research_longitudinal_ready($pdo))throw new RuntimeException('Longitudinal Research Intelligence requires the latest database upgrade.');
-    $allowed=['baseline','manual','program_completed','program_quiet','system'];if(!in_array($trigger,$allowed,true))$trigger='system';
+    $allowed=['baseline','manual','program_completed','program_quiet','report_generated','system'];if(!in_array($trigger,$allowed,true))$trigger='system';
+    $agent=research_longitudinal_agent($pdo,$viewer,$agentPublic);$project=research_agent_workspace_project($pdo,$viewer,$agentPublic);if(!$project)throw new RuntimeException('Research Agent workspace not found.');research_agent_workspace_require_write($project);
     $state=research_longitudinal_state($pdo,$viewer,$agentPublic);$agent=$state['agent'];
     $q=$pdo->prepare('SELECT public_id FROM research_longitudinal_snapshots WHERE project_id=? AND state_hash=? LIMIT 1');$q->execute([(int)$agent['project_id'],$state['state_hash']]);$same=(string)($q->fetchColumn()?:'');
     if($same!=='')return ['snapshot'=>research_longitudinal_snapshot_access($pdo,$viewer,$same),'created'=>false,'changes'=>[],'milestones'=>[]];
