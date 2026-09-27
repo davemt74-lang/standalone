@@ -285,6 +285,7 @@ jobs:
           php tests/phase71-section4-outcome-memory-db.php
           php tests/phase71-section5-decision-evolution-reconsideration-db.php
           php tests/phase71-section6-agent-now-report-integration-db.php
+          php tests/phase71-section7-decision-command-center-team-review-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -552,6 +553,13 @@ jobs:
           DB_PASS: root
           PHASE71_SECTION5_RESET_DB: '1'
         run: php tests/ci/phase71-section5-upgrade-from-090.php
+      - name: MySQL 8 Phase 71 Section 7 Decision Team Review upgrade rehearsal from migration 091 through 092
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase71_section7_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE71_SECTION7_RESET_DB: '1'
+        run: php tests/ci/phase71-section7-upgrade-from-091.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')

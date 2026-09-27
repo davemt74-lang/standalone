@@ -8,7 +8,7 @@ $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
 $input=$method==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $readActions=['list','summary','detail','graph','outcome_detail','outcome_summary','reconsideration_detail','reconsideration_signals','evolution'];
+    $readActions=['list','summary','detail','graph','outcome_detail','outcome_summary','reconsideration_detail','reconsideration_signals','evolution','command_center'];
     $viewer=in_array($action,$readActions,true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_decisions_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Research Decisions require the latest database upgrade.']],503);
 
@@ -50,6 +50,9 @@ try{
     if($action==='evolution'){
         $id=trim((string)($input['decision_id']??''));if($id==='')throw new InvalidArgumentException('Decision is required.');
         json_response(['ok'=>true,'data'=>research_decision_evolution_timeline($pdo,$viewer,$id,(int)($input['limit']??250))]);
+    }
+    if($action==='command_center'){
+        json_response(['ok'=>true,'data'=>research_decision_command_center($pdo,$viewer,(string)($input['scope']??'all'),(int)($input['limit']??150))]);
     }
 
     if($method!=='POST')json_response(['ok'=>false,'error'=>['code'=>'METHOD_NOT_ALLOWED','message'=>'Decision changes require POST.']],405);
