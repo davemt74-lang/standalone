@@ -382,6 +382,13 @@ jobs:
           test -f package-website/tests/phase71-section8-end-to-end-release-contract.php
           test -f package-website/tests/post-phase71-research-publications-ui-hotfix-contract.php
           test -f package-website/tests/post-phase71-research-publications-ui-hotfix-db.php
+          test -f package-website/database/migrations/20260927_093_research_action_plan_ledger_foundation.sql
+          test -f package-website/app/research-action-plans.php
+          test -f package-website/api/research-action-plans.php
+          test -f package-website/docs/phase-72-decision-to-action-execution-strategic-follow-through.md
+          test -f package-website/tests/phase72-section1-action-plan-ledger-contract.php
+          test -f package-website/tests/phase72-section1-action-plan-ledger-db.php
+          test -f package-website/tests/ci/phase72-section1-upgrade-from-092.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
