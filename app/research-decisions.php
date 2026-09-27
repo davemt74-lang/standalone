@@ -812,7 +812,7 @@ function research_decision_review_overview(PDO $pdo,array $viewer,string $decisi
 function research_decision_command_center(PDO $pdo,array $viewer,string $scope='all',int $limit=150): array {
     if(!research_decisions_ready($pdo))return ['ready'=>false,'generated_at'=>date('Y-m-d H:i:s'),'stats'=>[],'decisions'=>[]];
     $scope=in_array($scope,['all','attention','proposed','reopened','decided','outcomes','reviews'],true)?$scope:'all';$limit=max(1,min(250,$limit));$uid=(int)$viewer['id'];
-    $q=$pdo->prepare("SELECT DISTINCT rd.public_id FROM research_decisions rd JOIN research_agents ra ON ra.id=rd.research_agent_id
+    $q=$pdo->prepare("SELECT DISTINCT rd.public_id,rd.updated_at,rd.id FROM research_decisions rd JOIN research_agents ra ON ra.id=rd.research_agent_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
       WHERE rd.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))
       ORDER BY rd.updated_at DESC,rd.id DESC LIMIT ".$limit);
