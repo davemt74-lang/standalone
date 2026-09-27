@@ -141,7 +141,7 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
         <div class="reportStudioFieldGrid">
           <label>Report title <input type="text" name="title" maxlength="240" placeholder="<?=h((string)$selected['project_title'].' — '.$definition['label'])?>"></label>
           <label>Depth <select name="depth"><option value="quick">Quick</option><option value="standard" <?=$definition['default_depth']==='standard'?'selected':''?>>Standard</option><option value="deep" <?=$definition['default_depth']==='deep'?'selected':''?>>Deep</option></select></label>
-          <label class="span2">Focus / topic <input type="text" name="focus_query" maxlength="500" placeholder="Optional topic, company, question, or phrase"></label>
+          <label class="span2">Focus / topic <input type="text" name="focus_query" maxlength="500" value="<?=h((string)($_GET['focus_query']??''))?>" placeholder="Optional topic, company, question, or phrase"></label>
           <label>From <input type="date" name="date_from"></label><label>Through <input type="date" name="date_to"></label>
         </div>
         <details class="reportStudioScope"><summary>Scope this report</summary><div class="reportStudioFieldGrid">
