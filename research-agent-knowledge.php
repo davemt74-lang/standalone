@@ -23,6 +23,7 @@ $counts=(array)($workspace['counts']??[]);
     <a href="/research-evolution.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Evolution</a>
     <a href="/research-reports.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Reports</a>
     <a href="/research-monitoring.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Monitoring</a>
+    <a href="/research-missions.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Missions</a>
     <a href="/research-tasks.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Tasks</a><a href="/research-programs.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Programs</a>
   </nav></section>
   <header class="researchKnowledgeHero">

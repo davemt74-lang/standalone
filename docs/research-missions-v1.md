@@ -98,6 +98,29 @@ Section 4 binds Missions to the existing Research Program scheduler for recurrin
 - automatic Mission reactivation is evidence-driven by the existing Program run material-change ledger
 - a newly created watch Program is paused by default so binding never silently begins recurring execution
 
+## Section 5 — Mission Command Center
+
+Section 5 adds the full-width user-facing Mission workspace without changing the execution architecture.
+
+- `/research-missions.php` is the primary Mission control surface for a selected Research Agent.
+- Users can create a Mission from a title, primary question, objective, success definition, success criteria, and sub-questions.
+- Mission creation remains non-executing. The Command Center requires an explicit **Build Mission Plan** action, then an explicit **Start Mission** action.
+- Mission cards show lightweight progress from durable question/criterion state without running the full progress engine for every list row.
+- The selected Mission shows authoritative progress, completion readiness, blockers, unresolved work, explicit confidence coverage, contradiction/evidence-gap flags, and the current synthesis answer.
+- The Mission Plan panel exposes the existing Task graph, Task state, latest Task results, the existing living deliverable, and a direct link into the Tasks surface.
+- Evidence shown in the Command Center comes from existing Research Task evidence references and preserves Task-level provenance.
+- Mission Watch controls bind, activate, pause, or unbind the existing Research Program system.
+- Mission event history and immutable configuration revisions are visible in the Command Center.
+- Missions are added to the primary Research navigation across Research Agents, Knowledge, Reports, Monitoring, Tasks, Programs, and Evolution.
+
+### Section 5 invariants
+
+- the Command Center is a presentation/control layer over Sections 1–4, not a second execution system
+- no new migration, worker, scheduler, queue, or Program replacement is introduced
+- full Mission progress is loaded only for the selected Mission; list rendering stays bounded and lightweight
+- archived/cancelled/completed state changes remain explicit governed user actions
+- evidence, Task, Program, revision, and event history all come from existing durable records
+
 ## Lifecycle
 
 `draft → active → blocked/review → completed` is the normal path. Missions may also be cancelled or archived. Completed, cancelled, and archived Missions can be explicitly reactivated; every transition is recorded.

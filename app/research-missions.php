@@ -184,6 +184,8 @@ function research_mission_detail(PDO $pdo,array $viewer,string $publicId): ?arra
     $mission['scope']=research_mission_json_object($mission['scope_json']??null);$mission['constraints']=research_mission_json_object($mission['constraints_json']??null);
     $mission['criteria']=research_mission_criteria($pdo,(int)$mission['id']);$mission['subquestions']=research_mission_subquestions($pdo,(int)$mission['id']);$mission['events']=research_mission_events($pdo,(int)$mission['id'],100);
     $mission['plan']=!empty($mission['plan_public_id'])?research_mission_plan_detail($pdo,$viewer,$mission):null;
+    $mission['program']=!empty($mission['program_public_id'])?research_program_detail($pdo,$viewer,(string)$mission['program_public_id']):null;
+    $q=$pdo->prepare("SELECT revision_number,change_reason,edited_by_agent,edited_by_user_id,created_at FROM research_mission_versions WHERE mission_id=? ORDER BY revision_number DESC LIMIT 30");$q->execute([(int)$mission['id']]);$mission['versions']=$q->fetchAll()?:[];
     $mission['progress']=research_mission_progress_for_row($pdo,$viewer,$mission);
     return $mission;
 }
@@ -231,8 +233,11 @@ function research_mission_update_subquestion(PDO $pdo,array $viewer,string $subq
 
 function research_mission_plan_detail(PDO $pdo,array $viewer,array $mission): ?array {
     $public=trim((string)($mission['plan_public_id']??''));if($public==='')return null;
-    $plan=research_task_plan_access($pdo,$viewer,$public);if(!$plan)return null;
-    $plan['tasks']=research_task_plan_structure($pdo,(int)$plan['id']);
+    $plan=research_task_plan_detail($pdo,$viewer,$public);if(!$plan)return null;
+    foreach($plan['tasks'] as &$task){
+        $q=$pdo->prepare("SELECT ref_type,ref_public_id,locator,relationship,created_at FROM research_task_evidence_refs WHERE task_id=? ORDER BY id");
+        $q->execute([(int)$task['id']]);$task['evidence_refs']=$q->fetchAll()?:[];
+    }unset($task);
     return $plan;
 }
 
