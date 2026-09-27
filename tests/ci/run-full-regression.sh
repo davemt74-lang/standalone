@@ -87,6 +87,7 @@ db_tests=(
   tests/phase69-research-intelligence-delivery-subscriptions-db.php
   tests/phase70-longitudinal-research-intelligence-db.php
   tests/research-missions-v1-db.php
+  tests/research-missions-v1-section2-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
