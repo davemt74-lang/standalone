@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS research_longitudinal_snapshots (
   research_agent_id BIGINT UNSIGNED NOT NULL,
   project_id BIGINT UNSIGNED NOT NULL,
   captured_by_user_id BIGINT UNSIGNED NULL,
-  trigger_type ENUM('baseline','manual','program_completed','program_quiet','system') NOT NULL DEFAULT 'system',
+  trigger_type ENUM('baseline','manual','program_completed','program_quiet','report_generated','system') NOT NULL DEFAULT 'system',
   trigger_public_id VARCHAR(64) NULL,
   state_hash CHAR(64) NOT NULL,
   state_json JSON NOT NULL,
