@@ -286,6 +286,58 @@ Published report rendering includes a Decisions & Outcomes section and Decision/
 - public reports exclude unresolved/internal Decision review state
 - Decision integration never auto-opens, resolves, applies, or changes a Decision
 
+
+## Section 7 — Decision Command Center + Team Review
+
+Section 7 provides a dedicated human governance surface for Decision Memory and extends the existing Collaborative Research Review system to Decisions and Decision reconsiderations.
+
+### Decision Command Center
+
+The Command Center aggregates every accessible non-archived Decision across the user's owned and Team Research projects.
+
+It surfaces:
+
+- Decision type, status, revision, project, and Research Agent
+- proposed and reopened Decisions
+- high/critical reconsideration signals
+- active reconsideration cases
+- Outcome Memory coverage
+- current structured Team Review state, consensus, and staleness
+- direct links to the underlying Research project and Review Center
+
+Views include All, Needs Attention, Proposed, Reopened, Decided, Outcomes, and Team Reviews.
+
+### Explicit Decision actions
+
+The Command Center may expose only transitions already allowed by the Decision ledger. A status change is always a CSRF-protected explicit human action. Merely opening the Command Center, generating attention state, or completing a Team Review does not mutate the Decision.
+
+### Native Team Review subjects
+
+Migration 092 extends the existing `research_reviews.subject_type` enum with:
+
+- `decision`
+- `decision_reconsideration`
+
+Decision reviews are pinned to a canonical review hash that includes Decision revision/configuration, disposition, Outcome Memory revisions, and reconsideration state. Reconsideration reviews are pinned to the case state, opening context, recommendation, resolution, and applied state.
+
+Any material change after review request makes the review stale through the existing Review Center stale-state mechanism.
+
+### Team review remains advisory
+
+Review responses may approve, request changes, disagree, or abstain. Completion freezes the actual reviewer response set and consensus, but never changes the Decision or reconsideration automatically.
+
+A reviewer consensus therefore becomes governance evidence, not an executable Decision.
+
+### Section 7 invariants
+
+- no parallel review engine is introduced
+- Decision and reconsideration reviews use the existing append-only Review Center ledgers
+- reviews are permission-checked against the underlying Research project
+- review staleness is deterministic and state-hash based
+- Team Review never auto-accepts, rejects, defers, reopens, supersedes, resolves, dismisses, or applies a Decision/reconsideration
+- Command Center attention is a read model and has no side effects
+- only explicit existing Decision actions may change Decision state
+
 ## Planned Phase 71 sections
 
 1. Decision & Conclusion Ledger Foundation
