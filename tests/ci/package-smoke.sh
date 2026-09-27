@@ -28,6 +28,7 @@ required=(
   tests/phase71-section3-decision-evidence-challenge-graph-contract.php tests/phase71-section3-decision-evidence-challenge-graph-db.php tests/ci/phase71-section3-upgrade-from-088.php
   tests/phase71-section4-outcome-memory-contract.php tests/phase71-section4-outcome-memory-db.php tests/ci/phase71-section4-upgrade-from-089.php
   tests/phase71-section5-decision-evolution-reconsideration-contract.php tests/phase71-section5-decision-evolution-reconsideration-db.php tests/ci/phase71-section5-upgrade-from-090.php
+  tests/phase71-section6-agent-now-report-integration-contract.php tests/phase71-section6-agent-now-report-integration-db.php
   extension/manifest.json downloads/Annotated-Chrome-Extension.zip
 )
 for path in "${required[@]}"; do [[ -f "$tmp/site/$path" ]] || { echo "Missing website package file: $path" >&2; exit 1; }; done
@@ -91,3 +92,4 @@ echo "Phase 71 Section 2 Mission to Decision Handoff package extensions passed."
 echo "Phase 71 Section 3 Decision Evidence & Challenge Graph package extensions passed."
 echo "Phase 71 Section 4 Outcome Memory package extensions passed."
 echo "Phase 71 Section 5 Decision Evolution & Reconsideration package extensions passed."
+echo "Phase 71 Section 6 Agent / Now / Report Studio Integration package extensions passed."
