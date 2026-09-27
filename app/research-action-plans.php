@@ -117,13 +117,13 @@ function research_action_plan_refresh_revision(PDO $pdo,int $planId,?int $userId
     $revision=(int)$plan['current_revision']+1;$pdo->prepare('UPDATE research_action_plans SET current_revision=?,config_hash=?,updated_at=NOW() WHERE id=?')->execute([$revision,$hash,$planId]);
     $plan=research_action_plan_by_id($pdo,$planId);research_action_plan_snapshot($pdo,$plan,$reason,$userId,$byAgent);return $plan;
 }
-function research_action_plan_source_snapshot(array $decision): array {
+function research_action_plan_source_snapshot(PDO $pdo,array $decision): array {
     return [
       'decision_public_id'=>(string)$decision['public_id'],'decision_type'=>(string)$decision['decision_type'],'title'=>(string)$decision['title'],
       'statement'=>(string)$decision['statement'],'rationale'=>(string)($decision['rationale']??''),'confidence'=>$decision['confidence']!==null?(float)$decision['confidence']:null,
       'status'=>(string)$decision['status'],'revision'=>(int)$decision['current_revision'],'config_hash'=>(string)$decision['config_hash'],
       'accountable_user_public_id'=>(string)($decision['accountable_user_public_id']??''),'decided_at'=>(string)($decision['decided_at']??''),
-      'config'=>research_decision_config($decision)
+      'config'=>research_decision_config($pdo,$decision)
     ];
 }
 function research_action_plan_source_stale(array $plan): bool {
@@ -161,7 +161,7 @@ function research_action_plan_from_decision(PDO $pdo,array $viewer,string $decis
     if(trim((string)($defaults['title']??''))==='')$defaults['title']='Action Plan · '.(string)$decision['title'];
     $x=research_action_plan_normalize($defaults);
     $owner=research_action_plan_owner($pdo,$viewer,$decision,$input['owner_user_id']??$input['owner_user_public_id']??'');
-    $snapshot=research_action_plan_source_snapshot($decision);$snapshotJson=json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION);
+    $snapshot=research_action_plan_source_snapshot($pdo,$decision);$snapshotJson=json_encode($snapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION);
     $rawKey=trim((string)($input['idempotency_key']??''));if($rawKey==='')$rawKey=json_encode([(string)$decision['public_id'],(int)$decision['current_revision'],$x['title'],$x['objective'],$x['expected_result']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
     $idempotency=hash('sha256',$rawKey);$public=ulid_like();$owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
     try{
