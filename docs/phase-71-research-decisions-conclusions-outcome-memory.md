@@ -235,6 +235,57 @@ This is a read model over existing durable ledgers; it does not rewrite them.
 - non-manual triggers must point to current deterministic signals
 - no hidden score, autonomous vote, scheduler, worker, cron, queue, or auto-reconsideration loop is introduced
 
+
+## Section 6 — Agent / Now / Report Studio Integration
+
+Section 6 makes Decision Memory visible inside existing research surfaces without granting new autonomous write authority.
+
+### Agent Chat
+
+Research Agent conversations receive a read-only Decision Memory context block containing:
+
+- Decision ID, type, status, revision, statement, and rationale
+- explicit Decision confidence
+- current high/critical reconsideration signal counts
+- active reconsideration case count
+- latest observed outcome and follow-up state
+- underlying evidence/Mission provenance references
+
+Agent Chat may explain "why did we decide this?", "what changed?", "what happened afterward?", and "what needs review?" from durable state. It cannot mutate Decision or reconsideration state through this integration.
+
+### Now / Cognitive Feed
+
+Now surfaces Decision attention items when durable state shows:
+
+- critical/high reconsideration signals
+- active reconsideration cases
+- a reopened Decision
+
+The feed item links back to the Research project and may prefill a read-only Agent question. It does not create a reconsideration case or change Decision status.
+
+### Report Studio / published reports
+
+Immutable report snapshots now include a Decision & Outcome projection.
+
+Private/team reports may include Decision challenges and reconsideration history. Public reports are conservative:
+
+- only Accepted or Superseded Decisions are included
+- drafts, proposed, rejected, and deferred Decisions are excluded
+- internal challenge/reconsideration detail is excluded
+- Decision evidence notes are excluded
+- recorded rationale, evidence IDs/roles/strength, outcomes, variance, and lessons may be published as part of the deliberate report snapshot
+
+Published report rendering includes a Decisions & Outcomes section and Decision/Outcome timeline entries.
+
+### Section 6 invariants
+
+- no new schema or background worker is introduced
+- Agent Decision context is read-only
+- Now observations are read-only and deterministic
+- report snapshots remain immutable after publishing
+- public reports exclude unresolved/internal Decision review state
+- Decision integration never auto-opens, resolves, applies, or changes a Decision
+
 ## Planned Phase 71 sections
 
 1. Decision & Conclusion Ledger Foundation
