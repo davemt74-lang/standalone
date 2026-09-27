@@ -8,7 +8,7 @@ $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
 $input=$method==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $readActions=['list','summary','detail','graph'];
+    $readActions=['list','summary','detail','graph','outcome_detail','outcome_summary'];
     $viewer=in_array($action,$readActions,true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_decisions_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Research Decisions require the latest database upgrade.']],503);
 
@@ -28,6 +28,15 @@ try{
     if($action==='graph'){
         $id=trim((string)($input['decision_id']??''));if($id==='')throw new InvalidArgumentException('Decision is required.');
         json_response(['ok'=>true,'data'=>['graph'=>research_decision_evidence_graph($pdo,$viewer,$id)]]);
+    }
+    if($action==='outcome_detail'){
+        $id=trim((string)($input['outcome_id']??''));if($id==='')throw new InvalidArgumentException('Decision outcome is required.');
+        $row=research_decision_outcome_access($pdo,$viewer,$id);if(!$row)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
+        json_response(['ok'=>true,'data'=>['outcome'=>$row]]);
+    }
+    if($action==='outcome_summary'){
+        $id=trim((string)($input['decision_id']??''));if($id==='')throw new InvalidArgumentException('Decision is required.');
+        json_response(['ok'=>true,'data'=>research_decision_outcome_summary($pdo,$viewer,$id)]);
     }
 
     if($method!=='POST')json_response(['ok'=>false,'error'=>['code'=>'METHOD_NOT_ALLOWED','message'=>'Decision changes require POST.']],405);
@@ -76,6 +85,14 @@ try{
     if($action==='remove_challenge_ref'){
         $challenge=trim((string)($input['challenge_id']??''));$ref=trim((string)($input['reference_id']??''));if($challenge===''||$ref==='')throw new InvalidArgumentException('Decision challenge and reference are required.');
         json_response(['ok'=>true,'data'=>['challenge'=>research_decision_remove_challenge_ref($pdo,$viewer,$challenge,$ref,false)]]);
+    }
+    if($action==='record_outcome'){
+        $id=trim((string)($input['decision_id']??''));if($id==='')throw new InvalidArgumentException('Decision is required.');
+        json_response(['ok'=>true,'data'=>['outcome'=>research_decision_record_outcome($pdo,$viewer,$id,$input,false)]],201);
+    }
+    if($action==='update_outcome'){
+        $id=trim((string)($input['outcome_id']??''));if($id==='')throw new InvalidArgumentException('Decision outcome is required.');
+        json_response(['ok'=>true,'data'=>['outcome'=>research_decision_update_outcome($pdo,$viewer,$id,$input,false)]]);
     }
     json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);
 }catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_INPUT','message'=>$e->getMessage()]],422);}
