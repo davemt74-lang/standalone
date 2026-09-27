@@ -88,10 +88,11 @@ function research_decision_ref_access(PDO $pdo,array $viewer,int $projectId,stri
     if($type==='project'){$q=$pdo->prepare('SELECT public_id FROM research_projects WHERE id=? AND public_id=?');$q->execute([$projectId,$publicId]);return (bool)$q->fetchColumn();}
     if($type==='mission'){if(!function_exists('research_mission_access'))return false;$r=research_mission_access($pdo,$viewer,$publicId);return $r&&(int)$r['project_id']===$projectId;}
     if($type==='source'){$q=$pdo->prepare('SELECT 1 FROM project_sources ps JOIN sources s ON s.id=ps.source_id WHERE ps.project_id=? AND s.public_id=? LIMIT 1');$q->execute([$projectId,$publicId]);return (bool)$q->fetchColumn();}
-    if($type==='annotation'){$q=$pdo->prepare('SELECT 1 FROM annotations a WHERE a.project_id=? AND a.public_id=? LIMIT 1');try{$q->execute([$projectId,$publicId]);return (bool)$q->fetchColumn();}catch(Throwable $e){return function_exists('annotation_access')&&annotation_access($pdo,$publicId,$viewer)!==null;}}
+    if($type==='claim'&&function_exists('research_claim_access')){$r=research_claim_access($pdo,$viewer,$publicId);return $r&&(int)$r['project_id']===$projectId;}
+    if($type==='finding'&&function_exists('research_finding_access')){$r=research_finding_access($pdo,$viewer,$publicId);return $r&&(int)$r['project_id']===$projectId;}
+    if($type==='entity'&&function_exists('research_entity_access')){$r=research_entity_access($pdo,$viewer,$publicId);return $r&&(int)$r['project_id']===$projectId;}
     $map=[
-      'claim'=>['research_claims','project_id'],'finding'=>['research_findings','project_id'],'task'=>['research_tasks','project_id'],
-      'plan'=>['research_task_plans','project_id'],'program'=>['research_programs','project_id'],'entity'=>['research_entities','project_id'],
+      'task'=>['research_tasks','project_id'],'plan'=>['research_task_plans','project_id'],'program'=>['research_programs','project_id'],
       'document'=>['research_documents','project_id']
     ];
     if(isset($map[$type])){[$table,$projectCol]=$map[$type];try{$q=$pdo->prepare("SELECT 1 FROM {$table} WHERE {$projectCol}=? AND public_id=? LIMIT 1");$q->execute([$projectId,$publicId]);return (bool)$q->fetchColumn();}catch(Throwable $e){return false;}}
