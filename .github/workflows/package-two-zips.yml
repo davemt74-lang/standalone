@@ -375,6 +375,11 @@ jobs:
           test -f package-website/tests/ci/phase71-section5-upgrade-from-090.php
           test -f package-website/tests/phase71-section6-agent-now-report-integration-contract.php
           test -f package-website/tests/phase71-section6-agent-now-report-integration-db.php
+          test -f package-website/database/migrations/20260927_092_research_decision_command_center_team_review.sql
+          test -f package-website/tests/phase71-section7-decision-command-center-team-review-contract.php
+          test -f package-website/tests/phase71-section7-decision-command-center-team-review-db.php
+          test -f package-website/tests/ci/phase71-section7-upgrade-from-091.php
+          test -f package-website/research-decisions.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
