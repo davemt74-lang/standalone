@@ -769,3 +769,69 @@ function research_decision_report_snapshot(PDO $pdo,array $viewer,array $project
     return $out;
 }
 
+function research_decision_review_snapshot(PDO $pdo,array $viewer,string $decisionPublic): array {
+    $d=research_decision_detail($pdo,$viewer,$decisionPublic);if(!$d)throw new RuntimeException('Decision not found.');
+    $outcomes=[];foreach((array)$d['outcomes'] as $o)$outcomes[]=[
+      'public_id'=>(string)$o['public_id'],'assessment'=>(string)$o['assessment'],'follow_up_state'=>(string)$o['follow_up_state'],
+      'observed_at'=>(string)$o['observed_at'],'latest_revision'=>(int)(($o['versions'][0]['revision_number']??0))
+    ];
+    usort($outcomes,fn($a,$b)=>strcmp($a['public_id'],$b['public_id']));
+    $reconsiderations=[];foreach((array)$d['reconsiderations'] as $r)$reconsiderations[]=[
+      'public_id'=>(string)$r['public_id'],'status'=>(string)$r['status'],'recommended_action'=>(string)$r['recommended_action'],
+      'materiality'=>(string)$r['materiality'],'opening_context_hash'=>(string)$r['opening_context_hash'],'applied_at'=>(string)($r['applied_at']??'')
+    ];
+    usort($reconsiderations,fn($a,$b)=>strcmp($a['public_id'],$b['public_id']));
+    return [
+      'public_id'=>(string)$d['public_id'],'decision_type'=>(string)$d['decision_type'],'status'=>(string)$d['status'],
+      'current_revision'=>(int)$d['current_revision'],'config_hash'=>(string)$d['config_hash'],'decided_at'=>(string)($d['decided_at']??''),
+      'outcomes'=>$outcomes,'reconsiderations'=>$reconsiderations
+    ];
+}
+function research_decision_review_state_hash(PDO $pdo,array $viewer,string $decisionPublic): string {
+    return research_decision_hash(research_decision_review_snapshot($pdo,$viewer,$decisionPublic));
+}
+function research_decision_reconsideration_review_state_hash(PDO $pdo,array $viewer,string $casePublic): string {
+    $r=research_decision_reconsideration_access($pdo,$viewer,$casePublic);if(!$r)throw new RuntimeException('Decision reconsideration not found.');
+    $payload=[
+      'public_id'=>(string)$r['public_id'],'decision_public_id'=>(string)$r['decision_public_id'],'trigger_type'=>(string)$r['trigger_type'],
+      'trigger_public_id'=>(string)($r['trigger_public_id']??''),'title'=>(string)$r['title'],'reason'=>(string)$r['reason'],
+      'materiality'=>(string)$r['materiality'],'status'=>(string)$r['status'],'recommended_action'=>(string)$r['recommended_action'],
+      'resolution'=>(string)($r['resolution']??''),'decision_revision_opened'=>(int)$r['decision_revision_opened'],
+      'decision_status_opened'=>(string)$r['decision_status_opened'],'opening_context_hash'=>(string)$r['opening_context_hash'],
+      'resolved_at'=>(string)($r['resolved_at']??''),'applied_at'=>(string)($r['applied_at']??'')
+    ];
+    return research_decision_hash($payload);
+}
+function research_decision_review_overview(PDO $pdo,array $viewer,string $decisionPublic): array {
+    if(!function_exists('research_reviews_ready')||!research_reviews_ready($pdo))return ['total'=>0,'open'=>0,'completed'=>0,'latest'=>null,'consensus'=>null];
+    $q=$pdo->prepare("SELECT public_id FROM research_reviews WHERE subject_type='decision' AND subject_public_id=? ORDER BY id DESC LIMIT 25");$q->execute([$decisionPublic]);
+    $total=0;$open=0;$completed=0;$latest=null;$consensus=null;
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$r=research_review_access($pdo,$viewer,(string)$id);if(!$r)continue;$total++;if($r['status']==='open')$open++;if($r['status']==='completed')$completed++;if($latest===null){$a=research_review_aggregate($pdo,$r);$latest=['public_id'=>$r['public_id'],'status'=>$r['status'],'is_stale'=>(bool)$r['is_stale'],'consensus'=>$a['consensus'],'counts'=>$a['counts'],'created_at'=>$r['created_at']];$consensus=$a['consensus'];}}
+    return ['total'=>$total,'open'=>$open,'completed'=>$completed,'latest'=>$latest,'consensus'=>$consensus];
+}
+function research_decision_command_center(PDO $pdo,array $viewer,string $scope='all',int $limit=150): array {
+    if(!research_decisions_ready($pdo))return ['ready'=>false,'generated_at'=>date('Y-m-d H:i:s'),'stats'=>[],'decisions'=>[]];
+    $scope=in_array($scope,['all','attention','proposed','reopened','decided','outcomes','reviews'],true)?$scope:'all';$limit=max(1,min(250,$limit));$uid=(int)$viewer['id'];
+    $q=$pdo->prepare("SELECT DISTINCT rd.public_id FROM research_decisions rd JOIN research_agents ra ON ra.id=rd.research_agent_id
+      LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
+      WHERE rd.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))
+      ORDER BY rd.updated_at DESC,rd.id DESC LIMIT ".$limit);
+    $q->execute([$uid,$uid,$uid]);$rows=[];$stats=['total'=>0,'attention'=>0,'proposed'=>0,'reopened'=>0,'decided'=>0,'with_outcomes'=>0,'open_reviews'=>0];
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){
+      $d=research_decision_detail($pdo,$viewer,(string)$id);if(!$d)continue;$signals=research_decision_reconsideration_signals($pdo,$viewer,(string)$id);
+      $critical=(int)($signals['counts']['critical']??0);$high=(int)($signals['counts']['high']??0);$activeCases=0;foreach((array)$d['reconsiderations'] as $case)if(in_array((string)$case['status'],['open','reviewing'],true))$activeCases++;
+      $outcomeSummary=research_decision_outcome_summary($pdo,$viewer,(string)$id);$review=research_decision_review_overview($pdo,$viewer,(string)$id);$reviewConcern=in_array((string)($review['consensus']??''),['changes_requested','unresolved_objection','mixed_review'],true);
+      $attention=in_array((string)$d['status'],['proposed','reopened'],true)||$critical>0||$high>0||$activeCases>0||$reviewConcern||!empty($review['latest']['is_stale']);
+      $reasons=[];if((string)$d['status']==='proposed')$reasons[]='Awaiting disposition';if((string)$d['status']==='reopened')$reasons[]='Reopened';
+      if($critical)$reasons[]=$critical.' critical signal'.($critical===1?'':'s');if($high)$reasons[]=$high.' high signal'.($high===1?'':'s');if($activeCases)$reasons[]=$activeCases.' active reconsideration'.($activeCases===1?'':'s');
+      if($reviewConcern)$reasons[]='Team review has unresolved feedback';if(!empty($review['latest']['is_stale']))$reasons[]='Latest team review is stale';
+      $d['command']=['attention'=>$attention,'attention_reasons'=>$reasons,'signals'=>$signals,'active_reconsiderations'=>$activeCases,'outcome_summary'=>$outcomeSummary,'review'=>$review,
+        'review_url'=>'/research-reviews.php?type=decision&subject='.rawurlencode((string)$d['public_id']),'project_url'=>'/research-project.php?id='.rawurlencode((string)$d['project_public_id'])];
+      $stats['total']++;if($attention)$stats['attention']++;if($d['status']==='proposed')$stats['proposed']++;if($d['status']==='reopened')$stats['reopened']++;if(in_array((string)$d['status'],['accepted','rejected','deferred','superseded'],true))$stats['decided']++;if(($outcomeSummary['total']??0)>0)$stats['with_outcomes']++;$stats['open_reviews']+=(int)$review['open'];
+      $show=match($scope){'attention'=>$attention,'proposed'=>$d['status']==='proposed','reopened'=>$d['status']==='reopened','decided'=>in_array((string)$d['status'],['accepted','rejected','deferred','superseded'],true),'outcomes'=>($outcomeSummary['total']??0)>0,'reviews'=>$review['total']>0,default=>true};
+      if($show)$rows[]=$d;
+    }
+    usort($rows,function($a,$b){$aa=!empty($a['command']['attention'])?1:0;$bb=!empty($b['command']['attention'])?1:0;if($aa!==$bb)return $bb<=>$aa;return strcmp((string)$b['updated_at'],(string)$a['updated_at']);});
+    return ['ready'=>true,'generated_at'=>date('Y-m-d H:i:s'),'scope'=>$scope,'stats'=>$stats,'decisions'=>$rows];
+}
+
