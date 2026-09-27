@@ -33,6 +33,7 @@ $autoCtx=research_mission_agent_context($pdo,$owner,(string)$agent['public_id'],
 rmv16(str_contains((string)$autoCtx['text'],'Section 6 Mission')&&count((array)$autoCtx['refs'])===1,'Research Agent receives permission-checked Mission context automatically.');
 $outsideCtx=null;try{$outsideCtx=agent_chat_context_item($pdo,$outsider,'mission',(string)$mission['public_id']);}catch(Throwable $ignored){}
 rmv16($outsideCtx===null,'Outsider cannot resolve Mission Agent Chat context.');
+$mission=research_mission_set_status($pdo,$owner,(string)$mission['public_id'],'active');
 
 $feed=[];research_mission_cognitive_observations($pdo,$owner,$feed,20);
 $missionCards=array_values(array_filter(array_values($feed),fn($x)=>str_starts_with((string)($x['type']??''),'research_mission_')));
