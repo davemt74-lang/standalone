@@ -34,6 +34,8 @@ function research_system_report_types(): array {
       'confidence_contradictions'=>['label'=>'Confidence & Contradictions Brief','description'=>'Tracks how Claim confidence and contradictions have strengthened, weakened, become disputed, verified, or resolved over time.','category'=>'intelligence','default_depth'=>'deep','scope'=>$scope,'sections'=>['confidence_movement','verification_milestones','contradiction_history','at_risk_knowledge']],
       'open_questions_evolution'=>['label'=>'Open Questions Brief','description'=>'Tracks unresolved questions and evidence gaps across time, including newly opened, persistent, changed, and resolved questions.','category'=>'intelligence','default_depth'=>'standard','scope'=>$scope,'sections'=>['open_question_state','new_questions','persistent_questions','resolved_questions','recommended_follow_up']],
       'entity_theme_evolution'=>['label'=>'Entity & Theme Evolution Brief','description'=>'Shows how important entities, relationships, and recurring Research themes are changing across longitudinal state.','category'=>'knowledge','default_depth'=>'deep','scope'=>$scope,'sections'=>['entity_movement','relationship_changes','emerging_themes','persistent_themes','implications']],
+      'mission_brief'=>['label'=>'Mission Brief','description'=>'Summarizes Research Mission status, current answers, progress, blockers, and completion readiness.','category'=>'work','default_depth'=>'standard','scope'=>$scope,'sections'=>['mission_portfolio','mission_state']],
+      'mission_review'=>['label'=>'Mission Review Brief','description'=>'Focuses on Missions that are active, blocked, or in review and explains what still needs human attention.','category'=>'work','default_depth'=>'standard','scope'=>$scope,'sections'=>['mission_review_queue','what_needs_review']],
     ];
 }
 
@@ -242,6 +244,7 @@ function research_system_report_snapshot(PDO $pdo,array $config,array $viewer,ar
       'monitoring'=>['summary'=>$monitoring,'events'=>$monitorEvents],
       'tasks'=>['summary'=>$taskSummary,'items'=>$tasks],
       'programs'=>['summary'=>$programSummary,'items'=>$programs],
+      'missions'=>(function()use($pdo,$viewer,$agent){if(!function_exists('research_mission_report_data')||!research_missions_ready($pdo))return ['ready'=>false,'summary'=>[],'missions'=>[]];try{return research_mission_report_data($pdo,$viewer,(string)$agent['public_id'],24);}catch(Throwable $e){return ['ready'=>false,'summary'=>[],'missions'=>[]];}})(),
       'recent_evidence'=>$recent,
       'retrieval_index'=>$index,
       'extended_intelligence'=>$extended,
@@ -385,6 +388,8 @@ function research_system_report_render(string $type,array $s): array {
         $body.=research_system_report_section('Research timeline',$html);
     } elseif(in_array($type,['research_evolution','what_changed','confidence_contradictions','open_questions_evolution','entity_theme_evolution'],true)){
         $body.=function_exists('research_longitudinal_render_report')?research_longitudinal_render_report($type,$s):research_system_report_section('Longitudinal Research intelligence',research_system_report_empty('No longitudinal Research baseline is available yet.'));
+    } elseif(in_array($type,['mission_brief','mission_review'],true)){
+        $body.=function_exists('research_mission_render_report')?research_mission_render_report($type,$s):research_system_report_section('Research Missions',research_system_report_empty('Research Missions are unavailable.'));
     } elseif($type==='action_plan'){
         $body.=research_system_report_section('Priority Research actions',$sections['nextHtml']);
         $tasks=(array)($s['tasks']['items']??[]);$html='<ul>';foreach($tasks as $t)$html.=research_system_report_li((string)$t['title'],(string)($t['description']??''),(string)$t['priority'].' · '.(string)$t['status']);$html.='</ul>';if(!$tasks)$html=research_system_report_empty('No active Research tasks are currently recorded.');
@@ -448,7 +453,7 @@ function research_system_report_generate(PDO $pdo,array $config,array $viewer,st
       'evidence_refs'=>count($refs),'provenance_total_unique'=>(int)$refBundle['total_unique'],'provenance_reference_limit'=>(int)$refBundle['limit'],'provenance_truncated'=>$refBundle['truncated']?1:0,
       'gaps'=>count((array)($snapshot['workspace']['gaps']??[])),'conflicts'=>count((array)($snapshot['workspace']['conflicts']??[])),
       'coverage_truncated'=>count((array)($snapshot['coverage']['truncated']??[])),'diagnostic_count'=>count((array)($snapshot['diagnostics']??[])),
-      'extended_intelligence_contexts'=>count((array)($snapshot['extended_intelligence']??[])),'section_count'=>count($sections)
+      'extended_intelligence_contexts'=>count((array)($snapshot['extended_intelligence']??[])),'mission_count'=>count((array)($snapshot['missions']['missions']??[])),'section_count'=>count($sections)
     ];
     $parameters=['depth'=>$options['depth'],'focus_query'=>$options['focus_query'],'date_from'=>$options['date_from'],'date_to'=>$options['date_to'],'include_sections'=>$options['include_sections']];
     $scope=['source_ids'=>$options['source_ids'],'claim_ids'=>$options['claim_ids'],'finding_ids'=>$options['finding_ids'],'entity_ids'=>$options['entity_ids'],'folder_ids'=>$options['folder_ids']];
