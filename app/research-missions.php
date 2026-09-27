@@ -474,3 +474,13 @@ function research_mission_program_observe_run(PDO $pdo,array $program,int $runId
     }
 }
 
+function research_mission_set_program_status(PDO $pdo,array $viewer,string $missionPublic,string $status): array {
+    $mission=research_mission_access($pdo,$viewer,$missionPublic);if(!$mission)throw new RuntimeException('Research Mission not found.');
+    $programPublic=trim((string)($mission['program_public_id']??''));if($programPublic==='')throw new RuntimeException('Mission has no bound Research Program.');
+    if(!in_array($status,['active','paused'],true))throw new InvalidArgumentException('Mission Program status must be active or paused.');
+    $program=research_mission_program_access_for_binding($pdo,$viewer,$mission,$programPublic);
+    $program=research_program_set_status($pdo,$viewer,(string)$program['public_id'],$status);
+    $fresh=research_mission_by_id($pdo,(int)$mission['id']);research_mission_event($pdo,$fresh,'mission_program_status_changed','user',(int)$viewer['id'],['program_id'=>(string)$program['public_id'],'status'=>$status]);
+    return research_mission_detail($pdo,$viewer,$missionPublic)??$fresh;
+}
+
