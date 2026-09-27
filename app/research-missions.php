@@ -489,3 +489,86 @@ function research_mission_set_program_status(PDO $pdo,array $viewer,string $miss
     return research_mission_detail($pdo,$viewer,$missionPublic)??$fresh;
 }
 
+function research_mission_review_state_hash(PDO $pdo,array $mission): string {
+    $missionId=(int)$mission['id'];
+    $q=$pdo->prepare("SELECT public_id,status,evaluation_json,evaluated_at FROM research_mission_criteria WHERE mission_id=? ORDER BY position,id");$q->execute([$missionId]);$criteria=$q->fetchAll()?:[];
+    $q=$pdo->prepare("SELECT public_id,status,answer_summary,confidence,answered_at FROM research_mission_subquestions WHERE mission_id=? ORDER BY position,id");$q->execute([$missionId]);$questions=$q->fetchAll()?:[];
+    $planStatus=null;if(!empty($mission['plan_id'])){$q=$pdo->prepare("SELECT status,current_revision,completed_at FROM research_task_plans WHERE id=?");$q->execute([(int)$mission['plan_id']]);$planStatus=$q->fetch()?:null;}
+    return hash('sha256',json_encode([
+      'public_id'=>(string)$mission['public_id'],'revision'=>(int)$mission['current_revision'],'status'=>(string)$mission['status'],
+      'plan'=>$planStatus,'criteria'=>$criteria,'subquestions'=>$questions
+    ],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
+}
+
+function research_mission_agent_context(PDO $pdo,array $viewer,string $agentPublic,int $limit=6): array {
+    if(!research_missions_ready($pdo))return ['text'=>'','refs'=>[]];
+    $limit=max(1,min(12,$limit));$agent=research_mission_agent($pdo,$viewer,$agentPublic);$missions=research_mission_list($pdo,$viewer,$agentPublic,60);
+    $rank=['review'=>0,'blocked'=>1,'active'=>2,'draft'=>3,'completed'=>4,'cancelled'=>5,'archived'=>6];
+    usort($missions,fn($a,$b)=>(($rank[(string)$a['status']]??9)<=>($rank[(string)$b['status']]??9))?:strcmp((string)$b['updated_at'],(string)$a['updated_at']));
+    $lines=["[RESEARCH MISSIONS]","Mission state is durable application state. Do not claim a Mission is complete unless its stored status says completed."];
+    $refs=[];$shown=0;
+    foreach($missions as $row){
+        if($shown>=$limit)break;if(in_array((string)$row['status'],['cancelled','archived'],true))continue;
+        $detail=research_mission_detail($pdo,$viewer,(string)$row['public_id']);if(!$detail)continue;$shown++;
+        $p=(array)$detail['progress'];$line='[MISSION '.(string)$detail['public_id'].'] '.(string)$detail['title'].' · status '.(string)$detail['status'].' · '.(int)($p['percent_complete']??0).'%';
+        $line.="\nQuestion: ".mb_substr((string)$detail['research_question'],0,800);
+        $line.="\nObjective: ".mb_substr((string)$detail['objective'],0,900);
+        if(!empty($p['primary_answer']['summary']))$line.="\nCurrent synthesis: ".mb_substr((string)$p['primary_answer']['summary'],0,1200);
+        if(!empty($p['completion_readiness']['reasons']))$line.="\nNot ready because: ".implode('; ',array_slice((array)$p['completion_readiness']['reasons'],0,4));
+        $lines[]=$line;$refs[]=['type'=>'mission','id'=>(string)$detail['public_id']];
+    }
+    return ['text'=>$shown?implode("\n\n",$lines):'','refs'=>$refs,'agent_id'=>(string)$agent['public_id']];
+}
+
+function research_mission_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limit=20): void {
+    if(!research_missions_ready($pdo))return;$limit=max(1,min(50,$limit));
+    $q=$pdo->prepare("SELECT rm.public_id,rm.title,rm.research_question,rm.status,rm.priority,rm.updated_at,ra.public_id agent_public_id,
+      (SELECT COUNT(*) FROM research_mission_subquestions s WHERE s.mission_id=rm.id AND s.status='blocked') blocked_questions,
+      (SELECT COUNT(*) FROM research_mission_criteria c WHERE c.mission_id=rm.id AND c.status='failed') failed_criteria,
+      (SELECT COUNT(*) FROM research_mission_events e WHERE e.mission_id=rm.id AND e.event_type='mission_material_change_reactivated' AND e.created_at>=DATE_SUB(NOW(),INTERVAL 7 DAY)) recent_reactivations
+      FROM research_missions rm JOIN research_agents ra ON ra.id=rm.research_agent_id
+      LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
+      WHERE rm.status IN ('active','blocked','review') AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))
+      ORDER BY FIELD(rm.status,'review','blocked','active'),FIELD(rm.priority,'urgent','high','medium','low'),rm.updated_at DESC LIMIT ".$limit);
+    $q->execute([(int)$viewer['id'],(int)$viewer['id'],(int)$viewer['id']]);
+    foreach($q->fetchAll() as $r){
+        $status=(string)$r['status'];$url='/research-missions.php?agent='.rawurlencode((string)$r['agent_public_id']).'&mission='.rawurlencode((string)$r['public_id']);
+        $section=in_array($status,['review','blocked'],true)?'needs_attention':'next_up';
+        $priority=($status==='review'||$status==='blocked'||(int)$r['failed_criteria']>0||(int)$r['recent_reactivations']>0)?'high':((string)$r['priority']==='high'||(string)$r['priority']==='urgent'?'high':'medium');
+        $title=$status==='review'?'Research Mission is ready for review':($status==='blocked'?'Research Mission is blocked':((int)$r['recent_reactivations']>0?'Research Mission reactivated by new evidence':'Research Mission is active'));
+        $body=(string)$r['title'].' · '.mb_substr((string)$r['research_question'],0,220);
+        if((int)$r['blocked_questions']>0)$body.=' · '.(int)$r['blocked_questions'].' blocked question(s)';
+        if((int)$r['failed_criteria']>0)$body.=' · '.(int)$r['failed_criteria'].' failed criterion/criteria';
+        $actions=[cognitive_feed_action_link('Open Mission',$url),cognitive_feed_action_agent('Ask Agent','Summarize this Research Mission, its current answer, evidence-backed progress, blockers, and what still needs human review. Do not complete or approve the Mission for me.',[['type'=>'mission','public_id'=>(string)$r['public_id']]])];
+        cognitive_feed_add($items,['key'=>cognitive_feed_key('research_mission_'.$status,'research_mission',(string)$r['public_id'],(string)$r['updated_at']),'type'=>'research_mission_'.$status,'section'=>$section,'priority'=>$priority,'created_at'=>$r['updated_at'],'score_extra'=>$priority==='high'?15:5,'title'=>$title,'body'=>$body,'meta'=>['mission_id'=>$r['public_id'],'status'=>$status],'actions'=>$actions]);
+    }
+}
+
+function research_mission_report_data(PDO $pdo,array $viewer,string $agentPublic,int $limit=24): array {
+    if(!research_missions_ready($pdo))return ['ready'=>false,'summary'=>[],'missions'=>[]];
+    $limit=max(1,min(40,$limit));$rows=array_slice(research_mission_list($pdo,$viewer,$agentPublic,60),0,$limit);$out=[];
+    foreach($rows as $row){$d=research_mission_detail($pdo,$viewer,(string)$row['public_id']);if(!$d)continue;$p=(array)$d['progress'];$out[]=[
+      'public_id'=>(string)$d['public_id'],'title'=>(string)$d['title'],'question'=>(string)$d['research_question'],'objective'=>(string)$d['objective'],
+      'status'=>(string)$d['status'],'priority'=>(string)$d['priority'],'updated_at'=>(string)$d['updated_at'],'percent'=>(int)($p['percent_complete']??0),
+      'answer'=>(string)($p['primary_answer']['summary']??''),'ready'=>(bool)($p['completion_readiness']['ready']??false),
+      'reasons'=>(array)($p['completion_readiness']['reasons']??[]),'blockers'=>(array)($p['blockers']??[]),
+      'questions'=>(array)($p['subquestions']??[]),'criteria'=>(array)($p['criteria']??[]),'confidence'=>(array)($p['confidence']??[])
+    ];}
+    $summary=['total'=>count($out),'active'=>0,'blocked'=>0,'review'=>0,'completed'=>0,'ready_for_completion'=>0];
+    foreach($out as $m){$s=(string)$m['status'];if(isset($summary[$s]))$summary[$s]++;if($m['ready'])$summary['ready_for_completion']++;}
+    return ['ready'=>true,'summary'=>$summary,'missions'=>$out];
+}
+
+function research_mission_render_report(string $type,array $snapshot): string {
+    $data=(array)($snapshot['missions']??[]);$missions=(array)($data['missions']??[]);$summary=(array)($data['summary']??[]);
+    $esc='research_system_report_escape';$body='';
+    if($type==='mission_review'){
+        $body.=research_system_report_section('Mission review queue','<p><strong>'.(int)($summary['review']??0).'</strong> in review · <strong>'.(int)($summary['blocked']??0).'</strong> blocked · <strong>'.(int)($summary['ready_for_completion']??0).'</strong> completion-ready.</p>');
+        $html='<ol>';foreach($missions as $m){if(!in_array((string)$m['status'],['review','blocked','active'],true))continue;$detail=$m['reasons']?implode('; ',array_slice($m['reasons'],0,4)):($m['answer']!==''?'Current answer available.':'No synthesis answer yet.');$html.=research_system_report_li((string)$m['title'],(string)$m['question'].' — '.$detail,strtoupper((string)$m['status']).' · '.(int)$m['percent'].'%');}$html.='</ol>';if(!$missions)$html=research_system_report_empty('No Research Missions are available.');$body.=research_system_report_section('What needs review',$html);
+    }else{
+        $body.=research_system_report_section('Mission portfolio','<p><strong>'.(int)($summary['total']??0).'</strong> Missions · '.(int)($summary['active']??0).' active · '.(int)($summary['review']??0).' in review · '.(int)($summary['blocked']??0).' blocked · '.(int)($summary['completed']??0).' completed.</p>');
+        $html='<ul>';foreach($missions as $m){$detail=$m['answer']!==''?mb_substr((string)$m['answer'],0,650):mb_substr((string)$m['objective'],0,650);$html.=research_system_report_li((string)$m['title'],(string)$m['question'].' — '.$detail,strtoupper((string)$m['status']).' · '.(int)$m['percent'].'%');}$html.='</ul>';if(!$missions)$html=research_system_report_empty('No Research Missions are available.');$body.=research_system_report_section('Mission state',$html);
+    }
+    return $body;
+}
+
