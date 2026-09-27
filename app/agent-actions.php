@@ -17,6 +17,10 @@ function agent_action_capabilities(): array {
         'label'=>'Create research task','description'=>'Create a bounded durable task inside the current Research Agent task system.',
         'arguments'=>['title'=>'string','description'=>'string optional','task_type'=>'general|find_source|verify_claim|review_source_change|compare_sources|synthesize|draft_deliverable|follow_up','priority'=>'low|medium|high|urgent optional','due_at'=>'date/time optional']
       ],
+      'research.create_mission'=>[
+        'label'=>'Create Research Mission','description'=>'Create a durable outcome-driven Research Mission in draft state. This does not create or start a Plan, Task queue, Program, or autonomous execution.',
+        'arguments'=>['title'=>'string','research_question'=>'string','objective'=>'string','success_definition'=>'string optional','priority'=>'low|medium|high|urgent optional','success_criteria'=>'array of strings optional','subquestions'=>'array of strings optional']
+      ],
       'research.create_plan'=>[
         'label'=>'Create research plan','description'=>'Create a versioned Research plan with dependent tasks and a living deliverable. The user must confirm the plan before it is created.',
         'arguments'=>['title'=>'string','objective'=>'string','priority'=>'low|medium|high|urgent optional','due_at'=>'date/time optional','deliverable_type'=>'research_brief|competitive_analysis|due_diligence|source_digest|timeline|comparison|weekly_report|report|analysis|document','deliverable_title'=>'string optional','tasks'=>'array of task objects with title,description,task_type,priority,depends_on index array optional']
@@ -47,7 +51,7 @@ function agent_action_capabilities(): array {
       ],
       'research.create_system_report'=>[
         'label'=>'Run Research Report','description'=>'Run a governed per-Research-Agent System Report over the current project data. This creates a Report Run, not a Research Document. The user must confirm the report run.',
-        'arguments'=>['report_type'=>'research_brief|evidence_audit|claims_verification|contradictions_gaps|source_freshness|entity_map|timeline|action_plan|full_intelligence|research_evolution|what_changed|confidence_contradictions|open_questions_evolution|entity_theme_evolution','title'=>'string optional','depth'=>'quick|standard|deep optional','focus_query'=>'string optional','date_from'=>'YYYY-MM-DD optional','date_to'=>'YYYY-MM-DD optional','source_ids'=>'array optional','claim_ids'=>'array optional','finding_ids'=>'array optional','entity_ids'=>'array optional','folder_ids'=>'array optional','include_sections'=>'array optional']
+        'arguments'=>['report_type'=>'research_brief|evidence_audit|claims_verification|contradictions_gaps|source_freshness|entity_map|timeline|action_plan|full_intelligence|research_evolution|what_changed|confidence_contradictions|open_questions_evolution|entity_theme_evolution|mission_brief|mission_review','title'=>'string optional','depth'=>'quick|standard|deep optional','focus_query'=>'string optional','date_from'=>'YYYY-MM-DD optional','date_to'=>'YYYY-MM-DD optional','source_ids'=>'array optional','claim_ids'=>'array optional','finding_ids'=>'array optional','entity_ids'=>'array optional','folder_ids'=>'array optional','include_sections'=>'array optional']
       ],
       'research.create_document_from_report'=>[
         'label'=>'Create document from Report Run','description'=>'Create a durable editable Research Document from an existing Report Run after user confirmation. The Report Run remains unchanged.',
@@ -155,6 +159,14 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $type=(string)($args['task_type']??'general');if(!isset(agent_action_task_types()[$type]))$type='general';
         $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';
         return ['title'=>$title,'description'=>$s($args['description']??'',12000),'task_type'=>$type,'priority'=>$priority,'due_at'=>$s($args['due_at']??'',80)];
+    }
+    if($capability==='research.create_mission'){
+        $title=$s($args['title']??'',255);$question=$s($args['research_question']??$args['question']??'',16000);$objective=$s($args['objective']??'',16000);
+        if($title===''||$question===''||$objective==='')throw new InvalidArgumentException('Mission title, research question, and objective are required.');
+        $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';
+        $criteria=[];foreach(array_slice((array)($args['success_criteria']??[]),0,20) as $label){$label=$s($label,255);if($label!==''&&!in_array($label,$criteria,true))$criteria[]=$label;}
+        $questions=[];foreach(array_slice((array)($args['subquestions']??[]),0,30) as $questionText){$questionText=$s($questionText,12000);if($questionText!==''&&!in_array($questionText,$questions,true))$questions[]=$questionText;}
+        return ['title'=>$title,'research_question'=>$question,'objective'=>$objective,'success_definition'=>$s($args['success_definition']??'',16000),'priority'=>$priority,'success_criteria'=>$criteria,'subquestions'=>$questions];
     }
     if($capability==='research.create_plan'){
         $title=$s($args['title']??'',255);$objective=$s($args['objective']??'',16000);if($title===''||$objective==='')throw new InvalidArgumentException('Plan title and objective are required.');
@@ -369,6 +381,13 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
         $public=ulid_like();$pdo->prepare("INSERT INTO research_tasks(public_id,project_id,created_by_user_id,title,description,task_type,status) VALUES(?,?,?,?,?,?,'open')")
           ->execute([$public,$projectId,$userId,$args['title'],$args['description']!==''?$args['description']:null,$args['task_type']]);
         return ['type'=>'task','public_id'=>$public,'label'=>$args['title'],'url'=>'/research-project.php?id='.rawurlencode((string)$project['public_id']).'#tasks'];
+    }
+    if($capability==='research.create_mission'){
+        if(!function_exists('research_missions_ready')||!research_missions_ready($pdo))throw new RuntimeException('Research Missions require the latest database upgrade.');
+        $agent=research_task_agent_for_project($pdo,$viewer,(string)$project['public_id']);if(!$agent)throw new RuntimeException('This project has no active Research Agent.');
+        $input=$args;$input['agent_id']=$agent['public_id'];$input['success_criteria']=array_map(fn($label)=>['label'=>$label],(array)$args['success_criteria']);$input['subquestions']=array_map(fn($q)=>['question'=>$q,'priority'=>$args['priority']],(array)$args['subquestions']);
+        $mission=research_mission_create($pdo,$viewer,$input,true);
+        return ['type'=>'mission','public_id'=>(string)$mission['public_id'],'label'=>(string)$mission['title'],'url'=>'/research-missions.php?agent='.rawurlencode((string)$agent['public_id']).'&mission='.rawurlencode((string)$mission['public_id']),'status'=>(string)$mission['status']];
     }
     if($capability==='research.create_plan'){
         if(!function_exists('research_tasks_ready')||!research_tasks_ready($pdo))throw new RuntimeException('Research Plans require the latest database upgrade.');
