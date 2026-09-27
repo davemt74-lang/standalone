@@ -338,6 +338,63 @@ A reviewer consensus therefore becomes governance evidence, not an executable De
 - Command Center attention is a read model and has no side effects
 - only explicit existing Decision actions may change Decision state
 
+
+## Section 8 — End-to-End Hardening & Release
+
+Section 8 freezes Phase 71 product scope and validates the complete Decision Memory lifecycle as one release unit. It adds no new schema, scheduler, worker, queue, or Decision authority.
+
+### Final integrated journey
+
+The final acceptance journey verifies the real chain:
+
+**Research Mission → Mission synthesis → Proposed Decision → Team Review → explicit human disposition → evidence/challenge graph → Outcome Memory → reconsideration → Agent / Now / Report Studio → Decision Command Center → explicit reconsideration Apply → evolution/audit history**
+
+The journey also verifies:
+
+- Mission handoff remains idempotent and pinned to an immutable Mission snapshot
+- Team approval remains advisory until a human explicitly changes Decision status
+- Outcome Memory and reconsideration signals never silently alter Decision disposition
+- reconsideration Apply is explicit and retry-safe
+- Agent and Now projections remain read-only
+- public report projection remains conservative when a Decision is no longer in a public disposition
+- Decision/reconsideration Team Reviews become stale after material underlying state changes
+- Team/Research access revocation removes Decision and review access immediately
+- no duplicate Mission handoff, Outcome Memory, or parallel Decision state is created
+
+### Supported Phase 71 upgrade matrix
+
+The final MySQL gate rehearses upgrades to migration 092 from representative durable Phase 71 boundaries:
+
+- migration 086 — pre-Phase 71 Research Missions baseline
+- migration 087 — Decision Ledger foundation
+- migration 089 — Decision Evidence & Challenge Graph
+- migration 091 — Decision Evolution & Reconsideration
+
+Each rehearsal must:
+
+- preserve an existing Collaborative Review row
+- apply every pending migration through 092
+- finish with all Phase 71 Decision tables available
+- expose Decision and Decision Reconsideration as native Review subjects
+- create no synthetic Decision, outcome, reconsideration, or Team Review state
+- leave no pending migration
+- prove a second migration pass is a no-op
+
+### Release invariants
+
+- migration 092 is the final Phase 71 schema boundary
+- all Sections 1–7 remain covered by their original contracts and DB journeys
+- Section 8 introduces no product subsystem or database migration
+- no Decision-specific worker, scheduler, cron, or queue is introduced
+- existing Research Programs remain the recurring scheduler authority
+- existing Collaborative Research Review remains the Team review authority
+- Phase 20 Outcome Learning remains the underlying outcome-event authority
+- production packaging must include all Phase 71 migrations, runtimes, UI, documentation, and acceptance gates
+
+### Phase 71 completion
+
+Phase 71 is release-ready only when fast CI, model governance, PHP 8.1/8.3 full regression, MySQL 8 fresh install, the supported Phase 71 upgrade matrix, the final integrated journey, and production package smoke all pass on the same exact head.
+
 ## Planned Phase 71 sections
 
 1. Decision & Conclusion Ledger Foundation
