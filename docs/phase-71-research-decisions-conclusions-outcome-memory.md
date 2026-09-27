@@ -64,6 +64,33 @@ Changing evidence lineage creates a new immutable Decision revision.
 - Status changes are append-only events and do not rewrite historical revisions.
 - No scheduler, worker, cron, queue, or autonomous decision loop is introduced.
 
+
+## Section 2 — Mission → Decision Handoff
+
+Section 2 adds an explicit bridge from a completed Research Mission execution cycle into the Decision & Conclusion Ledger.
+
+- only Missions in **Review** or **Completed** state are eligible
+- the existing Mission Plan must be completed
+- a current synthesis answer must exist
+- handoff is always explicitly requested; Missions never create Decisions automatically
+- the resulting Decision is created as **Proposed**, never Accepted
+- the Decision defaults to a Conclusion but the user may choose Decision or Recommendation
+- Mission evidence is carried forward as durable pointers to the same Research objects, never copied content
+- the handoff stores an immutable Mission-state snapshot containing the exact Mission revision, config hash, status, question, objective, synthesis, progress/readiness, criteria, and sub-question state
+- explicit Decision confidence is accepted only when supplied; Mission confidence is not silently converted into Decision confidence
+- one Mission may intentionally produce multiple Decisions, but retries against the same Mission state/request are idempotent
+- Mission and Decision lifecycles remain independent after handoff; later Mission changes do not rewrite the stored handoff snapshot
+
+### Section 2 invariants
+
+- no automatic Mission → Decision conversion
+- no automatic acceptance/rejection/defer action
+- no evidence content duplication
+- no Mission status mutation during handoff
+- no scheduler, worker, cron, queue, or autonomous handoff loop
+- handoff retries cannot create duplicate Decisions for the same idempotency key
+- later Mission revisions cannot mutate an earlier handoff snapshot
+
 ## Planned Phase 71 sections
 
 1. Decision & Conclusion Ledger Foundation
