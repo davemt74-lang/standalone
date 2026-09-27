@@ -41,6 +41,11 @@ $mission=research_mission_create($pdo,$owner,[
   ]
 ]);
 rmv17(($mission['status']??'')==='draft'&&empty($mission['plan_public_id'])&&empty($mission['program_public_id']),'Mission creation is durable but non-executing.');
+$mission=research_mission_update($pdo,$owner,(string)$mission['public_id'],[
+  'objective'=>'Produce an evidence-backed, team-reviewable release conclusion while preserving explicit execution, uncertainty, and change-response governance.',
+  'reason'=>'Final acceptance configuration revision'
+]);
+rmv17((int)$mission['current_revision']===2&&count((array)$mission['versions'])===2,'Mission configuration change creates an immutable second revision before execution.');
 
 $planned=research_mission_create_plan($pdo,$owner,(string)$mission['public_id'],[]);
 rmv17(($planned['plan']['status']??'')==='paused'&&count((array)$planned['plan']['tasks'])===3,'Mission planning creates the existing paused Task graph with final synthesis.');
