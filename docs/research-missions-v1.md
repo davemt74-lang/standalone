@@ -142,6 +142,27 @@ Section 6 makes Missions first-class intelligence objects across existing Annota
 - Now and Agent Chat use permission-checked Mission access and do not leak Missions across Research Agent or Team boundaries.
 - Migration 086 only extends the existing review subject enum to include `mission`; it does not rewrite existing reviews.
 
+## Section 7 — End-to-End Hardening & Release
+
+Section 7 is the final Research Missions V1 acceptance gate. It adds no new execution primitive and no new database migration.
+
+- A full end-to-end database journey proves Mission creation, paused planning, explicit start, cited Task completion, synthesis, completion readiness, explicit completion, Program binding, material-change reactivation, Team review, Agent context, Now, Report Studio, history, and access revocation in one lifecycle.
+- A direct **084→086** upgrade rehearsal proves existing pre-Mission Research state upgrades through both Mission migrations without fabricating Missions or rewriting existing governed review state.
+- Desktop/mobile contracts require the Mission Command Center responsive breakpoints and core panels to remain present.
+- Extension release validation keeps the website and extension landing base stylesheet byte-identical, verifies Manifest V3, and verifies the packaged standalone extension is identical to the copy embedded in the website ZIP.
+- Production package smoke now requires the Mission runtime, API, Command Center, migrations 085/086, Section 1–7 contracts, and final upgrade rehearsal.
+- PHP 8.1, PHP 8.3, MySQL 8 fresh install, complete migration rehearsal, static/model governance, full regression, and production package smoke are all required before merge.
+
+### Section 7 invariants
+
+- no Mission-specific worker, cron, scheduler, queue, or duplicate review/report engine is introduced
+- no migration beyond 086 is required for final V1 hardening
+- planning remains non-executing and starting remains explicit
+- completion remains a human/governed action
+- material change may reactivate a Mission only through the existing Research Program ledger
+- Team revocation removes Mission and Mission-review access immediately
+- final package validation must prove both website and Chrome extension artifacts are complete and internally consistent
+
 ## Lifecycle
 
 `draft → active → blocked/review → completed` is the normal path. Missions may also be cancelled or archived. Completed, cancelled, and archived Missions can be explicitly reactivated; every transition is recorded.
