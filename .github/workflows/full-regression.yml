@@ -278,6 +278,7 @@ jobs:
           php tests/research-missions-v1-section4-db.php
           php tests/research-missions-v1-section5-db.php
           php tests/research-missions-v1-section6-db.php
+          php tests/research-missions-v1-section7-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -503,6 +504,13 @@ jobs:
           DB_PASS: root
           RESEARCH_MISSIONS_SECTION6_RESET_DB: '1'
         run: php tests/ci/research-missions-v1-upgrade-from-085.php
+      - name: MySQL 8 Research Missions V1 final upgrade rehearsal from migration 084 through 086
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_research_missions_final_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          RESEARCH_MISSIONS_FINAL_RESET_DB: '1'
+        run: php tests/ci/research-missions-v1-final-upgrade-from-084.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
