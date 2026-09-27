@@ -361,6 +361,10 @@ jobs:
           test -f package-website/tests/phase71-section2-mission-decision-handoff-contract.php
           test -f package-website/tests/phase71-section2-mission-decision-handoff-db.php
           test -f package-website/tests/ci/phase71-section2-upgrade-from-087.php
+          test -f package-website/database/migrations/20260927_089_research_decision_evidence_challenge_graph.sql
+          test -f package-website/tests/phase71-section3-decision-evidence-challenge-graph-contract.php
+          test -f package-website/tests/phase71-section3-decision-evidence-challenge-graph-db.php
+          test -f package-website/tests/ci/phase71-section3-upgrade-from-088.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php
           test -f package-website/api/research-workspace-objects.php
