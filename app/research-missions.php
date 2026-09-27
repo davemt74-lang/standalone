@@ -184,6 +184,7 @@ function research_mission_detail(PDO $pdo,array $viewer,string $publicId): ?arra
     $mission['scope']=research_mission_json_object($mission['scope_json']??null);$mission['constraints']=research_mission_json_object($mission['constraints_json']??null);
     $mission['criteria']=research_mission_criteria($pdo,(int)$mission['id']);$mission['subquestions']=research_mission_subquestions($pdo,(int)$mission['id']);$mission['events']=research_mission_events($pdo,(int)$mission['id'],100);
     $mission['plan']=!empty($mission['plan_public_id'])?research_mission_plan_detail($pdo,$viewer,$mission):null;
+    $mission['progress']=research_mission_progress_for_row($pdo,$viewer,$mission);
     return $mission;
 }
 function research_mission_criterion_access(PDO $pdo,array $viewer,string $publicId): ?array {
@@ -329,5 +330,78 @@ function research_mission_pause(PDO $pdo,array $viewer,string $missionPublic,boo
         $fresh=research_mission_by_id($pdo,(int)$mission['id']);research_mission_event($pdo,$fresh,'mission_execution_paused',$byAgent?'agent':'user',(int)$viewer['id'],['plan_id'=>(string)$plan['public_id']]);
     }
     return research_mission_detail($pdo,$viewer,$missionPublic)??$mission;
+}
+
+function research_mission_progress_for_row(PDO $pdo,array $viewer,array $mission): array {
+    $missionId=(int)$mission['id'];$planId=(int)($mission['plan_id']??0);
+    $task=['total'=>0,'completed'=>0,'blocked'=>0,'review'=>0,'active'=>0];$planStatus=null;$primaryAnswer=null;$primaryTaskPublic=null;
+    if($planId>0){
+        $q=$pdo->prepare("SELECT status,COUNT(*) c FROM research_tasks WHERE plan_id=? GROUP BY status");$q->execute([$planId]);
+        foreach($q->fetchAll() as $r){$count=(int)$r['c'];$task['total']+=$count;$status=(string)$r['status'];if(in_array($status,['complete','done','archived'],true))$task['completed']+=$count;elseif(in_array($status,['failed','waiting'],true))$task['blocked']+=$count;elseif($status==='review')$task['review']+=$count;else $task['active']+=$count;}
+        $q=$pdo->prepare('SELECT status FROM research_task_plans WHERE id=? LIMIT 1');$q->execute([$planId]);$planStatus=$q->fetchColumn()?:null;
+        $q=$pdo->prepare("SELECT public_id,execution_summary FROM research_tasks WHERE plan_id=? AND task_type='synthesize' ORDER BY position DESC,id DESC LIMIT 1");$q->execute([$planId]);$synth=$q->fetch();
+        if($synth){$primaryTaskPublic=(string)$synth['public_id'];$text=trim((string)($synth['execution_summary']??''));$primaryAnswer=$text!==''?$text:null;}
+    }
+    $q=$pdo->prepare("SELECT COUNT(*) total,SUM(CASE WHEN status='answered' THEN 1 ELSE 0 END) answered,SUM(CASE WHEN status='blocked' THEN 1 ELSE 0 END) blocked,SUM(CASE WHEN confidence IS NOT NULL THEN 1 ELSE 0 END) confidence_count,AVG(confidence) confidence_avg FROM research_mission_subquestions WHERE mission_id=?");$q->execute([$missionId]);$questions=$q->fetch()?:[];
+    $question=['total'=>(int)($questions['total']??0),'answered'=>(int)($questions['answered']??0),'blocked'=>(int)($questions['blocked']??0),'confidence_count'=>(int)($questions['confidence_count']??0),'confidence_average'=>$questions['confidence_avg']!==null?round((float)$questions['confidence_avg'],4):null];
+    $q=$pdo->prepare("SELECT COUNT(*) total,SUM(CASE WHEN status='satisfied' THEN 1 ELSE 0 END) satisfied,SUM(CASE WHEN status='waived' THEN 1 ELSE 0 END) waived,SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed FROM research_mission_criteria WHERE mission_id=?");$q->execute([$missionId]);$criteriaRow=$q->fetch()?:[];
+    $criteria=['total'=>(int)($criteriaRow['total']??0),'satisfied'=>(int)($criteriaRow['satisfied']??0),'waived'=>(int)($criteriaRow['waived']??0),'failed'=>(int)($criteriaRow['failed']??0)];
+    $dimensions=[];
+    if($task['total']>0)$dimensions['tasks']=(int)round(100*$task['completed']/$task['total']);
+    if($question['total']>0)$dimensions['subquestions']=(int)round(100*$question['answered']/$question['total']);
+    if($criteria['total']>0)$dimensions['criteria']=(int)round(100*($criteria['satisfied']+$criteria['waived'])/$criteria['total']);
+    $overall=$dimensions?(int)round(array_sum($dimensions)/count($dimensions)):0;
+    $blockers=[];
+    if($planId>0){$q=$pdo->prepare("SELECT public_id,title,status,blocking_reason FROM research_tasks WHERE plan_id=? AND status IN ('failed','waiting') ORDER BY position,id LIMIT 20");$q->execute([$planId]);foreach($q->fetchAll() as $r)$blockers[]=['type'=>'task','public_id'=>(string)$r['public_id'],'title'=>(string)$r['title'],'status'=>(string)$r['status'],'detail'=>(string)($r['blocking_reason']??'')];}
+    $q=$pdo->prepare("SELECT public_id,question,status FROM research_mission_subquestions WHERE mission_id=? AND status='blocked' ORDER BY position,id LIMIT 20");$q->execute([$missionId]);foreach($q->fetchAll() as $r)$blockers[]=['type'=>'subquestion','public_id'=>(string)$r['public_id'],'title'=>(string)$r['question'],'status'=>'blocked','detail'=>'Linked Mission research is blocked.'];
+    $q=$pdo->prepare("SELECT public_id,label,status FROM research_mission_criteria WHERE mission_id=? AND status='failed' ORDER BY position,id LIMIT 20");$q->execute([$missionId]);foreach($q->fetchAll() as $r)$blockers[]=['type'=>'criterion','public_id'=>(string)$r['public_id'],'title'=>(string)$r['label'],'status'=>'failed','detail'=>'Mission success criterion is not met.'];
+    $unresolved=[];
+    $q=$pdo->prepare("SELECT public_id,question,status FROM research_mission_subquestions WHERE mission_id=? AND status<>'answered' ORDER BY position,id LIMIT 30");$q->execute([$missionId]);foreach($q->fetchAll() as $r)$unresolved[]=['type'=>'subquestion','public_id'=>(string)$r['public_id'],'title'=>(string)$r['question'],'status'=>(string)$r['status']];
+    if($planId>0){$q=$pdo->prepare("SELECT public_id,title,status FROM research_tasks WHERE plan_id=? AND status NOT IN ('complete','done','archived') ORDER BY position,id LIMIT 30");$q->execute([$planId]);foreach($q->fetchAll() as $r)$unresolved[]=['type'=>'task','public_id'=>(string)$r['public_id'],'title'=>(string)$r['title'],'status'=>(string)$r['status']];}
+    $evidenceFlags=['open_contradictions'=>0,'open_evidence_gaps'=>0];
+    if(installer_table_exists($pdo,'research_autonomy_observations')){
+        $q=$pdo->prepare("SELECT observation_type,COUNT(*) c FROM research_autonomy_observations WHERE project_id=? AND status='open' AND observation_type IN ('contradiction','evidence_gap') GROUP BY observation_type");$q->execute([(int)$mission['project_id']]);
+        foreach($q->fetchAll() as $r){if($r['observation_type']==='contradiction')$evidenceFlags['open_contradictions']=(int)$r['c'];elseif($r['observation_type']==='evidence_gap')$evidenceFlags['open_evidence_gaps']=(int)$r['c'];}
+    }
+    $reasons=[];$planReady=$planId>0&&$planStatus==='completed';$questionsReady=$question['total']===0||$question['answered']===$question['total'];$criteriaReady=$criteria['total']===0||($criteria['satisfied']+$criteria['waived'])===$criteria['total'];$blockerCount=count($blockers);
+    if(!$planReady)$reasons[]=$planId>0?'Mission Plan still has open work.':'Mission Plan has not been created.';
+    if(!$questionsReady)$reasons[]=(string)($question['total']-$question['answered']).' Mission sub-question(s) remain unresolved.';
+    if(!$criteriaReady)$reasons[]=(string)($criteria['total']-$criteria['satisfied']-$criteria['waived']).' success criterion/criteria remain unresolved.';
+    if($blockerCount>0)$reasons[]=$blockerCount.' explicit blocker(s) require attention.';
+    return [
+      'percent_complete'=>$overall,'dimensions'=>$dimensions,'plan'=>['public_id'=>(string)($mission['plan_public_id']??''),'status'=>$planStatus]+$task,
+      'subquestions'=>$question,'criteria'=>$criteria,'confidence'=>['average'=>$question['confidence_average'],'rated'=>$question['confidence_count'],'total'=>$question['total']],
+      'primary_answer'=>['task_public_id'=>$primaryTaskPublic,'summary'=>$primaryAnswer],'blockers'=>$blockers,'unresolved'=>$unresolved,'evidence_flags'=>$evidenceFlags,
+      'completion_readiness'=>['ready'=>$planReady&&$questionsReady&&$criteriaReady&&$blockerCount===0,'plan_ready'=>$planReady,'questions_ready'=>$questionsReady,'criteria_ready'=>$criteriaReady,'blockers_clear'=>$blockerCount===0,'reasons'=>$reasons]
+    ];
+}
+
+function research_mission_progress(PDO $pdo,array $viewer,string $missionPublic): array {
+    $mission=research_mission_access($pdo,$viewer,$missionPublic);if(!$mission)throw new RuntimeException('Research Mission not found.');
+    return research_mission_progress_for_row($pdo,$viewer,$mission);
+}
+
+function research_mission_sync_execution(PDO $pdo,int $planId): void {
+    if($planId<1||!research_missions_ready($pdo))return;
+    $q=$pdo->prepare("SELECT rm.*,rtp.status plan_status,rtp.public_id plan_public_id FROM research_missions rm JOIN research_task_plans rtp ON rtp.id=rm.plan_id WHERE rm.plan_id=? LIMIT 1");$q->execute([$planId]);$mission=$q->fetch();if(!$mission)return;
+    $q=$pdo->prepare("SELECT s.id,s.status,s.answer_summary,s.answered_at,rt.status task_status,rt.execution_summary,rt.completed_at FROM research_mission_subquestions s JOIN research_tasks rt ON rt.id=s.linked_task_id WHERE s.mission_id=? ORDER BY s.position,s.id");$q->execute([(int)$mission['id']]);$changed=0;$counts=['answered'=>0,'blocked'=>0,'researching'=>0];
+    foreach($q->fetchAll() as $row){
+        $taskStatus=(string)$row['task_status'];
+        $next=in_array($taskStatus,['complete','done','archived'],true)?'answered':(in_array($taskStatus,['failed','waiting'],true)?'blocked':'researching');
+        $counts[$next]++;
+        $summary=trim((string)($row['execution_summary']??''));$answer=(string)($row['answer_summary']??'');if($next==='answered'&&$summary!=='')$answer=$summary;
+        $answeredAt=$next==='answered'?((string)($row['completed_at']??'')!==''?(string)$row['completed_at']:gmdate('Y-m-d H:i:s')):null;
+        if((string)$row['status']!==$next||(string)($row['answer_summary']??'')!==$answer||(string)($row['answered_at']??'')!==(string)($answeredAt??'')){
+            $pdo->prepare("UPDATE research_mission_subquestions SET status=?,answer_summary=?,answered_at=?,updated_at=NOW() WHERE id=?")->execute([$next,$answer!==''?$answer:null,$answeredAt,(int)$row['id']]);$changed++;
+        }
+    }
+    $statusChanged=false;$from=(string)$mission['status'];$to=$from;
+    if((string)$mission['plan_status']==='completed'&&in_array($from,['active','blocked'],true))$to='review';
+    elseif((string)$mission['plan_status']==='active'&&$from==='review')$to='active';
+    if($to!==$from){$pdo->prepare('UPDATE research_missions SET status=?,updated_at=NOW() WHERE id=?')->execute([$to,(int)$mission['id']]);$statusChanged=true;}
+    if($changed>0||$statusChanged){
+        $fresh=research_mission_by_id($pdo,(int)$mission['id']);
+        research_mission_event($pdo,$fresh,$statusChanged&&$to==='review'?'mission_ready_for_review':($statusChanged?'mission_execution_reopened':'mission_execution_synced'),'system',null,['plan_id'=>(string)$mission['plan_public_id'],'subquestions'=>$counts,'updated_subquestions'=>$changed,'mission_status'=>$to]);
+    }
 }
 

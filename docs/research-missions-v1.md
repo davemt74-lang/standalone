@@ -56,6 +56,29 @@ Section 2 turns the durable Mission definition into the existing Research Task s
 - Starting or resuming uses the existing Research Task queue; there is no Mission worker, cron, scheduler, or Mission job table.
 - One Mission keeps one execution Plan; repeated create-plan requests return the existing Plan.
 
+## Section 3 — Mission Execution & Progress Engine
+
+Section 3 derives Mission state from the existing Research Task execution system rather than creating a separate Mission runtime.
+
+- linked sub-questions mirror their Research Task lifecycle: researching, blocked, or answered
+- completed linked Tasks can carry their execution summary into the durable sub-question answer
+- Mission progress exposes transparent task, sub-question, and success-criterion dimensions plus an overall percentage derived from the applicable dimensions
+- blockers explicitly include failed/waiting Tasks, blocked sub-questions, and failed success criteria
+- unresolved work lists open Tasks and sub-questions rather than hiding them behind a score
+- sub-question confidence remains explicit user/Agent data; the system reports coverage and averages but never invents confidence from Task completion
+- open contradiction/evidence-gap counts are surfaced as evidence flags, not silently converted into confidence
+- completion readiness requires the existing Plan to be complete, sub-questions resolved, success criteria satisfied/waived, and explicit blockers cleared
+- when the existing Research Plan completes, an active Mission moves to **Review**; the system does not auto-complete the Mission for the user
+- if reviewed execution is reopened by revising a Task, the Mission returns to Active
+
+### Section 3 invariants
+
+- progress is explainable from stored Research state
+- no generated percentage can override a failed criterion or blocker
+- Mission completion remains an explicit human/governed lifecycle action
+- Task execution remains owned by the existing Research Task worker and queue
+- no Mission worker, scheduler, cron path, or Mission-specific job queue is added
+
 ## Lifecycle
 
 `draft → active → blocked/review → completed` is the normal path. Missions may also be cancelled or archived. Completed, cancelled, and archived Missions can be explicitly reactivated; every transition is recorded.

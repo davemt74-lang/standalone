@@ -274,6 +274,7 @@ jobs:
           php tests/phase70-longitudinal-research-intelligence-db.php
           php tests/research-missions-v1-db.php
           php tests/research-missions-v1-section2-db.php
+          php tests/research-missions-v1-section3-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
