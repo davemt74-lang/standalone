@@ -33,8 +33,8 @@ $need('research-reviews.php','Decision reconsiderations','Review Center must adv
 $need('app/agent-chat.php','Decision Memory context is read-only in Agent Chat','Agent Chat must preserve read-only Decision authority.');
 $need('app/cognitive-feed.php','research_decision_cognitive_observations','Now must retain Decision attention integration.');
 $need('app/research-reports.php','research_decision_report_snapshot','Report Studio must retain Decision snapshot integration.');
-$need('app/research-reviews.php',"$type==='decision'",'Native Team Review must retain Decision subjects.');
-$need('app/research-reviews.php',"$type==='decision_reconsideration'",'Native Team Review must retain Decision reconsideration subjects.');
+$need('app/research-reviews.php','$type===\'decision\'','Native Team Review must retain Decision subjects.');
+$need('app/research-reviews.php','$type===\'decision_reconsideration\'','Native Team Review must retain Decision reconsideration subjects.');
 
 if(is_file($root.'/database/migrations/20260927_093_research_decision_release.sql'))$fail[]='Section 8 must remain schema-free; migration 093 is not allowed.';
 foreach(['research-decision-worker.php','research-decisions-worker.php','decision-memory-worker.php','decision-reconsideration-worker.php'] as $worker)
