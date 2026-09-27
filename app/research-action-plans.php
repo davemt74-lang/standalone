@@ -13,7 +13,7 @@ function research_action_plan_json(mixed $value): array {
 }
 function research_action_plan_text(string $value,int $max): string {return mb_substr(trim($value),0,$max);}
 function research_action_plan_date(mixed $value,string $label): ?string {
-    $value=trim((string)$value;if($value==='')return null;
+    $value=trim((string)$value);if($value==='')return null;
     $dt=DateTimeImmutable::createFromFormat('!Y-m-d',$value);
     if(!$dt||$dt->format('Y-m-d')!==$value)throw new InvalidArgumentException($label.' must use YYYY-MM-DD.');
     return $value;
