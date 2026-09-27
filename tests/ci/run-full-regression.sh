@@ -97,6 +97,7 @@ db_tests=(
   tests/phase71-section2-mission-decision-handoff-db.php
   tests/phase71-section3-decision-evidence-challenge-graph-db.php
   tests/phase71-section4-outcome-memory-db.php
+  tests/phase71-section5-decision-evolution-reconsideration-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
