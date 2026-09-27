@@ -522,25 +522,31 @@ function research_decision_record_outcome(PDO $pdo,array $viewer,string $decisio
       if(trim((string)($normalizeInput['observed_at']??''))==='')$normalizeInput['observed_at']=(string)($event['occurred_at']??'');
     }
     $x=research_decision_outcome_normalize($normalizeInput);$refs=research_decision_outcome_refs($pdo,$viewer,$decision,$input);
-    $public=ulid_like();$idempotency=trim((string)($input['idempotency_key']??''));if($idempotency==='')$idempotency=hash('sha256',json_encode([(string)$decision['public_id'],$x['assessment'],$x['actual_summary'],$x['observed_at']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
-    if(!$event)$event=research_outcome_record($pdo,$viewer,[
-      'event_type'=>'decision_outcome','decision_type'=>research_decision_outcome_phase20_type($x['assessment']),'source_type'=>'research_decision','source_public_id'=>(string)$decision['public_id'],
-      'project_public_id'=>(string)$decision['project_public_id'],'object_type'=>'decision','object_public_id'=>(string)$decision['public_id'],
-      'title'=>'Decision outcome · '.(string)$decision['title'],'summary'=>$x['actual_summary'],'note'=>$x['lessons'],'refs'=>$refs,'is_manual'=>!$byAgent,
-      'occurred_at'=>$x['observed_at'],'dedupe_key'=>'decision_outcome:'.(string)$decision['public_id'].':'.$idempotency,
-      'metadata'=>['assessment'=>$x['assessment'],'expected_summary'=>$x['expected_summary'],'variance_summary'=>$x['variance_summary'],'confidence'=>$x['confidence'],'follow_up_state'=>$x['follow_up_state'],'decision_revision'=>(int)$decision['current_revision'],'decision_status'=>(string)$decision['status']]
-    ]);
-    if(!$event)throw new RuntimeException('Outcome Learning event could not be recorded.');
-    if($existingEventPublic!==''){
-      $ins=$pdo->prepare("INSERT IGNORE INTO research_outcome_refs(outcome_id,ref_type,ref_public_id,ref_role) VALUES(?,?,?,?)");
-      foreach($refs as $ref)$ins->execute([(int)$event['id'],$ref['type'],$ref['public_id'],$ref['role']]);
-    }
-    $q=$pdo->prepare("SELECT id FROM research_decision_outcomes WHERE outcome_event_id=? LIMIT 1");$q->execute([(int)$event['id']]);$existing=(int)($q->fetchColumn()?:0);if($existing>0)return research_decision_outcome_row($pdo,$existing)??[];
-    $pdo->prepare("INSERT INTO research_decision_outcomes(public_id,decision_id,outcome_event_id,assessment,expected_summary,actual_summary,variance_summary,lessons,confidence,follow_up_state,recorded_by_user_id,created_by_agent,observed_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([$public,(int)$decision['id'],(int)$event['id'],$x['assessment'],$x['expected_summary']!==''?$x['expected_summary']:null,$x['actual_summary'],$x['variance_summary']!==''?$x['variance_summary']:null,$x['lessons']!==''?$x['lessons']:null,$x['confidence'],$x['follow_up_state'],(int)$viewer['id'],$byAgent?1:0,$x['observed_at']]);
-    $row=research_decision_outcome_row($pdo,(int)$pdo->lastInsertId());if(!$row)throw new RuntimeException('Decision Outcome Memory could not be loaded.');
-    research_decision_outcome_write_version($pdo,$row,'Initial observed outcome',(int)$viewer['id'],$byAgent);
-    research_decision_event($pdo,$decision,'decision_outcome_recorded',$byAgent?'agent':'user',(int)$viewer['id'],['decision_outcome_id'=>$public,'outcome_event_id'=>$event['public_id'],'assessment'=>$x['assessment'],'follow_up_state'=>$x['follow_up_state']]);
+    $public=ulid_like();$idempotencyRaw=trim((string)($input['idempotency_key']??''));if($idempotencyRaw==='')$idempotencyRaw=json_encode([(string)$decision['public_id'],$x['assessment'],$x['actual_summary'],$x['observed_at'],$existingEventPublic],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+    $idempotency=hash('sha256',$idempotencyRaw);$owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
+    try{
+      $lock=$pdo->prepare("SELECT id FROM research_decisions WHERE id=? FOR UPDATE");$lock->execute([(int)$decision['id']]);
+      $q=$pdo->prepare("SELECT id FROM research_decision_outcomes WHERE decision_id=? AND idempotency_key=? LIMIT 1");$q->execute([(int)$decision['id'],$idempotency]);$existing=(int)($q->fetchColumn()?:0);
+      if($existing>0){if($owns)$pdo->commit();return research_decision_outcome_row($pdo,$existing)??[];}
+      if(!$event)$event=research_outcome_record($pdo,$viewer,[
+        'event_type'=>'decision_outcome','decision_type'=>research_decision_outcome_phase20_type($x['assessment']),'source_type'=>'research_decision','source_public_id'=>(string)$decision['public_id'],
+        'project_public_id'=>(string)$decision['project_public_id'],'object_type'=>'decision','object_public_id'=>(string)$decision['public_id'],
+        'title'=>'Decision outcome · '.(string)$decision['title'],'summary'=>$x['actual_summary'],'note'=>$x['lessons'],'refs'=>$refs,'is_manual'=>!$byAgent,
+        'occurred_at'=>$x['observed_at'],'dedupe_key'=>'decision_outcome:'.(string)$decision['public_id'].':'.$idempotency,
+        'metadata'=>['assessment'=>$x['assessment'],'expected_summary'=>$x['expected_summary'],'variance_summary'=>$x['variance_summary'],'confidence'=>$x['confidence'],'follow_up_state'=>$x['follow_up_state'],'decision_revision'=>(int)$decision['current_revision'],'decision_status'=>(string)$decision['status']]
+      ]);
+      if(!$event)throw new RuntimeException('Outcome Learning event could not be recorded.');
+      if($existingEventPublic!==''){
+        $ins=$pdo->prepare("INSERT IGNORE INTO research_outcome_refs(outcome_id,ref_type,ref_public_id,ref_role) VALUES(?,?,?,?)");
+        foreach($refs as $ref)$ins->execute([(int)$event['id'],$ref['type'],$ref['public_id'],$ref['role']]);
+      }
+      $pdo->prepare("INSERT INTO research_decision_outcomes(public_id,decision_id,outcome_event_id,assessment,expected_summary,actual_summary,variance_summary,lessons,confidence,follow_up_state,recorded_by_user_id,created_by_agent,idempotency_key,observed_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([$public,(int)$decision['id'],(int)$event['id'],$x['assessment'],$x['expected_summary']!==''?$x['expected_summary']:null,$x['actual_summary'],$x['variance_summary']!==''?$x['variance_summary']:null,$x['lessons']!==''?$x['lessons']:null,$x['confidence'],$x['follow_up_state'],(int)$viewer['id'],$byAgent?1:0,$idempotency,$x['observed_at']]);
+      $row=research_decision_outcome_row($pdo,(int)$pdo->lastInsertId());if(!$row)throw new RuntimeException('Decision Outcome Memory could not be loaded.');
+      research_decision_outcome_write_version($pdo,$row,'Initial observed outcome',(int)$viewer['id'],$byAgent);
+      research_decision_event($pdo,$decision,'decision_outcome_recorded',$byAgent?'agent':'user',(int)$viewer['id'],['decision_outcome_id'=>$public,'outcome_event_id'=>$event['public_id'],'assessment'=>$x['assessment'],'follow_up_state'=>$x['follow_up_state']]);
+      if($owns)$pdo->commit();
+    }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return research_decision_outcome_access($pdo,$viewer,$public)??$row;
 }
 function research_decision_update_outcome(PDO $pdo,array $viewer,string $outcomePublic,array $input,bool $byAgent=false): array {
