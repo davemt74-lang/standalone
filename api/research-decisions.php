@@ -33,6 +33,10 @@ try{
         $input['agent_id']=trim((string)($input['agent_id']??''));if($input['agent_id']==='')throw new InvalidArgumentException('Research Agent is required.');
         json_response(['ok'=>true,'data'=>['decision'=>research_decision_create($pdo,$viewer,$input,false)]],201);
     }
+    if($action==='from_mission'){
+        $mission=trim((string)($input['mission_id']??''));if($mission==='')throw new InvalidArgumentException('Research Mission is required.');
+        json_response(['ok'=>true,'data'=>['decision'=>research_decision_from_mission($pdo,$viewer,$mission,$input,false)]],201);
+    }
     if($action==='update'){
         $id=trim((string)($input['decision_id']??''));if($id==='')throw new InvalidArgumentException('Decision is required.');
         json_response(['ok'=>true,'data'=>['decision'=>research_decision_update($pdo,$viewer,$id,$input,false)]]);
