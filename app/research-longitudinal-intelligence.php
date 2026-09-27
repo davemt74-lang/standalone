@@ -54,20 +54,47 @@ function research_longitudinal_finding_claim_fingerprints(PDO $pdo,int $projectI
     $q->execute([$projectId]);$out=[];foreach($q->fetchAll()?:[] as $r)$out[(string)$r['finding_public_id']]=hash('sha256',(string)($r['claim_basis']??''));return $out;
 }
 
+function research_longitudinal_claim_rows(PDO $pdo,int $projectId,array $fingerprints): array {
+    $q=$pdo->prepare("SELECT rc.public_id,rc.statement,rc.claim_type,rc.status,
+      COUNT(ce.id) evidence_count,COUNT(DISTINCT ce.source_version_id) source_version_count,COUNT(DISTINCT sv.source_id) source_count,
+      SUM(ce.relationship='supports') supports_count,SUM(ce.relationship='contradicts') contradicts_count,SUM(ce.relationship='primary') primary_count
+      FROM research_claims rc
+      LEFT JOIN claim_evidence ce ON ce.claim_id=rc.id
+      LEFT JOIN source_versions sv ON sv.id=ce.source_version_id
+      WHERE rc.project_id=? GROUP BY rc.id ORDER BY rc.public_id");
+    $q->execute([$projectId]);$rows=$q->fetchAll()?:[];foreach($rows as &$r){
+        foreach(['evidence_count','source_version_count','source_count','supports_count','contradicts_count','primary_count'] as $k)$r[$k]=(int)($r[$k]??0);
+        $r['evidence_fingerprint']=(string)($fingerprints[(string)$r['public_id']]??hash('sha256',''));
+    }unset($r);return $rows;
+}
+
+function research_longitudinal_finding_rows(PDO $pdo,int $projectId,array $fingerprints): array {
+    $q=$pdo->prepare("SELECT rf.public_id,rf.title,rf.summary,rf.status,COUNT(fc.claim_id) claim_count
+      FROM research_findings rf LEFT JOIN finding_claims fc ON fc.finding_id=rf.id
+      WHERE rf.project_id=? AND rf.status<>'archived'
+      GROUP BY rf.id ORDER BY rf.public_id");
+    $q->execute([$projectId]);$rows=$q->fetchAll()?:[];foreach($rows as &$r){$r['claim_count']=(int)($r['claim_count']??0);$r['claim_fingerprint']=(string)($fingerprints[(string)$r['public_id']]??hash('sha256',''));}unset($r);return $rows;
+}
+
+function research_longitudinal_task_rows(PDO $pdo,int $agentId): array {
+    if(!function_exists('research_tasks_ready')||!research_tasks_ready($pdo))return [];
+    $q=$pdo->prepare("SELECT public_id,title,description,task_type,priority,status,due_at
+      FROM research_tasks WHERE research_agent_id=? AND status NOT IN ('complete','done','archived') ORDER BY public_id");
+    $q->execute([$agentId]);return $q->fetchAll()?:[];
+}
+
+function research_longitudinal_program_rows(PDO $pdo,int $agentId): array {
+    if(!function_exists('research_programs_ready')||!research_programs_ready($pdo))return [];
+    $q=$pdo->prepare("SELECT public_id,title,objective,status,cadence,next_run_at
+      FROM research_programs WHERE research_agent_id=? AND status<>'archived' ORDER BY public_id");
+    $q->execute([$agentId]);return $q->fetchAll()?:[];
+}
+
 function research_longitudinal_state(PDO $pdo,array $viewer,string $agentPublic): array {
     $agent=research_longitudinal_agent($pdo,$viewer,$agentPublic);$projectId=(int)$agent['project_id'];
-    $workspace=function_exists('research_workspace_deterministic_snapshot')?research_workspace_deterministic_snapshot($pdo,$projectId):[];
     $claimEvidence=research_longitudinal_claim_evidence_fingerprints($pdo,$projectId);$findingClaims=research_longitudinal_finding_claim_fingerprints($pdo,$projectId);
-    $claims=[];foreach((array)(function_exists('research_workspace_claim_rows')?research_workspace_claim_rows($pdo,$projectId):[]) as $r)$claims[]=[
-      'public_id'=>(string)$r['public_id'],'statement'=>(string)$r['statement'],'claim_type'=>(string)$r['claim_type'],'status'=>(string)$r['status'],
-      'evidence_count'=>(int)($r['evidence_count']??0),'source_count'=>(int)($r['source_count']??0),'supports_count'=>(int)($r['supports_count']??0),
-      'contradicts_count'=>(int)($r['contradicts_count']??0),'primary_count'=>(int)($r['primary_count']??0),
-      'evidence_fingerprint'=>(string)($claimEvidence[(string)$r['public_id']]??hash('sha256',''))
-    ];
-    $findings=[];foreach((array)(function_exists('research_system_report_findings')?research_system_report_findings($pdo,$projectId,100):[]) as $r)$findings[]=[
-      'public_id'=>(string)$r['public_id'],'title'=>(string)$r['title'],'summary'=>(string)($r['summary']??''),'status'=>(string)$r['status'],'claim_count'=>(int)($r['claim_count']??0),
-      'claim_fingerprint'=>(string)($findingClaims[(string)$r['public_id']]??hash('sha256',''))
-    ];
+    $claims=research_longitudinal_claim_rows($pdo,$projectId,$claimEvidence);
+    $findings=research_longitudinal_finding_rows($pdo,$projectId,$findingClaims);
     $entities=[];foreach((array)(function_exists('research_project_entity_rows')?research_project_entity_rows($pdo,$projectId):[]) as $r)$entities[]=[
       'public_id'=>(string)$r['public_id'],'canonical_name'=>(string)$r['canonical_name'],'entity_type'=>(string)$r['entity_type'],'status'=>(string)$r['status'],
       'description'=>(string)($r['description']??''),'mention_count'=>(int)($r['mention_count']??0),'relation_count'=>(int)($r['relation_count']??0)
@@ -79,12 +106,13 @@ function research_longitudinal_state(PDO $pdo,array $viewer,string $agentPublic)
       'public_id'=>(string)$r['public_id'],'title'=>(string)($r['title']??''),'domain'=>(string)($r['domain']??''),'status'=>(string)$r['status'],
       'version_number'=>(int)($r['version_number']??0),'content_hash'=>(string)($r['content_hash']??'')
     ];
-    $tasks=[];foreach((array)(function_exists('research_system_report_active_tasks')?research_system_report_active_tasks($pdo,(int)$agent['id'],80):[]) as $r)$tasks[]=[
+    $tasks=[];foreach(research_longitudinal_task_rows($pdo,(int)$agent['id']) as $r)$tasks[]=[
       'public_id'=>(string)$r['public_id'],'title'=>(string)$r['title'],'description'=>(string)($r['description']??''),'task_type'=>(string)$r['task_type'],
       'priority'=>(string)$r['priority'],'status'=>(string)$r['status'],'due_at'=>(string)($r['due_at']??'')
     ];
-    $programs=[];foreach((array)(function_exists('research_system_report_active_programs')?research_system_report_active_programs($pdo,(int)$agent['id'],50):[]) as $r)$programs[]=[
-      'public_id'=>(string)$r['public_id'],'title'=>(string)$r['title'],'objective'=>(string)($r['objective']??''),'status'=>(string)$r['status'],'cadence'=>(string)$r['cadence']
+    $programs=[];foreach(research_longitudinal_program_rows($pdo,(int)$agent['id']) as $r)$programs[]=[
+      'public_id'=>(string)$r['public_id'],'title'=>(string)$r['title'],'objective'=>(string)($r['objective']??''),'status'=>(string)$r['status'],'cadence'=>(string)$r['cadence'],
+      'next_run_at'=>(string)($r['next_run_at']??'')
     ];
     $claimRelations=[];foreach((array)(function_exists('research_project_graph_rows')?research_project_graph_rows($pdo,$projectId):[]) as $r)$claimRelations[]=[
       'public_id'=>(string)($r['public_id']??research_longitudinal_derived_id('cr',$r)),'source_public_id'=>(string)($r['source_public_id']??''),'target_public_id'=>(string)($r['target_public_id']??''),
@@ -94,14 +122,27 @@ function research_longitudinal_state(PDO $pdo,array $viewer,string $agentPublic)
       'public_id'=>(string)($r['public_id']??research_longitudinal_derived_id('er',$r)),'source_public_id'=>(string)($r['source_public_id']??''),'target_public_id'=>(string)($r['target_public_id']??''),
       'relation_type'=>(string)($r['relation_type']??''),'status'=>(string)($r['status']??'')
     ];
-    $questions=[];foreach((array)($workspace['gaps']??[]) as $r){$id=research_longitudinal_derived_id('q',$r);$questions[]=[
-      'public_id'=>$id,'title'=>(string)($r['title']??'Evidence gap'),'detail'=>(string)($r['detail']??''),'priority'=>(string)($r['priority']??''),
-      'claim_id'=>(string)($r['claim_id']??''),'ref_type'=>(string)($r['ref_type']??''),'ref_id'=>(string)($r['ref_id']??'')
-    ];}
-    $contradictions=[];foreach((array)($workspace['conflicts']??[]) as $r){$id=research_longitudinal_derived_id('c',$r);$contradictions[]=[
-      'public_id'=>$id,'title'=>(string)($r['title']??'Contradiction'),'detail'=>(string)($r['detail']??''),'priority'=>(string)($r['priority']??''),
-      'claim_id'=>(string)($r['claim_id']??''),'ref_type'=>(string)($r['ref_type']??''),'ref_id'=>(string)($r['ref_id']??'')
-    ];}
+    $questions=[];$contradictions=[];
+    foreach($claims as $claim){
+        if((string)$claim['status']==='unverified'&&(int)$claim['evidence_count']===0){
+            $r=['title'=>'Claim has no evidence','detail'=>(string)$claim['statement'],'priority'=>'high','claim_id'=>(string)$claim['public_id'],'ref_type'=>'claim','ref_id'=>(string)$claim['public_id']];
+            $r['public_id']=research_longitudinal_derived_id('q',$r);$questions[]=$r;
+        }elseif((string)$claim['status']==='unverified'&&(int)$claim['source_count']<=1){
+            $r=['title'=>'Claim relies on one source','detail'=>(string)$claim['statement'],'priority'=>'medium','claim_id'=>(string)$claim['public_id'],'ref_type'=>'claim','ref_id'=>(string)$claim['public_id']];
+            $r['public_id']=research_longitudinal_derived_id('q',$r);$questions[]=$r;
+        }
+        if((string)$claim['status']==='contradicted'||(int)$claim['contradicts_count']>0){
+            $r=['title'=>'Conflicting evidence','detail'=>(string)$claim['statement'],'priority'=>'high','claim_id'=>(string)$claim['public_id'],'ref_type'=>'claim','ref_id'=>(string)$claim['public_id']];
+            $r['public_id']=research_longitudinal_derived_id('c',$r);$contradictions[]=$r;
+        }elseif((string)$claim['status']==='disputed'){
+            $r=['title'=>'Disputed claim','detail'=>(string)$claim['statement'],'priority'=>'medium','claim_id'=>(string)$claim['public_id'],'ref_type'=>'claim','ref_id'=>(string)$claim['public_id']];
+            $r['public_id']=research_longitudinal_derived_id('c',$r);$contradictions[]=$r;
+        }
+    }
+    foreach($claimRelations as $rel)if((string)$rel['relation_type']==='contradicts'){
+        $r=['title'=>'Claims contradict each other','detail'=>(string)$rel['source_public_id'].' ↔ '.(string)$rel['target_public_id'],'priority'=>'high','claim_id'=>(string)$rel['source_public_id'],'ref_type'=>'claim_relation','ref_id'=>(string)$rel['public_id']];
+        $r['public_id']=research_longitudinal_derived_id('c',$r);$contradictions[]=$r;
+    }
 
     $objects=[
       'claim'=>research_longitudinal_sort_map($claims),'finding'=>research_longitudinal_sort_map($findings),'source'=>research_longitudinal_sort_map($sources),
