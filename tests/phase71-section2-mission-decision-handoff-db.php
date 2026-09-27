@@ -69,7 +69,7 @@ $again=research_decision_from_mission($pdo,$owner,(string)$mission['public_id'],
  'rationale'=>'Mission evidence supports a controlled entry, while final acceptance remains a human decision.'
 ]);
 p71s2(($again['public_id']??'')===$decision['public_id'],'Repeated handoff with the same idempotency key returns the existing Decision.');
-$q=$pdo->prepare('SELECT COUNT(*) FROM research_decision_handoffs WHERE mission_id=?');$q->execute([(int)$mission['id']);p71s2((int)$q->fetchColumn()===1,'Idempotent retry cannot create a duplicate handoff.');
+$q=$pdo->prepare('SELECT COUNT(*) FROM research_decision_handoffs WHERE mission_id=?');$q->execute([(int)$mission['id']]);p71s2((int)$q->fetchColumn()===1,'Idempotent retry cannot create a duplicate handoff.');
 
 $explicit=research_decision_from_mission($pdo,$owner,(string)$mission['public_id'],[
  'idempotency_key'=>'market-entry-recommendation','decision_type'=>'recommendation','title'=>'Market entry rollout recommendation',
