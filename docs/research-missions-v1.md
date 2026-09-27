@@ -34,6 +34,28 @@ Section 1 adds:
 
 Section 1 does **not** add a worker, cron entry, queue, scheduler, or new autonomous execution primitive.
 
+## Section 2 — Mission Planning & Task Orchestration
+
+Section 2 turns the durable Mission definition into the existing Research Task system without creating another execution primitive.
+
+- Mission sub-questions compile into evidence-backed Research Tasks.
+- A final synthesis task depends on every sub-question task and answers the primary Mission question.
+- Mission task graphs use the existing Research Plan dependency model, completion gates, Task queue, Agent execution runtime, and living deliverable system.
+- Plans are created paused so the task graph can be reviewed before any autonomous work is queued.
+- An explicit start action activates the Mission and its existing Research Plan, queues only dependency-ready work, and creates the normal living Research Plan deliverable.
+- Pause/resume uses the existing Research Plan controls and queue semantics.
+- Plan creation is transaction-locked and idempotent so concurrent requests cannot create duplicate Mission Plans.
+- Mission planning still does not create a Research Program. Program binding remains Section 4.
+
+### Section 2 invariants
+
+- Planning alone never queues autonomous work.
+- Planning alone never creates the living deliverable.
+- Every durable Mission sub-question links to one Task in the Mission Plan.
+- Synthesis cannot run until all Mission sub-question tasks are complete.
+- Starting or resuming uses the existing Research Task queue; there is no Mission worker, cron, scheduler, or Mission job table.
+- One Mission keeps one execution Plan; repeated create-plan requests return the existing Plan.
+
 ## Lifecycle
 
 `draft → active → blocked/review → completed` is the normal path. Missions may also be cancelled or archived. Completed, cancelled, and archived Missions can be explicitly reactivated; every transition is recorded.
