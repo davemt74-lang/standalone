@@ -660,14 +660,22 @@ function research_decision_set_reconsideration_status(PDO $pdo,array $viewer,str
 }
 function research_decision_apply_reconsideration(PDO $pdo,array $viewer,string $casePublic,bool $byAgent=false): array {
     $case=research_decision_reconsideration_access($pdo,$viewer,$casePublic);if(!$case)throw new RuntimeException('Decision reconsideration not found.');if((string)$case['status']!=='resolved')throw new InvalidArgumentException('Resolve the reconsideration before applying it.');
-    $action=(string)$case['recommended_action'];if($action==='undetermined')throw new InvalidArgumentException('Reconsideration has no explicit recommendation.');
-    $decision=research_decision_detail($pdo,$viewer,(string)$case['decision_public_id']);if(!$decision)throw new RuntimeException('Decision not found.');$before=(string)$decision['status'];$after=$before;
-    if($action==='reopen'){$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'reopened',$byAgent);$after=(string)$decision['status'];}
-    elseif($action==='supersede'){$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'superseded',$byAgent);$after=(string)$decision['status'];}
-    elseif($action==='defer'){if((string)$decision['status']!=='reopened')$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'reopened',$byAgent);$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'deferred',$byAgent);$after=(string)$decision['status'];}
-    elseif($action!=='retain')throw new InvalidArgumentException('Unsupported reconsideration action.');
-    research_decision_reconsideration_event($pdo,(int)$case['id'],'reconsideration_applied',$byAgent?'agent':'user',(int)$viewer['id'],['recommended_action'=>$action,'decision_status_before'=>$before,'decision_status_after'=>$after]);
-    research_decision_event($pdo,$decision,'decision_reconsideration_applied',$byAgent?'agent':'user',(int)$viewer['id'],['reconsideration_id'=>$casePublic,'recommended_action'=>$action,'status_before'=>$before,'status_after'=>$after]);
+    $decision=research_decision_detail($pdo,$viewer,(string)$case['decision_public_id']);if(!$decision)throw new RuntimeException('Decision not found.');
+    if(!empty($case['applied_at']))return ['reconsideration'=>$case,'decision'=>$decision];
+    $action=(string)$case['recommended_action'];if($action==='undetermined')throw new InvalidArgumentException('Reconsideration has no explicit recommendation.');$before=(string)$decision['status'];$after=$before;
+    $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
+    try{
+      $lock=$pdo->prepare("SELECT applied_at FROM research_decision_reconsiderations WHERE id=? FOR UPDATE");$lock->execute([(int)$case['id']]);$applied=$lock->fetchColumn();
+      if($applied){if($owns)$pdo->commit();return ['reconsideration'=>research_decision_reconsideration_access($pdo,$viewer,$casePublic),'decision'=>research_decision_detail($pdo,$viewer,(string)$decision['public_id'])];}
+      if($action==='reopen'){$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'reopened',$byAgent);$after=(string)$decision['status'];}
+      elseif($action==='supersede'){$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'superseded',$byAgent);$after=(string)$decision['status'];}
+      elseif($action==='defer'){if((string)$decision['status']!=='reopened')$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'reopened',$byAgent);$decision=research_decision_set_status($pdo,$viewer,(string)$decision['public_id'],'deferred',$byAgent);$after=(string)$decision['status'];}
+      elseif($action!=='retain')throw new InvalidArgumentException('Unsupported reconsideration action.');
+      $pdo->prepare("UPDATE research_decision_reconsiderations SET applied_by_user_id=?,applied_at=NOW(),updated_at=NOW() WHERE id=?")->execute([(int)$viewer['id'],(int)$case['id']]);
+      research_decision_reconsideration_event($pdo,(int)$case['id'],'reconsideration_applied',$byAgent?'agent':'user',(int)$viewer['id'],['recommended_action'=>$action,'decision_status_before'=>$before,'decision_status_after'=>$after]);
+      research_decision_event($pdo,$decision,'decision_reconsideration_applied',$byAgent?'agent':'user',(int)$viewer['id'],['reconsideration_id'=>$casePublic,'recommended_action'=>$action,'status_before'=>$before,'status_after'=>$after]);
+      if($owns)$pdo->commit();
+    }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return ['reconsideration'=>research_decision_reconsideration_access($pdo,$viewer,$casePublic),'decision'=>research_decision_detail($pdo,$viewer,(string)$decision['public_id'])];
 }
 function research_decision_evolution_timeline(PDO $pdo,array $viewer,string $decisionPublic,int $limit=250): array {
