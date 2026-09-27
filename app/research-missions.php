@@ -405,3 +405,82 @@ function research_mission_sync_execution(PDO $pdo,int $planId): void {
     }
 }
 
+function research_mission_program_access_for_binding(PDO $pdo,array $viewer,array $mission,string $programPublic): array {
+    $program=research_program_access($pdo,$viewer,trim($programPublic));if(!$program)throw new RuntimeException('Research Program not found.');
+    if((int)$program['research_agent_id']!==(int)$mission['research_agent_id']||(int)$program['project_id']!==(int)$mission['project_id'])throw new InvalidArgumentException('Research Program must belong to the same Research Agent and project as the Mission.');
+    if((string)$program['status']==='archived')throw new InvalidArgumentException('Archived Research Programs cannot be bound to a Mission.');
+    return $program;
+}
+
+function research_mission_bind_program(PDO $pdo,array $viewer,string $missionPublic,array $input=[]): array {
+    $mission=research_mission_access($pdo,$viewer,$missionPublic);if(!$mission)throw new RuntimeException('Research Mission not found.');
+    if(!empty($mission['program_public_id'])){
+        $existing=research_program_access($pdo,$viewer,(string)$mission['program_public_id']);
+        if($existing)return research_mission_detail($pdo,$viewer,$missionPublic)??$mission;
+    }
+    $programPublic=trim((string)($input['program_id']??''));
+    $created=false;
+    if($programPublic!=='')$program=research_mission_program_access_for_binding($pdo,$viewer,$mission,$programPublic);
+    else{
+        $scope=research_mission_json_object($mission['scope_json']??null);
+        $program=research_program_create($pdo,$viewer,[
+          'agent_id'=>(string)$mission['agent_public_id'],
+          'title'=>research_mission_text((string)($input['title']??((string)$mission['title'].' — Mission Watch')),255),
+          'objective'=>research_mission_text((string)($input['objective']??('Watch for material Research changes that could affect the Mission: '.(string)$mission['research_question'])),16000),
+          'priority'=>(string)$mission['priority'],
+          'cadence'=>(string)($input['cadence']??'daily'),
+          'timezone_name'=>(string)($input['timezone_name']??'UTC'),
+          'run_time_local'=>(string)($input['run_time_local']??'09:00'),
+          'weekday'=>$input['weekday']??1,'day_of_month'=>$input['day_of_month']??1,
+          'quiet_mode'=>'material_only','materiality_threshold'=>(string)($input['materiality_threshold']??'important'),
+          'catch_up_mode'=>'latest','deliverable_type'=>'research_brief',
+          'source_ids'=>(array)($scope['source_ids']??[]),'claim_ids'=>(array)($scope['claim_ids']??[]),'entity_ids'=>(array)($scope['entity_ids']??[]),
+          'watch_ids'=>(array)($scope['watch_ids']??[]),'topics'=>(array)($scope['topics']??[]),
+          'include_annotations'=>array_key_exists('include_annotations',$scope)?(bool)$scope['include_annotations']:true,
+          'include_workspace'=>array_key_exists('include_workspace',$scope)?(bool)$scope['include_workspace']:true
+        ],false);
+        $created=true;
+        $program=research_program_set_status($pdo,$viewer,(string)$program['public_id'],'paused');
+    }
+    $pdo->prepare('UPDATE research_missions SET program_id=?,updated_at=NOW() WHERE id=?')->execute([(int)$program['id'],(int)$mission['id']]);
+    $fresh=research_mission_by_id($pdo,(int)$mission['id']);
+    research_mission_event($pdo,$fresh,'mission_program_bound','user',(int)$viewer['id'],['program_id'=>(string)$program['public_id'],'program_created'=>$created,'program_status'=>(string)$program['status']]);
+    return research_mission_detail($pdo,$viewer,$missionPublic)??$fresh;
+}
+
+function research_mission_unbind_program(PDO $pdo,array $viewer,string $missionPublic): array {
+    $mission=research_mission_access($pdo,$viewer,$missionPublic);if(!$mission)throw new RuntimeException('Research Mission not found.');
+    $programPublic=(string)($mission['program_public_id']??'');if($programPublic==='')return research_mission_detail($pdo,$viewer,$missionPublic)??$mission;
+    $pdo->prepare('UPDATE research_missions SET program_id=NULL,updated_at=NOW() WHERE id=?')->execute([(int)$mission['id']]);
+    $fresh=research_mission_by_id($pdo,(int)$mission['id']);research_mission_event($pdo,$fresh,'mission_program_unbound','user',(int)$viewer['id'],['program_id'=>$programPublic]);
+    return research_mission_detail($pdo,$viewer,$missionPublic)??$fresh;
+}
+
+function research_mission_program_observe_run(PDO $pdo,array $program,int $runId,string $trigger): void {
+    if(!research_missions_ready($pdo)||$runId<1)return;
+    $q=$pdo->prepare("SELECT id,public_id,status,project_id,research_agent_id FROM research_missions WHERE program_id=? AND status<>'archived'");$q->execute([(int)$program['id']]);$missions=$q->fetchAll()?:[];if(!$missions)return;
+    $rq=$pdo->prepare('SELECT public_id,status,material_change_count,quiet_suppressed,summary FROM research_program_runs WHERE id=? AND program_id=? LIMIT 1');$rq->execute([$runId,(int)$program['id']]);$run=$rq->fetch();if(!$run)return;
+    $material=max(0,(int)($run['material_change_count']??0));$hasMaterial=$material>0;
+    foreach($missions as $mission){
+        $from=(string)$mission['status'];$to=$from;$event='mission_program_run_observed';
+        if($hasMaterial&&in_array($from,['completed','review'],true)){$to='active';$event='mission_material_change_reactivated';}
+        elseif($hasMaterial&&$from==='blocked'){$to='active';$event='mission_material_change_reactivated';}
+        if($to!==$from)$pdo->prepare("UPDATE research_missions SET status=?,completed_at=CASE WHEN ?='active' THEN NULL ELSE completed_at END,updated_at=NOW() WHERE id=?")->execute([$to,$to,(int)$mission['id']]);
+        $fresh=research_mission_by_id($pdo,(int)$mission['id']);
+        research_mission_event($pdo,$fresh,$event,'system',null,[
+          'program_id'=>(string)$program['public_id'],'program_run_id'=>(string)$run['public_id'],'program_run_status'=>(string)$run['status'],
+          'trigger'=>$trigger,'material_change_count'=>$material,'from_status'=>$from,'to_status'=>$to,'summary'=>mb_substr((string)($run['summary']??''),0,1200)
+        ]);
+    }
+}
+
+function research_mission_set_program_status(PDO $pdo,array $viewer,string $missionPublic,string $status): array {
+    $mission=research_mission_access($pdo,$viewer,$missionPublic);if(!$mission)throw new RuntimeException('Research Mission not found.');
+    $programPublic=trim((string)($mission['program_public_id']??''));if($programPublic==='')throw new RuntimeException('Mission has no bound Research Program.');
+    if(!in_array($status,['active','paused'],true))throw new InvalidArgumentException('Mission Program status must be active or paused.');
+    $program=research_mission_program_access_for_binding($pdo,$viewer,$mission,$programPublic);
+    $program=research_program_set_status($pdo,$viewer,(string)$program['public_id'],$status);
+    $fresh=research_mission_by_id($pdo,(int)$mission['id']);research_mission_event($pdo,$fresh,'mission_program_status_changed','user',(int)$viewer['id'],['program_id'=>(string)$program['public_id'],'status'=>$status]);
+    return research_mission_detail($pdo,$viewer,$missionPublic)??$fresh;
+}
+

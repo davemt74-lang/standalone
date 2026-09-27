@@ -334,6 +334,7 @@ function research_program_complete_quiet_run(PDO $pdo,array $program,array $run,
     job_claim_complete($pdo,'research_program_runs',(int)$run['id'],$token,'skipped');$pdo->prepare("UPDATE research_program_runs SET quiet_suppressed=1,summary=? WHERE id=?")->execute([mb_substr((string)$result['summary'],0,12000),(int)$run['id']]);$pdo->prepare("UPDATE research_programs SET last_run_at=NOW(),last_input_hash=?,last_material_hash=?,run_count=run_count+1,quiet_run_count=quiet_run_count+1,updated_at=NOW() WHERE id=?")->execute([$result['input_hash']??null,$result['material_hash']??null,(int)$program['id']]);research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],(int)$run['id'],'quiet_run_suppressed','system',null,['summary'=>$result['summary']]);
     if(function_exists('research_longitudinal_capture_program'))research_longitudinal_capture_program($pdo,$program,(int)$run['id'],'program_quiet');
     if(function_exists('research_intelligence_delivery_process_program_run'))try{research_intelligence_delivery_process_program_run($pdo,$program,(int)$run['id'],'program_quiet');}catch(Throwable $e){error_log('[Annotated Research Delivery quiet-run] '.$e->getMessage());}
+    if(function_exists('research_mission_program_observe_run'))research_mission_program_observe_run($pdo,$program,(int)$run['id'],'program_quiet');
 }
 
 function research_program_activate_run(PDO $pdo,array $program,array $run,string $token,array $result): void {
@@ -364,6 +365,7 @@ function research_program_reconcile_runs(PDO $pdo,int $limit=100): int {
         try{$viewer=research_program_owner($pdo,$program);research_program_chat_update($pdo,$program,$summary.(!empty($plan['document_title'])?' Deliverable: '.$plan['document_title'].'.':''),['run_id'=>$run['public_id'],'plan_id'=>$plan['public_id'],'document_public_id'=>$plan['document_public_id']??null]);notification_create($pdo,(int)$viewer['id'],null,'research_program_completed','research_program',(string)$program['public_id'],$summary,['allow_self'=>true,'dedupe_key'=>'research-program-complete:'.$run['public_id'],'group_key'=>'research-program:'.$program['public_id'],'context'=>['run_id'=>$run['public_id'],'plan_id'=>$plan['public_id'],'document_public_id'=>$plan['document_public_id']??null]]);}catch(Throwable $ignored){}
         if(function_exists('research_longitudinal_capture_program'))research_longitudinal_capture_program($pdo,$program,(int)$runId,'program_completed');
         if(function_exists('research_intelligence_delivery_process_program_run'))try{research_intelligence_delivery_process_program_run($pdo,$program,(int)$runId,'program_completed');}catch(Throwable $e){error_log('[Annotated Research Delivery completed-run] '.$e->getMessage());}
+        if(function_exists('research_mission_program_observe_run'))research_mission_program_observe_run($pdo,$program,(int)$runId,'program_completed');
         $count++;
     }return $count;
 }

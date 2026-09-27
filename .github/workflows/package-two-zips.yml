@@ -337,6 +337,8 @@ jobs:
           test -f package-website/tests/research-missions-v1-section2-db.php
           test -f package-website/tests/research-missions-v1-section3-contract.php
           test -f package-website/tests/research-missions-v1-section3-db.php
+          test -f package-website/tests/research-missions-v1-section4-contract.php
+          test -f package-website/tests/research-missions-v1-section4-db.php
           test -f package-website/tests/ci/research-missions-v1-upgrade-from-084.php
           test -f package-website/app/research-agent-workspace.php
           test -f package-website/app/research-agent-workspace-ui.php

@@ -89,6 +89,7 @@ db_tests=(
   tests/research-missions-v1-db.php
   tests/research-missions-v1-section2-db.php
   tests/research-missions-v1-section3-db.php
+  tests/research-missions-v1-section4-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
