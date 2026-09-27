@@ -26,6 +26,7 @@ $mission=research_mission_create($pdo,$owner,[
  'success_criteria'=>[['label'=>'Primary question answered']], 'subquestions'=>[['question'=>'What is the strongest evidence?','priority'=>'high']]
 ]);
 rmv16(($mission['status']??'')==='draft','New Mission begins in draft state.');
+$mission=research_mission_set_status($pdo,$owner,(string)$mission['public_id'],'active');
 
 $ctx=agent_chat_context_item($pdo,$owner,'mission',(string)$mission['public_id']);
 rmv16($ctx!==null&&str_contains((string)$ctx['text'],'[RESEARCH MISSION')&&str_contains((string)$ctx['text'],'Section 6 Mission'),'Mission can be attached directly to Agent Chat.');
