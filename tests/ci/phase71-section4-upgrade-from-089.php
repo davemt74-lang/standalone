@@ -20,12 +20,12 @@ try{
 
     $beforeDecision=$pdo->query('SHOW CREATE TABLE research_decisions')->fetch(PDO::FETCH_NUM)[1]??'';
     $beforeChallenges=$pdo->query('SHOW CREATE TABLE research_decision_challenges')->fetch(PDO::FETCH_NUM)[1]??'';
-    $beforeOutcomes=$pdo->query('SHOW CREATE TABLE research_outcome_events')->fetch(PDO::FETCH_NUM)[1]??'';
 
     $pdo->prepare("INSERT INTO users(public_id,username,display_name,email,email_verified_at,status,role,plan_tier,live_presence_mode) VALUES('p71s4-upgrade-user','p71s4_upgrade_user','P71 S4 Upgrade User','p71s4-upgrade@example.test',NOW(),'active','user','pro','cloaked')")->execute();$userId=(int)$pdo->lastInsertId();
     $pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,title,status) VALUES('p71s4-upgrade-project',?,'P71 S4 Upgrade Project','active')")->execute([$userId]);$projectId=(int)$pdo->lastInsertId();
     $pdo->prepare("INSERT INTO research_outcome_events(public_id,user_id,project_id,event_type,decision_type,source_type,title,summary,dedupe_key,is_manual,occurred_at) VALUES('p71s4-existing-outcome',?,?,'manual_decision','recorded','manual','Existing Outcome','Must survive migration 090',REPEAT('f',64),1,NOW())")->execute([$userId,$projectId]);
     $beforeOutcome=$pdo->query("SELECT public_id,event_type,decision_type,source_type,title,summary,dedupe_key,is_manual FROM research_outcome_events WHERE public_id='p71s4-existing-outcome'")->fetch();
+    $beforeOutcomes=$pdo->query('SHOW CREATE TABLE research_outcome_events')->fetch(PDO::FETCH_NUM)[1]??'';
 
     $applied=migration_apply_pending($pdo,$root.'/database/migrations',20);
     if(!in_array('20260927_090_research_decision_outcome_memory',$applied,true))throw new RuntimeException('Upgrade did not apply migration 090.');
