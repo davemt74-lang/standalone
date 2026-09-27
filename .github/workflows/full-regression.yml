@@ -279,6 +279,7 @@ jobs:
           php tests/research-missions-v1-section5-db.php
           php tests/research-missions-v1-section6-db.php
           php tests/research-missions-v1-section7-db.php
+          php tests/phase71-section1-decision-ledger-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -511,6 +512,13 @@ jobs:
           DB_PASS: root
           RESEARCH_MISSIONS_FINAL_RESET_DB: '1'
         run: php tests/ci/research-missions-v1-final-upgrade-from-084.php
+      - name: MySQL 8 Phase 71 Section 1 Decision Ledger upgrade rehearsal from migration 086 through 087
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase71_section1_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE71_SECTION1_RESET_DB: '1'
+        run: php tests/ci/phase71-section1-upgrade-from-086.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
