@@ -14,12 +14,12 @@ $must('app/research-missions.php',[
   'research_mission_review_state_hash','research_mission_agent_context','research_mission_cognitive_observations',
   'research_mission_report_data','research_mission_render_report'
 ],'Mission cognition and reporting runtime');
-$must('app/agent-chat.php',["$type==='mission'","research_mission_agent_context"],'Mission Agent Chat integration');
+$must('app/agent-chat.php',['$type===\'mission\'','research_mission_agent_context'],'Mission Agent Chat integration');
 $must('app/cognitive-feed.php',['research_mission_cognitive_observations'],'Mission Now integration');
-$must('app/research-reviews.php',["$type==='mission'","research_mission_review_state_hash"],'Mission Review Center subject');
-$must('app/research-system-reports.php',["'mission_brief'","'mission_review'","research_mission_report_data","research_mission_render_report"],'Mission Report Studio types');
-$must('app/research-report-studio.php',["$out['missions']","$snapshot['missions']['missions']"],'Mission Report Studio manifests');
-$must('app/agent-actions.php',["'research.create_mission'","research_mission_create"],'Governed Agent Mission creation');
+$must('app/research-reviews.php',['$type===\'mission\'','research_mission_review_state_hash'],'Mission Review Center subject');
+$must('app/research-system-reports.php',["'mission_brief'","'mission_review'",'research_mission_report_data','research_mission_render_report'],'Mission Report Studio types');
+$must('app/research-report-studio.php',['$out[\'missions\']','$snapshot[\'missions\'][\'missions\']'],'Mission Report Studio manifests');
+$must('app/agent-actions.php',["'research.create_mission'",'research_mission_create'],'Governed Agent Mission creation');
 $must('research-missions.php',['Request team review','Run Mission Brief','Run Review Brief'],'Mission Command Center integrations');
 $must('research-reviews.php',['Claims, Findings, Missions'],'Review Center Mission language');
 $must('docs/research-missions-v1.md',['## Section 6 — Agent Cognition, Collaboration & Reporting','Migration 086','cannot cast review votes'],'Section 6 architecture');
