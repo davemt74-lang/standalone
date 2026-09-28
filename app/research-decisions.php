@@ -98,6 +98,20 @@ function research_decision_ref_access(PDO $pdo,array $viewer,int $projectId,stri
     if(isset($map[$type])){[$table,$projectCol]=$map[$type];try{$q=$pdo->prepare("SELECT 1 FROM {$table} WHERE {$projectCol}=? AND public_id=? LIMIT 1");$q->execute([$projectId,$publicId]);return (bool)$q->fetchColumn();}catch(Throwable $e){return false;}}
     if($type==='report_version'){try{$q=$pdo->prepare('SELECT 1 FROM research_report_versions rv JOIN research_reports rr ON rr.id=rv.report_id WHERE rr.project_id=? AND rv.public_id=? LIMIT 1');$q->execute([$projectId,$publicId]);return (bool)$q->fetchColumn();}catch(Throwable $e){return false;}}
     if($type==='review'){if(!function_exists('research_review_access'))return false;$r=research_review_access($pdo,$viewer,$publicId);return $r&&(int)$r['project_id']===$projectId;}
+    if($type==='portfolio'&&function_exists('research_intelligence_portfolio_access')){
+        $p=research_intelligence_portfolio_access($pdo,$viewer,$publicId);if(!$p)return false;
+        $q=$pdo->prepare('SELECT 1 FROM research_intelligence_portfolio_programs pm JOIN research_programs rp ON rp.id=pm.program_id WHERE pm.portfolio_id=? AND rp.project_id=? LIMIT 1');$q->execute([(int)$p['id'],$projectId]);return (bool)$q->fetchColumn();
+    }
+    if($type==='portfolio_insight'&&function_exists('research_intelligence_portfolio_access')){
+        $q=$pdo->prepare('SELECT i.portfolio_id,p.public_id portfolio_public_id FROM research_intelligence_insights i JOIN research_intelligence_portfolios p ON p.id=i.portfolio_id WHERE i.public_id=? LIMIT 1');$q->execute([$publicId]);$row=$q->fetch();if(!$row)return false;
+        $p=research_intelligence_portfolio_access($pdo,$viewer,(string)$row['portfolio_public_id']);if(!$p)return false;
+        $q=$pdo->prepare('SELECT 1 FROM research_intelligence_portfolio_programs pm JOIN research_programs rp ON rp.id=pm.program_id WHERE pm.portfolio_id=? AND rp.project_id=? LIMIT 1');$q->execute([(int)$p['id'],$projectId]);return (bool)$q->fetchColumn();
+    }
+    if($type==='executive_briefing'&&function_exists('research_intelligence_portfolio_access')){
+        $q=$pdo->prepare('SELECT b.portfolio_id,p.public_id portfolio_public_id FROM research_executive_briefings b JOIN research_intelligence_portfolios p ON p.id=b.portfolio_id WHERE b.public_id=? LIMIT 1');$q->execute([$publicId]);$row=$q->fetch();if(!$row)return false;
+        $p=research_intelligence_portfolio_access($pdo,$viewer,(string)$row['portfolio_public_id']);if(!$p)return false;
+        $q=$pdo->prepare('SELECT 1 FROM research_intelligence_portfolio_programs pm JOIN research_programs rp ON rp.id=pm.program_id WHERE pm.portfolio_id=? AND rp.project_id=? LIMIT 1');$q->execute([(int)$p['id'],$projectId]);return (bool)$q->fetchColumn();
+    }
     return false;
 }
 

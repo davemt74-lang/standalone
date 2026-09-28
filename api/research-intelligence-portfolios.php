@@ -21,7 +21,7 @@ try{
     if($action==='add_inference')json_response(['ok'=>true,'data'=>['insight'=>research_intelligence_portfolio_add_inference($pdo,$viewer,(string)($input['portfolio_id']??''),$input)]],201);
     if($action==='subscription_set')json_response(['ok'=>true,'data'=>['subscription'=>research_intelligence_portfolio_subscription_set($pdo,$viewer,(string)($input['portfolio_id']??''),$input)]]);
     if($action==='acknowledge')json_response(['ok'=>true,'data'=>research_intelligence_portfolio_acknowledge($pdo,$viewer,(string)($input['briefing_id']??''))]);
-    if($action==='record_decision')json_response(['ok'=>true,'data'=>research_intelligence_portfolio_record_decision($pdo,$viewer,(string)($input['portfolio_id']??''),$input)],201);
+    if($action==='record_decision')json_response(['ok'=>true,'data'=>research_intelligence_portfolio_create_native_decision($pdo,$viewer,(string)($input['portfolio_id']??''),$input)],201);
     if($action==='feedback_set')json_response(['ok'=>true,'data'=>['feedback'=>research_intelligence_portfolio_feedback_set($pdo,$viewer,(string)($input['portfolio_id']??''),$input)]],201);
     json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);
 }catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_INPUT','message'=>$e->getMessage()]],422);}

@@ -110,6 +110,7 @@ db_tests=(
   tests/phase72-section6-team-command-review-db.php
   tests/phase72-section7-outcome-handoff-db.php
   tests/phase72-section8-end-to-end-release-db.php
+  tests/phase73-section1-portfolio-native-decision-handoff-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
