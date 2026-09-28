@@ -57,6 +57,7 @@ php tests/phase72-section6-team-command-review-contract.php
 php tests/phase72-section7-outcome-handoff-contract.php
 php tests/phase72-section8-end-to-end-release-contract.php
 php tests/phase73-section1-portfolio-native-decision-handoff-contract.php
+php tests/phase73-section2-portfolio-decision-execution-rollups-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
