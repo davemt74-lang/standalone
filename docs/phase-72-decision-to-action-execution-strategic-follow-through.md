@@ -196,3 +196,97 @@ Action Plan completion is blocked until every milestone is Completed or Cancelle
 - Action Plan completion cannot outrun milestone/task completion
 - existing Research Task completion gates and human review remain authoritative
 
+## Section 3 — Programs & Recurring Follow-Through
+
+Section 3 binds Action Plans to the existing Research Programs runtime so execution can be reviewed on a recurring cadence without introducing a second scheduler.
+
+### Existing Research Programs remain authoritative
+
+A follow-through Program is an ordinary existing Research Program. It continues to own:
+
+- cadence and timezone
+- next-run calculation
+- catch-up behavior
+- concurrency limits
+- monthly run limits
+- per-run token budgets
+- quiet/material-only behavior
+- recurring Research Task Plan generation
+- Program runs, deltas, memory, and audit events
+- the existing Research Program worker
+
+Section 3 adds only an Action Plan ↔ Program link and Action Plan execution state inside existing Program snapshots/deltas.
+
+### Follow-through roles
+
+An Action Plan may have at most one linked Program for each role:
+
+- **Execution Review** — recurring milestone/task/blocker review
+- **Success Measure Check** — recurring review of saved success measures against available evidence
+- **Evidence Refresh** — material Research/evidence changes relevant to execution
+- **Decision Follow-up** — execution changes that may warrant human review of the source Decision
+
+A Program can belong to only one Action Plan.
+
+### Explicit creation and linking
+
+Follow-through Programs are never created automatically when an Action Plan activates.
+
+A user may:
+
+- create a new existing Research Program from an Action Plan using role-specific defaults
+- link an existing Program from the same Research Agent/project
+- unlink a Program without deleting or rewriting the Program
+- enable/disable Action Plan lifecycle synchronization
+
+Program run-now, cadence editing, scheduling, run claiming, task generation, and worker processing remain in the existing Research Programs API/runtime.
+
+Agent-originated Program creation is permitted only as a governed draft action: the resulting Program is forced to **Paused** and cannot begin recurring execution merely because the Action Plan is Active.
+
+### Action Plan lifecycle synchronization
+
+For links with lifecycle sync enabled:
+
+- Action Plan **Active** → Program **Active**
+- Action Plan **Draft / Proposed / Paused / Completed / Cancelled** → Program **Paused**
+- Action Plan **Archived** → Program **Archived**
+
+Archived Programs are never resurrected.
+
+A Program with sync disabled keeps its own independently controlled Program lifecycle.
+
+### Execution-aware Program snapshots
+
+Existing Program snapshots now include a compact linked Action Plan execution snapshot:
+
+- Action Plan status, revision, priority, dates, and overdue state
+- pinned/current source Decision state and staleness
+- saved success measures
+- milestone status, target dates, overdue/blocker state, and task counts
+- overall linked execution-task status counts
+
+The Program delta ledger records material execution changes using the existing Program run/delta system, including:
+
+- Action Plan status change
+- source Decision becoming stale/current
+- Action Plan overdue
+- milestone added/started/completed
+- milestone blocked/unblocked/overdue
+- execution task progress changes
+
+No duplicate Action Plan history is created; Program snapshots are recurring observations over the authoritative Action Plan/Task/Decision ledgers.
+
+### Section 3 invariants
+
+- no Action Plan-specific scheduler, cron, queue, Program worker, or run table is introduced
+- existing Research Programs remain the sole recurring scheduling authority
+- linking never fabricates a Program run
+- Program creation/linking is explicit
+- an Action Plan may have at most one Program per follow-through role
+- one Program cannot be linked to multiple Action Plans
+- linked Programs must use the same Research Agent/project as the Action Plan
+- lifecycle synchronization is explicit and can be disabled per link
+- Agent-created follow-through Programs start Paused
+- Program snapshots/deltas are read-only observations and never mutate Action Plan, milestone, task, or Decision state
+- existing Program cadence/concurrency/budget/quiet-mode rules remain authoritative
+
