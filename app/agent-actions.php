@@ -239,6 +239,39 @@ function agent_action_clean_arguments(string $capability,array $args): array {
             return ['action_plan_id'=>$plan,'action_plan_state_hash'=>$stateHash,'title'=>$s($args['title']??'',255),'reason'=>$reason,'materiality'=>$materiality];
         }
     }
+    if($capability==='research.portfolio.create_decision_draft'){
+        $portfolio=$s($args['portfolio_id']??'',64);$stateHash=strtolower($s($args['portfolio_state_hash']??'',64));$title=$s($args['title']??'',255);$statement=$s($args['statement']??'',32000);
+        if($portfolio===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash)||$title===''||$statement==='')throw new InvalidArgumentException('Portfolio, exact strategic state hash, Decision title, and statement are required.');
+        $type=(string)($args['decision_type']??'decision');if(!isset(research_decision_types()[$type]))$type='decision';$confidence=array_key_exists('confidence',$args)&&$args['confidence']!==''?max(0,min(1,(float)$args['confidence'])):null;
+        $cleanList=function($value,$maxItems=30,$maxChars=4000)use($s){$out=[];foreach(array_slice((array)$value,0,$maxItems) as $item){if(is_array($item)){$item=array_map(fn($v)=>is_scalar($v)?mb_substr(trim((string)$v),0,$maxChars):$v,$item);$out[]=$item;}else{$v=$s($item,$maxChars);if($v!=='')$out[]=$v;}}return $out;};
+        return ['portfolio_id'=>$portfolio,'portfolio_state_hash'=>$stateHash,'title'=>$title,'statement'=>$statement,'rationale'=>$s($args['rationale']??'',32000),'decision_type'=>$type,'confidence'=>$confidence,'assumptions'=>$cleanList($args['assumptions']??[]),'uncertainty'=>$cleanList($args['uncertainty']??[]),'alternatives'=>$cleanList($args['alternatives']??[])];
+    }
+    if($capability==='research.decision.create_action_plan_draft'){
+        $decision=$s($args['decision_id']??'',64);$stateHash=strtolower($s($args['decision_state_hash']??'',64));$title=$s($args['title']??'',255);$objective=$s($args['objective']??'',32000);$expected=$s($args['expected_result']??'',32000);
+        if($decision===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash)||$title===''||$objective===''||$expected==='')throw new InvalidArgumentException('Decision, exact Decision state hash, title, objective, and expected result are required.');
+        $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';$measures=[];
+        foreach(array_slice((array)($args['success_measures']??[]),0,30) as $m){if(!is_array($m))continue;$label=$s($m['label']??'',255);$target=$s($m['target']??'',2000);if($label!=='')$measures[]=['label'=>$label,'target'=>$target];}
+        if(!$measures)throw new InvalidArgumentException('Action Plan draft requires at least one success measure.');
+        $cleanList=function($value)use($s){$out=[];foreach(array_slice((array)$value,0,30) as $item){if(is_array($item)){$clean=[];foreach($item as $k=>$v)if(is_scalar($v))$clean[(string)$k]=$s($v,4000);if($clean)$out[]=$clean;}else{$v=$s($item,4000);if($v!=='')$out[]=$v;}}return $out;};
+        return ['decision_id'=>$decision,'decision_state_hash'=>$stateHash,'title'=>$title,'objective'=>$objective,'expected_result'=>$expected,'priority'=>$priority,'success_measures'=>$measures,'risks'=>$cleanList($args['risks']??[]),'assumptions'=>$cleanList($args['assumptions']??[]),'start_on'=>$s($args['start_on']??'',10),'due_on'=>$s($args['due_on']??'',10)];
+    }
+    if($capability==='research.decision.open_reconsideration'){
+        $decision=$s($args['decision_id']??'',64);$stateHash=strtolower($s($args['decision_state_hash']??'',64));$reason=$s($args['reason']??'',16000);
+        if($decision===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash)||$reason==='')throw new InvalidArgumentException('Decision, exact Decision state hash, and reconsideration reason are required.');
+        $materiality=(string)($args['materiality']??'high');if(!in_array($materiality,['low','medium','high','critical'],true))$materiality='high';
+        return ['decision_id'=>$decision,'decision_state_hash'=>$stateHash,'title'=>$s($args['title']??'',255),'reason'=>$reason,'materiality'=>$materiality];
+    }
+    if($capability==='research.portfolio.create_strategic_review'){
+        $portfolio=$s($args['portfolio_id']??'',64);$stateHash=strtolower($s($args['portfolio_state_hash']??'',64));
+        if($portfolio===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash))throw new InvalidArgumentException('Portfolio and exact strategic state hash are required.');
+        return ['portfolio_id'=>$portfolio,'portfolio_state_hash'=>$stateHash,'instructions'=>$s($args['instructions']??'',8000)];
+    }
+    if($capability==='research.portfolio.create_strategic_briefing'){
+        $portfolio=$s($args['portfolio_id']??'',64);$stateHash=strtolower($s($args['portfolio_state_hash']??'',64));$source=$s($args['strategic_review_id']??'',64);$packet=strtolower($s($args['source_packet_hash']??'',64));
+        if($portfolio===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash))throw new InvalidArgumentException('Portfolio and exact strategic state hash are required.');
+        if($source!==''&&!preg_match('/^[a-f0-9]{64}$/',$packet))throw new InvalidArgumentException('An exact source packet hash is required when a Strategic Review source is supplied.');
+        return ['portfolio_id'=>$portfolio,'portfolio_state_hash'=>$stateHash,'strategic_review_id'=>$source,'source_packet_hash'=>$packet,'title'=>$s($args['title']??'',240),'window_days'=>max(1,min(365,(int)($args['window_days']??30)))];
+    }
     if($capability==='research.create_mission'){
         $title=$s($args['title']??'',255);$question=$s($args['research_question']??$args['question']??'',16000);$objective=$s($args['objective']??'',16000);
         if($title===''||$question===''||$objective==='')throw new InvalidArgumentException('Mission title, research question, and objective are required.');
