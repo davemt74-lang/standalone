@@ -51,7 +51,7 @@ function research_intelligence_strategic_briefing_render_sections(array $packet,
     if($sourceReview){
         $agg=(array)($sourceReview['review_aggregate']??[]);$review=$sourceReview['review']??null;
         $html.='<h2>Strategic Review provenance</h2><p>Source Strategic Review packet: <strong>'.$h((string)$sourceReview['public_id']).'</strong>';
-        if($review)$html.=' · '.h(strtoupper((string)$review['status'])).' · '.$h(str_replace('_',' ',(string)($agg['consensus']??'awaiting_reviewers')));
+        if($review)$html.=' · '.$h(strtoupper((string)$review['status'])).' · '.$h(str_replace('_',' ',(string)($agg['consensus']??'awaiting_reviewers')));
         $html.='.</p>';
     }
     $html.='<h2>Governance boundary</h2><p>This briefing can summarize and communicate strategic state. Team Review and publication do not change Decision lifecycle, Action Plan lifecycle, execution variance, Strategic Graph edges, Outcome Memory, Research Tasks, or Agent authority.</p>';
