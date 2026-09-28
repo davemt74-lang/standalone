@@ -423,6 +423,9 @@ jobs:
           test -f package-website/tests/phase73-section1-portfolio-native-decision-handoff-contract.php
           test -f package-website/tests/phase73-section1-portfolio-native-decision-handoff-db.php
           test -f package-website/tests/ci/phase73-section1-upgrade-from-098.php
+          test -f package-website/app/research-intelligence-decision-rollups.php
+          test -f package-website/tests/phase73-section2-portfolio-decision-execution-rollups-contract.php
+          test -f package-website/tests/phase73-section2-portfolio-decision-execution-rollups-db.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
