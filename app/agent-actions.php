@@ -180,6 +180,45 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';
         return ['title'=>$title,'description'=>$s($args['description']??'',12000),'task_type'=>$type,'priority'=>$priority,'due_at'=>$s($args['due_at']??'',80)];
     }
+    if(str_starts_with($capability,'research.action_plan.')){
+        $plan=$s($args['action_plan_id']??'',64);$stateHash=strtolower($s($args['action_plan_state_hash']??'',64));
+        if($plan===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash))throw new InvalidArgumentException('Action Plan ID and exact state hash are required.');
+        if($capability==='research.action_plan.add_task'){
+            $title=$s($args['title']??'',255);if($title==='')throw new InvalidArgumentException('Task title is required.');
+            $type=(string)($args['task_type']??'general');if(!isset(agent_action_task_types()[$type]))$type='general';
+            $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';
+            $role=(string)($args['link_role']??'execution');if(!in_array($role,['execution','validation','supporting'],true))$role='execution';
+            $depends=[];foreach(array_slice((array)($args['depends_on']??[]),0,40) as $id){$id=$s($id,64);if($id!==''&&!in_array($id,$depends,true))$depends[]=$id;}
+            return ['action_plan_id'=>$plan,'action_plan_state_hash'=>$stateHash,'milestone_id'=>$s($args['milestone_id']??'',64),'title'=>$title,'description'=>$s($args['description']??'',12000),'task_type'=>$type,'priority'=>$priority,'due_at'=>$s($args['due_at']??'',80),'link_role'=>$role,'depends_on'=>$depends];
+        }
+        if($capability==='research.action_plan.create_milestone'){
+            $title=$s($args['title']??'',255);if($title==='')throw new InvalidArgumentException('Milestone title is required.');
+            $criteria=[];foreach(array_slice((array)($args['completion_criteria']??[]),0,30) as $item){$item=$s($item,1000);if($item!==''&&!in_array($item,$criteria,true))$criteria[]=$item;}
+            return ['action_plan_id'=>$plan,'action_plan_state_hash'=>$stateHash,'title'=>$title,'description'=>$s($args['description']??'',16000),'completion_criteria'=>$criteria,'target_on'=>$s($args['target_on']??'',10)];
+        }
+        if($capability==='research.action_plan.create_follow_through_program'){
+            $role=(string)($args['program_role']??'execution_review');if(!in_array($role,['execution_review','success_measure_check','evidence_refresh','decision_follow_up'],true))throw new InvalidArgumentException('Invalid follow-through Program role.');
+            $cadence=(string)($args['cadence']??'weekly');if(!isset(agent_action_program_cadences()[$cadence]))$cadence='weekly';
+            $quiet=(string)($args['quiet_mode']??'material_only');if(!isset(agent_action_program_quiet_modes()[$quiet]))$quiet='material_only';
+            $materiality=(string)($args['materiality_threshold']??'important');if(!isset(agent_action_program_materiality()[$materiality]))$materiality='important';
+            return ['action_plan_id'=>$plan,'action_plan_state_hash'=>$stateHash,'program_role'=>$role,'cadence'=>$cadence,'timezone_name'=>$s($args['timezone_name']??'UTC',64),'run_time_local'=>$s($args['run_time_local']??'09:00',8),'quiet_mode'=>$quiet,'materiality_threshold'=>$materiality,'sync_with_action_plan'=>array_key_exists('sync_with_action_plan',$args)?(bool)$args['sync_with_action_plan']:true];
+        }
+        if($capability==='research.action_plan.record_observation'){
+            $type=(string)($args['observation_type']??'progress');if(!in_array($type,['progress','success_measure','milestone','assumption','risk','new_evidence','outcome_signal'],true))throw new InvalidArgumentException('Invalid execution observation type.');
+            $subject=(string)($args['subject_type']??'action_plan');if(!in_array($subject,['action_plan','milestone','task','success_measure','assumption','risk'],true))$subject='action_plan';
+            $assessment=(string)($args['assessment']??'unknown');if(!in_array($assessment,['unknown','on_track','at_risk','met','missed','changed'],true))$assessment='unknown';
+            $severity=(string)($args['severity']??'medium');if(!in_array($severity,['low','medium','high','critical'],true))$severity='medium';
+            $variance=(string)($args['variance_type']??'');if($variance!==''&&!in_array($variance,['schedule_delay','target_miss','assumption_changed','new_evidence','risk_realized','scope_change','execution_deviation'],true))throw new InvalidArgumentException('Invalid execution variance type.');
+            $summary=$s($args['summary']??'',12000);if($summary==='')throw new InvalidArgumentException('Execution observation summary is required.');
+            $cleanValue=fn($v)=>function_exists('research_action_plan_variance_value')?research_action_plan_variance_value($v):$v;
+            return ['action_plan_id'=>$plan,'action_plan_state_hash'=>$stateHash,'observation_type'=>$type,'subject_type'=>$subject,'milestone_id'=>$s($args['milestone_id']??'',64),'task_id'=>$s($args['task_id']??'',64),'success_measure_index'=>(int)($args['success_measure_index']??-1),'assumption_index'=>(int)($args['assumption_index']??-1),'risk_index'=>(int)($args['risk_index']??-1),'summary'=>$summary,'actual'=>$cleanValue($args['actual']??null),'assessment'=>$assessment,'material'=>(bool)($args['material']??false),'severity'=>$severity,'variance_type'=>$variance,'source_type'=>$s($args['source_type']??'',64),'source_public_id'=>$s($args['source_public_id']??'',80),'source_snapshot'=>$cleanValue($args['source_snapshot']??null),'impact'=>$s($args['impact']??'',12000),'response'=>$s($args['response']??'',12000)];
+        }
+        if($capability==='research.action_plan.open_decision_reconsideration'){
+            $reason=$s($args['reason']??'',16000);if($reason==='')throw new InvalidArgumentException('Decision reconsideration reason is required.');
+            $materiality=(string)($args['materiality']??'high');if(!in_array($materiality,['low','medium','high','critical'],true))$materiality='high';
+            return ['action_plan_id'=>$plan,'action_plan_state_hash'=>$stateHash,'title'=>$s($args['title']??'',255),'reason'=>$reason,'materiality'=>$materiality];
+        }
+    }
     if($capability==='research.create_mission'){
         $title=$s($args['title']??'',255);$question=$s($args['research_question']??$args['question']??'',16000);$objective=$s($args['objective']??'',16000);
         if($title===''||$question===''||$objective==='')throw new InvalidArgumentException('Mission title, research question, and objective are required.');
