@@ -128,7 +128,8 @@ function research_intelligence_portfolio_insight(PDO $pdo,array $portfolio,strin
 }
 
 function research_intelligence_portfolio_native_decisions_ready(PDO $pdo): bool {
-    if(!function_exists('research_decisions_ready')||!research_decisions_ready($pdo))return false;
+    if(!function_exists('research_decisions_ready'))return false;
+    if(!research_decisions_ready($pdo))return false;
     try{$q=$pdo->query("SHOW COLUMNS FROM research_intelligence_portfolio_decision_links LIKE 'decision_id'");return (bool)$q->fetch();}
     catch(Throwable $e){return false;}
 }
