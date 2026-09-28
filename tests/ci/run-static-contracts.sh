@@ -50,6 +50,7 @@ php tests/phase71-section8-end-to-end-release-contract.php
 php tests/post-phase71-research-publications-ui-hotfix-contract.php
 php tests/phase72-section1-action-plan-ledger-contract.php
 php tests/phase72-section2-milestones-tasks-dependencies-contract.php
+php tests/phase72-section3-programs-recurring-follow-through-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
