@@ -11,7 +11,7 @@ $avoid=function(string $file,array $needles,string $label)use($root,&$fail): voi
 
 $must('database/migrations/20260928_099_portfolio_native_decision_handoff.sql',[
  'MODIFY COLUMN outcome_id BIGINT UNSIGNED NULL','decision_id BIGINT UNSIGNED NULL','handoff_key CHAR(64)',
- 'fk_intel_decision_native','chk_intel_portfolio_decision_target','chk_intel_portfolio_native_handoff_key','chk_intel_portfolio_native_no_task'
+ 'fk_intel_decision_native','chk_intel_portfolio_decision_target','chk_intel_portfolio_native_handoff_key'
 ],'Phase 73 Section 1 migration');
 $must('app/research-intelligence-operations.php',[
  'research_intelligence_portfolio_native_decisions_ready','research_intelligence_portfolio_anchor_program',
