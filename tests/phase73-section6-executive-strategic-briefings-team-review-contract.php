@@ -13,7 +13,7 @@ $must('app/research-intelligence-strategic-briefings.php',[
  'research_intelligence_strategic_briefing_create','research_intelligence_strategic_briefing_access',
  'research_intelligence_strategic_briefing_assert_publication_ready','research_intelligence_portfolio_strategic_briefing_summary',
  'research_intelligence_organization_strategic_briefing_center',
- "research_review_create($pdo,$viewer,'document'","'unanimous_approval'","'current_drift'"
+ "research_review_create(\$pdo,\$viewer,'document'","'unanimous_approval'","'current_drift'"
 ],'Phase 73 Section 6 runtime');
 $avoid('app/research-intelligence-strategic-briefings.php',[
  'research_decision_set_status(','research_action_plan_set_status(','research_action_plan_resolve_execution_variance(',
