@@ -106,7 +106,7 @@ $run1=research_program_run_row($pdo,$owner,(string)$run1Public);$pdo->prepare("U
 $milestone=research_action_plan_set_milestone_status($pdo,$owner,(string)$milestone['public_id'],'in_progress');
 $snapshot1=research_program_snapshot($pdo,$execProgram);
 $run2Public=research_program_enqueue($pdo,$execProgram,(int)$owner['id'],'manual',null);$run2=research_program_run_row($pdo,$owner,(string)$run2Public);
-$deltas1=research_program_compare_snapshots($pdo,$execProgram,$snapshot1,['snapshot'=>$snapshot0],(int)$run2['id']);$types1=array_column($deltas1,'delta_type');
+$deltas1=research_program_compare_snapshots($pdo,$execProgram,$snapshot1,['snapshot'=>$snapshot0],(int)$run2['id']);$types1=array_column($deltas1,'type');
 p72s3(in_array('milestone_started',$types1,true),'Existing Program delta engine records Action Plan milestone start.');
 $pdo->prepare("UPDATE research_program_runs SET status='completed',input_snapshot_json=?,completed_at=NOW() WHERE id=?")->execute([json_encode($snapshot1,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),(int)$run2['id']]);
 
@@ -114,7 +114,7 @@ $pdo->prepare("UPDATE research_tasks SET execution_summary='Launch readiness ver
 $task=research_task_review($pdo,$owner,(string)$task['public_id'],true);$milestone=research_action_plan_set_milestone_status($pdo,$owner,(string)$milestone['public_id'],'completed');
 $snapshot2=research_program_snapshot($pdo,$execProgram);
 $run3Public=research_program_enqueue($pdo,$execProgram,(int)$owner['id'],'manual',null);$run3=research_program_run_row($pdo,$owner,(string)$run3Public);
-$deltas2=research_program_compare_snapshots($pdo,$execProgram,$snapshot2,['snapshot'=>$snapshot1],(int)$run3['id']);$types2=array_column($deltas2,'delta_type');
+$deltas2=research_program_compare_snapshots($pdo,$execProgram,$snapshot2,['snapshot'=>$snapshot1],(int)$run3['id']);$types2=array_column($deltas2,'type');
 p72s3(in_array('milestone_completed',$types2,true)&&in_array('execution_progress_changed',$types2,true),'Existing Program delta engine records milestone completion and execution-task progress.');
 $pdo->prepare("UPDATE research_program_runs SET status='completed',input_snapshot_json=?,completed_at=NOW() WHERE id=?")->execute([json_encode($snapshot2,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),(int)$run3['id']]);
 
@@ -124,7 +124,7 @@ research_decision_add_challenge($pdo,$owner,(string)$decision['public_id'],[
 $snapshot3=research_program_snapshot($pdo,$execProgram);
 $run4Public=research_program_enqueue($pdo,$execProgram,(int)$owner['id'],'manual',null);$run4=research_program_run_row($pdo,$owner,(string)$run4Public);
 $deltas3=research_program_compare_snapshots($pdo,$execProgram,$snapshot3,['snapshot'=>$snapshot2],(int)$run4['id']);
-$staleDeltas=array_values(array_filter($deltas3,fn($d)=>(string)$d['delta_type']==='action_plan_source_stale'));
+$staleDeltas=array_values(array_filter($deltas3,fn($d)=>(string)$d['type']==='action_plan_source_stale'));
 p72s3(count($staleDeltas)===1&&($staleDeltas[0]['importance']??'')==='high','Existing Program delta ledger raises high-importance Decision provenance staleness.');
 $afterRead=research_action_plan_detail($pdo,$owner,(string)$plan['public_id']);$taskAfterRead=research_task_access($pdo,$owner,(string)$task['public_id']);
 p72s3(($afterRead['status']??'')===($planStateBefore['status']??'')&&($taskAfterRead['status']??'')==='complete','Program snapshots/deltas observe execution state without mutating Action Plan or Task state.');
