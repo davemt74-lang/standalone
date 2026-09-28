@@ -23,7 +23,7 @@ $plan=research_action_plan_from_decision($pdo,$viewer,(string)$decision['public_
 ]);
 $milestone=research_action_plan_create_milestone($pdo,$viewer,(string)$plan['public_id'],['title'=>'Pilot complete','target_on'=>'2026-10-03','completion_criteria'=>['Pilot cohort reviewed.']]);
 $task=research_action_plan_add_task($pdo,$viewer,(string)$plan['public_id'],['milestone_id'=>$milestone['public_id'],'title'=>'Validate pilot cohort','task_type'=>'general','due_at'=>'2026-10-02T17:00:00Z']);
-p72s4throws(fn()=>research_action_plan_execution_baseline($pdo,$viewer,(string)$plan['public_id'])['id'],'Draft plan has no fabricated execution baseline.');
+p72s4(research_action_plan_execution_baseline($pdo,$viewer,(string)$plan['public_id'])===null,'Draft plan has no fabricated execution baseline.');
 
 $plan=research_action_plan_set_status($pdo,$viewer,(string)$plan['public_id'],'proposed');
 $plan=research_action_plan_set_status($pdo,$viewer,(string)$plan['public_id'],'active');
