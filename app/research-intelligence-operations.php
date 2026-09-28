@@ -291,14 +291,47 @@ function research_intelligence_portfolio_operations_detail(PDO $pdo,array $viewe
 }
 
 function research_intelligence_organization_command_center(PDO $pdo,array $viewer): array {
-    $dashboard=research_intelligence_portfolio_dashboard($pdo,$viewer);$needs=[];$changed=[];$opportunities=[];$briefings=[];$decisions=[];$themeMap=[];
-    foreach($dashboard['portfolios'] as $row){$p=research_intelligence_portfolio_detail($pdo,$viewer,(string)$row['public_id']);if(!$p)continue;$a=$p['aggregate'];$tensions=count(array_filter($a['cross_program'],fn($x)=>($x['kind']??'')==='cross_program_tension'));if(count($a['risks'])||$tensions||!empty($p['briefing_due']))$needs[]=['portfolio_id'=>$p['public_id'],'title'=>$p['title'],'risks'=>count($a['risks']),'tensions'=>$tensions,'briefing_due'=>(bool)$p['briefing_due']];
-        foreach(array_slice($a['opportunities'],0,5) as $o)$opportunities[]=['portfolio_id'=>$p['public_id'],'portfolio_title'=>$p['title']]+$o;foreach($a['cross_program'] as $x){$key=(string)($x['key']??'');if($key==='')continue;$themeMap[$key]['portfolios'][$p['public_id']]=$p['title'];$themeMap[$key]['kinds'][(string)$x['kind']]=true;}
-        if(research_intelligence_portfolio_operations_ready($pdo)){$cycles=research_intelligence_portfolio_cycle_history($pdo,$p,1);if($cycles&&($cycles[0]['material_changed']??0))$changed[]=['portfolio_id'=>$p['public_id'],'title'=>$p['title'],'cycle'=>$cycles[0]];foreach(research_intelligence_portfolio_decision_rows($pdo,$viewer,$p,20) as $d)if(!empty($d['task_public_id'])&&!in_array((string)$d['task_status'],['complete','done','archived'],true))$decisions[]=['portfolio_id'=>$p['public_id'],'portfolio_title'=>$p['title']]+$d;}
+    $dashboard=research_intelligence_portfolio_dashboard($pdo,$viewer);$needs=[];$changed=[];$opportunities=[];$briefings=[];$decisions=[];$themeMap=[];$executionAttention=[];
+    $executionSummary=[
+      'native_decisions'=>0,'action_plans'=>0,'active_action_plans'=>0,'completed_action_plans'=>0,'overdue_action_plans'=>0,
+      'material_open_variances'=>0,'high_or_critical_open_variances'=>0,'open_reviews'=>0,'overdue_reviews'=>0,
+      'outcomes_recorded'=>0,'completed_without_outcome'=>0,'legacy_records'=>0
+    ];
+    foreach($dashboard['portfolios'] as $row){
+        $p=research_intelligence_portfolio_detail($pdo,$viewer,(string)$row['public_id']);if(!$p)continue;$a=$p['aggregate'];
+        $tensions=count(array_filter($a['cross_program'],fn($x)=>($x['kind']??'')==='cross_program_tension'));
+        if(count($a['risks'])||$tensions||!empty($p['briefing_due']))$needs[]=['portfolio_id'=>$p['public_id'],'title'=>$p['title'],'risks'=>count($a['risks']),'tensions'=>$tensions,'briefing_due'=>(bool)$p['briefing_due']];
+        foreach(array_slice($a['opportunities'],0,5) as $o)$opportunities[]=['portfolio_id'=>$p['public_id'],'portfolio_title'=>$p['title']]+$o;
+        foreach($a['cross_program'] as $x){$key=(string)($x['key']??'');if($key==='')continue;$themeMap[$key]['portfolios'][$p['public_id']]=$p['title'];$themeMap[$key]['kinds'][(string)$x['kind']]=true;}
+        if(research_intelligence_portfolio_operations_ready($pdo)){
+            $cycles=research_intelligence_portfolio_cycle_history($pdo,$p,1);if($cycles&&($cycles[0]['material_changed']??0))$changed[]=['portfolio_id'=>$p['public_id'],'title'=>$p['title'],'cycle'=>$cycles[0]];
+            foreach(research_intelligence_portfolio_decision_rows($pdo,$viewer,$p,20) as $d)if(!empty($d['task_public_id'])&&!in_array((string)$d['task_status'],['complete','done','archived'],true))$decisions[]=['portfolio_id'=>$p['public_id'],'portfolio_title'=>$p['title']]+$d;
+            $dx=(array)($p['operations']['decision_execution']??[]);$ds=(array)($dx['summary']??[]);
+            foreach(array_keys($executionSummary) as $key)$executionSummary[$key]+=(int)($ds[$key]??0);
+            foreach((array)($dx['decisions']??[]) as $decision){
+                foreach((array)($decision['action_plans']??[]) as $plan){
+                    $reasons=[];if(!empty($plan['overdue']))$reasons[]='overdue';
+                    if((int)($plan['variance']['material_open']??0)>0)$reasons[]='material_variance';
+                    if((int)($plan['reviews']['open']??0)>0)$reasons[]='open_review';
+                    if(($plan['status']??'')==='completed'&&empty($plan['outcome_recorded']))$reasons[]='awaiting_outcome';
+                    if($reasons)$executionAttention[]=[
+                      'portfolio_id'=>(string)$p['public_id'],'portfolio_title'=>(string)$p['title'],
+                      'decision_public_id'=>(string)$decision['public_id'],'decision_title'=>(string)$decision['title'],
+                      'action_plan_public_id'=>(string)$plan['public_id'],'action_plan_title'=>(string)$plan['title'],
+                      'action_plan_status'=>(string)$plan['status'],'reasons'=>$reasons,
+                      'material_open_variances'=>(int)($plan['variance']['material_open']??0),'open_reviews'=>(int)($plan['reviews']['open']??0)
+                    ];
+                }
+            }
+        }
         foreach($p['briefings'] as $b)if(($b['status']??'')==='in_review'&&($b['publication_status']??'')!=='published')$briefings[]=['portfolio_id'=>$p['public_id'],'portfolio_title'=>$p['title']]+$b;
     }
     $themes=[];foreach($themeMap as $key=>$g)if(count($g['portfolios'])>=2)$themes[]=['key'=>$key,'portfolio_count'=>count($g['portfolios']),'portfolios'=>$g['portfolios'],'kinds'=>array_keys($g['kinds'])];usort($themes,fn($a,$b)=>$b['portfolio_count']<=>$a['portfolio_count']);
-    return ['summary'=>$dashboard['summary'],'needs_attention'=>$needs,'new_since_last_briefing'=>$changed,'decisions_awaiting_follow_through'=>$decisions,'emerging_opportunities'=>array_slice($opportunities,0,30),'cross_portfolio_themes'=>array_slice($themes,0,30),'briefings_awaiting_review'=>$briefings,'generated_at'=>date('Y-m-d H:i:s')];
+    usort($executionAttention,function(array $a,array $b): int {
+        $weight=fn(array $x): int=>(in_array('material_variance',$x['reasons'],true)?8:0)+(in_array('overdue',$x['reasons'],true)?4:0)+(in_array('open_review',$x['reasons'],true)?2:0)+(in_array('awaiting_outcome',$x['reasons'],true)?1:0);
+        return $weight($b)<=>$weight($a);
+    });
+    return ['summary'=>$dashboard['summary'],'execution_summary'=>$executionSummary,'decision_execution_attention'=>array_slice($executionAttention,0,60),'needs_attention'=>$needs,'new_since_last_briefing'=>$changed,'decisions_awaiting_follow_through'=>$decisions,'emerging_opportunities'=>array_slice($opportunities,0,30),'cross_portfolio_themes'=>array_slice($themes,0,30),'briefings_awaiting_review'=>$briefings,'generated_at'=>date('Y-m-d H:i:s')];
 }
 
 function research_intelligence_portfolio_operations_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limit=20): void {
