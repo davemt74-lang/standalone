@@ -86,3 +86,73 @@ No backfill converts legacy rows into native Decisions.
 - Section 6 — Executive Strategic Briefings & Team Review
 - Section 7 — Organizational Agent Cognition & Governed Follow-Through
 - Section 8 — End-to-End Hardening & Release
+
+## Section 2 — Portfolio Decision & Execution Rollups
+
+Section 2 is intentionally **schema-free**. It projects authoritative Phase 71/72 state upward into each Intelligence Portfolio and the organization Command Center without copying or re-owning execution state.
+
+The rollup chain is:
+
+**Portfolio native Decision → Action Plan(s) → milestones / Research Tasks → execution variances → Collaborative Review → Outcome Memory**
+
+### Portfolio rollup
+
+Each native Portfolio Decision now exposes:
+
+- current Decision type, lifecycle status, revision, confidence, and review state
+- all accessible Action Plans created from that Decision
+- Action Plan status, priority, owner, due date, overdue state, and source-Decision staleness
+- milestone and linked Research Task counts
+- open / resolved execution variance totals
+- material open variance totals
+- high-or-critical open variance totals
+- Action Plan Collaborative Review status
+- whether explicit Outcome Memory has been recorded
+
+Historical Phase 61 Portfolio decision records remain counted separately as legacy records and are never interpreted as native Action Plan execution.
+
+### Organization Command Center
+
+The Command Center now aggregates:
+
+- native Portfolio Decisions
+- total / active / completed Action Plans
+- overdue Action Plans
+- material and high/critical open variances
+- open and overdue Team Reviews
+- recorded outcomes
+- completed-without-outcome learning gaps
+- preserved legacy Phase 61 records
+
+A deterministic attention list identifies Action Plans that are overdue, have material variance, have open review, or are completed but still awaiting Outcome Memory.
+
+### Authority boundary
+
+Section 2 is read-only.
+
+It does not create or mutate:
+
+- Decisions
+- Action Plans
+- milestones
+- Research Tasks
+- execution evidence
+- variances
+- Collaborative Reviews
+- Outcome Memory
+- Programs
+
+It adds no worker, scheduler, queue, or AI ranking path.
+
+### Section 2 invariants
+
+- no migration 100
+- Phase 71 Decision Ledger remains authoritative
+- Phase 72 Action Plan ledger remains authoritative
+- Phase 72 execution-variance store remains authoritative
+- Collaborative Review remains authoritative
+- Decision Outcome Memory remains authoritative
+- completed-without-outcome is visible until explicit human outcome handoff
+- legacy Phase 61 records are visible but excluded from native execution totals
+- all rollups remain permission checked and Team revocation applies immediately
+
