@@ -295,6 +295,7 @@ jobs:
           php tests/phase72-section5-agent-cognition-db.php
           php tests/phase72-section6-team-command-review-db.php
           php tests/phase72-section7-outcome-handoff-db.php
+          php tests/phase72-section8-end-to-end-release-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -617,6 +618,12 @@ jobs:
           DB_PASS: root
           PHASE72_SECTION7_RESET_DB: '1'
         run: php tests/ci/phase72-section7-upgrade-from-097.php
+      - name: MySQL 8 Phase 72 final supported upgrade matrix through migration 098
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase72_final_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/ci/phase72-final-supported-upgrades.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')

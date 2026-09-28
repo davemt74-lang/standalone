@@ -749,3 +749,127 @@ The Agent receives this as read-only durable context. It cannot record the final
 - existing reconsideration signals consume the observed outcome
 - no new scheduler, worker, queue, cron, or autonomous learning loop is introduced
 
+## Section 8 — End-to-End Hardening & Release
+
+Section 8 is the schema-free final release gate for Phase 72.
+
+It validates the entire durable chain as one governed lifecycle:
+
+**Accepted Decision → Action Plan → milestones / existing Research Tasks / existing Research Program → activation baseline → execution observations / variances → Agent cognition / Team Review → explicit completion → explicit Decision Outcome Memory → reconsideration signal → explicit Decision reopen**
+
+### Final schema boundary
+
+**migration 098 is the final Phase 72 schema boundary.**
+
+Section 8 intentionally adds no migration 099. The final Phase 72 data model is the combination of:
+
+- 093 — Action Plan Ledger
+- 094 — milestones / Research Task execution links
+- 095 — existing Research Program follow-through links
+- 096 — immutable execution baseline, observations, and variances
+- 097 — native Action Plan Team Review subject
+- 098 — Action Plan → existing Decision Outcome Memory handoff lineage
+
+### Integrated release journey
+
+The permanent Section 8 database journey proves the complete lifecycle on one Team-scoped Research Agent:
+
+- Accepted Decision explicitly creates one idempotent Draft Action Plan
+- milestone and existing Research Task execution structure is created before activation
+- an existing Research Program is linked for recurring execution review
+- Team Review remains advisory before activation
+- explicit activation captures immutable baseline and synchronizes Task Plan / Program state
+- execution evidence creates explicit variance and deterministic Decision-review cognition
+- Agent strategic context and Now/cognitive-feed projections remain read-only
+- Team Review remains advisory during execution
+- existing Research Task review and milestone guards complete execution in order
+- explicit Action Plan completion pauses synchronized recurring follow-through
+- completion never auto-creates Outcome Memory
+- explicit human final Outcome Memory preserves exact activation-baseline lineage
+- observed failure produces the existing Decision reconsideration signal
+- Decision status remains unchanged until a human explicitly resolves/applies reconsideration
+- historical completed Action Plan remains immutable after Decision reopen
+- Team revocation removes Action Plan, review, and final outcome-provenance access immediately
+
+### Supported Phase 72 upgrade matrix
+
+The final MySQL 8 upgrade gate rehearses representative supported historical states through migration 098:
+
+- Phase 71 final state — 092 → 098
+- Phase 72 Section 1 — 093 → 098
+- Phase 72 Section 3 — 095 → 098
+- Phase 72 Section 6 — 097 → 098
+
+Each upgrade must:
+
+- apply exactly the expected missing migrations
+- preserve existing Collaborative Review state
+- create every final Phase 72 table/enum extension
+- fabricate no Action Plans, execution baselines, observations, variances, Programs, reviews, or outcome handoffs
+- leave zero pending migrations
+- be repeat-safe as a no-op
+
+### Release-package hardening
+
+Production package smoke now explicitly requires and validates Sections 1–8 rather than stopping at Section 3.
+
+The package must contain:
+
+- migrations 093–098
+- all Action Plan runtimes
+- authenticated Action Plan API
+- Action Plan Command Center
+- all Section 1–8 permanent tests
+- all Section 1–7 migration rehearsals
+- final supported Phase 72 upgrade matrix
+- final Phase 72 release documentation
+
+Release smoke also PHP-lints the Action Plan API/UI/runtime surfaces and validates the final generated package fingerprint and latest packaged migration.
+
+### Stable product release identity
+
+Phase 72 hardening does not invent a new application version.
+
+The existing product release identity remains:
+
+- Annotated V1.1
+- application version 1.1.0
+- stable channel
+- Chrome extension 0.36.0
+
+The historical Phase 62 constant remains the canonical V1.1 product-release identity. Phase 72 is the current feature/release-hardening boundary on that stable release line.
+
+The generated release manifest must still identify the **latest packaged migration dynamically**, which is 098 for the Phase 72 package.
+
+### No duplicate execution infrastructure
+
+The final audit explicitly forbids a new:
+
+- Action Plan worker
+- Action Plan scheduler
+- Action Plan queue
+- Action Plan-specific Program worker
+- Action Plan cognition worker
+- Action Plan outcome worker
+
+Existing Research Tasks, Research Programs, Collaborative Review, Decision Outcome Memory, reconsideration, and Phase 20 Outcome Learning remain the authoritative subsystems.
+
+### Section 8 release invariants
+
+- Sections 1–7 retain permanent contract and DB coverage
+- migration 098 remains the final Phase 72 schema boundary
+- Section 8 is schema-free
+- no parallel Action Plan worker/scheduler/queue is shipped
+- Decision → Action handoff remains explicit and idempotent
+- Action Plan activation/completion remain explicit human actions
+- execution baseline is captured exactly at activation
+- existing Research Task and Research Program runtimes remain authoritative
+- Agent cognition and Now projections remain read-only
+- Team Review never mutates execution or Decision state
+- final Outcome Memory requires explicit human handoff
+- final Outcome Memory never auto-reopens a Decision
+- reconsideration Apply remains the only path that changes the Decision after an observed outcome
+- Team permission revocation removes every Phase 72 surface immediately
+- supported upgrades fabricate no historical Action Plan state
+- production package smoke requires every Phase 72 release artifact
+
