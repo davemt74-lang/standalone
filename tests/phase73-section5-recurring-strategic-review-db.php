@@ -30,6 +30,8 @@ p73s5($settings['status']==='active'&&$settings['cadence']==='every_cycle'&&coun
 
 $packet1=research_intelligence_strategic_review_packet($pdo,$owner,(string)$portfolio['public_id']);usleep(1000);$packet2=research_intelligence_strategic_review_packet($pdo,$owner,(string)$portfolio['public_id']);
 p73s5($packet1['state_hash']===$packet2['state_hash'],'Frozen packet state hash ignores capture time when strategic state is unchanged.');
+research_intelligence_portfolio_pattern_refresh($pdo,$owner,(string)$portfolio['public_id'],'test');$packetAfterUnchangedPatternRefresh=research_intelligence_strategic_review_packet($pdo,$owner,(string)$portfolio['public_id']);
+p73s5($packet1['state_hash']===$packetAfterUnchangedPatternRefresh['state_hash'],'Unchanged Pattern Memory refresh timestamps do not create false Strategic Review drift.');
 p73s5(isset($packet1['state']['execution'],$packet1['state']['pattern_memory'],$packet1['state']['strategic_graph'],$packet1['state']['review_focus']),'Packet freezes execution, Pattern Memory, Strategic Graph, and deterministic review focus.');
 p73s5(count((array)$packet1['state']['review_focus'])>=2,'Material conflict and organizational learning produce deterministic Strategic Review focus.');
 
