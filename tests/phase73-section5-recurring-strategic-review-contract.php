@@ -19,7 +19,7 @@ $avoid('app/research-intelligence-strategic-reviews.php',[
  'research_decision_set_status(','research_action_plan_set_status(','research_decision_record_outcome(',
  'research_action_plan_record_outcome_handoff(','ai_run(','INSERT INTO research_tasks','UPDATE research_decisions','UPDATE research_action_plans'
 ],'Phase 73 Section 5 authority');
-$must('app/research-reviews.php',["$type==='strategic_review'","research_intelligence_strategic_review_subject"],'Collaborative Review subject bridge');
+$must('app/research-reviews.php',["'strategic_review'","research_intelligence_strategic_review_subject"],'Collaborative Review subject bridge');
 $must('app/research-intelligence-operations.php',[
  'research_intelligence_strategic_review_maybe_create_for_cycle','strategic_review_cycle_failed',
  "'strategic_reviews'=>","'strategic_review_summary'=>","'strategic_review_attention'=>"
@@ -33,7 +33,7 @@ $must('research-intelligence-command-center.php',[
 ],'Section 5 Command Center UI');
 $must('docs/phase-73-portfolio-decision-intelligence-organizational-learning.md',[
  '## Section 5 — Recurring Strategic Review','no new worker, cron, queue, or independent scheduler',
- 'frozen review subject','current drift','Strategic Review never mutates Decision or Action Plan lifecycle state'
+ 'frozen `strategic_review` subject','current drift','Strategic Review never mutates Decision or Action Plan lifecycle state'
 ],'Section 5 architecture');
 $must('tests/ci/run-static-contracts.sh',['phase73-section5-recurring-strategic-review-contract.php'],'Section 5 static gate');
 $must('tests/ci/run-full-regression.sh',['phase73-section5-recurring-strategic-review-db.php'],'Section 5 DB gate');
