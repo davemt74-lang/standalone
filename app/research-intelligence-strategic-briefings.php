@@ -150,7 +150,7 @@ function research_intelligence_strategic_briefing_create(PDO $pdo,array $viewer,
 function research_intelligence_portfolio_strategic_briefing_summary(PDO $pdo,array $viewer,string $portfolioPublic): array {
     if(!research_intelligence_strategic_briefings_ready($pdo))return ['ready'=>false,'summary'=>[],'briefings'=>[]];
     $p=research_intelligence_portfolio_access($pdo,$viewer,trim($portfolioPublic));if(!$p)return ['ready'=>false,'summary'=>[],'briefings'=>[]];
-    $q=$pdo->prepare('SELECT public_id FROM research_intelligence_strategic_briefings WHERE portfolio_id=? ORDER BY id DESC LIMIT 50');$q->execute([(int)$p['id']);$rows=[];$summary=['total'=>0,'open_review'=>0,'completed_review'=>0,'approved'=>0,'changes_requested'=>0,'overdue'=>0,'current_drift'=>0,'publication_ready'=>0];
+    $q=$pdo->prepare('SELECT public_id FROM research_intelligence_strategic_briefings WHERE portfolio_id=? ORDER BY id DESC LIMIT 50');$q->execute([(int)$p['id']]);$rows=[];$summary=['total'=>0,'open_review'=>0,'completed_review'=>0,'approved'=>0,'changes_requested'=>0,'overdue'=>0,'current_drift'=>0,'publication_ready'=>0];
     foreach($q->fetchAll(PDO::FETCH_COLUMN)?:[] as $id){$r=research_intelligence_strategic_briefing_access($pdo,$viewer,(string)$id,true);if(!$r)continue;$rows[]=$r;$summary['total']++;$review=$r['team_review']??null;$agg=(array)($r['team_review_aggregate']??[]);
       if($review&&($review['status']??'')==='open'){$summary['open_review']++;if(!empty($review['due_at'])&&strtotime((string)$review['due_at'])<time())$summary['overdue']++;}
       if($review&&($review['status']??'')==='completed')$summary['completed_review']++;
