@@ -107,3 +107,92 @@ Later Phase 72 sections will connect the Action Plan Ledger to:
 - explicit lifecycle transition
 
 All mutations use existing mutation authentication and rate limiting.
+
+## Section 2 — Milestones, Tasks & Dependencies
+
+Section 2 adds execution structure to the Action Plan Ledger while keeping the existing Research Task runtime as the single task-execution authority.
+
+### Existing Research Tasks remain authoritative
+
+Each Action Plan may lazily create one existing `research_task_plans` record as its execution task plan. Action Plan execution tasks are ordinary existing `research_tasks` records and continue to use:
+
+- existing task completion gates
+- existing task evidence refs
+- existing task dependencies
+- existing task jobs
+- the existing Research Task worker
+- existing task revisions, reviews, and audit events
+
+Section 2 does not create a second task queue, worker, scheduler, or execution table.
+
+### Milestones
+
+Action Plans may contain ordered milestones with:
+
+- title and description
+- explicit owner
+- Planned / In Progress / Completed / Cancelled status
+- completion criteria
+- target date
+- completion timestamp
+- parent milestone dependencies
+
+A milestone may start or complete only while its Action Plan is Active. Completion requires all parent milestones complete, all linked execution tasks complete, and explicit completion criteria.
+
+Agent-originated milestone completion/cancellation is blocked.
+
+### Milestone dependencies
+
+Milestone dependencies are constrained to one Action Plan and are cycle-checked.
+
+Dependencies may only change while the child milestone is Planned. Once work starts, the milestone dependency graph is fixed for that execution cycle.
+
+### Execution task links
+
+Action Plan tasks are linked to either:
+
+- a specific milestone, or
+- the Action Plan directly as an unassigned execution task
+
+Link roles are Execution, Validation, or Supporting.
+
+Task creation uses the existing Research Task primitives, but Section 2 orders the transaction so the Action Plan/milestone link and dependencies exist before the task is queued.
+
+### Execution readiness
+
+The existing Research Task queue and worker both enforce Action Plan readiness.
+
+A linked task may execute only when:
+
+- its existing Research Task Plan is Active
+- its Action Plan is Active
+- its own existing task dependencies are complete
+- if linked to a milestone, that milestone is In Progress
+- all parent milestone dependencies are complete
+
+Blocked tasks remain queued with an explicit Action Plan/milestone blocking reason.
+
+### Lifecycle synchronization
+
+Action Plan lifecycle synchronizes its linked existing Research Task Plan:
+
+- Active → Task Plan Active
+- Draft / Proposed / Paused / Cancelled → Task Plan Paused
+- Archived → Task Plan Archived
+
+Action Plan completion is blocked until every milestone is Completed or Cancelled and every linked execution task is complete.
+
+### Section 2 invariants
+
+- no parallel task engine is introduced
+- no Action Plan-specific worker is introduced
+- execution tasks remain normal Research Tasks
+- task jobs never bypass Action Plan or milestone readiness
+- milestone/task dependencies are cycle-safe
+- cross-Action-Plan milestone and task dependencies are rejected
+- milestones cannot start before the Action Plan is Active
+- tasks linked to a Planned milestone do not execute
+- Agent actions cannot complete/cancel milestones
+- Action Plan completion cannot outrun milestone/task completion
+- existing Research Task completion gates and human review remain authoritative
+
