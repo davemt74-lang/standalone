@@ -133,6 +133,8 @@ function research_action_plan_record_outcome_handoff(PDO $pdo,array $viewer,stri
     try{
       $lock=$pdo->prepare('SELECT id,status,current_revision,config_hash FROM research_action_plans WHERE id=? FOR UPDATE');$lock->execute([(int)$plan['id']]);$locked=$lock->fetch();
       if(!$locked||(string)$locked['status']!=='completed')throw new RuntimeException('Action Plan completion state changed before outcome recording.');
+      $decisionLock=$pdo->prepare('SELECT status,current_revision,config_hash FROM research_decisions WHERE id=? FOR UPDATE');$decisionLock->execute([(int)$decision['id']]);$lockedDecision=$decisionLock->fetch();
+      if(!$lockedDecision)throw new RuntimeException('Source Decision became unavailable before outcome recording.');
       $again=research_action_plan_outcome_link($pdo,$viewer,(string)$plan['public_id']);if($again){if($owns)$pdo->commit();return $again;}
       $freshPreview=research_action_plan_outcome_preview($pdo,$viewer,(string)$plan['public_id']);
       if(!hash_equals((string)$freshPreview['state_hash'],$providedHash))throw new RuntimeException('Action Plan execution state changed before outcome recording. Review current execution results and try again.');
