@@ -25,11 +25,11 @@ $must('app/research-action-plan-variance.php',[
 ],'Execution evidence and variance runtime');
 
 $must('app/research-action-plans.php',[
- "research_action_plan_capture_execution_baseline","$status==='active'"
+ 'research_action_plan_capture_execution_baseline',"\$status==='active'"
 ],'Action Plan activation baseline integration');
 
 $must('api/research-action-plans.php',[
- "'execution_variance_detail'","$action==='record_execution_observation'","$action==='refresh_execution_variances'","$action==='resolve_execution_variance'"
+ "'execution_variance_detail'","\$action==='record_execution_observation'","\$action==='refresh_execution_variances'","\$action==='resolve_execution_variance'"
 ],'Execution evidence and variance API');
 
 $must('app/bootstrap.php',["require_once __DIR__ . '/research-action-plan-variance.php';"],'Section 4 bootstrap');
