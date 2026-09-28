@@ -45,7 +45,7 @@ function research_intelligence_portfolio_action_plan_rollup(PDO $pdo,array $view
     $public=(string)$plan['public_id'];$variance=research_action_plan_execution_variance_summary($pdo,$viewer,$public);
     $outcome=research_action_plan_outcome_link($pdo,$viewer,$public);$reviews=research_intelligence_portfolio_subject_reviews($pdo,$viewer,'action_plan',$public,30);
     $milestones=research_action_plan_execution_ready($pdo)?research_action_plan_milestones($pdo,$viewer,$public):[];
-    $milestoneSummary=['total'=>count($milestones),'pending'=>0,'active'=>0,'completed'=>0,'cancelled'=>0];
+    $milestoneSummary=['total'=>count($milestones),'planned'=>0,'in_progress'=>0,'completed'=>0,'cancelled'=>0];
     foreach($milestones as $m){$s=(string)($m['status']??'pending');if(isset($milestoneSummary[$s]))$milestoneSummary[$s]++;}
     $tasks=['total'=>0,'open'=>0,'complete'=>0,'overdue'=>0];
     if(research_action_plan_execution_ready($pdo)){
@@ -60,7 +60,7 @@ function research_intelligence_portfolio_action_plan_rollup(PDO $pdo,array $view
       'variance'=>$variance,'reviews'=>$reviews,'milestones'=>$milestoneSummary,'tasks'=>$tasks,
       'outcome_recorded'=>$outcome!==null,'outcome'=>$outcome?[
         'decision_outcome_public_id'=>(string)$outcome['decision_outcome_public_id'],
-        'outcome_type'=>(string)($outcome['outcome']['outcome_type']??''),
+        'assessment'=>(string)($outcome['outcome']['assessment']??''),
         'created_at'=>(string)($outcome['created_at']??'')
       ]:null
     ];
