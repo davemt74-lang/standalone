@@ -216,14 +216,19 @@ function research_action_plan_set_status(PDO $pdo,array $viewer,string $publicId
       if(!empty($plan['source_stale']))throw new InvalidArgumentException('The source Decision changed after this Action Plan was created. Create or revise the Action Plan from current Decision state before activation.');
       if(count((array)$plan['success_measures'])<1)throw new InvalidArgumentException('At least one success measure is required before activation.');
     }
+    if($status==='active'&&function_exists('research_action_plan_variance_ready')&&!research_action_plan_variance_ready($pdo))throw new RuntimeException('Execution Evidence & Variance requires the latest database upgrade before an Action Plan can activate.');
     $activated=$status==='active'&&empty($plan['activated_at']);$completed=$status==='completed';$cancelled=$status==='cancelled';
-    $sql="UPDATE research_action_plans SET status=?,updated_at=NOW()";
-    if($activated)$sql.=",activated_at=NOW()";if($completed)$sql.=",completed_at=NOW()";if($cancelled)$sql.=",cancelled_at=NOW()";$sql.=" WHERE id=?";
-    $pdo->prepare($sql)->execute([$status,(int)$plan['id']]);$fresh=research_action_plan_by_id($pdo,(int)$plan['id']);
-    if(function_exists('research_action_plan_sync_execution_task_plan'))research_action_plan_sync_execution_task_plan($pdo,$viewer,$fresh,$status);
-    if(function_exists('research_action_plan_sync_programs'))research_action_plan_sync_programs($pdo,$viewer,$fresh,$status);
-    if($status==='active'&&function_exists('research_action_plan_capture_execution_baseline'))research_action_plan_capture_execution_baseline($pdo,$viewer,$publicId,$byAgent);
-    research_action_plan_event($pdo,$fresh,'action_plan_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['from'=>$current,'to'=>$status]);
+    $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
+    try{
+      $sql="UPDATE research_action_plans SET status=?,updated_at=NOW()";
+      if($activated)$sql.=",activated_at=NOW()";if($completed)$sql.=",completed_at=NOW()";if($cancelled)$sql.=",cancelled_at=NOW()";$sql.=" WHERE id=?";
+      $pdo->prepare($sql)->execute([$status,(int)$plan['id']]);$fresh=research_action_plan_by_id($pdo,(int)$plan['id']);
+      if(function_exists('research_action_plan_sync_execution_task_plan'))research_action_plan_sync_execution_task_plan($pdo,$viewer,$fresh,$status);
+      if(function_exists('research_action_plan_sync_programs'))research_action_plan_sync_programs($pdo,$viewer,$fresh,$status);
+      if($status==='active'&&function_exists('research_action_plan_capture_execution_baseline'))research_action_plan_capture_execution_baseline($pdo,$viewer,$publicId,$byAgent);
+      research_action_plan_event($pdo,$fresh,'action_plan_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['from'=>$current,'to'=>$status]);
+      if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return research_action_plan_detail($pdo,$viewer,$publicId)??$fresh;
 }
 function research_action_plan_list(PDO $pdo,array $viewer,?string $agentPublic=null,?string $decisionPublic=null,int $limit=100): array {
