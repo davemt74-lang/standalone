@@ -411,6 +411,29 @@ function agent_action_ref_set(array $refs): array {
 }
 function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $project,string $capability,array $args,array $refs): bool {
     $projectId=(int)$project['id'];$seen=agent_action_ref_set($refs);
+    if(str_starts_with($capability,'research.portfolio.')){
+        $portfolio=(string)($args['portfolio_id']??'');if($portfolio===''||!isset($seen['portfolio:'.$portfolio]))return false;
+        if(!function_exists('research_intelligence_portfolio_contains_project')||!research_intelligence_portfolio_contains_project($pdo,$viewer,$portfolio,$projectId))return false;
+        if(!function_exists('research_intelligence_organizational_state_hash'))return false;
+        try{$current=research_intelligence_organizational_state_hash($pdo,$viewer,$portfolio);}catch(Throwable $e){return false;}
+        if(!hash_equals($current,(string)($args['portfolio_state_hash']??'')))return false;
+        if($capability==='research.portfolio.create_strategic_briefing'&&!empty($args['strategic_review_id'])){
+            $source=(string)$args['strategic_review_id'];if(!isset($seen['strategic_review:'.$source]))return false;
+            if(!function_exists('research_intelligence_strategic_review_access'))return false;$review=research_intelligence_strategic_review_access($pdo,$viewer,$source,false);
+            if(!$review||(string)$review['portfolio_public_id']!==$portfolio||!hash_equals((string)$review['packet_hash'],(string)$args['source_packet_hash']))return false;
+        }
+        return true;
+    }
+    if(str_starts_with($capability,'research.decision.')){
+        $decisionPublic=(string)($args['decision_id']??'');if($decisionPublic===''||!isset($seen['decision:'.$decisionPublic]))return false;
+        if(!function_exists('research_decision_detail')||!function_exists('research_decision_review_state_hash'))return false;$decision=research_decision_detail($pdo,$viewer,$decisionPublic);
+        if(!$decision||(int)$decision['project_id']!==$projectId)return false;
+        try{$current=research_decision_review_state_hash($pdo,$viewer,$decisionPublic);}catch(Throwable $e){return false;}
+        if(!hash_equals($current,(string)($args['decision_state_hash']??'')))return false;
+        if($capability==='research.decision.create_action_plan_draft'&&!in_array((string)$decision['status'],['accepted','reopened'],true))return false;
+        if($capability==='research.decision.open_reconsideration'&&!in_array((string)$decision['status'],['accepted','rejected','deferred','superseded'],true))return false;
+        return true;
+    }
     if($capability==='research.attach_annotation_evidence'){
         if(!isset($seen['claim:'.$args['claim_id']],$seen['annotation:'.$args['annotation_id']]))return false;
         if(!agent_action_claim_row($pdo,$projectId,(string)$args['claim_id']))return false;
