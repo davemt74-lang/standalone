@@ -8,7 +8,7 @@ $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
 $input=$method==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $readActions=['list','summary','detail','execution_detail','milestone_detail','follow_through'];
+    $readActions=['list','summary','detail','execution_detail','milestone_detail','follow_through','execution_variance_detail'];
     $viewer=in_array($action,$readActions,true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_action_plans_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Action Plan Ledger requires the latest database upgrade.']],503);
 
@@ -30,6 +30,10 @@ try{
         $id=trim((string)($input['milestone_id']??''));if($id==='')throw new InvalidArgumentException('Milestone is required.');
         $row=research_action_plan_milestone_detail($pdo,$viewer,$id);if(!$row)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
         json_response(['ok'=>true,'data'=>['milestone'=>$row]]);
+    }
+    if($action==='execution_variance_detail'){
+        $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
+        json_response(['ok'=>true,'data'=>research_action_plan_execution_variance_detail($pdo,$viewer,$id)]);
     }
     if($action==='follow_through'){
         $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
@@ -79,6 +83,18 @@ try{
     if($action==='set_task_dependencies'){
         $id=trim((string)($input['action_plan_id']??''));$task=trim((string)($input['task_id']??''));if($id===''||$task==='')throw new InvalidArgumentException('Action Plan and task are required.');
         json_response(['ok'=>true,'data'=>['task'=>research_action_plan_set_task_dependencies($pdo,$viewer,$id,$task,(array)($input['depends_on']??[]))]]);
+    }
+    if($action==='record_execution_observation'){
+        $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
+        json_response(['ok'=>true,'data'=>research_action_plan_record_execution_observation($pdo,$viewer,$id,$input,false)],201);
+    }
+    if($action==='refresh_execution_variances'){
+        $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
+        json_response(['ok'=>true,'data'=>research_action_plan_refresh_execution_variances($pdo,$viewer,$id,$input,false)]);
+    }
+    if($action==='resolve_execution_variance'){
+        $id=trim((string)($input['variance_id']??''));if($id==='')throw new InvalidArgumentException('Execution variance is required.');
+        json_response(['ok'=>true,'data'=>['variance'=>research_action_plan_resolve_execution_variance($pdo,$viewer,$id,(string)($input['response']??''),false)]]);
     }
     if($action==='create_follow_through_program'){
         $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');

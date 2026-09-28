@@ -105,6 +105,7 @@ db_tests=(
   tests/phase72-section1-action-plan-ledger-db.php
   tests/phase72-section2-milestones-tasks-dependencies-db.php
   tests/phase72-section3-programs-recurring-follow-through-db.php
+  tests/phase72-section4-execution-evidence-variance-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
