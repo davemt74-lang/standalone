@@ -251,7 +251,17 @@ function research_action_plan_ensure_task_plan(PDO $pdo,array $viewer,array $pla
     if(!research_action_plan_execution_ready($pdo))throw new RuntimeException('Action Plan execution requires the latest database upgrade.');
     research_action_plan_write_access($pdo,$viewer,$plan);
     if(in_array((string)$plan['status'],['completed','cancelled','archived'],true))throw new InvalidArgumentException('Execution tasks cannot be added to a completed, cancelled, or archived Action Plan.');
-    $existing=research_action_plan_execution_task_plan($pdo,$viewer,$plan);if($existing)return $existing;
+    $existing=research_action_plan_execution_task_plan($pdo,$viewer,$plan);
+    if($existing){
+      $target=(string)$plan['status']==='active'?'active':'paused';
+      if(in_array((string)$existing['status'],['completed','active','paused'],true)&&(string)$existing['status']!==$target){
+        $pdo->prepare("UPDATE research_task_plans SET status=?,completed_at=CASE WHEN ?='active' THEN NULL ELSE completed_at END,updated_at=NOW() WHERE id=?")->execute([$target,$target,(int)$existing['id']]);
+        research_task_event($pdo,(int)$existing['project_id'],(int)$existing['id'],null,'action_plan_execution_plan_'.$target,'system',(int)$viewer['id'],['action_plan_id'=>(string)$plan['public_id']]);
+        if($target==='active')research_task_queue_ready($pdo,(int)$existing['id'],(int)$viewer['id'],'replan');
+        $existing=research_task_plan_detail($pdo,$viewer,(string)$existing['public_id'])??$existing;
+      }
+      return $existing;
+    }
     $priority=(string)$plan['priority'];if($priority==='critical')$priority='urgent';
     $taskPlan=research_task_plan_create($pdo,$viewer,[
       'agent_id'=>(string)$plan['agent_public_id'],'title'=>'Execution · '.(string)$plan['title'],
@@ -418,6 +428,7 @@ function research_action_plan_set_milestone_status(PDO $pdo,array $viewer,string
     }
     $sql=$status==='completed'?"UPDATE research_action_plan_milestones SET status=?,completed_at=NOW(),updated_at=NOW() WHERE id=?":"UPDATE research_action_plan_milestones SET status=?,updated_at=NOW() WHERE id=?";
     $pdo->prepare($sql)->execute([$status,(int)$m['id']]);research_action_plan_event($pdo,$plan,'milestone_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['milestone_id'=>$milestonePublic,'from'=>$current,'to'=>$status]);
+    if($status==='in_progress')research_action_plan_requeue_milestone_tasks($pdo,$viewer,(int)$m['id']);
     if($status==='completed'){$q=$pdo->prepare('SELECT milestone_id FROM research_action_plan_milestone_dependencies WHERE depends_on_milestone_id=?');$q->execute([(int)$m['id']]);foreach($q->fetchAll(PDO::FETCH_COLUMN) as $child)research_action_plan_requeue_milestone_tasks($pdo,$viewer,(int)$child);}
     return research_action_plan_milestone_detail($pdo,$viewer,$milestonePublic)??$m;
 }
