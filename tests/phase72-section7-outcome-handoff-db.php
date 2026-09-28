@@ -62,6 +62,10 @@ p72s7throws(fn()=>research_action_plan_record_outcome_handoff($pdo,$owner,(strin
 
 $fresh=research_action_plan_outcome_preview($pdo,$owner,(string)$plan['public_id']);
 p72s7((string)$fresh['state_hash']!==$staleHash,'New execution evidence rotates the final handoff state hash.');
+p72s7(!empty(research_review_access($pdo,$owner,(string)$review['public_id'])['is_stale']),'New execution evidence makes the earlier completed-state Team Review stale.');
+$freshReview=research_review_create($pdo,$owner,'action_plan',(string)$plan['public_id'],[(int)$reviewer['id']],null,'Review final execution state immediately before Outcome Memory handoff.');
+$freshReview=research_review_respond($pdo,$reviewer,(string)$freshReview['public_id'],'approve','Current completed execution state is ready for explicit human outcome assessment.');
+p72s7(!research_review_access($pdo,$owner,(string)$freshReview['public_id'])['is_stale'],'Fresh pre-handoff Team Review is current after all execution evidence is present.');
 p72s7throws(fn()=>research_action_plan_record_outcome_handoff($pdo,$owner,(string)$plan['public_id'],[
  'handoff_state_hash'=>(string)$fresh['state_hash'],'actual_summary'=>'Missing explicit assessment.'
 ]),'Final outcome requires explicit human assessment.');
@@ -86,7 +90,7 @@ p72s7((string)$retry['public_id']===(string)$link['public_id']&&($retry['outcome
 
 $q=$pdo->prepare("SELECT COUNT(*) FROM research_outcome_refs r JOIN research_decision_outcomes d ON d.outcome_event_id=r.outcome_id WHERE d.public_id=? AND r.ref_type='action_plan' AND r.ref_public_id=? AND r.ref_role='source'");
 $q->execute([(string)$link['decision_outcome_public_id'],(string)$plan['public_id']]);p72s7((int)$q->fetchColumn()===1,'Phase 20 Outcome Learning preserves a permission-checked Action Plan source reference.');
-p72s7(!empty(research_review_access($pdo,$owner,(string)$review['public_id'])['is_stale']),'Recording final Outcome Memory makes the prior Action Plan Team Review stale.');
+p72s7(!empty(research_review_access($pdo,$owner,(string)$freshReview['public_id'])['is_stale']),'Recording final Outcome Memory itself makes the fresh pre-handoff Team Review stale.');
 
 $decisionAfter=research_decision_detail($pdo,$owner,(string)$decision['public_id']);p72s7(($decisionAfter['status']??'')==='accepted','Recording an Action Plan outcome never changes the source Decision status.');
 $signals=research_decision_reconsideration_signals($pdo,$owner,(string)$decision['public_id']);$outcomeSignal=false;foreach($signals['signals'] as $s)if(($s['trigger_type']??'')==='outcome'&&($s['trigger_public_id']??'')===(string)$link['decision_outcome_public_id']){$outcomeSignal=true;p72s7(($s['materiality']??'')==='critical','Failure outcome becomes the existing critical Decision reconsideration signal.');}
