@@ -93,6 +93,7 @@ require_once __DIR__ . '/research-decisions.php';
 require_once __DIR__ . '/research-action-plans.php';
 require_once __DIR__ . '/research-action-plan-variance.php';
 require_once __DIR__ . '/research-action-plan-cognition.php';
+require_once __DIR__ . '/research-action-plan-outcomes.php';
 require_once __DIR__ . '/research-reviews.php';
 require_once __DIR__ . '/change-impact.php';
 require_once __DIR__ . '/research-portfolio.php';
