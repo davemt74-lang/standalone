@@ -253,3 +253,124 @@ The organization Command Center aggregates accessible Pattern Memory and surface
 - Team/Portfolio permission revocation immediately removes access
 - existing Portfolio cycles are reused; no scheduler/worker/queue is introduced
 
+## Section 4 — Strategic Dependency & Conflict Graph
+
+Section 4 adds an explicit, audited relationship graph across native Portfolio Decisions and Phase 72 Action Plans.
+
+### Relationship types
+
+Supported relationships are:
+
+- **Depends on**
+- **Supports**
+- **Conflicts with**
+- **Duplicates**
+- **Supersedes**
+- **Blocks**
+- **Materially affects**
+
+Relationships are authored explicitly by a user with Portfolio write access. Section 4 does not infer or auto-create graph edges from text similarity, Pattern Memory, or Agent interpretation.
+
+### Cross-Portfolio graph
+
+A relationship is created from a source node that belongs to the selected Portfolio. Its target may belong to another accessible Intelligence Portfolio.
+
+This makes cross-Portfolio dependency and conflict visible without copying either source object.
+
+Only native Phase 71 Decisions and Phase 72 Action Plans are graph nodes. Legacy Phase 61 Portfolio decision records are excluded.
+
+### Provenance and stale-state detection
+
+Migration 101 adds:
+
+- `research_intelligence_strategic_edges`
+- `research_intelligence_strategic_edge_events`
+
+Each edge preserves:
+
+- source and target node type / public ID
+- relationship type
+- explicit rationale
+- optional confidence
+- explicit materiality: low / medium / high / critical
+- source and target revision-aware state hashes at the time the relationship is recorded or acknowledged
+- creating Portfolio
+- creating/removing user
+- required removal reason
+- active / removed state
+- immutable audit events
+
+A relationship becomes **stale** when either authoritative endpoint changes after its state hash was recorded.
+
+Stale does not mean invalid. It means a human should review whether the relationship still applies. A user may explicitly acknowledge current endpoint state to refresh the hashes.
+
+### Symmetry and cycle safety
+
+`conflicts_with` and `duplicates` are symmetric and are normalized so A↔B cannot be recorded twice in opposite directions.
+
+`depends_on`, `blocks`, and `supersedes` are directional and reject a write that would create a cycle in the same relationship graph.
+
+Self-relationships are rejected.
+
+### Removal and restoration
+
+Removing a relationship does not delete its history.
+
+The edge becomes inactive, records who removed it, when, and the required removal reason, and retains its audit events. Recording the same relationship again restores the existing edge and writes a restoration event.
+
+### Portfolio and organization views
+
+Each Portfolio exposes:
+
+- active relationship count
+- dependency count
+- conflicts
+- blockers
+- stale relationships
+- cross-Portfolio relationships
+- source/target navigation
+- explicit rationale, materiality, and optional confidence
+- connected cross-Portfolio endpoint nodes
+- existing Phase 71 contradiction/challenge counts on Decision nodes
+- acknowledge-current-state and reason-required remove controls
+
+The organization Command Center surfaces attention-grade graph edges:
+
+- conflicts
+- blocks
+- possible duplicates
+- unresolved dependencies
+- high-materiality impacts
+- stale relationships
+
+### Authority boundary
+
+The graph is descriptive governance state only.
+
+Graph operations cannot:
+
+- change Decision lifecycle status
+- create/reopen/reject/accept a Decision
+- create, activate, pause, complete, or cancel an Action Plan
+- resolve execution variance
+- complete Team Review
+- write Outcome Memory
+- execute an Agent action
+
+### Section 4 invariants
+
+- migration 101 creates no synthetic strategic relationships
+- only accessible native Decision / Action Plan nodes can be linked
+- source node must belong to the Portfolio recording the edge
+- cross-Portfolio target requires normal access to its authoritative node
+- conflict/duplicate reverse writes de-duplicate to one edge
+- dependency, blocking, and supersession cycles are rejected
+- endpoint changes make saved graph provenance stale
+- stale relationships require explicit human acknowledgement to refresh
+- removal requires a reason, preserves audit history, and restoration reuses the edge
+- cross-Portfolio graph payloads include connected external endpoint nodes rather than dangling edges
+- existing Phase 71 contradiction/challenge state is referenced as node metadata instead of duplicated
+- graph writes never mutate source Decision or Action Plan state
+- Team / Portfolio permission revocation immediately removes graph access
+- no worker, scheduler, queue, fuzzy inference, or AI relationship writer is introduced
+

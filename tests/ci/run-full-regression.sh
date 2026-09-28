@@ -113,6 +113,7 @@ db_tests=(
   tests/phase73-section1-portfolio-native-decision-handoff-db.php
   tests/phase73-section2-portfolio-decision-execution-rollups-db.php
   tests/phase73-section3-cross-decision-learning-pattern-memory-db.php
+  tests/phase73-section4-strategic-dependency-conflict-graph-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php

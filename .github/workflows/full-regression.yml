@@ -299,6 +299,7 @@ jobs:
           php tests/phase73-section1-portfolio-native-decision-handoff-db.php
           php tests/phase73-section2-portfolio-decision-execution-rollups-db.php
           php tests/phase73-section3-cross-decision-learning-pattern-memory-db.php
+          php tests/phase73-section4-strategic-dependency-conflict-graph-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -641,6 +642,13 @@ jobs:
           DB_PASS: root
           PHASE73_SECTION3_RESET_DB: '1'
         run: php tests/ci/phase73-section3-upgrade-from-099.php
+      - name: MySQL 8 Phase 73 Section 4 Strategic Graph upgrade rehearsal from migration 100 through 101
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase73_section4_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE73_SECTION4_RESET_DB: '1'
+        run: php tests/ci/phase73-section4-upgrade-from-100.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
