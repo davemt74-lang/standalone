@@ -210,6 +210,7 @@ function research_action_plan_set_status(PDO $pdo,array $viewer,string $publicId
     ];
     if(!in_array($status,$allowed[$current]??[],true))throw new InvalidArgumentException('That Action Plan status transition is not allowed.');
     if($byAgent&&in_array($status,['active','completed','cancelled'],true))throw new InvalidArgumentException('Agent actions cannot activate, complete, or cancel an Action Plan without explicit human governance.');
+    if(function_exists('research_action_plan_execution_transition_guard'))research_action_plan_execution_transition_guard($pdo,$viewer,$plan,$status);
     if($status==='active'){
       if((string)$plan['decision_status']!=='accepted')throw new InvalidArgumentException('The source Decision must currently be Accepted before an Action Plan can activate.');
       if(!empty($plan['source_stale']))throw new InvalidArgumentException('The source Decision changed after this Action Plan was created. Create or revise the Action Plan from current Decision state before activation.');
@@ -219,6 +220,7 @@ function research_action_plan_set_status(PDO $pdo,array $viewer,string $publicId
     $sql="UPDATE research_action_plans SET status=?,updated_at=NOW()";
     if($activated)$sql.=",activated_at=NOW()";if($completed)$sql.=",completed_at=NOW()";if($cancelled)$sql.=",cancelled_at=NOW()";$sql.=" WHERE id=?";
     $pdo->prepare($sql)->execute([$status,(int)$plan['id']]);$fresh=research_action_plan_by_id($pdo,(int)$plan['id']);
+    if(function_exists('research_action_plan_sync_execution_task_plan'))research_action_plan_sync_execution_task_plan($pdo,$viewer,$fresh,$status);
     research_action_plan_event($pdo,$fresh,'action_plan_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['from'=>$current,'to'=>$status]);
     return research_action_plan_detail($pdo,$viewer,$publicId)??$fresh;
 }
@@ -363,13 +365,22 @@ function research_action_plan_add_task(PDO $pdo,array $viewer,string $planPublic
     $plan=research_action_plan_detail($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Action Plan not found.');research_action_plan_write_access($pdo,$viewer,$plan);
     if(in_array((string)$plan['status'],['completed','cancelled','archived'],true))throw new InvalidArgumentException('Execution tasks cannot be added to a completed, cancelled, or archived Action Plan.');
     $milestone=null;$milestonePublic=trim((string)($input['milestone_id']??''));if($milestonePublic!==''){$milestone=research_action_plan_milestone_access($pdo,$viewer,$milestonePublic);if(!$milestone||(int)$milestone['action_plan_id']!==(int)$plan['id'])throw new InvalidArgumentException('Milestone must belong to this Action Plan.');if((string)$milestone['status']==='cancelled')throw new InvalidArgumentException('Tasks cannot be added to a cancelled milestone.');}
-    $taskPlan=research_action_plan_ensure_task_plan($pdo,$viewer,$plan,$byAgent);$depends=[];
-    foreach(array_slice((array)($input['depends_on']??[]),0,40) as $public){$dep=research_action_plan_linked_task($pdo,$viewer,$planPublic,(string)$public);if(!$dep)throw new InvalidArgumentException('Task dependencies must belong to this Action Plan.');$depends[]=(string)$dep['public_id'];}
-    $taskInput=$input;$taskInput['depends_on']=$depends;$task=research_task_plan_add_task($pdo,$viewer,(string)$taskPlan['public_id'],$taskInput,$byAgent);
-    $role=(string)($input['link_role']??'execution');if(!in_array($role,['execution','validation','supporting'],true))$role='execution';
-    $pdo->prepare('INSERT INTO research_action_plan_task_links(action_plan_id,milestone_id,task_id,link_role,created_by_user_id) VALUES(?,?,?,?,?)')
-      ->execute([(int)$plan['id'],$milestone?(int)$milestone['id']:null,(int)$task['id'],$role,(int)$viewer['id']]);
-    research_action_plan_event($pdo,$plan,'execution_task_added',$byAgent?'agent':'user',(int)$viewer['id'],['task_id'=>(string)$task['public_id'],'milestone_id'=>$milestonePublic!==''?$milestonePublic:null,'link_role'=>$role]);
+    $taskPlan=research_action_plan_ensure_task_plan($pdo,$viewer,$plan,$byAgent);$agent=research_task_agent($pdo,$viewer,(string)$plan['agent_public_id']);$project=research_task_project($pdo,$viewer,$agent);
+    $depends=[];$depIds=[];
+    foreach(array_slice((array)($input['depends_on']??[]),0,40) as $public){$dep=research_action_plan_linked_task($pdo,$viewer,$planPublic,(string)$public);if(!$dep)throw new InvalidArgumentException('Task dependencies must belong to this Action Plan.');$depends[]=(string)$dep['public_id'];$depIds[]=(int)$dep['id'];}
+    $q=$pdo->prepare("SELECT COALESCE(MAX(position),-1)+1 FROM research_tasks WHERE plan_id=?");$q->execute([(int)$taskPlan['id']]);$taskInput=$input;$taskInput['position']=(int)$q->fetchColumn();unset($taskInput['depends_on'],$taskInput['milestone_id'],$taskInput['link_role']);
+    $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
+    try{
+      $task=research_task_create($pdo,$viewer,$agent,$project,$taskInput,(int)$taskPlan['id'],$byAgent);
+      $role=(string)($input['link_role']??'execution');if(!in_array($role,['execution','validation','supporting'],true))$role='execution';
+      $pdo->prepare('INSERT INTO research_action_plan_task_links(action_plan_id,milestone_id,task_id,link_role,created_by_user_id) VALUES(?,?,?,?,?)')
+        ->execute([(int)$plan['id'],$milestone?(int)$milestone['id']:null,(int)$task['id'],$role,(int)$viewer['id']]);
+      foreach($depIds as $depId)$pdo->prepare("INSERT IGNORE INTO research_task_dependencies(task_id,depends_on_task_id,dependency_type) VALUES(?,?,'finish_to_start')")->execute([(int)$task['id'],$depId]);
+      $next=(int)$taskPlan['current_revision']+1;$pdo->prepare('UPDATE research_task_plans SET current_revision=?,updated_at=NOW() WHERE id=?')->execute([$next,(int)$taskPlan['id']]);
+      $q=$pdo->prepare('SELECT * FROM research_task_plans WHERE id=?');$q->execute([(int)$taskPlan['id']]);$freshTaskPlan=$q->fetch();research_task_plan_snapshot($pdo,$freshTaskPlan,'Action Plan execution task added',(int)$viewer['id'],$byAgent);
+      research_action_plan_event($pdo,$plan,'execution_task_added',$byAgent?'agent':'user',(int)$viewer['id'],['task_id'=>(string)$task['public_id'],'milestone_id'=>$milestonePublic!==''?$milestonePublic:null,'link_role'=>$role,'depends_on'=>$depends]);
+      if($owns)$pdo->commit();
+    }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     research_task_queue($pdo,(int)$task['id'],(int)$viewer['id'],'manual');return research_task_access($pdo,$viewer,(string)$task['public_id'])??$task;
 }
 function research_action_plan_set_task_dependencies(PDO $pdo,array $viewer,string $planPublic,string $taskPublic,array $dependsOn): array {
