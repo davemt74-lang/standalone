@@ -127,10 +127,13 @@ function research_intelligence_strategic_edge_upsert(PDO $pdo,array $viewer,stri
     $relation=(string)($input['relation_type']??'');if(!isset(research_intelligence_strategic_relation_types()[$relation]))throw new InvalidArgumentException('Invalid strategic relationship.');
     $source=research_intelligence_strategic_node($pdo,$viewer,(string)($input['source_type']??''),(string)($input['source_public_id']??''));$target=research_intelligence_strategic_node($pdo,$viewer,(string)($input['target_type']??''),(string)($input['target_public_id']??''));if(!$source||!$target)throw new RuntimeException('Strategic Graph endpoint is unavailable.');
     if(!in_array((string)$portfolio['public_id'],$source['portfolio_ids'],true))throw new InvalidArgumentException('The source node must belong to the selected Portfolio.');
+    if(!$target['portfolio_ids'])throw new InvalidArgumentException('The target node must belong to an accessible Intelligence Portfolio.');
     if($source['type']===$target['type']&&$source['public_id']===$target['public_id'])throw new InvalidArgumentException('A strategic relationship cannot point to itself.');
+    if(in_array($relation,['duplicates','supersedes'],true)&&$source['type']!==$target['type'])throw new InvalidArgumentException('Duplicate and supersede relationships must connect the same strategic object type.');
     [$source,$target]=research_intelligence_strategic_normalize_endpoints($relation,$source,$target);
     $rationale=mb_substr(trim((string)($input['rationale']??'')),0,12000);if($rationale==='')throw new InvalidArgumentException('Strategic relationship rationale is required.');
     $confidence=array_key_exists('confidence',$input)&&$input['confidence']!==''?(float)$input['confidence']:null;if($confidence!==null&&($confidence<0||$confidence>1))throw new InvalidArgumentException('Strategic relationship confidence must be between 0 and 1.');
+    $materiality=(string)($input['materiality']??'medium');if(!in_array($materiality,['low','medium','high','critical'],true))throw new InvalidArgumentException('Invalid strategic relationship materiality.');
     if(research_intelligence_strategic_cycle_exists($pdo,$relation,$source,$target))throw new InvalidArgumentException('That relationship would create a strategic '.$relation.' cycle.');
     $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
     try{
@@ -139,15 +142,15 @@ function research_intelligence_strategic_edge_upsert(PDO $pdo,array $viewer,stri
             if($owns)$pdo->commit();return research_intelligence_strategic_edge_access($pdo,$viewer,(string)$edge['public_id'])??$edge;
         }
         if($edge){
-            $pdo->prepare('UPDATE research_intelligence_strategic_edges SET created_in_portfolio_id=?,rationale=?,confidence=?,source_state_hash=?,target_state_hash=?,active=1,created_by_user_id=?,removed_by_user_id=NULL,removed_at=NULL,updated_at=NOW() WHERE id=?')
-              ->execute([(int)$portfolio['id'],$rationale,$confidence,$source['state_hash'],$target['state_hash'],(int)$viewer['id'],(int)$edge['id']]);
+            $pdo->prepare('UPDATE research_intelligence_strategic_edges SET created_in_portfolio_id=?,rationale=?,confidence=?,materiality=?,source_state_hash=?,target_state_hash=?,active=1,created_by_user_id=?,removal_reason=NULL,removed_by_user_id=NULL,removed_at=NULL,updated_at=NOW() WHERE id=?')
+              ->execute([(int)$portfolio['id'],$rationale,$confidence,$materiality,$source['state_hash'],$target['state_hash'],(int)$viewer['id'],(int)$edge['id']]);
             $q=$pdo->prepare('SELECT * FROM research_intelligence_strategic_edges WHERE id=?');$q->execute([(int)$edge['id']]);$edge=$q->fetch();research_intelligence_strategic_edge_event($pdo,(int)$edge['id'],'restored',(int)$viewer['id'],research_intelligence_strategic_edge_snapshot($edge,$source,$target));
         }else{
-            $public=ulid_like();$pdo->prepare('INSERT INTO research_intelligence_strategic_edges(public_id,created_in_portfolio_id,source_type,source_public_id,target_type,target_public_id,relation_type,rationale,confidence,source_state_hash,target_state_hash,created_by_user_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
-              ->execute([$public,(int)$portfolio['id'],$source['type'],$source['public_id'],$target['type'],$target['public_id'],$relation,$rationale,$confidence,$source['state_hash'],$target['state_hash'],(int)$viewer['id']]);
+            $public=ulid_like();$pdo->prepare('INSERT INTO research_intelligence_strategic_edges(public_id,created_in_portfolio_id,source_type,source_public_id,target_type,target_public_id,relation_type,rationale,confidence,materiality,source_state_hash,target_state_hash,created_by_user_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)')
+              ->execute([$public,(int)$portfolio['id'],$source['type'],$source['public_id'],$target['type'],$target['public_id'],$relation,$rationale,$confidence,$materiality,$source['state_hash'],$target['state_hash'],(int)$viewer['id']]);
             $id=(int)$pdo->lastInsertId();$q=$pdo->prepare('SELECT * FROM research_intelligence_strategic_edges WHERE id=?');$q->execute([$id]);$edge=$q->fetch();research_intelligence_strategic_edge_event($pdo,$id,'created',(int)$viewer['id'],research_intelligence_strategic_edge_snapshot($edge,$source,$target));
         }
-        research_intelligence_portfolio_event($pdo,(int)$portfolio['id'],'strategic_edge_recorded','user',(int)$viewer['id'],['edge_id'=>(string)$edge['public_id'],'relation_type'=>$relation,'source_type'=>$source['type'],'source_public_id'=>$source['public_id'],'target_type'=>$target['type'],'target_public_id'=>$target['public_id']]);
+        research_intelligence_portfolio_event($pdo,(int)$portfolio['id'],'strategic_edge_recorded','user',(int)$viewer['id'],['edge_id'=>(string)$edge['public_id'],'relation_type'=>$relation,'materiality'=>$materiality,'source_type'=>$source['type'],'source_public_id'=>$source['public_id'],'target_type'=>$target['type'],'target_public_id'=>$target['public_id']]);
         if($owns)$pdo->commit();
     }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return research_intelligence_strategic_edge_access($pdo,$viewer,(string)$edge['public_id'])??$edge;
@@ -157,16 +160,18 @@ function research_intelligence_strategic_edge_refresh(PDO $pdo,array $viewer,str
     $portfolio=research_intelligence_portfolio_access($pdo,$viewer,(string)$edge['created_in_portfolio_public_id']);if(!$portfolio||!research_intelligence_portfolio_can_write($portfolio))throw new RuntimeException('Strategic Graph write access is unavailable.');
     $rationale=array_key_exists('rationale',$input)?mb_substr(trim((string)$input['rationale']),0,12000):(string)$edge['rationale'];if($rationale==='')throw new InvalidArgumentException('Strategic relationship rationale is required.');
     $confidence=array_key_exists('confidence',$input)&&$input['confidence']!==''?(float)$input['confidence']:($edge['confidence']!==null?(float)$edge['confidence']:null);if($confidence!==null&&($confidence<0||$confidence>1))throw new InvalidArgumentException('Strategic relationship confidence must be between 0 and 1.');
-    $pdo->prepare('UPDATE research_intelligence_strategic_edges SET rationale=?,confidence=?,source_state_hash=?,target_state_hash=?,updated_at=NOW() WHERE id=?')->execute([$rationale,$confidence,$edge['source']['state_hash'],$edge['target']['state_hash'],(int)$edge['id']]);
+    $materiality=(string)($input['materiality']??$edge['materiality']??'medium');if(!in_array($materiality,['low','medium','high','critical'],true))throw new InvalidArgumentException('Invalid strategic relationship materiality.');
+    $pdo->prepare('UPDATE research_intelligence_strategic_edges SET rationale=?,confidence=?,materiality=?,source_state_hash=?,target_state_hash=?,updated_at=NOW() WHERE id=?')->execute([$rationale,$confidence,$materiality,$edge['source']['state_hash'],$edge['target']['state_hash'],(int)$edge['id']]);
     $fresh=research_intelligence_strategic_edge_access($pdo,$viewer,$edgePublic);research_intelligence_strategic_edge_event($pdo,(int)$edge['id'],'updated',(int)$viewer['id'],research_intelligence_strategic_edge_snapshot($fresh,$fresh['source'],$fresh['target']));return $fresh;
 }
-function research_intelligence_strategic_edge_remove(PDO $pdo,array $viewer,string $edgePublic): array {
+function research_intelligence_strategic_edge_remove(PDO $pdo,array $viewer,string $edgePublic,string $reason): array {
     $edge=research_intelligence_strategic_edge_access($pdo,$viewer,$edgePublic);if(!$edge)throw new RuntimeException('Strategic relationship not found.');
     $portfolio=research_intelligence_portfolio_access($pdo,$viewer,(string)$edge['created_in_portfolio_public_id']);if(!$portfolio||!research_intelligence_portfolio_can_write($portfolio))throw new RuntimeException('Strategic Graph write access is unavailable.');
-    if(!$edge['active'])return $edge;
-    research_intelligence_strategic_edge_event($pdo,(int)$edge['id'],'removed',(int)$viewer['id'],research_intelligence_strategic_edge_snapshot($edge,$edge['source'],$edge['target']));
-    $pdo->prepare('UPDATE research_intelligence_strategic_edges SET active=0,removed_by_user_id=?,removed_at=NOW(),updated_at=NOW() WHERE id=?')->execute([(int)$viewer['id'],(int)$edge['id']]);
-    research_intelligence_portfolio_event($pdo,(int)$portfolio['id'],'strategic_edge_removed','user',(int)$viewer['id'],['edge_id'=>$edgePublic,'relation_type'=>(string)$edge['relation_type']]);
+    if(!$edge['active'])return $edge;$reason=mb_substr(trim($reason),0,12000);if($reason==='')throw new InvalidArgumentException('A removal reason is required.');
+    $snapshot=research_intelligence_strategic_edge_snapshot($edge,$edge['source'],$edge['target']);$snapshot['removal_reason']=$reason;
+    research_intelligence_strategic_edge_event($pdo,(int)$edge['id'],'removed',(int)$viewer['id'],$snapshot);
+    $pdo->prepare('UPDATE research_intelligence_strategic_edges SET active=0,removal_reason=?,removed_by_user_id=?,removed_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$reason,(int)$viewer['id'],(int)$edge['id']]);
+    research_intelligence_portfolio_event($pdo,(int)$portfolio['id'],'strategic_edge_removed','user',(int)$viewer['id'],['edge_id'=>$edgePublic,'relation_type'=>(string)$edge['relation_type'],'reason'=>$reason]);
     return research_intelligence_strategic_edge_access($pdo,$viewer,$edgePublic)??$edge;
 }
 function research_intelligence_strategic_edge_events(PDO $pdo,array $viewer,string $edgePublic,int $limit=100): array {
