@@ -17,6 +17,26 @@ function agent_action_capabilities(): array {
         'label'=>'Create research task','description'=>'Create a bounded durable task inside the current Research Agent task system.',
         'arguments'=>['title'=>'string','description'=>'string optional','task_type'=>'general|find_source|verify_claim|review_source_change|compare_sources|synthesize|draft_deliverable|follow_up','priority'=>'low|medium|high|urgent optional','due_at'=>'date/time optional']
       ],
+      'research.action_plan.add_task'=>[
+        'label'=>'Add Action Plan execution task','description'=>'Add a normal existing Research Task to an Action Plan after confirmation. The current Action Plan state hash must still match.',
+        'arguments'=>['action_plan_id'=>'Action Plan public ID','action_plan_state_hash'=>'exact State hash from Action Plan Strategic Memory','milestone_id'=>'milestone public ID optional','title'=>'string','description'=>'string optional','task_type'=>'general|find_source|verify_claim|review_source_change|compare_sources|synthesize|draft_deliverable|follow_up','priority'=>'low|medium|high|urgent optional','due_at'=>'date/time optional','link_role'=>'execution|validation|supporting optional','depends_on'=>'array of linked task public IDs optional']
+      ],
+      'research.action_plan.create_milestone'=>[
+        'label'=>'Add Action Plan milestone','description'=>'Create a planned milestone in the current Action Plan after confirmation. This never starts or completes the milestone.',
+        'arguments'=>['action_plan_id'=>'Action Plan public ID','action_plan_state_hash'=>'exact State hash from Action Plan Strategic Memory','title'=>'string','description'=>'string optional','completion_criteria'=>'array of strings optional','target_on'=>'YYYY-MM-DD optional']
+      ],
+      'research.action_plan.create_follow_through_program'=>[
+        'label'=>'Create Action Plan follow-through Program','description'=>'Create an existing Research Program linked to the Action Plan after confirmation. Agent-created follow-through Programs are forced Paused and cannot begin recurring work automatically.',
+        'arguments'=>['action_plan_id'=>'Action Plan public ID','action_plan_state_hash'=>'exact State hash from Action Plan Strategic Memory','program_role'=>'execution_review|success_measure_check|evidence_refresh|decision_follow_up','cadence'=>'hourly|daily|weekly|monthly|manual optional','timezone_name'=>'IANA timezone optional','run_time_local'=>'HH:MM optional','quiet_mode'=>'material_only|always optional','materiality_threshold'=>'any|important|high optional','sync_with_action_plan'=>'boolean optional']
+      ],
+      'research.action_plan.record_observation'=>[
+        'label'=>'Record Action Plan execution observation','description'=>'Append confirmed expected-vs-actual execution evidence to the Action Plan ledger. This does not resolve variances or change execution/Decision state.',
+        'arguments'=>['action_plan_id'=>'Action Plan public ID','action_plan_state_hash'=>'exact State hash from Action Plan Strategic Memory','observation_type'=>'progress|success_measure|milestone|assumption|risk|new_evidence|outcome_signal','subject_type'=>'action_plan|milestone|task|success_measure|assumption|risk optional','milestone_id'=>'milestone public ID optional','task_id'=>'task public ID optional','success_measure_index'=>'integer optional','assumption_index'=>'integer optional','risk_index'=>'integer optional','summary'=>'string','actual'=>'scalar/object/array optional','assessment'=>'unknown|on_track|at_risk|met|missed|changed','material'=>'boolean optional','severity'=>'low|medium|high|critical optional','variance_type'=>'schedule_delay|target_miss|assumption_changed|new_evidence|risk_realized|scope_change|execution_deviation optional','source_type'=>'string optional','source_public_id'=>'string optional','source_snapshot'=>'object optional','impact'=>'string optional','response'=>'string optional']
+      ],
+      'research.action_plan.open_decision_reconsideration'=>[
+        'label'=>'Open Decision reconsideration from Action Plan','description'=>'Open a human-governed reconsideration case for the Action Plan source Decision after confirmation. This does not change Decision status or apply a recommendation.',
+        'arguments'=>['action_plan_id'=>'Action Plan public ID','action_plan_state_hash'=>'exact State hash from Action Plan Strategic Memory','title'=>'string optional','reason'=>'string','materiality'=>'low|medium|high|critical optional']
+      ],
       'research.create_mission'=>[
         'label'=>'Create Research Mission','description'=>'Create a durable outcome-driven Research Mission in draft state. This does not create or start a Plan, Task queue, Program, or autonomous execution.',
         'arguments'=>['title'=>'string','research_question'=>'string','objective'=>'string','success_definition'=>'string optional','priority'=>'low|medium|high|urgent optional','success_criteria'=>'array of strings optional','subquestions'=>'array of strings optional']
