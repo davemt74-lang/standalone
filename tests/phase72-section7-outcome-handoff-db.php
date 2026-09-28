@@ -41,7 +41,7 @@ $milestone=research_action_plan_set_milestone_status($pdo,$owner,(string)$milest
 $plan=research_action_plan_set_status($pdo,$owner,(string)$plan['public_id'],'completed');p72s7(($plan['status']??'')==='completed','Action Plan reaches Completed only through its existing lifecycle guard.');
 
 p72s7(research_action_plan_outcome_link($pdo,$owner,(string)$plan['public_id'])===null,'Action Plan completion does not automatically fabricate Outcome Memory.');
-$q=$pdo->prepare('SELECT COUNT(*) FROM research_decision_outcomes WHERE decision_id=?');$q->execute([(int)$decision['id']);p72s7((int)$q->fetchColumn()===0,'Decision Outcome Memory remains empty until explicit handoff.');
+$q=$pdo->prepare('SELECT COUNT(*) FROM research_decision_outcomes WHERE decision_id=?');$q->execute([(int)$decision['id']]);p72s7((int)$q->fetchColumn()===0,'Decision Outcome Memory remains empty until explicit handoff.');
 
 $preview=research_action_plan_outcome_preview($pdo,$owner,(string)$plan['public_id']);
 p72s7(!empty($preview['ready_for_handoff'])&&preg_match('/^[a-f0-9]{64}$/',(string)$preview['state_hash']),'Completed Action Plan exposes a deterministic outcome handoff preview and state hash.');
