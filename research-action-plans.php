@@ -15,10 +15,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $status=(string)($_POST['status']??'');research_action_plan_set_status($pdo,$u,(string)$selected['public_id'],$status,false);
             header('Location: /research-action-plans.php?action_plan='.rawurlencode((string)$selected['public_id']).'&updated=1');exit;
         }
+        if($op==='record_outcome_handoff'){
+            research_action_plan_record_outcome_handoff($pdo,$u,(string)$selected['public_id'],[
+              'handoff_state_hash'=>(string)($_POST['handoff_state_hash']??''),'assessment'=>(string)($_POST['assessment']??''),
+              'expected_summary'=>(string)($_POST['expected_summary']??''),'actual_summary'=>(string)($_POST['actual_summary']??''),
+              'variance_summary'=>(string)($_POST['variance_summary']??''),'lessons'=>(string)($_POST['lessons']??''),
+              'confidence'=>(string)($_POST['confidence']??''),'follow_up_state'=>(string)($_POST['follow_up_state']??'none')
+            ],false);
+            header('Location: /research-action-plans.php?action_plan='.rawurlencode((string)$selected['public_id']).'&outcome=1');exit;
+        }
         throw new RuntimeException('Unknown Action Plan Command Center action.');
     }catch(Throwable $e){$error=$e->getMessage();}
 }
-if(isset($_GET['updated']))$success='Action Plan status updated.';
+if(isset($_GET['updated']))$success='Action Plan status updated.';if(isset($_GET['outcome']))$success='Final Action Plan outcome recorded in Decision Outcome Memory.';
 $center=research_action_plan_command_center($pdo,$u,$scope,200);
 if($planId!==''&&!$selected){http_response_code(404);$error='Action Plan not found.';}
 $allowed=[];
@@ -26,10 +35,11 @@ if($selected&&$canWrite){
   $map=['draft'=>['proposed','cancelled','archived'],'proposed'=>['draft','active','cancelled','archived'],'active'=>['paused','completed','cancelled'],'paused'=>['active','completed','cancelled'],'completed'=>['archived'],'cancelled'=>['archived'],'archived'=>[]];
   $allowed=$map[(string)$selected['status']]??[];
 }
-$selectedCognition=null;$selectedReview=null;
+$selectedCognition=null;$selectedReview=null;$selectedOutcomePreview=null;$selectedOutcomeLink=null;
 if($selected){
   if(function_exists('research_action_plan_cognition_ready')&&research_action_plan_cognition_ready($pdo)){try{$selectedCognition=research_action_plan_cognition_snapshot($pdo,$u,(string)$selected['public_id']);}catch(Throwable $ignored){}}
   $selectedReview=research_action_plan_review_overview($pdo,$u,(string)$selected['public_id']);
+  if(function_exists('research_action_plan_outcomes_ready')&&research_action_plan_outcomes_ready($pdo)){try{$selectedOutcomeLink=research_action_plan_outcome_link($pdo,$u,(string)$selected['public_id']);if((string)$selected['status']==='completed')$selectedOutcomePreview=research_action_plan_outcome_preview($pdo,$u,(string)$selected['public_id']);}catch(Throwable $ignored){$selectedOutcomePreview=null;}}
 }
 $stats=(array)($center['stats']??[]);
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Action Plan Command Center · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=72.0"></head><body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-action-plan-command-center">
@@ -38,8 +48,8 @@ $stats=(array)($center['stats']??[]);
 <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions"><a href="/research.php">Research Agents</a><a href="/research-programs.php">Programs</a><a href="/research-intelligence-command-center.php">Intelligence</a><a href="/research-decisions.php">Decisions</a><a class="active" href="/research-action-plans.php">Action Plans</a><a href="/research-reviews.php">Review Center</a></nav></section>
 <header class="intelligenceCommandHero"><div><span class="eyebrow">PHASE 72 · EXECUTION GOVERNANCE</span><h1>Action Plan Command Center</h1><p>One permission-checked view across Action Plan ownership, execution state, strategic cognition, variances, source-Decision risk, and structured Team Review. Team Review is advisory; lifecycle changes remain explicit human actions.</p></div><small>Generated <?=h((string)$center['generated_at'])?></small></header>
 <?php if($success):?><div class="success"><?=h($success)?></div><?php endif?><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>
-<section class="intelligencePortfolioStats"><div><strong><?=h((string)($stats['total']??0))?></strong><span>Action Plans</span></div><div><strong><?=h((string)($stats['attention']??0))?></strong><span>Need attention</span></div><div><strong><?=h((string)($stats['active']??0))?></strong><span>Active</span></div><div><strong><?=h((string)($stats['decision_review']??0))?></strong><span>Decision review</span></div><div><strong><?=h((string)($stats['open_variances']??0))?></strong><span>Open variances</span></div><div><strong><?=h((string)($stats['open_reviews']??0))?></strong><span>Open reviews</span></div></section>
-<nav class="reviewTabs"><?php foreach(['all'=>'All','attention'=>'Needs Attention','proposed'=>'Proposed','active'=>'Active','paused'=>'Paused','decision_review'=>'Decision Review','variances'=>'Variances','reviews'=>'Team Reviews','completed'=>'Completed'] as $key=>$label):?><a class="<?=$scope===$key?'active':''?>" href="/research-action-plans.php?scope=<?=h($key)?>"><?=h($label)?></a><?php endforeach?></nav>
+<section class="intelligencePortfolioStats"><div><strong><?=h((string)($stats['total']??0))?></strong><span>Action Plans</span></div><div><strong><?=h((string)($stats['attention']??0))?></strong><span>Need attention</span></div><div><strong><?=h((string)($stats['active']??0))?></strong><span>Active</span></div><div><strong><?=h((string)($stats['decision_review']??0))?></strong><span>Decision review</span></div><div><strong><?=h((string)($stats['open_variances']??0))?></strong><span>Open variances</span></div><div><strong><?=h((string)($stats['outcomes_recorded']??0))?></strong><span>Outcomes recorded</span></div><div><strong><?=h((string)($stats['completed_without_outcome']??0))?></strong><span>Awaiting outcome</span></div></section>
+<nav class="reviewTabs"><?php foreach(['all'=>'All','attention'=>'Needs Attention','proposed'=>'Proposed','active'=>'Active','paused'=>'Paused','decision_review'=>'Decision Review','variances'=>'Variances','reviews'=>'Team Reviews','outcomes'=>'Outcome Learning','completed'=>'Completed'] as $key=>$label):?><a class="<?=$scope===$key?'active':''?>" href="/research-action-plans.php?scope=<?=h($key)?>"><?=h($label)?></a><?php endforeach?></nav>
 
 <?php if($selected):$strategic=(string)($selectedCognition['strategic_state']??'');$latest=$selectedReview['latest']??null;?>
 <article class="card">
@@ -52,6 +62,21 @@ $stats=(array)($center['stats']??[]);
 <div class="reviewMetrics"><span><strong><?=h((string)count((array)$selectedCognition['milestones']))?></strong> milestones</span><span><strong><?=h((string)count((array)$selectedCognition['tasks']))?></strong> tasks</span><span><strong><?=h((string)count((array)$selectedCognition['open_variances']))?></strong> open variances</span><span><strong><?=h((string)($selectedReview['open']??0))?></strong> open reviews</span></div>
 <?php $reasons=array_values(array_unique(array_merge((array)$selectedCognition['decision_review_reasons'],(array)$selectedCognition['attention_reasons'])));if($reasons):?><h3>Attention</h3><ul><?php foreach($reasons as $reason):?><li><?=h((string)$reason)?></li><?php endforeach?></ul><?php endif?>
 <?php if(!empty($selectedCognition['open_variances'])):?><h3>Open variances</h3><?php foreach($selectedCognition['open_variances'] as $v):?><div class="card"><div class="meta"><?=h(strtoupper((string)$v['severity']))?> · <?=h(strtoupper(str_replace('_',' ',(string)$v['variance_type'])))?></div><strong><?=h((string)$v['summary'])?></strong><?php if(!empty($v['impact'])):?><p><?=nl2br(h((string)$v['impact']))?></p><?php endif?></div><?php endforeach?><?php endif?>
+<?php endif?>
+<?php if($selectedOutcomeLink&&$selectedOutcomeLink['outcome']):$o=$selectedOutcomeLink['outcome'];?>
+<section class="card"><span class="eyebrow">FINAL OUTCOME MEMORY</span><h3><?=h(strtoupper((string)$o['assessment']))?></h3><p><strong>Actual result:</strong> <?=nl2br(h((string)$o['actual_summary']))?></p><?php if(!empty($o['variance_summary'])):?><p><strong>Final variance:</strong> <?=nl2br(h((string)$o['variance_summary']))?></p><?php endif?><?php if(!empty($o['lessons'])):?><p><strong>Lessons learned:</strong> <?=nl2br(h((string)$o['lessons']))?></p><?php endif?><p class="meta">Follow-up <?=h((string)$o['follow_up_state'])?> · observed <?=h((string)$o['observed_at'])?> · immutable Action Plan handoff <?=h((string)$selectedOutcomeLink['public_id'])?></p><a href="/research-decisions.php?decision=<?=h(rawurlencode((string)$selected['decision_public_id']))?>">Open Decision Outcome Memory</a></section>
+<?php elseif($selectedOutcomePreview&&$canWrite&&(string)$selected['status']==='completed'):?>
+<section class="card"><span class="eyebrow">COMPLETION → OUTCOME MEMORY</span><h3>Record final Decision outcome</h3><p class="meta">This is an explicit human handoff. The execution snapshot is frozen when recorded. It does not reopen or otherwise change the source Decision.</p>
+<div class="card"><strong>Execution summary preview</strong><p><?=nl2br(h((string)$selectedOutcomePreview['actual_summary_suggestion']))?></p><p><strong>Recorded variance:</strong> <?=nl2br(h((string)$selectedOutcomePreview['variance_summary_suggestion']))?></p></div>
+<form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="op" value="record_outcome_handoff"><input type="hidden" name="action_plan_id" value="<?=h((string)$selected['public_id'])?>"><input type="hidden" name="handoff_state_hash" value="<?=h((string)$selectedOutcomePreview['state_hash'])?>">
+<label>Outcome assessment <select name="assessment" required><option value="" selected disabled>Choose assessment</option><option value="success">Success</option><option value="partial">Partial success</option><option value="failure">Failure</option><option value="mixed">Mixed</option><option value="unresolved">Unresolved</option></select></label>
+<label>Expected result <textarea name="expected_summary" rows="3"><?=h((string)$selectedOutcomePreview['expected_summary'])?></textarea></label>
+<label>Actual result <textarea name="actual_summary" rows="5" required></textarea></label>
+<label>Final variance <textarea name="variance_summary" rows="4"><?=h((string)$selectedOutcomePreview['variance_summary_suggestion'])?></textarea></label>
+<label>Lessons learned <textarea name="lessons" rows="4"></textarea></label>
+<label>Outcome confidence <input type="number" name="confidence" min="0" max="1" step="0.01" placeholder="Optional 0–1"></label>
+<label>Follow-up <select name="follow_up_state"><option value="none">None</option><option value="follow_up">Follow up</option><option value="resolved">Resolved</option><option value="reopened">Reopened</option></select></label>
+<button>Record final outcome</button></form></section>
 <?php endif?>
 </article>
 <?php endif?>
