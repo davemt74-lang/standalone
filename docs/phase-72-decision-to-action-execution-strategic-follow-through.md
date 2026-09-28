@@ -355,3 +355,119 @@ The refresh is a synchronous comparison only. Section 4 introduces **no new work
 - Agent actions cannot resolve variances
 - no Action Plan-specific worker, queue, scheduler, cron, or autonomous loop is introduced
 
+## Section 5 — Agent Cognition & Strategic Follow-Through
+
+Section 5 teaches the existing Research Agent to reason over the durable Decision-to-execution chain without introducing a second memory store, planner, worker, or autonomous execution loop.
+
+### Durable strategic memory without duplicate persistence
+
+Section 5 adds **no new persistence table** and no new migration.
+
+The Agent's strategic memory is synthesized on demand from authoritative existing state:
+
+- source Decision status, revision, rationale, and reconsideration state
+- Action Plan status, revision, objective, expected result, success measures, risks, assumptions, and dates
+- immutable activation execution baseline
+- current milestones and linked existing Research Tasks
+- linked existing Research Programs
+- append-only execution observations
+- open/resolved execution variances
+- Action Plan and Decision audit history
+
+Because the underlying records are already durable, later Agent conversations can answer what changed, why execution is behind, which assumption failed, which evidence changed, and why the source Decision may need review without maintaining a parallel AI-memory ledger.
+
+### Strategic state classification
+
+For each non-archived Action Plan the cognition layer derives one strategic state:
+
+- **CONTINUE EXECUTION** — active execution has no material attention or Decision-review trigger
+- **NEEDS ATTENTION** — execution is paused, overdue, blocked, or has material/high-impact variance requiring follow-through
+- **MAY AFFECT UNDERLYING DECISION** — the source Decision is stale or high/critical material assumption, evidence, or realized-risk variance may undermine the accepted Decision
+- **CLOSED** — completed, cancelled, or archived execution remains explainable historical state
+
+The classification is deterministic application logic. The language model does not choose or persist the strategic state.
+
+### Exact state hash and stale-proposal protection
+
+Every cognition snapshot includes an exact SHA-256 state hash covering:
+
+- Action Plan revision/config/lifecycle
+- current source Decision state
+- milestone state
+- linked Research Task state
+- linked Research Program state
+- execution observations
+- execution variances
+
+When the Agent proposes an Action Plan mutation, it must copy this exact hash into `action_plan_state_hash`.
+
+At confirmation time the application recomputes the hash. If execution state changed after the proposal was generated, the proposal is rejected as stale and must be reconsidered from current state.
+
+This is in addition to the existing Research project proposal staleness check.
+
+### Agent Chat strategic context
+
+Research Agent conversations now receive **Action Plan Strategic Memory** alongside Mission Memory and Decision Memory.
+
+The context includes:
+
+- Action Plan identity, lifecycle, revision, and state hash
+- pinned/current Decision state and source staleness
+- objective and expected result
+- explicit attention and Decision-review reasons
+- milestone/task progress
+- open variance severity/type/summary
+- recent execution observations
+- linked follow-through Program roles/statuses
+- governance reminders
+
+The Agent may explain baseline-to-current lineage and recommend follow-through, but the context itself is read-only.
+
+### Governed strategic follow-through proposals
+
+After explicit user confirmation through the existing Agent Action proposal system, the Agent may propose:
+
+- **Add Action Plan execution task** — creates a normal existing Research Task linked to the Action Plan
+- **Add Action Plan milestone** — creates a Planned milestone only; it does not start or complete it
+- **Create Action Plan follow-through Program** — creates an existing Research Program, but Agent-created Programs are forced **Paused**
+- **Record Action Plan execution observation** — appends expected-vs-actual evidence/variance history without resolving anything
+- **Open Decision reconsideration** — opens a human-governed reconsideration case without changing or applying Decision state
+
+All five capabilities require the exact Action Plan state hash and the normal Agent Action user-confirmation workflow.
+
+### Human authority remains unchanged
+
+Section 5 does not give the Agent authority to:
+
+- activate, pause, complete, cancel, or archive an Action Plan
+- start, complete, or cancel a milestone
+- resolve an execution variance
+- activate an Agent-created follow-through Program
+- accept, reject, defer, reopen, supersede, or otherwise change a Decision
+- resolve/dismiss/apply a Decision reconsideration
+- bypass Research Task completion gates, Program governance, permissions, or Team boundaries
+
+Those existing human/application gates remain authoritative.
+
+### Cognitive feed integration
+
+The existing cognitive feed receives Action Plan observations only when execution needs attention or may affect the source Decision.
+
+Feed cards use the deterministic state hash as part of their identity and may offer **Ask Agent why**, which opens Agent Chat with the Research project context. Section 5 does not add the full Action Plan management UI; that remains a later Phase 72 section.
+
+### Section 5 invariants
+
+- no new persistence table or migration
+- no duplicate AI memory ledger
+- no new worker, scheduler, queue, cron, or autonomous execution loop
+- Agent cognition is derived from authoritative stored state
+- strategic state classification is deterministic application logic
+- every Action Plan proposal is bound to an exact state hash
+- stale proposals fail before mutation
+- proposed mutations still require explicit human confirmation
+- Agent-created follow-through Programs start Paused
+- opening reconsideration never changes Decision status
+- Action Plan activation/completion/cancellation remains human-governed
+- variance resolution remains human-governed
+- existing Research Tasks, Research Programs, Decisions, and permissions remain authoritative
+
