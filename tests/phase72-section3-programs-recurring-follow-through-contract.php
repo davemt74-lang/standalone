@@ -21,16 +21,19 @@ $must('app/research-action-plans.php',[
  'research_action_plan_follow_through_ready','research_action_plan_program_roles','research_action_plan_program_defaults',
  'research_action_plan_create_program','research_action_plan_link_program','research_action_plan_set_program_sync',
  'research_action_plan_unlink_program','research_action_plan_sync_programs','research_action_plan_program_snapshot',
- 'research_action_plan_program_compare_snapshots','agent_created_follow_through_requires_human_activation'
+ 'research_action_plan_program_compare_snapshots','research_action_plan_program_run_allowed','research_action_plan_program_context_text',
+ 'agent_created_follow_through_requires_human_activation'
 ],'Action Plan follow-through runtime');
 
 $must('app/research-programs.php',[
- "'action_plan'=>null",'research_action_plan_program_snapshot','research_action_plan_program_compare_snapshots'
+ "'action_plan'=>null",'research_action_plan_program_snapshot','research_action_plan_program_compare_snapshots',
+ 'research_action_plan_program_context_text','research_action_plan_program_run_allowed',
+ 'Linked Action Plan is not Active; recurring follow-through is paused.'
 ],'Existing Research Program snapshot/delta integration');
 
 $must('api/research-action-plans.php',[
- "'follow_through'","$action==='create_follow_through_program'","$action==='link_follow_through_program'",
- "$action==='set_follow_through_sync'","$action==='unlink_follow_through_program'"
+ "'follow_through'",'$action===\'create_follow_through_program\'','$action===\'link_follow_through_program\'',
+ '$action===\'set_follow_through_sync\'','$action===\'unlink_follow_through_program\''
 ],'Action Plan follow-through API');
 
 $must('docs/phase-72-decision-to-action-execution-strategic-follow-through.md',[
