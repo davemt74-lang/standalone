@@ -205,7 +205,7 @@ function agent_action_clean_arguments(string $capability,array $args): array {
         }
         if($capability==='research.action_plan.record_observation'){
             $type=(string)($args['observation_type']??'progress');if(!in_array($type,['progress','success_measure','milestone','assumption','risk','new_evidence','outcome_signal'],true))throw new InvalidArgumentException('Invalid execution observation type.');
-            $subject=(string)($args['subject_type']??'action_plan');if(!in_array($subject,['action_plan','milestone','task','success_measure','assumption','risk'],true))$subject='action_plan';
+            $subject=array_key_exists('subject_type',$args)?(string)$args['subject_type']:'';if($subject!==''&&!in_array($subject,['action_plan','milestone','task','success_measure','assumption','risk'],true))throw new InvalidArgumentException('Invalid execution observation subject.');
             $assessment=(string)($args['assessment']??'unknown');if(!in_array($assessment,['unknown','on_track','at_risk','met','missed','changed'],true))$assessment='unknown';
             $severity=(string)($args['severity']??'medium');if(!in_array($severity,['low','medium','high','critical'],true))$severity='medium';
             $variance=(string)($args['variance_type']??'');if($variance!==''&&!in_array($variance,['schedule_delay','target_miss','assumption_changed','new_evidence','risk_realized','scope_change','execution_deviation'],true))throw new InvalidArgumentException('Invalid execution variance type.');
