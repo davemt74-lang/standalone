@@ -128,8 +128,13 @@ function research_intelligence_strategic_review_access(PDO $pdo,array $viewer,st
     return $r;
 }
 function research_intelligence_strategic_review_subject(PDO $pdo,array $viewer,string $publicId): ?array {
-    $r=research_intelligence_strategic_review_access($pdo,$viewer,$publicId,false);if(!$r)return null;$packet=(array)$r['packet'];$state=(array)($packet['state']??[]);
-    $focus=(array)($state['review_focus']??[]);$summary='Portfolio strategic review packet with '.count($focus).' deterministic review focus item(s).';
+    if(!research_intelligence_strategic_reviews_ready($pdo))return null;
+    $q=$pdo->prepare("SELECT sr.*,p.public_id portfolio_public_id,p.title portfolio_title,rp.public_id project_public_id
+      FROM research_intelligence_strategic_reviews sr JOIN research_intelligence_portfolios p ON p.id=sr.portfolio_id JOIN research_projects rp ON rp.id=sr.project_id WHERE sr.public_id=? LIMIT 1");
+    $q->execute([trim($publicId)]);$r=$q->fetch();if(!$r)return null;
+    if(!research_intelligence_portfolio_access($pdo,$viewer,(string)$r['portfolio_public_id']))return null;
+    $packet=research_intelligence_strategic_review_json($r['packet_json']??null);$state=(array)($packet['state']??[]);$focus=(array)($state['review_focus']??[]);
+    $summary='Portfolio strategic review packet with '.count($focus).' deterministic review focus item(s).';
     return ['type'=>'strategic_review','public_id'=>(string)$r['public_id'],'project_id'=>(int)$r['project_id'],'project_public_id'=>(string)$r['project_public_id'],'project_title'=>(string)$r['portfolio_title'],
       'title'=>'Strategic Review: '.(string)$r['portfolio_title'],'hash'=>(string)$r['packet_hash'],'version_label'=>'Strategic Review packet '.(string)$r['created_at'],
       'url'=>'/research-intelligence-portfolios.php?portfolio='.rawurlencode((string)$r['portfolio_public_id']).'&strategic_review='.rawurlencode((string)$r['public_id']),
@@ -165,7 +170,7 @@ function research_intelligence_strategic_review_maybe_create_for_cycle(PDO $pdo,
     return research_intelligence_strategic_review_create($pdo,$viewer,(string)$portfolio['public_id'],['trigger_type'=>'cycle','cycle_public_id'=>(string)$cycle['public_id'],'scheduled_for'=>$scheduled]);
 }
 function research_intelligence_strategic_review_history(PDO $pdo,array $viewer,string $portfolioPublic,int $limit=30): array {
-    $p=research_intelligence_portfolio_access($pdo,$viewer,trim($portfolioPublic));if(!$p)return [];$limit=max(1,min(100,$limit));$q=$pdo->prepare('SELECT public_id FROM research_intelligence_strategic_reviews WHERE portfolio_id=? ORDER BY id DESC LIMIT '.$limit);$q->execute([(int)$p['id']);$out=[];
+    $p=research_intelligence_portfolio_access($pdo,$viewer,trim($portfolioPublic));if(!$p)return [];$limit=max(1,min(100,$limit));$q=$pdo->prepare('SELECT public_id FROM research_intelligence_strategic_reviews WHERE portfolio_id=? ORDER BY id DESC LIMIT '.$limit);$q->execute([(int)$p['id']]);$out=[];
     foreach($q->fetchAll(PDO::FETCH_COLUMN)?:[] as $id){$r=research_intelligence_strategic_review_access($pdo,$viewer,(string)$id,false);if($r)$out[]=$r;}return $out;
 }
 function research_intelligence_portfolio_strategic_review_summary(PDO $pdo,array $viewer,string $portfolioPublic): array {
