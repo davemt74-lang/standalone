@@ -57,6 +57,7 @@ function cognitive_feed_base_score(string $type): int {
     return match($type){
       'model_health_incident'=>96,
       'pending_agent_action'=>92,
+      'organizational_cognition'=>90,
       'research_conflict'=>88,
       'related_conflict'=>86,
       'source_change'=>82,
@@ -435,6 +436,7 @@ function cognitive_feed_collect_research(PDO $pdo,array $viewer,array &$items): 
     if(function_exists('research_publications_ready')&&research_publications_ready($pdo))research_publication_cognitive_observations($pdo,$viewer,$items,24);
     if(function_exists('research_intelligence_portfolios_ready')&&research_intelligence_portfolios_ready($pdo))research_intelligence_portfolio_cognitive_observations($pdo,$viewer,$items,20);
     if(function_exists('research_intelligence_portfolio_operations_ready')&&research_intelligence_portfolio_operations_ready($pdo))research_intelligence_portfolio_operations_cognitive_observations($pdo,$viewer,$items,20);
+    if(function_exists('research_intelligence_organizational_cognitive_observations'))research_intelligence_organizational_cognitive_observations($pdo,$viewer,$items,24);
 }
 
 
