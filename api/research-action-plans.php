@@ -8,7 +8,7 @@ $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
 $input=$method==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $readActions=['list','summary','detail','execution_detail','milestone_detail','follow_through','execution_variance_detail','command_center'];
+    $readActions=['list','summary','detail','execution_detail','milestone_detail','follow_through','execution_variance_detail','command_center','outcome_preview'];
     $viewer=in_array($action,$readActions,true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_action_plans_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Action Plan Ledger requires the latest database upgrade.']],503);
 
@@ -39,6 +39,10 @@ try{
         $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
         json_response(['ok'=>true,'data'=>research_action_plan_execution_variance_detail($pdo,$viewer,$id)]);
     }
+    if($action==='outcome_preview'){
+        $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
+        json_response(['ok'=>true,'data'=>research_action_plan_outcome_preview($pdo,$viewer,$id)]);
+    }
     if($action==='follow_through'){
         $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
         $plan=research_action_plan_detail($pdo,$viewer,$id);if(!$plan)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
@@ -59,6 +63,10 @@ try{
     if($action==='set_status'){
         $id=trim((string)($input['action_plan_id']??''));$status=trim((string)($input['status']??''));if($id===''||$status==='')throw new InvalidArgumentException('Action Plan and status are required.');
         json_response(['ok'=>true,'data'=>['action_plan'=>research_action_plan_set_status($pdo,$viewer,$id,$status,false)]]);
+    }
+    if($action==='record_outcome_handoff'){
+        $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
+        json_response(['ok'=>true,'data'=>['handoff'=>research_action_plan_record_outcome_handoff($pdo,$viewer,$id,$input,false)]],201);
     }
     if($action==='create_milestone'){
         $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');

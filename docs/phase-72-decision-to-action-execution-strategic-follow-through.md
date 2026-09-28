@@ -589,3 +589,163 @@ Only eligible current project collaborators may be assigned to review. Users out
 - Team/project permissions remain authoritative
 - no new worker, queue, scheduler, cron, or autonomous execution loop is introduced
 
+## Section 7 — Completion, Outcome Handoff & Decision Learning
+
+Section 7 closes the durable Decision-to-execution learning loop by explicitly handing a **Completed Action Plan** into the existing Phase 71 Decision Outcome Memory system.
+
+The resulting chain is:
+
+**Decision → Action Plan → immutable execution baseline → milestones / Research Tasks / execution evidence / variances → Completed Action Plan → explicit Outcome Memory → existing Decision reconsideration signals**
+
+### Existing Decision Outcome Memory remains authoritative
+
+Section 7 does not create a second outcome model.
+
+Final Action Plan outcomes are recorded through the existing `research_decision_record_outcome()` runtime, which continues to own:
+
+- Success / Partial success / Failure / Mixed / Unresolved assessment
+- expected result
+- actual result
+- final variance
+- lessons learned
+- explicit outcome confidence
+- follow-up state
+- immutable Outcome Memory revisions
+- the underlying Phase 20 Outcome Learning event
+- Decision reconsideration signals derived from observed outcomes
+
+The Action Plan bridge stores only durable lineage back to the execution that produced that Outcome Memory.
+
+### Explicit completion handoff
+
+Completing an Action Plan never automatically creates an outcome.
+
+A final handoff requires:
+
+- Action Plan status **Completed**
+- an immutable execution baseline
+- exact current execution-state hash
+- explicit human outcome assessment
+- explicit actual-result summary
+- existing write access to the Research project
+- a source Decision with a recorded disposition accepted by existing Outcome Memory
+
+Agent-originated final outcome recording is blocked.
+
+### Deterministic handoff preview
+
+Before recording, the application composes a deterministic preview from authoritative execution state:
+
+- baseline expected result
+- saved success measures
+- success-measure execution observations
+- final milestone status
+- linked existing Research Task status
+- all execution observations
+- all recorded execution variances
+- source Decision lineage
+- Action Plan completion timestamp
+
+The preview includes an exact SHA-256 execution-state hash.
+
+If observations, variances, tasks, milestones, Programs, or Decision state change before recording, the stale preview cannot be submitted. The user must review the new execution state first.
+
+The preview may summarize execution facts, but it never chooses the human outcome assessment.
+
+### Frozen execution handoff snapshot
+
+Migration 098 adds `research_action_plan_outcome_links`.
+
+Each completed Action Plan may have exactly one final handoff link. The link freezes:
+
+- Action Plan revision/config hash
+- immutable activation baseline ID
+- exact handoff state hash
+- full execution snapshot at handoff
+- explicit human outcome fields
+- resulting existing Decision Outcome Memory ID
+- recording user and timestamp
+
+The snapshot is immutable provenance. Later edits to existing Decision Outcome Memory do not rewrite what execution looked like at the original handoff.
+
+### Outcome Learning reference
+
+The existing Phase 20 Outcome Learning reference system now accepts `action_plan` as a permission-checked source reference.
+
+This keeps the existing outcome event connected to the execution object that produced it without duplicating Action Plan content inside the Outcome Learning ledger.
+
+### Idempotency
+
+Final handoff is one-per-Action-Plan.
+
+Retries return the existing handoff and Outcome Memory instead of:
+
+- creating another Decision outcome
+- replacing the recorded assessment
+- rewriting the frozen execution snapshot
+
+A later change to the observed Decision outcome uses the existing Decision Outcome Memory update/version path rather than creating another Action Plan handoff.
+
+### Decision learning, not automatic Decision mutation
+
+Recording a final Action Plan outcome never automatically reopens or changes the source Decision.
+
+Instead, existing Phase 71 reconsideration logic observes the recorded Outcome Memory:
+
+- Failure outcomes surface as critical outcome signals
+- Mixed outcomes and reopened follow-up surface as high materiality
+- Partial outcomes/follow-up surface through existing review signals
+- Success with no follow-up does not create an unnecessary reconsideration signal
+
+Opening or applying reconsideration remains explicit human governance.
+
+### Team Review and Command Center
+
+A final Outcome Memory handoff becomes part of the Action Plan review snapshot. Any Team Review requested before final outcome recording becomes stale after the handoff.
+
+The Action Plan Command Center adds:
+
+- Outcomes Recorded count
+- Completed Awaiting Outcome count
+- Outcome Learning scope
+- explicit attention for completed Action Plans that still lack Outcome Memory
+- linked final Outcome Memory for completed plans
+
+Command Center aggregation remains side-effect free.
+
+### Agent strategic memory
+
+Research Agent Action Plan Strategic Memory includes linked final Outcome Memory after the explicit handoff:
+
+- assessment
+- actual result
+- final variance
+- lessons learned
+
+This lets the Agent answer questions such as:
+
+- What happened after we executed this Decision?
+- Did the execution meet the expected result?
+- Which assumptions or targets failed?
+- What did we learn?
+- Does the result create a Decision review signal?
+
+The Agent receives this as read-only durable context. It cannot record the final outcome or change Decision state through Section 7.
+
+### Section 7 invariants
+
+- completed Action Plans never auto-create Outcome Memory
+- final outcome requires explicit human assessment and actual result
+- Agent actions cannot record the final Action Plan outcome
+- the existing Decision Outcome Memory runtime remains authoritative
+- Phase 20 Outcome Learning remains the underlying event ledger
+- one Action Plan has at most one final outcome handoff
+- retries are idempotent and cannot overwrite the recorded outcome
+- the activation baseline and handoff execution snapshot are immutable
+- stale handoff previews cannot be applied
+- Outcome Memory keeps a permission-checked Action Plan source reference
+- final outcome recording makes earlier Action Plan Team Review stale
+- final outcome recording never automatically reopens or changes the Decision
+- existing reconsideration signals consume the observed outcome
+- no new scheduler, worker, queue, cron, or autonomous learning loop is introduced
+

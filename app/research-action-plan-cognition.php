@@ -52,6 +52,7 @@ function research_action_plan_cognition_snapshot(PDO $pdo,array $viewer,string $
     $programs=research_action_plan_programs($pdo,$viewer,(string)$plan['public_id']);
     $variances=research_action_plan_execution_variances($pdo,$viewer,(string)$plan['public_id'],100);
     $observations=research_action_plan_execution_observations($pdo,$viewer,(string)$plan['public_id'],20);
+    $outcomeHandoff=null;if(function_exists('research_action_plan_outcomes_ready')&&research_action_plan_outcomes_ready($pdo)){try{$outcomeHandoff=research_action_plan_outcome_link($pdo,$viewer,(string)$plan['public_id']);}catch(Throwable $ignored){$outcomeHandoff=null;}}
     $openVariances=array_values(array_filter($variances,fn($v)=>(string)$v['status']==='open'));
     $taskCounts=[];$taskRows=[];
     $q=$pdo->prepare("SELECT rt.public_id,rt.title,rt.status,rt.priority,rt.due_at,rt.blocking_reason,l.link_role,m.public_id milestone_public_id
@@ -84,7 +85,7 @@ function research_action_plan_cognition_snapshot(PDO $pdo,array $viewer,string $
       'strategic_state'=>$strategic,'decision_review_reasons'=>$decisionReview,'attention_reasons'=>$attention,
       'baseline'=>$baseline,'milestones'=>$milestones,'milestone_counts'=>$milestoneCounts,'blocked_milestones'=>$blockedMilestones,'overdue_milestones'=>$overdueMilestones,
       'tasks'=>$taskRows,'task_counts'=>$taskCounts,'overdue_tasks'=>$overdueTasks,'programs'=>$programs,
-      'open_variances'=>$openVariances,'recent_observations'=>array_slice($observations,0,8),'plan_overdue'=>$planOverdue
+      'open_variances'=>$openVariances,'recent_observations'=>array_slice($observations,0,8),'plan_overdue'=>$planOverdue,'outcome_handoff'=>$outcomeHandoff
     ];
 }
 function research_action_plan_cognition_label(string $state): string {
@@ -96,7 +97,7 @@ function research_action_plan_agent_context(PDO $pdo,array $viewer,string $agent
     $rank=['decision_review'=>0,'needs_attention'=>1,'continue_execution'=>2,'closed'=>3];$snapshots=[];
     foreach($plans as $plan){if((string)$plan['status']==='archived')continue;try{$snapshots[]=research_action_plan_cognition_snapshot($pdo,$viewer,(string)$plan['public_id']);}catch(Throwable $ignored){}}
     usort($snapshots,fn($a,$b)=>(($rank[(string)$a['strategic_state']]??9)<=>($rank[(string)$b['strategic_state']]??9))?:strcmp((string)$b['action_plan']['updated_at'],(string)$a['action_plan']['updated_at']));
-    $lines=["[ACTION PLAN STRATEGIC MEMORY]","Action Plan, Decision, milestone, task, Program, observation, and variance state below is durable application state. Explain expected-vs-actual lineage and propose governed follow-through, but never claim execution state changed unless the application confirms it."];
+    $lines=["[ACTION PLAN STRATEGIC MEMORY]","Action Plan, Decision, milestone, task, Program, observation, variance, and final Outcome Memory state below is durable application state. Explain expected-vs-actual lineage and what was learned, but never claim execution or Decision state changed unless the application confirms it."];
     $refs=[];$shown=0;
     foreach($snapshots as $s){
       if($shown++>=$limit)break;$p=$s['action_plan'];$state=(string)$s['strategic_state'];$line='[ACTION PLAN '.(string)$p['public_id'].'] '.(string)$p['title'].' · '.research_action_plan_cognition_label($state).' · status '.(string)$p['status'].' · revision '.(int)$p['current_revision'];
@@ -127,8 +128,12 @@ Recent execution evidence: ".implode(' | ',$os);
       }
       if($s['programs']){$ps=[];foreach(array_slice($s['programs'],0,4) as $pr)$ps[]=(string)$pr['action_plan_program_role'].' '.(string)$pr['status'];$line.="
 Follow-through Programs: ".implode(', ',$ps);}
+      if(!empty($s['outcome_handoff']['outcome'])){$o=$s['outcome_handoff']['outcome'];$line.="
+Final Outcome Memory: ".strtoupper((string)$o['assessment']).' · '.mb_substr((string)$o['actual_summary'],0,900);if(trim((string)($o['variance_summary']??''))!=='')$line.="
+Outcome variance: ".mb_substr((string)$o['variance_summary'],0,700);if(trim((string)($o['lessons']??''))!=='')$line.="
+Lessons learned: ".mb_substr((string)$o['lessons'],0,700);}
       $line.="
-Governance: analyze and propose only. Activation/completion/cancellation, variance resolution, and Decision status changes remain human-governed. For an Action Plan proposal, copy the exact State hash above into action_plan_state_hash.";
+Governance: analyze and propose only. Activation/completion/cancellation, final outcome recording, variance resolution, and Decision status changes remain human-governed. For an Action Plan proposal, copy the exact State hash above into action_plan_state_hash.";
       $lines[]=$line;$refs[]=['type'=>'action_plan','id'=>(string)$p['public_id']];$refs[]=['type'=>'decision','id'=>(string)$p['decision_public_id']];$refs[]=['type'=>'research_project','id'=>(string)$p['project_public_id']];
       foreach(array_slice($s['open_variances'],0,8) as $v)$refs[]=['type'=>'action_plan_variance','id'=>(string)$v['public_id']];
     }

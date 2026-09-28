@@ -108,6 +108,7 @@ db_tests=(
   tests/phase72-section4-execution-evidence-variance-db.php
   tests/phase72-section5-agent-cognition-db.php
   tests/phase72-section6-team-command-review-db.php
+  tests/phase72-section7-outcome-handoff-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php

@@ -37,6 +37,7 @@ function research_outcome_ref_access(PDO $pdo,array $viewer,string $type,string 
     if($type==='claim_relation'){$q=$pdo->prepare('SELECT rp.public_id FROM claim_relations cr JOIN research_projects rp ON rp.id=cr.project_id WHERE cr.public_id=? LIMIT 1');$q->execute([$publicId]);$p=(string)($q->fetchColumn()?:'');return $p!==''&&project_access($pdo,(int)$viewer['id'],$p)!==null;}
     if($type==='entity')return function_exists('research_entity_access')&&research_entity_access($pdo,$viewer,$publicId)!==null;
     if($type==='decision')return function_exists('research_decision_access')&&research_decision_access($pdo,$viewer,$publicId)!==null;
+    if($type==='action_plan')return function_exists('research_action_plan_access')&&research_action_plan_access($pdo,$viewer,$publicId)!==null;
     if($type==='conversation')return function_exists('conversation_access')&&conversation_access($pdo,$viewer,$publicId)!==null;
     if($type==='automation')return function_exists('research_automation_access')&&research_automation_access($pdo,$viewer,$publicId)!==null;
     if($type==='cross_research_link')return function_exists('cross_research_link_access')&&cross_research_link_access($pdo,$viewer,$publicId)!==null;
