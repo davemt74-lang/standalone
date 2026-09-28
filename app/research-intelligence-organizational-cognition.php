@@ -103,12 +103,13 @@ function research_intelligence_organizational_portfolio_cognition(PDO $pdo,array
         ]);
     }
 
-    foreach((array)($reviews['reviews']??[]) as $r){
+    $latestReviewDrift=!empty($reviews['summary']['current_drift']);
+    foreach((array)($reviews['reviews']??[]) as $reviewIndex=>$r){
         $review=$r['review']??null;$agg=(array)($r['review_aggregate']??[]);$reasons=[];$severity='medium';
         if($review&&($review['status']??'')==='open'&&!empty($review['due_at'])&&strtotime((string)$review['due_at'])<time()){$reasons[]='Strategic Review is overdue.';$severity='high';}
         if(($agg['consensus']??'')==='changes_requested'){$reasons[]='Strategic Review requested changes.';$severity='high';}
         if(($agg['consensus']??'')==='unresolved_objection'){$reasons[]='Strategic Review has an unresolved objection.';$severity='critical';}
-        if(!empty($r['current_drift'])){$reasons[]='Current strategic state differs from the frozen review packet.';$severity=research_intelligence_organizational_severity_rank($severity)<3?'high':$severity;}
+        if($reviewIndex===0&&$latestReviewDrift){$reasons[]='Current strategic state differs from the frozen review packet.';$severity=research_intelligence_organizational_severity_rank($severity)<3?'high':$severity;}
         if($reasons)research_intelligence_organizational_signal($signals,[
           'kind'=>'strategic_review_follow_through','severity'=>$severity,'object_type'=>'strategic_review','object_id'=>(string)$r['public_id'],
           'title'=>'Strategic Review follow-through · '.(string)$p['title'],'summary'=>implode(' · ',$reasons),
