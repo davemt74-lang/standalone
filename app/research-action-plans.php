@@ -452,3 +452,189 @@ function research_action_plan_execution_detail(PDO $pdo,array $viewer,string $pl
     return ['action_plan'=>$plan,'task_plan'=>$taskPlan,'milestones'=>$milestones,'unassigned_tasks'=>$unassigned];
 }
 
+function research_action_plan_follow_through_ready(PDO $pdo): bool {
+    try{return research_action_plan_execution_ready($pdo)&&research_programs_ready($pdo)&&installer_table_exists($pdo,'research_action_plan_program_links');}
+    catch(Throwable $e){return false;}
+}
+function research_action_plan_program_roles(): array {
+    return [
+      'execution_review'=>'Execution Review',
+      'success_measure_check'=>'Success Measure Check',
+      'evidence_refresh'=>'Evidence Refresh',
+      'decision_follow_up'=>'Decision Follow-up'
+    ];
+}
+function research_action_plan_program_defaults(string $role,array $plan): array {
+    if(!isset(research_action_plan_program_roles()[$role]))throw new InvalidArgumentException('Invalid Action Plan follow-through Program role.');
+    $priority=(string)$plan['priority']==='critical'?'urgent':(string)$plan['priority'];
+    $base=[
+      'agent_id'=>(string)$plan['agent_public_id'],'priority'=>$priority,'cadence'=>'weekly','timezone_name'=>'UTC','run_time_local'=>'09:00',
+      'quiet_mode'=>'always','materiality_threshold'=>'any','catch_up_mode'=>'latest','max_concurrent_runs'=>1,'monthly_run_limit'=>31,
+      'token_budget_per_run'=>60000,'max_tasks_per_run'=>6,'plan_due_offset_hours'=>48,'deliverable_type'=>'weekly_report',
+      'plan_title_template'=>'{program} · {date}','deliverable_title_template'=>'{program} · {date}',
+      'scope'=>['include_annotations'=>true,'include_workspace'=>true]
+    ];
+    $title=(string)$plan['title'];
+    if($role==='execution_review')return array_merge($base,[
+      'title'=>'Execution Review · '.$title,
+      'objective'=>'Review Action Plan execution progress, milestone readiness, blockers, task completion, Decision provenance, and follow-up needs for “'.$title.'”.',
+      'tasks'=>[
+        ['title'=>'Review execution progress and blockers','description'=>'Review Action Plan status, milestones, linked execution tasks, blockers, dates, and material changes since the previous Program run.','task_type'=>'general','priority'=>$priority],
+        ['title'=>'Identify governed follow-up','description'=>'Summarize what needs human attention next. Do not change Action Plan, milestone, task, Program, or Decision state.','task_type'=>'general','priority'=>$priority,'depends_on'=>[0]]
+      ]
+    ]);
+    if($role==='success_measure_check')return array_merge($base,[
+      'title'=>'Success Measure Review · '.$title,
+      'objective'=>'Review the Action Plan success measures against currently available Research and execution evidence for “'.$title.'”.',
+      'tasks'=>[
+        ['title'=>'Review Action Plan success measures','description'=>'Assess each saved success measure against current evidence and execution state. Clearly distinguish observed evidence from missing measurement.','task_type'=>'general','priority'=>$priority],
+        ['title'=>'Summarize measure gaps','description'=>'Identify success measures that need evidence, measurement, or human confirmation. Do not invent measurements.','task_type'=>'general','priority'=>$priority,'depends_on'=>[0]]
+      ]
+    ]);
+    if($role==='evidence_refresh')return array_merge($base,[
+      'title'=>'Execution Evidence Refresh · '.$title,'quiet_mode'=>'material_only','materiality_threshold'=>'important',
+      'objective'=>'Refresh material Research evidence relevant to the Action Plan and surface changes that could affect execution for “'.$title.'”.',
+      'tasks'=>[
+        ['title'=>'Review material evidence changes','description'=>'Review material changes in current Research sources, Claims, contradictions, and Action Plan execution state.','task_type'=>'review_source_change','priority'=>$priority],
+        ['title'=>'Explain execution impact','description'=>'Explain whether the changed evidence affects milestones, risks, assumptions, or the source Decision. Do not mutate execution state.','task_type'=>'general','priority'=>$priority,'depends_on'=>[0]]
+      ]
+    ]);
+    return array_merge($base,[
+      'title'=>'Decision Follow-up · '.$title,'quiet_mode'=>'material_only','materiality_threshold'=>'important','cadence'=>'monthly',
+      'objective'=>'Review whether execution outcomes, blockers, changed assumptions, or evidence warrant human review of the source Decision for “'.$title.'”.',
+      'tasks'=>[
+        ['title'=>'Review Decision-to-execution alignment','description'=>'Compare current Action Plan execution state with the pinned source Decision, including Decision staleness and material execution changes.','task_type'=>'general','priority'=>$priority],
+        ['title'=>'Identify Decision follow-up questions','description'=>'Identify evidence-backed reasons for human Decision review without changing Decision or reconsideration state.','task_type'=>'general','priority'=>$priority,'depends_on'=>[0]]
+      ]
+    ]);
+}
+function research_action_plan_program_link_row(PDO $pdo,array $viewer,string $programPublic): ?array {
+    if(!research_action_plan_follow_through_ready($pdo))return null;
+    $program=research_program_access($pdo,$viewer,$programPublic);if(!$program)return null;
+    $q=$pdo->prepare("SELECT l.*,rap.public_id action_plan_public_id FROM research_action_plan_program_links l JOIN research_action_plans rap ON rap.id=l.action_plan_id WHERE l.program_id=? LIMIT 1");
+    $q->execute([(int)$program['id']]);$link=$q->fetch();if(!$link)return null;
+    $plan=research_action_plan_access($pdo,$viewer,(string)$link['action_plan_public_id']);if(!$plan)return null;
+    $link['program']=$program;$link['action_plan']=$plan;return $link;
+}
+function research_action_plan_programs(PDO $pdo,array $viewer,string $planPublic): array {
+    if(!research_action_plan_follow_through_ready($pdo))return [];
+    $plan=research_action_plan_access($pdo,$viewer,$planPublic);if(!$plan)return [];
+    $q=$pdo->prepare("SELECT rp.public_id,l.program_role,l.sync_with_action_plan,l.created_at,l.updated_at FROM research_action_plan_program_links l JOIN research_programs rp ON rp.id=l.program_id WHERE l.action_plan_id=? ORDER BY FIELD(l.program_role,'execution_review','success_measure_check','evidence_refresh','decision_follow_up'),rp.id");
+    $q->execute([(int)$plan['id']]);$out=[];
+    foreach($q->fetchAll() as $row){$program=research_program_detail($pdo,$viewer,(string)$row['public_id']);if(!$program)continue;$program['action_plan_program_role']=(string)$row['program_role'];$program['sync_with_action_plan']=(bool)$row['sync_with_action_plan'];$program['action_plan_public_id']=$planPublic;$out[]=$program;}
+    return $out;
+}
+function research_action_plan_link_program(PDO $pdo,array $viewer,string $planPublic,string $programPublic,string $role='execution_review',bool $sync=true): array {
+    if(!research_action_plan_follow_through_ready($pdo))throw new RuntimeException('Action Plan follow-through requires the latest database upgrade.');
+    if(!isset(research_action_plan_program_roles()[$role]))throw new InvalidArgumentException('Invalid Action Plan follow-through Program role.');
+    $plan=research_action_plan_detail($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Action Plan not found.');research_action_plan_write_access($pdo,$viewer,$plan);
+    if(in_array((string)$plan['status'],['completed','cancelled','archived'],true))throw new InvalidArgumentException('Follow-through Programs cannot be linked to a completed, cancelled, or archived Action Plan.');
+    $program=research_program_access($pdo,$viewer,$programPublic);if(!$program)throw new RuntimeException('Research Program not found.');
+    if((int)$program['research_agent_id']!==(int)$plan['research_agent_id']||(int)$program['project_id']!==(int)$plan['project_id'])throw new InvalidArgumentException('Follow-through Program must belong to the same Research Agent and project as the Action Plan.');
+    if((string)$program['status']==='archived')throw new InvalidArgumentException('Archived Research Programs cannot be linked to an Action Plan.');
+    $q=$pdo->prepare('SELECT action_plan_id,program_role FROM research_action_plan_program_links WHERE program_id=? LIMIT 1');$q->execute([(int)$program['id']]);$existing=$q->fetch();
+    if($existing&&(int)$existing['action_plan_id']!==(int)$plan['id'])throw new InvalidArgumentException('That Research Program is already linked to another Action Plan.');
+    $q=$pdo->prepare('SELECT program_id FROM research_action_plan_program_links WHERE action_plan_id=? AND program_role=? LIMIT 1');$q->execute([(int)$plan['id'],$role]);$roleProgram=(int)($q->fetchColumn()?:0);
+    if($roleProgram>0&&$roleProgram!==(int)$program['id'])throw new InvalidArgumentException('This Action Plan already has a Program for that follow-through role.');
+    if($existing)$pdo->prepare('UPDATE research_action_plan_program_links SET program_role=?,sync_with_action_plan=?,updated_at=NOW() WHERE action_plan_id=? AND program_id=?')->execute([$role,$sync?1:0,(int)$plan['id'],(int)$program['id']]);
+    else $pdo->prepare('INSERT INTO research_action_plan_program_links(action_plan_id,program_id,program_role,sync_with_action_plan,created_by_user_id) VALUES(?,?,?,?,?)')->execute([(int)$plan['id'],(int)$program['id'],$role,$sync?1:0,(int)$viewer['id']]);
+    research_action_plan_event($pdo,$plan,$existing?'follow_through_program_updated':'follow_through_program_linked','user',(int)$viewer['id'],['program_id'=>(string)$program['public_id'],'program_role'=>$role,'sync_with_action_plan'=>$sync]);
+    research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],null,'action_plan_linked','user',(int)$viewer['id'],['action_plan_id'=>(string)$plan['public_id'],'program_role'=>$role,'sync_with_action_plan'=>$sync]);
+    if($sync)research_action_plan_sync_programs($pdo,$viewer,$plan,(string)$plan['status']);
+    $link=research_action_plan_program_link_row($pdo,$viewer,$programPublic);if(!$link)throw new RuntimeException('Action Plan follow-through Program link could not be loaded.');return $link;
+}
+function research_action_plan_create_program(PDO $pdo,array $viewer,string $planPublic,array $input,bool $byAgent=false): array {
+    if(!research_action_plan_follow_through_ready($pdo))throw new RuntimeException('Action Plan follow-through requires the latest database upgrade.');
+    $plan=research_action_plan_detail($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Action Plan not found.');research_action_plan_write_access($pdo,$viewer,$plan);
+    if(in_array((string)$plan['status'],['completed','cancelled','archived'],true))throw new InvalidArgumentException('Follow-through Programs cannot be created for a completed, cancelled, or archived Action Plan.');
+    $role=(string)($input['program_role']??'execution_review');if(!isset(research_action_plan_program_roles()[$role]))throw new InvalidArgumentException('Invalid Action Plan follow-through Program role.');
+    $q=$pdo->prepare("SELECT rp.public_id FROM research_action_plan_program_links l JOIN research_programs rp ON rp.id=l.program_id WHERE l.action_plan_id=? AND l.program_role=? LIMIT 1");$q->execute([(int)$plan['id'],$role]);$existing=(string)($q->fetchColumn()?:'');
+    if($existing!==''){$link=research_action_plan_program_link_row($pdo,$viewer,$existing);if($link)return $link;throw new RuntimeException('Existing follow-through Program is unavailable.');}
+    $defaults=research_action_plan_program_defaults($role,$plan);$programInput=array_replace($defaults,$input);$programInput['agent_id']=(string)$plan['agent_public_id'];
+    $programInput['tasks']=array_key_exists('tasks',$input)?$input['tasks']:$defaults['tasks'];$programInput['scope']=array_key_exists('scope',$input)?$input['scope']:$defaults['scope'];
+    $sync=array_key_exists('sync_with_action_plan',$input)?(bool)$input['sync_with_action_plan']:true;
+    $owns=!$pdo->inTransaction();if($owns)$pdo->beginTransaction();
+    try{
+      $program=research_program_create($pdo,$viewer,$programInput,$byAgent);
+      $pdo->prepare('INSERT INTO research_action_plan_program_links(action_plan_id,program_id,program_role,sync_with_action_plan,created_by_user_id) VALUES(?,?,?,?,?)')
+        ->execute([(int)$plan['id'],(int)$program['id'],$role,$sync?1:0,(int)$viewer['id']]);
+      if($sync&&(string)$plan['status']!=='active'&&(string)$program['status']==='active')$program=research_program_set_status($pdo,$viewer,(string)$program['public_id'],'paused');
+      research_action_plan_event($pdo,$plan,'follow_through_program_created',$byAgent?'agent':'user',(int)$viewer['id'],['program_id'=>(string)$program['public_id'],'program_role'=>$role,'sync_with_action_plan'=>$sync]);
+      research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],null,'action_plan_linked',$byAgent?'agent':'user',(int)$viewer['id'],['action_plan_id'=>(string)$plan['public_id'],'program_role'=>$role,'sync_with_action_plan'=>$sync]);
+      if($owns)$pdo->commit();
+    }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+    $link=research_action_plan_program_link_row($pdo,$viewer,(string)$program['public_id']);if(!$link)throw new RuntimeException('Follow-through Program could not be loaded.');return $link;
+}
+function research_action_plan_set_program_sync(PDO $pdo,array $viewer,string $planPublic,string $programPublic,bool $sync): array {
+    $plan=research_action_plan_detail($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Action Plan not found.');research_action_plan_write_access($pdo,$viewer,$plan);
+    $program=research_program_access($pdo,$viewer,$programPublic);if(!$program)throw new RuntimeException('Research Program not found.');
+    $q=$pdo->prepare('UPDATE research_action_plan_program_links SET sync_with_action_plan=?,updated_at=NOW() WHERE action_plan_id=? AND program_id=?');$q->execute([$sync?1:0,(int)$plan['id'],(int)$program['id']]);if(!$q->rowCount())throw new RuntimeException('Follow-through Program link not found.');
+    research_action_plan_event($pdo,$plan,'follow_through_program_sync_changed','user',(int)$viewer['id'],['program_id'=>$programPublic,'sync_with_action_plan'=>$sync]);
+    if($sync)research_action_plan_sync_programs($pdo,$viewer,$plan,(string)$plan['status']);
+    $link=research_action_plan_program_link_row($pdo,$viewer,$programPublic);if(!$link)throw new RuntimeException('Follow-through Program link could not be loaded.');return $link;
+}
+function research_action_plan_unlink_program(PDO $pdo,array $viewer,string $planPublic,string $programPublic): array {
+    $plan=research_action_plan_detail($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Action Plan not found.');research_action_plan_write_access($pdo,$viewer,$plan);
+    $program=research_program_access($pdo,$viewer,$programPublic);if(!$program)throw new RuntimeException('Research Program not found.');
+    $q=$pdo->prepare('DELETE FROM research_action_plan_program_links WHERE action_plan_id=? AND program_id=?');$q->execute([(int)$plan['id'],(int)$program['id']]);if(!$q->rowCount())throw new RuntimeException('Follow-through Program link not found.');
+    research_action_plan_event($pdo,$plan,'follow_through_program_unlinked','user',(int)$viewer['id'],['program_id'=>$programPublic]);
+    research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],null,'action_plan_unlinked','user',(int)$viewer['id'],['action_plan_id'=>$planPublic]);
+    return ['action_plan_id'=>$planPublic,'program_id'=>$programPublic,'unlinked'=>true];
+}
+function research_action_plan_sync_programs(PDO $pdo,array $viewer,array $plan,string $status): void {
+    if(!research_action_plan_follow_through_ready($pdo))return;
+    $q=$pdo->prepare("SELECT rp.public_id,rp.status FROM research_action_plan_program_links l JOIN research_programs rp ON rp.id=l.program_id WHERE l.action_plan_id=? AND l.sync_with_action_plan=1 ORDER BY rp.id");$q->execute([(int)$plan['id']]);
+    foreach($q->fetchAll() as $row){
+      $current=(string)$row['status'];if($current==='archived')continue;$target=$status==='active'?'active':($status==='archived'?'archived':'paused');if($current===$target)continue;
+      research_program_set_status($pdo,$viewer,(string)$row['public_id'],$target);
+    }
+}
+function research_action_plan_program_snapshot(PDO $pdo,array $program): ?array {
+    if(!research_action_plan_follow_through_ready($pdo))return null;
+    $q=$pdo->prepare("SELECT l.program_role,l.sync_with_action_plan,rap.*,rd.public_id decision_public_id,rd.status decision_current_status,rd.current_revision decision_current_revision,rd.config_hash decision_current_config_hash
+      FROM research_action_plan_program_links l JOIN research_action_plans rap ON rap.id=l.action_plan_id JOIN research_decisions rd ON rd.id=rap.decision_id WHERE l.program_id=? LIMIT 1");
+    $q->execute([(int)$program['id']]);$plan=$q->fetch();if(!$plan)return null;
+    $sourceStale=(int)$plan['decision_current_revision']!==(int)$plan['source_decision_revision']||!hash_equals((string)$plan['source_decision_config_hash'],(string)$plan['decision_current_config_hash'])||(string)$plan['decision_current_status']!==(string)$plan['source_decision_status'];
+    $today=gmdate('Y-m-d');$terminal=in_array((string)$plan['status'],['completed','cancelled','archived'],true);$overdue=!$terminal&&!empty($plan['due_on'])&&(string)$plan['due_on']<$today;
+    $snapshot=[
+      'public_id'=>(string)$plan['public_id'],'program_role'=>(string)$plan['program_role'],'sync_with_action_plan'=>(bool)$plan['sync_with_action_plan'],
+      'status'=>(string)$plan['status'],'current_revision'=>(int)$plan['current_revision'],'priority'=>(string)$plan['priority'],
+      'start_on'=>(string)($plan['start_on']??''),'due_on'=>(string)($plan['due_on']??''),'overdue'=>$overdue,
+      'source_stale'=>$sourceStale,'source_decision_public_id'=>(string)$plan['decision_public_id'],'source_decision_status'=>(string)$plan['source_decision_status'],
+      'decision_current_status'=>(string)$plan['decision_current_status'],'source_decision_revision'=>(int)$plan['source_decision_revision'],'decision_current_revision'=>(int)$plan['decision_current_revision'],
+      'success_measures'=>research_action_plan_json($plan['success_measures_json']??null),'milestones'=>[],'task_counts'=>[]
+    ];
+    $q=$pdo->prepare("SELECT status,COUNT(*) total FROM research_action_plan_task_links l JOIN research_tasks rt ON rt.id=l.task_id WHERE l.action_plan_id=? GROUP BY status ORDER BY status");$q->execute([(int)$plan['id']]);foreach($q->fetchAll() as $r)$snapshot['task_counts'][(string)$r['status']]=(int)$r['total'];
+    $q=$pdo->prepare("SELECT m.*,
+      (SELECT COUNT(*) FROM research_action_plan_milestone_dependencies d JOIN research_action_plan_milestones parent ON parent.id=d.depends_on_milestone_id WHERE d.milestone_id=m.id AND parent.status<>'completed') blocked_parent_count
+      FROM research_action_plan_milestones m WHERE m.action_plan_id=? ORDER BY m.position,m.id");$q->execute([(int)$plan['id']);
+    foreach($q->fetchAll() as $m){
+      $taskCounts=[];$tq=$pdo->prepare("SELECT rt.status,COUNT(*) total FROM research_action_plan_task_links l JOIN research_tasks rt ON rt.id=l.task_id WHERE l.milestone_id=? GROUP BY rt.status ORDER BY rt.status");$tq->execute([(int)$m['id']]);foreach($tq->fetchAll() as $r)$taskCounts[(string)$r['status']]=(int)$r['total'];
+      $mTerminal=in_array((string)$m['status'],['completed','cancelled'],true);$mOverdue=!$mTerminal&&!empty($m['target_on'])&&(string)$m['target_on']<$today;
+      $snapshot['milestones'][(string)$m['public_id']]=['title'=>(string)$m['title'],'status'=>(string)$m['status'],'target_on'=>(string)($m['target_on']??''),'overdue'=>$mOverdue,'blocked'=>(int)$m['blocked_parent_count']>0,'task_counts'=>$taskCounts];
+    }
+    ksort($snapshot['milestones']);ksort($snapshot['task_counts']);return $snapshot;
+}
+function research_action_plan_program_compare_snapshots(PDO $pdo,array $program,int $runId,array $after,?array $before): array {
+    if($before===null)return [];$out=[];$planId=(string)$after['public_id'];
+    if((string)($before['status']??'')!==(string)$after['status'])$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_status_changed','Action Plan status changed from '.($before['status']??'unknown').' to '.$after['status'].'.','action_plan',$planId,$before,$after,'important');
+    if(empty($before['source_stale'])&&!empty($after['source_stale']))$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_source_stale','Action Plan source Decision changed after the execution plan was pinned.','action_plan',$planId,$before,$after,'high');
+    if(!empty($before['source_stale'])&&empty($after['source_stale']))$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_source_current','Action Plan source Decision provenance is current again.','action_plan',$planId,$before,$after,'important');
+    if(empty($before['overdue'])&&!empty($after['overdue']))$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_overdue','Action Plan passed its due date without reaching a terminal state.','action_plan',$planId,$before,$after,'high');
+    $beforeMilestones=(array)($before['milestones']??[]);$afterMilestones=(array)($after['milestones']??[]);
+    foreach($afterMilestones as $id=>$m){
+      $old=$beforeMilestones[$id]??null;
+      if($old===null){$out[]=research_program_add_delta($pdo,$program,$runId,'milestone_added','Action Plan milestone added: '.$m['title'].'.','milestone',(string)$id,[],$m,'important');continue;}
+      if((string)($old['status']??'')!==(string)$m['status']){
+        if((string)$m['status']==='in_progress')$type='milestone_started';elseif((string)$m['status']==='completed')$type='milestone_completed';else $type='execution_progress_changed';
+        $out[]=research_program_add_delta($pdo,$program,$runId,$type,'Milestone “'.$m['title'].'” changed from '.($old['status']??'unknown').' to '.$m['status'].'.','milestone',(string)$id,$old,$m,$type==='execution_progress_changed'?'info':'important');
+      }
+      if(empty($old['blocked'])&&!empty($m['blocked']))$out[]=research_program_add_delta($pdo,$program,$runId,'milestone_blocked','Milestone blocked by incomplete parent work: '.$m['title'].'.','milestone',(string)$id,$old,$m,'high');
+      if(!empty($old['blocked'])&&empty($m['blocked']))$out[]=research_program_add_delta($pdo,$program,$runId,'milestone_unblocked','Milestone dependency blocker cleared: '.$m['title'].'.','milestone',(string)$id,$old,$m,'important');
+      if(empty($old['overdue'])&&!empty($m['overdue']))$out[]=research_program_add_delta($pdo,$program,$runId,'milestone_overdue','Milestone passed its target date: '.$m['title'].'.','milestone',(string)$id,$old,$m,'high');
+      if((array)($old['task_counts']??[])!==(array)$m['task_counts'])$out[]=research_program_add_delta($pdo,$program,$runId,'execution_progress_changed','Execution task progress changed for milestone: '.$m['title'].'.','milestone',(string)$id,$old,$m,'info');
+    }
+    if((array)($before['task_counts']??[])!==(array)$after['task_counts'])$out[]=research_program_add_delta($pdo,$program,$runId,'execution_progress_changed','Action Plan execution task progress changed.','action_plan',$planId,['task_counts'=>$before['task_counts']??[]],['task_counts'=>$after['task_counts']],'info');
+    return $out;
+}
+
