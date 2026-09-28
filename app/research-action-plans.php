@@ -421,8 +421,8 @@ function research_action_plan_set_milestone_status(PDO $pdo,array $viewer,string
     $allowed=['planned'=>['in_progress','cancelled'],'in_progress'=>['planned','completed','cancelled'],'completed'=>[],'cancelled'=>[]];if(!in_array($status,$allowed[$current]??[],true))throw new InvalidArgumentException('That milestone status transition is not allowed.');
     if($byAgent&&in_array($status,['completed','cancelled'],true))throw new InvalidArgumentException('Agent actions cannot complete or cancel an Action Plan milestone without explicit human governance.');
     if(in_array($status,['in_progress','completed'],true)&&(string)$plan['status']!=='active')throw new InvalidArgumentException('The Action Plan must be Active before milestone execution can start or complete.');
+    if(in_array($status,['in_progress','completed'],true))foreach(research_action_plan_milestone_dependencies($pdo,(int)$m['id']) as $dep)if((string)$dep['status']!=='completed')throw new InvalidArgumentException('Milestone dependencies must be completed first.');
     if($status==='completed'){
-      foreach(research_action_plan_milestone_dependencies($pdo,(int)$m['id']) as $dep)if((string)$dep['status']!=='completed')throw new InvalidArgumentException('Milestone dependencies must be completed first.');
       $tasks=research_action_plan_milestone_tasks($pdo,$viewer,(int)$m['id']);foreach($tasks as $task)if(!in_array((string)$task['status'],['complete','done','archived'],true))throw new InvalidArgumentException('All milestone execution tasks must be complete before the milestone can complete.');
       $criteria=research_action_plan_json($m['completion_criteria_json']??null);if(!$criteria)throw new InvalidArgumentException('Milestone completion criteria are required before completion.');
     }
