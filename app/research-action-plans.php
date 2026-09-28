@@ -559,7 +559,11 @@ function research_action_plan_create_program(PDO $pdo,array $viewer,string $plan
       $program=research_program_create($pdo,$viewer,$programInput,$byAgent);
       $pdo->prepare('INSERT INTO research_action_plan_program_links(action_plan_id,program_id,program_role,sync_with_action_plan,created_by_user_id) VALUES(?,?,?,?,?)')
         ->execute([(int)$plan['id'],(int)$program['id'],$role,$sync?1:0,(int)$viewer['id']]);
-      if(($byAgent||($sync&&(string)$plan['status']!=='active'))&&(string)$program['status']==='active')$program=research_program_set_status($pdo,$viewer,(string)$program['public_id'],'paused');
+      if($byAgent&&(string)$program['status']==='active'){
+        $pdo->prepare("UPDATE research_programs SET status='paused',next_run_at=NULL,updated_at=NOW() WHERE id=?")->execute([(int)$program['id']]);
+        research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],null,'paused','agent',(int)$viewer['id'],['reason'=>'agent_created_follow_through_requires_human_activation']);
+        $program=research_program_access($pdo,$viewer,(string)$program['public_id'])??$program;
+      }elseif($sync&&(string)$plan['status']!=='active'&&(string)$program['status']==='active')$program=research_program_set_status($pdo,$viewer,(string)$program['public_id'],'paused');
       research_action_plan_event($pdo,$plan,'follow_through_program_created',$byAgent?'agent':'user',(int)$viewer['id'],['program_id'=>(string)$program['public_id'],'program_role'=>$role,'sync_with_action_plan'=>$sync]);
       research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],null,'action_plan_linked',$byAgent?'agent':'user',(int)$viewer['id'],['action_plan_id'=>(string)$plan['public_id'],'program_role'=>$role,'sync_with_action_plan'=>$sync]);
       if($owns)$pdo->commit();
