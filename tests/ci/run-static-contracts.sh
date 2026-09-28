@@ -61,6 +61,7 @@ php tests/phase73-section2-portfolio-decision-execution-rollups-contract.php
 php tests/phase73-section3-cross-decision-learning-pattern-memory-contract.php
 php tests/phase73-section4-strategic-dependency-conflict-graph-contract.php
 php tests/phase73-section5-recurring-strategic-review-contract.php
+php tests/phase73-section6-executive-strategic-briefings-team-review-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
