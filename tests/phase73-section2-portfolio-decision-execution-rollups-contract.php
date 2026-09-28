@@ -27,7 +27,7 @@ $avoid('app/research-intelligence-decision-rollups.php',[
 ],'Phase 73 Section 2 read-only authority');
 $must('app/bootstrap.php',["research-intelligence-decision-rollups.php"],'Section 2 bootstrap');
 $must('app/research-intelligence-operations.php',[
- "'decision_execution'=>$execution","'execution_summary'=>$executionSummary","'decision_execution_attention'=>"
+ "'decision_execution'=>","'execution_summary'=>","'decision_execution_attention'=>"
 ],'Section 2 command center integration');
 $must('research-intelligence-portfolios.php',[
  'PHASE 73 · DECISION & EXECUTION ROLLUP','Strategic execution state','Material variances','Awaiting outcome'
