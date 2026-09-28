@@ -85,6 +85,10 @@ $external=research_program_set_status($pdo,$owner,(string)$external['public_id']
 $plan=research_action_plan_set_status($pdo,$owner,(string)$plan['public_id'],'paused');
 $execProgram=research_program_access($pdo,$owner,(string)$execProgram['public_id']);$successProgram=research_program_access($pdo,$owner,(string)$successProgram['public_id']);$external=research_program_access($pdo,$owner,(string)$external['public_id']);
 p72s3(($execProgram['status']??'')==='paused'&&($successProgram['status']??'')==='paused'&&($external['status']??'')==='paused','Action Plan pause synchronizes only enabled Programs and preserves independent paused Program state.');
+p72s3(research_program_enqueue($pdo,$execProgram,(int)$owner['id'],'manual',null)===null,'Lifecycle-synced Program cannot enqueue even a manual run while its Action Plan is Paused.');
+$independentRun=research_program_enqueue($pdo,$external,(int)$owner['id'],'manual',null);
+p72s3(is_string($independentRun)&&$independentRun!=='','Sync-disabled Program remains independently runnable under existing Program manual-run rules while Action Plan is Paused.');
+$pdo->prepare("UPDATE research_program_runs SET status='skipped',completed_at=NOW(),summary='Section 3 independent lifecycle fixture.' WHERE public_id=?")->execute([$independentRun]);
 $plan=research_action_plan_set_status($pdo,$owner,(string)$plan['public_id'],'active');
 $execProgram=research_program_access($pdo,$owner,(string)$execProgram['public_id']);$successProgram=research_program_access($pdo,$owner,(string)$successProgram['public_id']);$external=research_program_access($pdo,$owner,(string)$external['public_id']);
 p72s3(($execProgram['status']??'')==='active'&&($successProgram['status']??'')==='active'&&($external['status']??'')==='paused','Action Plan resume does not override Program lifecycle when sync is disabled.');
