@@ -499,3 +499,118 @@ Any follow-through remains an explicit later user action through the existing go
 - packet drift never rewrites an open or completed review
 - Strategic Review never mutates Decision or Action Plan lifecycle state
 
+
+
+## Section 6 — Executive Strategic Briefings & Team Review
+
+Section 6 turns the frozen strategic state from Sections 1–5 into a leadership-ready briefing without creating a parallel document, review, or publishing system.
+
+### Existing systems reused
+
+An Executive Strategic Briefing is still:
+
+- a normal `research_executive_briefings` record
+- backed by a normal Research Doc in the Research Agent workspace
+- reviewed through the existing Collaborative Research Review engine
+- published through the existing Phase 59 publication workflow
+
+Phase 59 remains the only publication workflow. Section 6 adds no new scheduler, worker, queue, or publishing engine.
+
+### Frozen strategic briefing lineage
+
+Migration 103 adds only `research_intelligence_strategic_briefings`.
+
+The lineage record binds together:
+
+- the existing Executive Briefing
+- the frozen Phase 73 strategic packet used to render it
+- an optional source Recurring Strategic Review packet
+- the existing Collaborative Team Review
+- source-review consensus provenance
+- an idempotent creation key
+
+Migration 103 fabricates no Strategic Briefing rows and does not rewrite existing Executive Briefings.
+
+A Strategic Briefing may be created from either the current deterministic strategic packet or an explicitly selected Section 5 Strategic Review packet. When a prior Strategic Review is selected, the briefing renders only from that frozen packet; newer Portfolio state is not mixed into the document.
+
+### Briefing content
+
+The frozen packet supplies the briefing's deterministic leadership sections:
+
+- Portfolio overview, risks, opportunities, cross-program signals, and material movement
+- native Decision and Phase 72 Action Plan execution state
+- overdue execution, material variance, and Outcome Memory gaps
+- Cross-Decision Pattern Memory
+- Strategic Dependency & Conflict Graph state
+- deterministic Strategic Review focus
+- source Strategic Review provenance when present
+
+The packet state hash is stored with the lineage and rendered into the document for traceability. The normal Executive Briefing snapshot relationship is retained for compatibility, while the Section 6 packet is authoritative for the strategic sections.
+
+### Team Review
+
+Immediately after creation, the Strategic Briefing Research Doc is sent to the existing Collaborative Review engine as a normal `document` subject.
+
+Reviewer assignment reuses the Portfolio's current Section 5 Strategic Review collaborator configuration. Revoked collaborators are never silently substituted.
+
+Because the Team Review is a document review, any document edit makes the Team Review stale through the existing document revision/hash contract. An updated review is then required.
+
+Current Portfolio strategic drift is tracked separately from document-review staleness. New Decision, execution, Pattern Memory, or Strategic Graph state can make the frozen briefing strategically old, but it never rewrites the frozen document or silently changes what the Team reviewed.
+
+### Publication gate
+
+Strategic Briefings add a stricter gate before the existing Phase 59 workflow is created.
+
+A Strategic Briefing can enter Phase 59 only when its Collaborative Team Review is:
+
+- completed
+- not stale
+- unanimously approved by all assigned reviewers
+
+Open review, requested changes, disagreement, mixed review, missing reviewers, or a stale document review all block publication.
+
+This stricter gate applies only to Section 6 Strategic Briefings. Historical and ordinary Executive Briefings retain their existing Phase 59 behavior.
+
+### Authority boundary
+
+Creating, reviewing, completing, or publishing an Executive Strategic Briefing cannot:
+
+- accept, reject, reopen, defer, supersede, or archive a Decision
+- create, activate, pause, complete, cancel, or archive an Action Plan
+- resolve an execution variance
+- edit or acknowledge a Strategic Graph relationship
+- write Decision Outcome Memory
+- create Research Tasks
+- execute Agent actions
+
+Team Review is communication governance, not Decision or execution authority.
+
+### Portfolio and organization surfaces
+
+Each Portfolio now shows:
+
+- total Strategic Briefings
+- open and completed Team Reviews
+- unanimous approvals
+- overdue reviews
+- publication-ready briefings
+- current strategic drift
+- frozen packet hash
+- direct Research Doc, Team Review, and publication links
+
+The organization Command Center adds Executive Strategic Briefing attention for open/overdue Team Review, requested changes, unresolved objections, and current strategic drift.
+
+### Section 6 invariants
+
+- Migration 103 creates no synthetic Strategic Briefing lineage
+- Strategic Briefings reuse the existing Executive Briefing and Research Doc stores
+- the selected strategic packet is immutable briefing input
+- an older selected packet is never mixed with current strategic state in the rendered briefing
+- Team Review uses the existing `document` Collaborative Review subject
+- a document edit makes the Team Review stale
+- current strategic drift does not rewrite the frozen briefing or its Team Review subject
+- publication requires completed, current, unanimously approved Team Review
+- Phase 59 remains the only publication workflow
+- Team / Portfolio permission revocation immediately removes access
+- no new scheduler, worker, queue, or publishing engine is introduced
+- no Decision, Action Plan, variance, Strategic Graph, Outcome Memory, Task, or Agent authority is added
