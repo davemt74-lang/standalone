@@ -410,6 +410,11 @@ jobs:
           test -f package-website/tests/phase72-section6-team-command-review-contract.php
           test -f package-website/tests/phase72-section6-team-command-review-db.php
           test -f package-website/tests/ci/phase72-section6-upgrade-from-096.php
+          test -f package-website/database/migrations/20260928_098_research_action_plan_outcome_handoff.sql
+          test -f package-website/app/research-action-plan-outcomes.php
+          test -f package-website/tests/phase72-section7-outcome-handoff-contract.php
+          test -f package-website/tests/phase72-section7-outcome-handoff-db.php
+          test -f package-website/tests/ci/phase72-section7-upgrade-from-097.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
