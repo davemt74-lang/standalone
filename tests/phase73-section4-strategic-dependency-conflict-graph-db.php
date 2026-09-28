@@ -32,25 +32,27 @@ $planA=research_action_plan_from_decision($pdo,$owner,(string)$a['public_id'],['
 $planB=research_action_plan_from_decision($pdo,$owner,(string)$b['public_id'],['idempotency_key'=>'s4-plan-b','title'=>'Plan B','objective'=>'Execute B.','expected_result'=>'B result.','success_measures'=>[['label'=>'B','target'=>'Done']]]);
 
 $sourceState=['a'=>(string)$a['status'],'b'=>(string)$b['status'],'c'=>(string)$c['status'],'planA'=>(string)$planA['status'],'planB'=>(string)$planB['status']];
-$edge=function(array $portfolio,string $st,string $sid,string $tt,string $tid,string $relation,string $why)use($pdo,$owner){return research_intelligence_strategic_edge_upsert($pdo,$owner,(string)$portfolio['public_id'],['source_type'=>$st,'source_public_id'=>$sid,'target_type'=>$tt,'target_public_id'=>$tid,'relation_type'=>$relation,'rationale'=>$why,'confidence'=>0.85]);};
+$edge=function(array $portfolio,string $st,string $sid,string $tt,string $tid,string $relation,string $why,string $materiality='medium')use($pdo,$owner){return research_intelligence_strategic_edge_upsert($pdo,$owner,(string)$portfolio['public_id'],['source_type'=>$st,'source_public_id'=>$sid,'target_type'=>$tt,'target_public_id'=>$tid,'relation_type'=>$relation,'rationale'=>$why,'confidence'=>0.85,'materiality'=>$materiality]);};
 
-$conflict=$edge($portfolioA,'decision',(string)$a['public_id'],'decision',(string)$b['public_id'],'conflicts_with','Decision A conflicts with Decision B across Portfolio boundaries.');
+$conflict=$edge($portfolioA,'decision',(string)$a['public_id'],'decision',(string)$b['public_id'],'conflicts_with','Decision A conflicts with Decision B across Portfolio boundaries.','critical');
 p73s4($conflict['active']&&$conflict['cross_portfolio'],'Cross-Portfolio conflict edge is explicit, active, and permission checked.');
 $reverse=$edge($portfolioB,'decision',(string)$b['public_id'],'decision',(string)$a['public_id'],'conflicts_with','Reverse write must de-duplicate.');
 p73s4((string)$reverse['public_id']===(string)$conflict['public_id'],'Symmetric conflict reverse write de-duplicates to the same edge.');
 
 $support=$edge($portfolioA,'decision',(string)$a['public_id'],'action_plan',(string)$planA['public_id'],'supports','Decision A supports its execution Plan.');
-$block=$edge($portfolioA,'action_plan',(string)$planA['public_id'],'decision',(string)$b['public_id'],'blocks','Plan A blocks Decision B until completion.');
+$block=$edge($portfolioA,'action_plan',(string)$planA['public_id'],'decision',(string)$b['public_id'],'blocks','Plan A blocks Decision B until completion.','high');
 $dependency=$edge($portfolioA,'decision',(string)$a['public_id'],'decision',(string)$b['public_id'],'depends_on','Decision A depends on Decision B constraints.');
 $duplicate=$edge($portfolioA,'decision',(string)$a['public_id'],'decision',(string)$c['public_id'],'duplicates','Decision A and C duplicate strategic scope.');
 $duplicateReverse=$edge($portfolioA,'decision',(string)$c['public_id'],'decision',(string)$a['public_id'],'duplicates','Reverse duplicate should reuse.');
 p73s4((string)$duplicateReverse['public_id']===(string)$duplicate['public_id'],'Symmetric duplicate reverse write de-duplicates.');
 $supersedes=$edge($portfolioA,'decision',(string)$a['public_id'],'decision',(string)$c['public_id'],'supersedes','Decision A supersedes Decision C directionally.');
-$affects=$edge($portfolioA,'action_plan',(string)$planA['public_id'],'action_plan',(string)$planB['public_id'],'materially_affects','Plan A materially affects Plan B capacity.');
+$affects=$edge($portfolioA,'action_plan',(string)$planA['public_id'],'action_plan',(string)$planB['public_id'],'materially_affects','Plan A materially affects Plan B capacity.','high');
 
 p73s4throws(fn()=>$edge($portfolioB,'decision',(string)$b['public_id'],'decision',(string)$a['public_id'],'depends_on','Would create dependency cycle.'),'Dependency cycle is rejected before write.');
 p73s4throws(fn()=>$edge($portfolioA,'decision',(string)$c['public_id'],'decision',(string)$a['public_id'],'supersedes','Would create supersession cycle.'),'Supersession cycle is rejected before write.');
 p73s4throws(fn()=>$edge($portfolioA,'decision',(string)$a['public_id'],'decision',(string)$a['public_id'],'supports','Self edge invalid.'),'Self relationship is rejected.');
+p73s4throws(fn()=>$edge($portfolioA,'decision',(string)$b['public_id'],'decision',(string)$a['public_id'],'supports','Wrong source Portfolio.'),'A graph source must belong to the Portfolio recording the edge.');
+p73s4throws(fn()=>$edge($portfolioA,'decision',(string)$a['public_id'],'action_plan',(string)$planB['public_id'],'duplicates','Cross-type duplicate invalid.'),'Duplicate relationship cannot connect unlike strategic object types.');
 
 $aNow=research_decision_detail($pdo,$owner,(string)$a['public_id']);$bNow=research_decision_detail($pdo,$owner,(string)$b['public_id']);$cNow=research_decision_detail($pdo,$owner,(string)$c['public_id']);$paNow=research_action_plan_detail($pdo,$owner,(string)$planA['public_id']);$pbNow=research_action_plan_detail($pdo,$owner,(string)$planB['public_id']);
 p73s4($sourceState===['a'=>(string)$aNow['status'],'b'=>(string)$bNow['status'],'c'=>(string)$cNow['status'],'planA'=>(string)$paNow['status'],'planB'=>(string)$pbNow['status']],'Graph writes do not mutate Decision or Action Plan lifecycle state.');
@@ -58,6 +60,9 @@ p73s4($sourceState===['a'=>(string)$aNow['status'],'b'=>(string)$bNow['status'],
 $graphA=research_intelligence_portfolio_strategic_graph($pdo,$owner,(string)$portfolioA['public_id'],false,300);
 p73s4($graphA['summary']['active_edges']===7,'All seven supported relationship types can coexist as explicit graph edges.');
 p73s4($graphA['summary']['conflicts']===1&&$graphA['summary']['blocks']===1&&$graphA['summary']['dependencies']===1&&$graphA['summary']['cross_portfolio_edges']>=4,'Portfolio graph summarizes conflict, block, dependency, and cross-Portfolio relationships.');
+p73s4(($graphA['summary']['high_or_critical_edges']??0)>=3&&($graphA['summary']['high_or_critical_conflicts']??0)===1,'Graph summary preserves explicit materiality for executive attention.');
+$initialConflictAttention=array_values(array_filter((array)$graphA['attention'],fn($x)=>(string)$x['edge_id']===(string)$conflict['public_id']));
+p73s4(count($initialConflictAttention)===1&&in_array('conflict',(array)$initialConflictAttention[0]['reasons'],true)&&in_array('high_materiality',(array)$initialConflictAttention[0]['reasons'],true),'Critical conflict carries deterministic conflict and high-materiality attention reasons.');
 
 $b=research_decision_set_status($pdo,$owner,(string)$b['public_id'],'reopened');
 $staleConflict=research_intelligence_strategic_edge_access($pdo,$owner,(string)$conflict['public_id']);
@@ -65,17 +70,27 @@ p73s4(!empty($staleConflict['stale'])&&!empty($staleConflict['target_stale']),'D
 $refreshed=research_intelligence_strategic_edge_refresh($pdo,$owner,(string)$conflict['public_id']);
 p73s4(empty($refreshed['stale']),'Explicit acknowledgement refreshes relationship endpoint state hashes.');
 
-$removed=research_intelligence_strategic_edge_remove($pdo,$owner,(string)$support['public_id']);
-p73s4(empty($removed['active']),'Removing a relationship retains the edge as inactive history.');
+p73s4throws(fn()=>research_intelligence_strategic_edge_remove($pdo,$owner,(string)$support['public_id'],''),'Removing a strategic relationship requires an explicit audited reason.');
+$removed=research_intelligence_strategic_edge_remove($pdo,$owner,(string)$support['public_id'],'Execution support relationship is no longer operationally relevant.');
+p73s4(empty($removed['active'])&&(string)($removed['removal_reason']??'')==='Execution support relationship is no longer operationally relevant.','Removing a relationship retains inactive history plus the explicit removal reason.');
 $restored=$edge($portfolioA,'decision',(string)$a['public_id'],'action_plan',(string)$planA['public_id'],'supports','Restored support relationship.');
 p73s4((string)$restored['public_id']===(string)$support['public_id']&&!empty($restored['active']),'Re-recording a removed relationship restores the same edge.');
 $events=research_intelligence_strategic_edge_events($pdo,$owner,(string)$support['public_id'],20);$types=array_column($events,'event_type');
 p73s4(in_array('created',$types,true)&&in_array('removed',$types,true)&&in_array('restored',$types,true),'Relationship audit history retains created, removed, and restored events.');
+$removedEvents=array_values(array_filter($events,fn($e)=>(string)$e['event_type']==='removed'));
+p73s4(count($removedEvents)===1&&($removedEvents[0]['snapshot']['removal_reason']??'')==='Execution support relationship is no longer operationally relevant.','Removal audit event freezes the explicit removal reason.');
 
 $org=research_intelligence_organization_strategic_graph($pdo,$owner);
 p73s4($org['summary']['active_edges']===7&&$org['summary']['conflicts']===1&&$org['summary']['blocks']===1,'Organization graph de-duplicates relationships visible in multiple Portfolios.');
 $attention=array_values(array_filter($org['attention'],fn($x)=>in_array((string)$x['relation_type'],['conflicts_with','blocks'],true)));
 p73s4(count($attention)>=2,'Organization Command Center attention includes explicit conflicts and blockers.');
+$conflictOrg=array_values(array_filter($attention,fn($x)=>(string)$x['edge_id']===(string)$conflict['public_id']));
+$blockOrg=array_values(array_filter($attention,fn($x)=>(string)$x['edge_id']===(string)$block['public_id']));
+p73s4(count($conflictOrg)===1&&($conflictOrg[0]['materiality']??'')==='critical'&&in_array('conflict',(array)$conflictOrg[0]['reasons'],true),'Organization attention preserves critical conflict materiality and reason.');
+p73s4(count($blockOrg)===1&&($blockOrg[0]['materiality']??'')==='high'&&in_array('blocking_relationship',(array)$blockOrg[0]['reasons'],true),'Organization attention preserves high blocking materiality and reason.');
+$feed=[];research_intelligence_portfolio_operations_cognitive_observations($pdo,$owner,$feed,20);
+$graphFeed=array_values(array_filter($feed,fn($item)=>(string)($item['type']??'')==='portfolio_strategic_relationship'));
+p73s4(count($graphFeed)>=2,'Existing Now/cognitive feed surfaces strategic graph attention without changing source state.');
 
 p73s4(research_intelligence_strategic_edge_access($pdo,$outsider,(string)$conflict['public_id'])===null,'Outsider cannot access strategic graph relationship.');
 p73s4throws(fn()=>research_intelligence_strategic_edge_upsert($pdo,$outsider,(string)$portfolioA['public_id'],['source_type'=>'decision','source_public_id'=>$a['public_id'],'target_type'=>'decision','target_public_id'=>$b['public_id'],'relation_type'=>'supports','rationale'=>'Denied']),'Outsider cannot write strategic graph relationship.');
