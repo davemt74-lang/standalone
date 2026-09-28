@@ -292,9 +292,11 @@ Each edge preserves:
 - relationship type
 - explicit rationale
 - optional confidence
-- source and target state hashes at the time the relationship is recorded or acknowledged
+- explicit materiality: low / medium / high / critical
+- source and target revision-aware state hashes at the time the relationship is recorded or acknowledged
 - creating Portfolio
 - creating/removing user
+- required removal reason
 - active / removed state
 - immutable audit events
 
@@ -306,7 +308,7 @@ Stale does not mean invalid. It means a human should review whether the relation
 
 `conflicts_with` and `duplicates` are symmetric and are normalized so A↔B cannot be recorded twice in opposite directions.
 
-`depends_on` and `supersedes` are directional and reject a write that would create a cycle in the same relationship graph.
+`depends_on`, `blocks`, and `supersedes` are directional and reject a write that would create a cycle in the same relationship graph.
 
 Self-relationships are rejected.
 
@@ -314,7 +316,7 @@ Self-relationships are rejected.
 
 Removing a relationship does not delete its history.
 
-The edge becomes inactive, records who removed it and when, and retains its audit events. Recording the same relationship again restores the existing edge and writes a restoration event.
+The edge becomes inactive, records who removed it, when, and the required removal reason, and retains its audit events. Recording the same relationship again restores the existing edge and writes a restoration event.
 
 ### Portfolio and organization views
 
@@ -327,13 +329,18 @@ Each Portfolio exposes:
 - stale relationships
 - cross-Portfolio relationships
 - source/target navigation
-- explicit rationale
-- acknowledge-current-state and remove controls
+- explicit rationale, materiality, and optional confidence
+- connected cross-Portfolio endpoint nodes
+- existing Phase 71 contradiction/challenge counts on Decision nodes
+- acknowledge-current-state and reason-required remove controls
 
 The organization Command Center surfaces attention-grade graph edges:
 
 - conflicts
 - blocks
+- possible duplicates
+- unresolved dependencies
+- high-materiality impacts
 - stale relationships
 
 ### Authority boundary
@@ -357,10 +364,12 @@ Graph operations cannot:
 - source node must belong to the Portfolio recording the edge
 - cross-Portfolio target requires normal access to its authoritative node
 - conflict/duplicate reverse writes de-duplicate to one edge
-- dependency and supersession cycles are rejected
+- dependency, blocking, and supersession cycles are rejected
 - endpoint changes make saved graph provenance stale
 - stale relationships require explicit human acknowledgement to refresh
-- removal preserves audit history and restoration reuses the edge
+- removal requires a reason, preserves audit history, and restoration reuses the edge
+- cross-Portfolio graph payloads include connected external endpoint nodes rather than dangling edges
+- existing Phase 71 contradiction/challenge state is referenced as node metadata instead of duplicated
 - graph writes never mutate source Decision or Action Plan state
 - Team / Portfolio permission revocation immediately removes graph access
 - no worker, scheduler, queue, fuzzy inference, or AI relationship writer is introduced
