@@ -679,3 +679,72 @@ function research_action_plan_program_context_text(PDO $pdo,array $program): str
     return implode("\n",$lines);
 }
 
+function research_action_plan_review_snapshot(PDO $pdo,array $viewer,string $planPublic): array {
+    $plan=research_action_plan_detail($pdo,$viewer,$planPublic);if(!$plan)throw new RuntimeException('Action Plan not found.');
+    $strategicHash=function_exists('research_action_plan_cognition_state_hash')&&research_action_plan_cognition_ready($pdo)
+      ?research_action_plan_cognition_state_hash($pdo,$viewer,$planPublic)
+      :research_action_plan_hash(research_action_plan_config($plan));
+    return [
+      'public_id'=>(string)$plan['public_id'],'status'=>(string)$plan['status'],'current_revision'=>(int)$plan['current_revision'],
+      'config_hash'=>(string)$plan['config_hash'],'strategic_state_hash'=>$strategicHash,
+      'source_decision_public_id'=>(string)$plan['decision_public_id'],'source_decision_status'=>(string)$plan['source_decision_status'],
+      'source_decision_revision'=>(int)$plan['source_decision_revision'],'current_decision_status'=>(string)$plan['decision_status'],
+      'current_decision_revision'=>(int)$plan['decision_current_revision'],'source_stale'=>(bool)$plan['source_stale'],
+      'activated_at'=>(string)($plan['activated_at']??''),'completed_at'=>(string)($plan['completed_at']??''),'cancelled_at'=>(string)($plan['cancelled_at']??'')
+    ];
+}
+function research_action_plan_review_state_hash(PDO $pdo,array $viewer,string $planPublic): string {
+    return research_action_plan_hash(research_action_plan_review_snapshot($pdo,$viewer,$planPublic));
+}
+function research_action_plan_review_overview(PDO $pdo,array $viewer,string $planPublic): array {
+    if(!function_exists('research_reviews_ready')||!research_reviews_ready($pdo))return ['total'=>0,'open'=>0,'completed'=>0,'latest'=>null,'consensus'=>null];
+    $q=$pdo->prepare("SELECT public_id FROM research_reviews WHERE subject_type='action_plan' AND subject_public_id=? ORDER BY id DESC LIMIT 25");$q->execute([$planPublic]);
+    $total=0;$open=0;$completed=0;$latest=null;$consensus=null;
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){
+      $review=research_review_access($pdo,$viewer,(string)$id);if(!$review)continue;$total++;
+      if((string)$review['status']==='open')$open++;if((string)$review['status']==='completed')$completed++;
+      if($latest===null){$agg=research_review_aggregate($pdo,$review);$latest=[
+        'public_id'=>(string)$review['public_id'],'status'=>(string)$review['status'],'is_stale'=>(bool)$review['is_stale'],
+        'consensus'=>(string)$agg['consensus'],'counts'=>$agg['counts'],'assigned'=>(int)$agg['assigned'],'responded'=>(int)$agg['responded'],
+        'due_at'=>$review['due_at'],'created_at'=>(string)$review['created_at']
+      ];$consensus=(string)$agg['consensus'];}
+    }
+    return ['total'=>$total,'open'=>$open,'completed'=>$completed,'latest'=>$latest,'consensus'=>$consensus];
+}
+function research_action_plan_command_center(PDO $pdo,array $viewer,string $scope='all',int $limit=150): array {
+    if(!research_action_plans_ready($pdo))return ['ready'=>false,'generated_at'=>date('Y-m-d H:i:s'),'stats'=>[],'action_plans'=>[]];
+    $scope=in_array($scope,['all','attention','proposed','active','paused','decision_review','variances','reviews','completed'],true)?$scope:'all';
+    $limit=max(1,min(250,$limit));$uid=(int)$viewer['id'];
+    $q=$pdo->prepare("SELECT DISTINCT rap.public_id,rap.updated_at,rap.id FROM research_action_plans rap JOIN research_agents ra ON ra.id=rap.research_agent_id
+      LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
+      WHERE rap.status<>'archived' AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))
+      ORDER BY rap.updated_at DESC,rap.id DESC LIMIT ".$limit);
+    $q->execute([$uid,$uid,$uid]);$rows=[];$stats=['total'=>0,'attention'=>0,'proposed'=>0,'active'=>0,'paused'=>0,'completed'=>0,'decision_review'=>0,'open_variances'=>0,'open_reviews'=>0,'owned_by_me'=>0];
+    foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){
+      $plan=research_action_plan_detail($pdo,$viewer,(string)$id);if(!$plan)continue;
+      $cognition=null;if(function_exists('research_action_plan_cognition_ready')&&research_action_plan_cognition_ready($pdo)){try{$cognition=research_action_plan_cognition_snapshot($pdo,$viewer,(string)$id);}catch(Throwable $ignored){}}
+      $strategic=(string)($cognition['strategic_state']??(in_array((string)$plan['status'],['completed','cancelled'],true)?'closed':'continue_execution'));
+      $openVariances=count((array)($cognition['open_variances']??[]));$review=research_action_plan_review_overview($pdo,$viewer,(string)$id);
+      $reviewConcern=in_array((string)($review['consensus']??''),['changes_requested','unresolved_objection','mixed_review'],true);
+      $attention=in_array($strategic,['decision_review','needs_attention'],true)||$reviewConcern||!empty($review['latest']['is_stale'])||(string)$plan['status']==='proposed';
+      $reasons=[];foreach((array)($cognition['decision_review_reasons']??[]) as $reason)$reasons[]=$reason;foreach((array)($cognition['attention_reasons']??[]) as $reason)$reasons[]=$reason;
+      if((string)$plan['status']==='proposed')$reasons[]='Awaiting explicit activation or revision';if($reviewConcern)$reasons[]='Team review has unresolved feedback';if(!empty($review['latest']['is_stale']))$reasons[]='Latest Team Review is stale';
+      $reasons=array_values(array_unique(array_filter($reasons)));
+      $plan['command']=[
+        'attention'=>$attention,'attention_reasons'=>$reasons,'strategic_state'=>$strategic,'state_hash'=>(string)($cognition['state_hash']??''),
+        'open_variances'=>$openVariances,'review'=>$review,'milestone_counts'=>(array)($cognition['milestone_counts']??[]),'task_counts'=>(array)($cognition['task_counts']??[]),
+        'overdue'=>(bool)($cognition['plan_overdue']??false),'owned_by_viewer'=>(int)($plan['owner_user_id']??0)===$uid,
+        'review_url'=>'/research-reviews.php?type=action_plan&subject='.rawurlencode((string)$plan['public_id']),
+        'project_url'=>'/research-project.php?id='.rawurlencode((string)$plan['project_public_id'])
+      ];
+      $stats['total']++;$status=(string)$plan['status'];if(isset($stats[$status]))$stats[$status]++;if($attention)$stats['attention']++;if($strategic==='decision_review')$stats['decision_review']++;$stats['open_variances']+=$openVariances;$stats['open_reviews']+=(int)$review['open'];if($plan['command']['owned_by_viewer'])$stats['owned_by_me']++;
+      $show=match($scope){
+        'attention'=>$attention,'proposed'=>$status==='proposed','active'=>$status==='active','paused'=>$status==='paused',
+        'decision_review'=>$strategic==='decision_review','variances'=>$openVariances>0,'reviews'=>$review['total']>0,'completed'=>$status==='completed',default=>true
+      };
+      if($show)$rows[]=$plan;
+    }
+    usort($rows,function($a,$b){$aa=!empty($a['command']['attention'])?1:0;$bb=!empty($b['command']['attention'])?1:0;if($aa!==$bb)return $bb<=>$aa;return strcmp((string)$b['updated_at'],(string)$a['updated_at']);});
+    return ['ready'=>true,'generated_at'=>date('Y-m-d H:i:s'),'scope'=>$scope,'stats'=>$stats,'action_plans'=>$rows];
+}
+
