@@ -397,6 +397,11 @@ jobs:
           test -f package-website/tests/phase72-section3-programs-recurring-follow-through-contract.php
           test -f package-website/tests/phase72-section3-programs-recurring-follow-through-db.php
           test -f package-website/tests/ci/phase72-section3-upgrade-from-094.php
+          test -f package-website/database/migrations/20260928_096_research_action_plan_execution_evidence_variance.sql
+          test -f package-website/app/research-action-plan-variance.php
+          test -f package-website/tests/phase72-section4-execution-evidence-variance-contract.php
+          test -f package-website/tests/phase72-section4-execution-evidence-variance-db.php
+          test -f package-website/tests/ci/phase72-section4-upgrade-from-095.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
