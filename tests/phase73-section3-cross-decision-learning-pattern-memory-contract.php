@@ -41,7 +41,7 @@ $must('research-intelligence-command-center.php',[
 ],'Phase 73 Section 3 Command Center UI');
 $must('docs/phase-73-portfolio-decision-intelligence-organizational-learning.md',[
  '## Section 3 — Cross-Decision Learning & Pattern Memory','two or more distinct native Portfolio Decisions',
- 'no embedding similarity','migration 100','no new worker or scheduler'
+ 'no embedding similarity','Migration 100','No new worker or scheduler'
 ],'Phase 73 Section 3 architecture');
 $must('tests/ci/run-static-contracts.sh',['phase73-section3-cross-decision-learning-pattern-memory-contract.php'],'Section 3 static gate');
 $must('tests/ci/run-full-regression.sh',['phase73-section3-cross-decision-learning-pattern-memory-db.php'],'Section 3 DB gate');
