@@ -337,7 +337,7 @@ function research_action_plan_add_milestone_dependency(PDO $pdo,array $viewer,st
     $m=research_action_plan_milestone_access($pdo,$viewer,$milestonePublic);$parent=research_action_plan_milestone_access($pdo,$viewer,$dependsOnPublic);
     if(!$m||!$parent)throw new RuntimeException('Action Plan milestone not found.');$plan=$m['action_plan'];research_action_plan_write_access($pdo,$viewer,$plan);
     if((int)$m['action_plan_id']!==(int)$parent['action_plan_id'])throw new InvalidArgumentException('Milestone dependencies must stay inside one Action Plan.');
-    if(in_array((string)$m['status'],['completed','cancelled'],true))throw new InvalidArgumentException('Completed/cancelled milestone dependencies are immutable.');
+    if((string)$m['status']!=='planned')throw new InvalidArgumentException('Milestone dependencies can only change before the milestone starts.');
     if(!in_array($type,['finish_to_start','blocking'],true))$type='finish_to_start';
     if(research_action_plan_milestone_dependency_cycle($pdo,(int)$m['id'],(int)$parent['id']))throw new InvalidArgumentException('Milestone dependency would create a cycle.');
     $pdo->prepare('INSERT INTO research_action_plan_milestone_dependencies(milestone_id,depends_on_milestone_id,dependency_type) VALUES(?,?,?) ON DUPLICATE KEY UPDATE dependency_type=VALUES(dependency_type)')
@@ -347,6 +347,7 @@ function research_action_plan_add_milestone_dependency(PDO $pdo,array $viewer,st
 function research_action_plan_remove_milestone_dependency(PDO $pdo,array $viewer,string $milestonePublic,string $dependsOnPublic): array {
     $m=research_action_plan_milestone_access($pdo,$viewer,$milestonePublic);$parent=research_action_plan_milestone_access($pdo,$viewer,$dependsOnPublic);
     if(!$m||!$parent)throw new RuntimeException('Action Plan milestone not found.');$plan=$m['action_plan'];research_action_plan_write_access($pdo,$viewer,$plan);
+    if((string)$m['status']!=='planned')throw new InvalidArgumentException('Milestone dependencies can only change before the milestone starts.');
     $pdo->prepare('DELETE FROM research_action_plan_milestone_dependencies WHERE milestone_id=? AND depends_on_milestone_id=?')->execute([(int)$m['id'],(int)$parent['id']]);
     research_action_plan_event($pdo,$plan,'milestone_dependency_removed','user',(int)$viewer['id'],['milestone_id'=>$milestonePublic,'depends_on'=>$dependsOnPublic]);research_action_plan_requeue_milestone_tasks($pdo,$viewer,(int)$m['id']);
     return research_action_plan_milestone_detail($pdo,$viewer,$milestonePublic)??$m;
@@ -398,7 +399,7 @@ function research_action_plan_task_execution_ready(PDO $pdo,int $taskId): bool {
     $q=$pdo->prepare("SELECT rap.status action_plan_status,m.id milestone_id,m.status milestone_status
       FROM research_action_plan_task_links l JOIN research_action_plans rap ON rap.id=l.action_plan_id
       LEFT JOIN research_action_plan_milestones m ON m.id=l.milestone_id WHERE l.task_id=? LIMIT 1");$q->execute([$taskId]);$row=$q->fetch();if(!$row)return true;
-    if((string)$row['action_plan_status']!=='active')return false;if(!$row['milestone_id'])return true;if((string)$row['milestone_status']==='cancelled')return false;
+    if((string)$row['action_plan_status']!=='active')return false;if(!$row['milestone_id'])return true;if((string)$row['milestone_status']!=='in_progress')return false;
     $q=$pdo->prepare("SELECT COUNT(*) FROM research_action_plan_milestone_dependencies d JOIN research_action_plan_milestones parent ON parent.id=d.depends_on_milestone_id WHERE d.milestone_id=? AND parent.status<>'completed'");$q->execute([(int)$row['milestone_id']]);return (int)$q->fetchColumn()===0;
 }
 function research_action_plan_requeue_milestone_tasks(PDO $pdo,array $viewer,int $milestoneId): void {
@@ -409,6 +410,7 @@ function research_action_plan_set_milestone_status(PDO $pdo,array $viewer,string
     if(!in_array($status,['planned','in_progress','completed','cancelled'],true))throw new InvalidArgumentException('Invalid milestone status.');$current=(string)$m['status'];if($current===$status)return research_action_plan_milestone_detail($pdo,$viewer,$milestonePublic)??$m;
     $allowed=['planned'=>['in_progress','cancelled'],'in_progress'=>['planned','completed','cancelled'],'completed'=>[],'cancelled'=>[]];if(!in_array($status,$allowed[$current]??[],true))throw new InvalidArgumentException('That milestone status transition is not allowed.');
     if($byAgent&&in_array($status,['completed','cancelled'],true))throw new InvalidArgumentException('Agent actions cannot complete or cancel an Action Plan milestone without explicit human governance.');
+    if(in_array($status,['in_progress','completed'],true)&&(string)$plan['status']!=='active')throw new InvalidArgumentException('The Action Plan must be Active before milestone execution can start or complete.');
     if($status==='completed'){
       foreach(research_action_plan_milestone_dependencies($pdo,(int)$m['id']) as $dep)if((string)$dep['status']!=='completed')throw new InvalidArgumentException('Milestone dependencies must be completed first.');
       $tasks=research_action_plan_milestone_tasks($pdo,$viewer,(int)$m['id']);foreach($tasks as $task)if(!in_array((string)$task['status'],['complete','done','archived'],true))throw new InvalidArgumentException('All milestone execution tasks must be complete before the milestone can complete.');
