@@ -25,10 +25,10 @@ function research_intelligence_strategic_node_key(string $type,string $publicId)
 
 function research_intelligence_strategic_node_portfolios(PDO $pdo,array $viewer,string $type,int $sourceId): array {
     if($type==='decision'){
-        $q=$pdo->prepare("SELECT DISTINCT p.public_id FROM research_intelligence_portfolio_decision_links l JOIN research_intelligence_portfolios p ON p.id=l.portfolio_id WHERE l.decision_id=? ORDER BY p.id");
+        $q=$pdo->prepare("SELECT DISTINCT p.public_id FROM research_intelligence_portfolio_decision_links l JOIN research_intelligence_portfolios p ON p.id=l.portfolio_id WHERE l.decision_id=? ORDER BY p.public_id");
         $q->execute([$sourceId]);
     }else{
-        $q=$pdo->prepare("SELECT DISTINCT p.public_id FROM research_action_plans ap JOIN research_intelligence_portfolio_decision_links l ON l.decision_id=ap.decision_id JOIN research_intelligence_portfolios p ON p.id=l.portfolio_id WHERE ap.id=? ORDER BY p.id");
+        $q=$pdo->prepare("SELECT DISTINCT p.public_id FROM research_action_plans ap JOIN research_intelligence_portfolio_decision_links l ON l.decision_id=ap.decision_id JOIN research_intelligence_portfolios p ON p.id=l.portfolio_id WHERE ap.id=? ORDER BY p.public_id");
         $q->execute([$sourceId]);
     }
     $out=[];foreach($q->fetchAll(PDO::FETCH_COLUMN)?:[] as $public)if(research_intelligence_portfolio_access($pdo,$viewer,(string)$public))$out[]=(string)$public;
