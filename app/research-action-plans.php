@@ -559,7 +559,7 @@ function research_action_plan_create_program(PDO $pdo,array $viewer,string $plan
       $program=research_program_create($pdo,$viewer,$programInput,$byAgent);
       $pdo->prepare('INSERT INTO research_action_plan_program_links(action_plan_id,program_id,program_role,sync_with_action_plan,created_by_user_id) VALUES(?,?,?,?,?)')
         ->execute([(int)$plan['id'],(int)$program['id'],$role,$sync?1:0,(int)$viewer['id']]);
-      if($sync&&(string)$plan['status']!=='active'&&(string)$program['status']==='active')$program=research_program_set_status($pdo,$viewer,(string)$program['public_id'],'paused');
+      if(($byAgent||($sync&&(string)$plan['status']!=='active'))&&(string)$program['status']==='active')$program=research_program_set_status($pdo,$viewer,(string)$program['public_id'],'paused');
       research_action_plan_event($pdo,$plan,'follow_through_program_created',$byAgent?'agent':'user',(int)$viewer['id'],['program_id'=>(string)$program['public_id'],'program_role'=>$role,'sync_with_action_plan'=>$sync]);
       research_program_event($pdo,(int)$program['id'],(int)$program['project_id'],null,'action_plan_linked',$byAgent?'agent':'user',(int)$viewer['id'],['action_plan_id'=>(string)$plan['public_id'],'program_role'=>$role,'sync_with_action_plan'=>$sync]);
       if($owns)$pdo->commit();
@@ -598,7 +598,7 @@ function research_action_plan_program_snapshot(PDO $pdo,array $program): ?array 
     $sourceStale=(int)$plan['decision_current_revision']!==(int)$plan['source_decision_revision']||!hash_equals((string)$plan['source_decision_config_hash'],(string)$plan['decision_current_config_hash'])||(string)$plan['decision_current_status']!==(string)$plan['source_decision_status'];
     $today=gmdate('Y-m-d');$terminal=in_array((string)$plan['status'],['completed','cancelled','archived'],true);$overdue=!$terminal&&!empty($plan['due_on'])&&(string)$plan['due_on']<$today;
     $snapshot=[
-      'public_id'=>(string)$plan['public_id'],'program_role'=>(string)$plan['program_role'],'sync_with_action_plan'=>(bool)$plan['sync_with_action_plan'],
+      'public_id'=>(string)$plan['public_id'],'title'=>(string)$plan['title'],'program_role'=>(string)$plan['program_role'],'sync_with_action_plan'=>(bool)$plan['sync_with_action_plan'],
       'status'=>(string)$plan['status'],'current_revision'=>(int)$plan['current_revision'],'priority'=>(string)$plan['priority'],
       'start_on'=>(string)($plan['start_on']??''),'due_on'=>(string)($plan['due_on']??''),'overdue'=>$overdue,
       'source_stale'=>$sourceStale,'source_decision_public_id'=>(string)$plan['decision_public_id'],'source_decision_status'=>(string)$plan['source_decision_status'],
@@ -618,7 +618,7 @@ function research_action_plan_program_snapshot(PDO $pdo,array $program): ?array 
 }
 function research_action_plan_program_compare_snapshots(PDO $pdo,array $program,int $runId,array $after,?array $before): array {
     $out=[];$planId=(string)$after['public_id'];
-    if($before===null){$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_status_changed','Research Program is now following Action Plan “'.(string)($program['title']??$planId).'” at status '.$after['status'].'.','action_plan',$planId,[],$after,'important');return $out;}
+    if($before===null){$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_status_changed','Research Program is now following Action Plan “'.(string)($after['title']??$planId).'” at status '.$after['status'].'.','action_plan',$planId,[],$after,'important');return $out;}
     if((string)($before['status']??'')!==(string)$after['status'])$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_status_changed','Action Plan status changed from '.($before['status']??'unknown').' to '.$after['status'].'.','action_plan',$planId,$before,$after,'important');
     if(empty($before['source_stale'])&&!empty($after['source_stale']))$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_source_stale','Action Plan source Decision changed after the execution plan was pinned.','action_plan',$planId,$before,$after,'high');
     if(!empty($before['source_stale'])&&empty($after['source_stale']))$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_source_current','Action Plan source Decision provenance is current again.','action_plan',$planId,$before,$after,'important');
