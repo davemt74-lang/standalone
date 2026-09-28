@@ -290,3 +290,68 @@ No duplicate Action Plan history is created; Program snapshots are recurring obs
 - Program snapshots/deltas are read-only observations and never mutate Action Plan, milestone, task, or Decision state
 - existing Program cadence/concurrency/budget/quiet-mode rules remain authoritative
 
+## Section 4 — Execution Evidence & Variance
+
+Section 4 preserves what execution was expected to look like when work began and records what actually happened without introducing a second execution engine.
+
+### Immutable execution baseline
+
+The first transition to **Active** captures an immutable execution baseline pinned to the Action Plan revision/config hash at activation. The baseline stores:
+
+- the canonical Action Plan configuration, including expected result, success measures, risks, assumptions, dates, and Decision provenance
+- milestone titles, owners, completion criteria, and target dates
+- linked existing Research Task identities, roles, priorities, and due dates
+
+Baseline capture is idempotent for the same Action Plan revision/config hash. Later observations never rewrite a prior baseline.
+
+### Append-only execution observations
+
+Execution observations record expected-vs-actual evidence after execution begins. Observations can describe:
+
+- overall progress
+- success-measure results
+- milestone results
+- changed assumptions
+- realized risks
+- material new evidence
+- early outcome signals
+
+Each observation stores an explicit subject, assessment, observation date, expected snapshot, actual snapshot, materiality, and optional source type/public ID/source snapshot. Retries are idempotent.
+
+Section 4 does not copy or replace the existing Research evidence/task systems. A source snapshot is immutable provenance for the observation, while the underlying source remains authoritative in its own subsystem.
+
+### Durable variance ledger
+
+Material deviations become explicit variance records instead of being inferred from mutable current state. Supported variance classes are:
+
+- schedule delay
+- target miss
+- assumption changed
+- new evidence
+- risk realized
+- scope change
+- execution deviation
+
+Each variance records expected-vs-actual state, severity, materiality, impact, response, subject, and baseline lineage. Variances are fingerprinted so deterministic refreshes cannot create duplicates.
+
+A human may resolve a variance with a response. Resolution never deletes or rewrites the originating execution observation. Agent-originated variance resolution is blocked; later Agent cognition belongs to Section 5.
+
+### Deterministic variance refresh
+
+A user/Agent-triggered refresh may compare current execution state with the immutable baseline and append newly discovered schedule or assumption variances.
+
+The refresh is a synchronous comparison only. Section 4 introduces **no new worker, queue, scheduler, cron, or autonomous execution loop**. Recurring follow-through remains owned by the existing Research Programs runtime from Section 3.
+
+### Section 4 invariants
+
+- activation captures immutable execution expectations before later execution changes are observed
+- baseline capture is idempotent per Action Plan revision/config hash
+- execution observations are append-only and idempotent
+- observations never mutate Decision, milestone, Research Task, or Research Program state
+- variances preserve expected-vs-actual lineage to the activation baseline
+- deterministic refresh is fingerprint-safe and duplicate-safe
+- source snapshots are provenance, not a replacement evidence store
+- human variance resolution does not rewrite the originating observation
+- Agent actions cannot resolve variances
+- no Action Plan-specific worker, queue, scheduler, cron, or autonomous loop is introduced
+
