@@ -41,7 +41,7 @@ function research_action_plan_cognition_assert_state(PDO $pdo,array $viewer,stri
     $expectedHash=trim($expectedHash);if($expectedHash==='')throw new InvalidArgumentException('Action Plan state hash is required.');
     $plan=research_action_plan_detail($pdo,$viewer,trim($planPublic));if(!$plan)throw new RuntimeException('Action Plan not found.');
     $current=research_action_plan_cognition_state_hash($pdo,$viewer,(string)$plan['public_id']);
-    if(!hash_equals($expectedHash,$current))throw new AgentActionStale('The Action Plan changed after this proposal. Ask the Agent to review current execution state and propose the action again.');
+    if(!hash_equals($expectedHash,$current)){if(class_exists('AgentActionStale'))throw new AgentActionStale('The Action Plan changed after this proposal. Ask the Agent to review current execution state and propose the action again.');throw new RuntimeException('The Action Plan changed after this proposal. Review current execution state before continuing.');}
     return $plan;
 }
 function research_action_plan_cognition_snapshot(PDO $pdo,array $viewer,string $planPublic): array {
