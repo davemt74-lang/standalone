@@ -617,7 +617,8 @@ function research_action_plan_program_snapshot(PDO $pdo,array $program): ?array 
     ksort($snapshot['milestones']);ksort($snapshot['task_counts']);return $snapshot;
 }
 function research_action_plan_program_compare_snapshots(PDO $pdo,array $program,int $runId,array $after,?array $before): array {
-    if($before===null)return [];$out=[];$planId=(string)$after['public_id'];
+    $out=[];$planId=(string)$after['public_id'];
+    if($before===null){$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_status_changed','Research Program is now following Action Plan “'.(string)($program['title']??$planId).'” at status '.$after['status'].'.','action_plan',$planId,[],$after,'important');return $out;}
     if((string)($before['status']??'')!==(string)$after['status'])$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_status_changed','Action Plan status changed from '.($before['status']??'unknown').' to '.$after['status'].'.','action_plan',$planId,$before,$after,'important');
     if(empty($before['source_stale'])&&!empty($after['source_stale']))$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_source_stale','Action Plan source Decision changed after the execution plan was pinned.','action_plan',$planId,$before,$after,'high');
     if(!empty($before['source_stale'])&&empty($after['source_stale']))$out[]=research_program_add_delta($pdo,$program,$runId,'action_plan_source_current','Action Plan source Decision provenance is current again.','action_plan',$planId,$before,$after,'important');
