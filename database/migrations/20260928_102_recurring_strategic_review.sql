@@ -1,6 +1,12 @@
 -- Annotated Phase 73 Section 5 — Recurring Strategic Review
 -- Reuses the existing Portfolio cycle clock and Collaborative Research Review engine.
 
+ALTER TABLE research_reviews
+  MODIFY COLUMN subject_type ENUM(
+    'claim','finding','report_version','agent_action','document','mission',
+    'decision','decision_reconsideration','action_plan','strategic_review'
+  ) NOT NULL;
+
 CREATE TABLE IF NOT EXISTS research_intelligence_strategic_reviews (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   public_id VARCHAR(40) NOT NULL UNIQUE,
