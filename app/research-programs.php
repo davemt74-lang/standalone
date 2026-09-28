@@ -280,6 +280,7 @@ function research_program_month_count(PDO $pdo,int $programId): int {
 
 function research_program_enqueue(PDO $pdo,array $program,?int $requestedByUserId,string $trigger,?string $scheduledFor=null): ?string {
     if(!in_array($trigger,['schedule','manual','catch_up','recovery'],true))throw new InvalidArgumentException('Invalid Research Program trigger.');
+    if(function_exists('research_action_plan_program_run_allowed')&&!research_action_plan_program_run_allowed($pdo,$program))return null;
     if(($program['status']??'')==='archived')return null;if($trigger!=='manual'&&$program['status']!=='active')return null;if(research_program_active_count($pdo,(int)$program['id'])>=(int)$program['max_concurrent_runs'])return null;if(research_program_month_count($pdo,(int)$program['id'])>=(int)$program['monthly_run_limit'])return null;
     $slot=$scheduledFor?:gmdate('Y-m-d H:i:s');$triggerKey=hash('sha256',(int)$program['id'].'|'.$trigger.'|'.$slot.($trigger==='manual'?'|'.ulid_like():''));$public=ulid_like();
     $q=$pdo->prepare("SELECT id FROM research_program_runs WHERE program_id=? AND input_snapshot_json IS NOT NULL ORDER BY id DESC LIMIT 1");$q->execute([(int)$program['id']]);$previous=(int)($q->fetchColumn()?:0);
@@ -323,6 +324,7 @@ function research_program_create_plan(PDO $pdo,array $program,array $viewer,arra
 }
 
 function research_program_prepare_run(PDO $pdo,array $program,array $viewer,array $run): array {
+    if(function_exists('research_action_plan_program_run_allowed')&&!research_action_plan_program_run_allowed($pdo,$program))return ['status'=>'skipped','summary'=>'Linked Action Plan is not Active; recurring follow-through is paused.'];
     if($program['status']==='archived'||($run['trigger_type']!=='manual'&&$program['status']!=='active'))return ['status'=>'skipped','summary'=>'Program is paused, archived, or unavailable for scheduled execution.'];
     research_program_project($pdo,$viewer,['project_public_id'=>$program['project_public_id']]);
     $current=research_program_snapshot($pdo,$program);$previous=research_program_previous_snapshot($pdo,(int)$program['id'],(int)$run['id']);$inputHash=hash('sha256',json_encode($current,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));$deltas=research_program_compare_snapshots($pdo,$program,$current,$previous,(int)$run['id']);$material=research_program_material_deltas($program,$deltas);$materialHash=hash('sha256',json_encode(array_column($material,'fingerprint'),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));$summary=['total_changes'=>count($deltas),'material_changes'=>count($material),'types'=>array_count_values(array_map(fn($d)=>(string)$d['type'],$deltas))];
