@@ -303,6 +303,7 @@ jobs:
           php tests/phase73-section5-recurring-strategic-review-db.php
           php tests/phase73-section6-executive-strategic-briefings-team-review-db.php
           php tests/phase73-section7-organizational-agent-cognition-db.php
+          php tests/phase73-section8-end-to-end-release-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -672,6 +673,12 @@ jobs:
           DB_USER: root
           DB_PASS: root
         run: php tests/ci/phase73-section7-no-migration-governance.php
+      - name: MySQL 8 Phase 73 final supported upgrade matrix through migration 103
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase73_final_upgrades;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/ci/phase73-final-supported-upgrades.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
