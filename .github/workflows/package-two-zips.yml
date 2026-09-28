@@ -418,6 +418,11 @@ jobs:
           test -f package-website/tests/phase72-section8-end-to-end-release-contract.php
           test -f package-website/tests/phase72-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase72-final-supported-upgrades.php
+          test -f package-website/database/migrations/20260928_099_portfolio_native_decision_handoff.sql
+          test -f package-website/docs/phase-73-portfolio-decision-intelligence-organizational-learning.md
+          test -f package-website/tests/phase73-section1-portfolio-native-decision-handoff-contract.php
+          test -f package-website/tests/phase73-section1-portfolio-native-decision-handoff-db.php
+          test -f package-website/tests/ci/phase73-section1-upgrade-from-098.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
