@@ -13,7 +13,7 @@ $avoid=function(string $file,array $needles,string $label)use($root,&$fail): voi
 $must('database/migrations/20260928_101_strategic_dependency_conflict_graph.sql',[
  'research_intelligence_strategic_edges','research_intelligence_strategic_edge_events',
  "'depends_on'","'supports'","'conflicts_with'","'duplicates'","'supersedes'","'blocks'","'materially_affects'",
- 'source_state_hash','target_state_hash','materiality','removal_reason','uq_p73_strategic_edge','chk_p73_strategic_edge_not_self'
+ 'source_revision','source_state_hash','target_revision','target_state_hash','materiality','removal_reason','uq_p73_strategic_edge','chk_p73_strategic_edge_not_self'
 ],'Phase 73 Section 4 migration');
 $must('app/research-intelligence-strategic-graph.php',[
  'research_intelligence_strategic_graph_ready','research_intelligence_strategic_edge_upsert',
@@ -37,7 +37,7 @@ $must('api/research-intelligence-portfolios.php',[
 ],'Section 4 API');
 $must('research-intelligence-portfolios.php',[
  'PHASE 73 · STRATEGIC DEPENDENCY & CONFLICT GRAPH','Record relationship','Acknowledge current state','Remove relationship',
- 'Materiality','Removal reason','Cross-Portfolio','Stale'
+ 'Materiality','Removal reason','CROSS-PORTFOLIO','STALE'
 ],'Section 4 Portfolio UI');
 $must('research-intelligence-command-center.php',[
  'STRATEGIC DEPENDENCY & CONFLICT GRAPH','Relationship attention','Strategic conflicts','Stale relationships'
