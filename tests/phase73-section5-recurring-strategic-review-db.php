@@ -46,8 +46,8 @@ $aNow=research_decision_detail($pdo,$owner,(string)$a['public_id']);$bNow=resear
 $after=['a'=>(string)$aNow['status'],'b'=>(string)$bNow['status'],'plan'=>(string)$planNow['status'],'decision_count'=>(int)$pdo->query('SELECT COUNT(*) FROM research_decisions')->fetchColumn(),'plan_count'=>(int)$pdo->query('SELECT COUNT(*) FROM research_action_plans')->fetchColumn()];
 p73s5($before===$after,'Creating Strategic Review never mutates or duplicates Decision/Action Plan source state.');
 
-$responded=research_review_respond($pdo,$collab,(string)$review['public_id'],'request_changes','Resolve the critical strategic conflict before relying on this packet.');
-p73s5(($responded['aggregate']['consensus']??'')==='changes_requested','Strategic Review uses existing Collaborative Review response and consensus behavior.');
+$responded=research_review_respond($pdo,$collab,(string)$review['public_id'],'request_changes','Resolve the critical strategic conflict before relying on this packet.');$respondedAggregate=research_review_aggregate($pdo,$responded);
+p73s5(($respondedAggregate['consensus']??'')==='changes_requested','Strategic Review uses existing Collaborative Review response and consensus behavior.');
 $center=research_intelligence_organization_strategic_review_center($pdo,$owner);
 p73s5(($center['summary']['changes_requested']??0)>=1&&count((array)$center['attention'])>=1,'Organization Strategic Review center surfaces changes-requested human attention.');
 
