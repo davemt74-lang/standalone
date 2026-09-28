@@ -82,7 +82,7 @@ p73s4(($afterReopenGraph['summary']['unresolved_dependencies']??0)===1,'Reopened
 $depAttention=array_values(array_filter((array)$afterReopenGraph['attention'],fn($x)=>(string)$x['edge_id']===(string)$dependency['public_id']));
 p73s4(count($depAttention)===1&&in_array('dependency_unresolved',(array)$depAttention[0]['reasons'],true)&&in_array('stale_relationship',(array)$depAttention[0]['reasons'],true),'Dependency attention explains both unresolved target state and stale saved provenance.');
 $refreshed=research_intelligence_strategic_edge_refresh($pdo,$owner,(string)$conflict['public_id']);
-p73s4(empty($refreshed['stale'])&&max((int)$refreshed['source_revision'],(int)$refreshed['target_revision'])>=2,'Explicit acknowledgement refreshes relationship endpoint revisions and state hashes.');
+p73s4(empty($refreshed['stale'])&&(int)$refreshed['source_revision']===(int)$refreshed['source']['revision']&&(int)$refreshed['target_revision']===(int)$refreshed['target']['revision'],'Explicit acknowledgement refreshes stored endpoint revisions and state hashes to current authoritative nodes.');
 
 p73s4throws(fn()=>research_intelligence_strategic_edge_remove($pdo,$owner,(string)$support['public_id'],''),'Removing a strategic relationship requires an explicit audited reason.');
 $removed=research_intelligence_strategic_edge_remove($pdo,$owner,(string)$support['public_id'],'Execution support relationship is no longer operationally relevant.');
