@@ -8,7 +8,7 @@ $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
 $input=$method==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $readActions=['list','summary','detail'];
+    $readActions=['list','summary','detail','execution_detail','milestone_detail'];
     $viewer=in_array($action,$readActions,true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_action_plans_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Action Plan Ledger requires the latest database upgrade.']],503);
 
@@ -21,6 +21,15 @@ try{
         $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
         $row=research_action_plan_detail($pdo,$viewer,$id);if(!$row)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
         json_response(['ok'=>true,'data'=>['action_plan'=>$row]]);
+    }
+    if($action==='execution_detail'){
+        $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
+        json_response(['ok'=>true,'data'=>research_action_plan_execution_detail($pdo,$viewer,$id)]);
+    }
+    if($action==='milestone_detail'){
+        $id=trim((string)($input['milestone_id']??''));if($id==='')throw new InvalidArgumentException('Milestone is required.');
+        $row=research_action_plan_milestone_detail($pdo,$viewer,$id);if(!$row)json_response(['ok'=>false,'error'=>['code'=>'NOT_FOUND']],404);
+        json_response(['ok'=>true,'data'=>['milestone'=>$row]]);
     }
 
     if($method!=='POST')json_response(['ok'=>false,'error'=>['code'=>'METHOD_NOT_ALLOWED','message'=>'Action Plan changes require POST.']],405);
@@ -37,6 +46,34 @@ try{
     if($action==='set_status'){
         $id=trim((string)($input['action_plan_id']??''));$status=trim((string)($input['status']??''));if($id===''||$status==='')throw new InvalidArgumentException('Action Plan and status are required.');
         json_response(['ok'=>true,'data'=>['action_plan'=>research_action_plan_set_status($pdo,$viewer,$id,$status,false)]]);
+    }
+    if($action==='create_milestone'){
+        $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
+        json_response(['ok'=>true,'data'=>['milestone'=>research_action_plan_create_milestone($pdo,$viewer,$id,$input,false)]],201);
+    }
+    if($action==='update_milestone'){
+        $id=trim((string)($input['milestone_id']??''));if($id==='')throw new InvalidArgumentException('Milestone is required.');
+        json_response(['ok'=>true,'data'=>['milestone'=>research_action_plan_update_milestone($pdo,$viewer,$id,$input,false)]]);
+    }
+    if($action==='set_milestone_status'){
+        $id=trim((string)($input['milestone_id']??''));$status=trim((string)($input['status']??''));if($id===''||$status==='')throw new InvalidArgumentException('Milestone and status are required.');
+        json_response(['ok'=>true,'data'=>['milestone'=>research_action_plan_set_milestone_status($pdo,$viewer,$id,$status,false)]]);
+    }
+    if($action==='add_milestone_dependency'){
+        $id=trim((string)($input['milestone_id']??''));$depends=trim((string)($input['depends_on_milestone_id']??''));if($id===''||$depends==='')throw new InvalidArgumentException('Milestone and dependency are required.');
+        json_response(['ok'=>true,'data'=>['milestone'=>research_action_plan_add_milestone_dependency($pdo,$viewer,$id,$depends,(string)($input['dependency_type']??'finish_to_start'))]]);
+    }
+    if($action==='remove_milestone_dependency'){
+        $id=trim((string)($input['milestone_id']??''));$depends=trim((string)($input['depends_on_milestone_id']??''));if($id===''||$depends==='')throw new InvalidArgumentException('Milestone and dependency are required.');
+        json_response(['ok'=>true,'data'=>['milestone'=>research_action_plan_remove_milestone_dependency($pdo,$viewer,$id,$depends)]]);
+    }
+    if($action==='add_task'){
+        $id=trim((string)($input['action_plan_id']??''));if($id==='')throw new InvalidArgumentException('Action Plan is required.');
+        json_response(['ok'=>true,'data'=>['task'=>research_action_plan_add_task($pdo,$viewer,$id,$input,false)]],201);
+    }
+    if($action==='set_task_dependencies'){
+        $id=trim((string)($input['action_plan_id']??''));$task=trim((string)($input['task_id']??''));if($id===''||$task==='')throw new InvalidArgumentException('Action Plan and task are required.');
+        json_response(['ok'=>true,'data'=>['task'=>research_action_plan_set_task_dependencies($pdo,$viewer,$id,$task,(array)($input['depends_on']??[]))]]);
     }
     json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);
 }catch(InvalidArgumentException $e){json_response(['ok'=>false,'error'=>['code'=>'INVALID_INPUT','message'=>$e->getMessage()]],422);}
