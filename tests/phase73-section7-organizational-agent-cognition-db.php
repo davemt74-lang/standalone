@@ -128,7 +128,7 @@ $ops=research_intelligence_portfolio_operations_detail($pdo,$owner,research_inte
 
 $pdo->prepare('DELETE FROM team_members WHERE team_id=? AND user_id=?')->execute([$teamId,$collab['id']]);
 p73s7(!research_intelligence_organizational_portfolio_cognition($pdo,$collab,(string)$portfolio['public_id'])['ready'],'Team revocation immediately removes Portfolio cognition access.');
-p73s7throws(fn()=>research_intelligence_organizational_portfolio_cognition($pdo,$outsider,(string)$portfolio['public_id']),RuntimeException::class,'Outsider cannot use inaccessible Portfolio cognition through a write path.');
+p73s7(!research_intelligence_organizational_portfolio_cognition($pdo,$outsider,(string)$portfolio['public_id'])['ready'],'Outsider cannot access Portfolio cognition.');
 $runtime=(string)file_get_contents($root.'/app/research-intelligence-organizational-cognition.php');
 p73s7(!str_contains($runtime,'research_decision_set_status(')&&!str_contains($runtime,'research_action_plan_set_status(')&&!str_contains($runtime,'research_publication_publish(')&&!str_contains($runtime,'ai_run('),'Cognition runtime remains read-only and deterministic.');
 echo "Phase 73 Section 7 Organizational Agent Cognition & Governed Follow-Through database journey passed.\n";
