@@ -64,7 +64,7 @@ $t2=research_action_plan_add_task($pdo,$owner,(string)$plan['public_id'],[
 ]);
 $execution=research_action_plan_execution_detail($pdo,$owner,(string)$plan['public_id']);
 p72s2(!empty($execution['task_plan'])&&count((array)$execution['milestones'])===2,'Action Plan lazily owns one existing Research Task Plan plus two milestones.');
-p72s2((int)$execution['task_plan']['id']===(int)$plan['execution_task_plan_id']||!empty($execution['task_plan']['public_id']),'Execution uses the existing Research Task Plan runtime.');
+p72s2(!empty($execution['task_plan']['public_id'])&&str_starts_with((string)$execution['task_plan']['title'],'Execution ·'),'Execution uses the existing Research Task Plan runtime.');
 p72s2(count((array)$execution['milestones'][0]['tasks'])+count((array)$execution['milestones'][1]['tasks'])===2,'Execution tasks are ordinary linked Research Tasks.');
 
 $q=$pdo->prepare("SELECT COUNT(*) FROM research_task_jobs WHERE task_id IN (?,?) AND status='queued'");$q->execute([(int)$t1['id'],(int)$t2['id']]);
