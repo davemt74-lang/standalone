@@ -37,6 +37,26 @@ function agent_action_capabilities(): array {
         'label'=>'Open Decision reconsideration from Action Plan','description'=>'Open a human-governed reconsideration case for the Action Plan source Decision after confirmation. This does not change Decision status or apply a recommendation.',
         'arguments'=>['action_plan_id'=>'Action Plan public ID','action_plan_state_hash'=>'exact State hash from Action Plan Strategic Memory','title'=>'string optional','reason'=>'string','materiality'=>'low|medium|high|critical optional']
       ],
+      'research.portfolio.create_decision_draft'=>[
+        'label'=>'Create Portfolio Decision draft','description'=>'Create a native Phase 71 Decision in draft state from current organizational cognition after confirmation. This never accepts, rejects, defers, reopens, or supersedes the Decision.',
+        'arguments'=>['portfolio_id'=>'Intelligence Portfolio public ID','portfolio_state_hash'=>'exact strategic state hash from Organizational Strategic Cognition','title'=>'string','statement'=>'string','rationale'=>'string optional','decision_type'=>'decision|conclusion|recommendation optional','confidence'=>'0..1 optional','assumptions'=>'array optional','uncertainty'=>'array optional','alternatives'=>'array optional']
+      ],
+      'research.decision.create_action_plan_draft'=>[
+        'label'=>'Create Action Plan draft','description'=>'Create a Phase 72 Action Plan in draft state from an Accepted or Reopened Decision after confirmation. This never activates the plan.',
+        'arguments'=>['decision_id'=>'Decision public ID','decision_state_hash'=>'exact Decision state hash from Organizational Strategic Cognition','title'=>'string','objective'=>'string','expected_result'=>'string','priority'=>'low|medium|high|urgent optional','success_measures'=>'array of {label,target}','risks'=>'array optional','assumptions'=>'array optional','start_on'=>'YYYY-MM-DD optional','due_on'=>'YYYY-MM-DD optional']
+      ],
+      'research.decision.open_reconsideration'=>[
+        'label'=>'Open Decision reconsideration','description'=>'Open a human-governed Decision reconsideration case from current organizational cognition after confirmation. This never changes Decision status or applies a recommendation.',
+        'arguments'=>['decision_id'=>'Decision public ID','decision_state_hash'=>'exact Decision state hash from Organizational Strategic Cognition','title'=>'string optional','reason'=>'string','materiality'=>'low|medium|high|critical optional']
+      ],
+      'research.portfolio.create_strategic_review'=>[
+        'label'=>'Create Strategic Review','description'=>'Freeze current Portfolio strategic state and send it through the existing Collaborative Review path after confirmation. This cannot change Decision or execution state.',
+        'arguments'=>['portfolio_id'=>'Intelligence Portfolio public ID','portfolio_state_hash'=>'exact strategic state hash from Organizational Strategic Cognition','instructions'=>'string optional']
+      ],
+      'research.portfolio.create_strategic_briefing'=>[
+        'label'=>'Create Executive Strategic Briefing','description'=>'Create a frozen Executive Strategic Briefing and its existing Team Review after confirmation. This cannot publish the document or bypass Team Review.',
+        'arguments'=>['portfolio_id'=>'Intelligence Portfolio public ID','portfolio_state_hash'=>'exact strategic state hash from Organizational Strategic Cognition','strategic_review_id'=>'source Strategic Review public ID optional','source_packet_hash'=>'exact source packet hash when strategic_review_id is supplied','title'=>'string optional','window_days'=>'1..365 optional']
+      ],
       'research.create_mission'=>[
         'label'=>'Create Research Mission','description'=>'Create a durable outcome-driven Research Mission in draft state. This does not create or start a Plan, Task queue, Program, or autonomous execution.',
         'arguments'=>['title'=>'string','research_question'=>'string','objective'=>'string','success_definition'=>'string optional','priority'=>'low|medium|high|urgent optional','success_criteria'=>'array of strings optional','subquestions'=>'array of strings optional']
