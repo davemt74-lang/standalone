@@ -23,16 +23,16 @@ $must('app/research-intelligence-operations.php',[
  'function research_intelligence_portfolio_record_decision','research_outcome_record'
 ],'Legacy Phase 61 compatibility helper');
 $must('app/research-decisions.php',[
-  '\$type===\'portfolio\'','\$type===\'portfolio_insight\'','\$type===\'executive_briefing\''
+  '$type===\'portfolio\'','$type===\'portfolio_insight\'','$type===\'executive_briefing\''
 ],'Native Decision Portfolio provenance');
 $must('api/research-intelligence-portfolios.php',[
  "research_intelligence_portfolio_create_native_decision"
 ],'Portfolio API native routing');
 $avoid('api/research-intelligence-portfolios.php',[
- "research_intelligence_portfolio_record_decision($pdo,$viewer"
+  'research_intelligence_portfolio_record_decision($pdo,$viewer'
 ],'Portfolio API legacy routing');
 $must('research-intelligence-portfolios.php',[
- 'PHASE 73 · NATIVE DECISION HANDOFF','Create Draft Decision','Decision statement',
+ 'PHASE 73 NATIVE DECISION HANDOFF','Create Draft Decision','Decision statement',
  'research_intelligence_portfolio_create_native_decision','Open Decision','LEGACY PHASE 61'
 ],'Portfolio native Decision UI');
 $avoid('research-intelligence-portfolios.php',[
