@@ -219,6 +219,44 @@ function agent_action_clean_arguments(string $capability,array $args): array {
             return ['action_plan_id'=>$plan,'action_plan_state_hash'=>$stateHash,'title'=>$s($args['title']??'',255),'reason'=>$reason,'materiality'=>$materiality];
         }
     }
+    if(str_starts_with($capability,'research.action_plan.')){
+        $plan=agent_action_action_plan_for_project($pdo,$viewer,$project,$args);$planPublic=(string)$plan['public_id'];
+        if($capability==='research.action_plan.add_task'){
+            $task=research_action_plan_add_task($pdo,$viewer,$planPublic,[
+              'milestone_id'=>(string)($args['milestone_id']??''),'title'=>(string)$args['title'],'description'=>(string)($args['description']??''),
+              'task_type'=>(string)($args['task_type']??'general'),'priority'=>(string)($args['priority']??'medium'),'due_at'=>(string)($args['due_at']??''),
+              'link_role'=>(string)($args['link_role']??'execution'),'depends_on'=>(array)($args['depends_on']??[])
+            ],true);
+            return ['type'=>'action_plan_task','public_id'=>(string)$task['public_id'],'label'=>(string)$task['title'],'status'=>(string)$task['status'],'action_plan_id'=>$planPublic,'url'=>'/research-tasks.php?agent='.rawurlencode((string)$plan['agent_public_id']).'&task='.rawurlencode((string)$task['public_id'])];
+        }
+        if($capability==='research.action_plan.create_milestone'){
+            $m=research_action_plan_create_milestone($pdo,$viewer,$planPublic,[
+              'title'=>(string)$args['title'],'description'=>(string)($args['description']??''),'completion_criteria'=>(array)($args['completion_criteria']??[]),'target_on'=>(string)($args['target_on']??'')
+            ],true);
+            return ['type'=>'action_plan_milestone','public_id'=>(string)$m['public_id'],'label'=>(string)$m['title'],'status'=>(string)($m['status']??'planned'),'action_plan_id'=>$planPublic,'url'=>'/research-project.php?id='.rawurlencode((string)$plan['project_public_id'])];
+        }
+        if($capability==='research.action_plan.create_follow_through_program'){
+            $link=research_action_plan_create_program($pdo,$viewer,$planPublic,[
+              'program_role'=>(string)$args['program_role'],'cadence'=>(string)$args['cadence'],'timezone_name'=>(string)$args['timezone_name'],'run_time_local'=>(string)$args['run_time_local'],
+              'quiet_mode'=>(string)$args['quiet_mode'],'materiality_threshold'=>(string)$args['materiality_threshold'],'sync_with_action_plan'=>(bool)$args['sync_with_action_plan']
+            ],true);
+            $program=(array)($link['program']??[]);
+            return ['type'=>'action_plan_program','public_id'=>(string)($program['public_id']??''),'label'=>(string)($program['title']??research_action_plan_program_roles()[(string)$args['program_role']]),'status'=>(string)($program['status']??'paused'),'program_role'=>(string)$args['program_role'],'action_plan_id'=>$planPublic,'url'=>'/research-programs.php?agent='.rawurlencode((string)$plan['agent_public_id']).'&program='.rawurlencode((string)($program['public_id']??''))];
+        }
+        if($capability==='research.action_plan.record_observation'){
+            $input=$args;unset($input['action_plan_id'],$input['action_plan_state_hash']);$result=research_action_plan_record_execution_observation($pdo,$viewer,$planPublic,$input,true);$obs=(array)($result['observation']??[]);$variance=(array)($result['variance']??[]);
+            return ['type'=>'action_plan_observation','public_id'=>(string)($obs['public_id']??''),'label'=>(string)($obs['summary']??$args['summary']),'assessment'=>(string)($obs['assessment']??$args['assessment']),'variance_id'=>(string)($variance['public_id']??''),'variance_type'=>(string)($variance['variance_type']??''),'action_plan_id'=>$planPublic,'url'=>'/research-project.php?id='.rawurlencode((string)$plan['project_public_id'])];
+        }
+        if($capability==='research.action_plan.open_decision_reconsideration'){
+            if(!function_exists('research_decision_open_reconsideration'))throw new RuntimeException('Decision Reconsideration is unavailable.');
+            $case=research_decision_open_reconsideration($pdo,$viewer,(string)$plan['decision_public_id'],[
+              'trigger_type'=>'manual','title'=>(string)($args['title']!==''?$args['title']:'Reconsider '.(string)$plan['decision_title']),
+              'reason'=>(string)$args['reason'],'materiality'=>(string)$args['materiality']
+            ],true);
+            return ['type'=>'decision_reconsideration','public_id'=>(string)$case['public_id'],'label'=>(string)$case['title'],'status'=>(string)$case['status'],'action_plan_id'=>$planPublic,'decision_id'=>(string)$plan['decision_public_id'],'url'=>'/research-project.php?id='.rawurlencode((string)$plan['project_public_id'])];
+        }
+        throw new RuntimeException('Unsupported Action Plan Agent capability.');
+    }
     if($capability==='research.create_mission'){
         $title=$s($args['title']??'',255);$question=$s($args['research_question']??$args['question']??'',16000);$objective=$s($args['objective']??'',16000);
         if($title===''||$question===''||$objective==='')throw new InvalidArgumentException('Mission title, research question, and objective are required.');
@@ -424,6 +462,16 @@ function agent_action_create_proposals(PDO $pdo,array $viewer,array $conversatio
         else{$q=$pdo->prepare('SELECT public_id FROM agent_action_proposals WHERE dedupe_key=?');$q->execute([$dedupe]);$existing=(string)($q->fetchColumn()?:'');if($existing){$row=agent_action_proposal_row($pdo,$viewer,$existing);if($row)$out[]=$row;}}
     }
     return $out;
+}
+
+function agent_action_action_plan_for_project(PDO $pdo,array $viewer,array $project,array $args): array {
+    if(!function_exists('research_action_plan_cognition_ready')||!research_action_plan_cognition_ready($pdo))throw new RuntimeException('Action Plan Strategic Follow-Through requires the latest application state.');
+    $planPublic=trim((string)($args['action_plan_id']??''));$stateHash=trim((string)($args['action_plan_state_hash']??''));
+    if($planPublic===''||$stateHash==='')throw new InvalidArgumentException('Action Plan ID and state hash are required.');
+    if($pdo->inTransaction()){$lock=$pdo->prepare('SELECT id FROM research_action_plans WHERE public_id=? FOR UPDATE');$lock->execute([$planPublic]);if(!$lock->fetchColumn())throw new RuntimeException('Action Plan not found.');}
+    $plan=research_action_plan_cognition_assert_state($pdo,$viewer,$planPublic,$stateHash);
+    if((int)$plan['project_id']!==(int)$project['id'])throw new AgentActionForbidden('That Action Plan does not belong to the confirmed Research project.');
+    return $plan;
 }
 
 function agent_action_claim_row(PDO $pdo,int $projectId,string $publicId): ?array {
