@@ -108,6 +108,9 @@ $proposal=p73s7_propose($pdo,$owner,$conversation,$project,$agent,['capability'=
 p73s7((int)$pdo->query('SELECT COUNT(*) FROM research_intelligence_strategic_reviews')->fetchColumn()===$reviewsBefore,'Strategic Review proposal freezes nothing before confirmation.');
 $confirmed=agent_action_confirm_execute($pdo,$owner,(string)$proposal['public_id']);$strategicReview=research_intelligence_strategic_review_access($pdo,$owner,(string)$confirmed['result']['public_id'],false);
 p73s7($strategicReview&&!empty($strategicReview['collaborative_review_public_id']),'Confirmed proposal enters the existing frozen Strategic Review + Collaborative Review path.');
+research_decision_update($pdo,$owner,(string)$b['public_id'],['rationale'=>'Beta rationale changed after frozen Strategic Review.','reason'=>'Create Strategic Review drift for Section 7 cognition.']);
+$reviewDrift=research_intelligence_organizational_portfolio_cognition($pdo,$owner,(string)$portfolio['public_id'],100);
+p73s7((bool)array_filter((array)$reviewDrift['signals'],fn($s)=>(string)($s['kind']??'')==='strategic_review_follow_through'&&(string)($s['object_id']??'')===(string)$strategicReview['public_id']&&str_contains((string)($s['summary']??''),'differs from the frozen review packet')),'Current state drift from the latest frozen Strategic Review becomes an explicit cognition signal.');
 
 $cognition=research_intelligence_organizational_portfolio_cognition($pdo,$owner,(string)$portfolio['public_id'],100);
 $briefsBefore=(int)$pdo->query('SELECT COUNT(*) FROM research_intelligence_strategic_briefings')->fetchColumn();$pubBefore=(int)$pdo->query('SELECT COUNT(*) FROM research_publication_workflows')->fetchColumn();
@@ -118,6 +121,9 @@ p73s7((int)$pdo->query('SELECT COUNT(*) FROM research_intelligence_strategic_bri
 $confirmed=agent_action_confirm_execute($pdo,$owner,(string)$proposal['public_id']);$brief=research_intelligence_strategic_briefing_access($pdo,$owner,(string)$confirmed['result']['public_id'],false);
 p73s7($brief&&!empty($brief['team_review_public_id'])&&(string)($brief['team_review']['status']??'')==='open','Confirmed proposal creates a frozen Strategic Briefing in the existing Team Review path.');
 p73s7((int)$pdo->query('SELECT COUNT(*) FROM research_publication_workflows')->fetchColumn()===$pubBefore,'Strategic Briefing proposal cannot publish or create the Phase 59 publication workflow.');
+research_decision_update($pdo,$owner,(string)$b['public_id'],['rationale'=>'Beta rationale changed after frozen Executive Strategic Briefing.','reason'=>'Create Strategic Briefing drift for Section 7 cognition.']);
+$briefDrift=research_intelligence_organizational_portfolio_cognition($pdo,$owner,(string)$portfolio['public_id'],100);
+p73s7((bool)array_filter((array)$briefDrift['signals'],fn($s)=>(string)($s['kind']??'')==='strategic_briefing_follow_through'&&(string)($s['object_id']??'')===(string)$brief['public_id']&&str_contains((string)($s['summary']??''),'drifted from the frozen briefing')),'Current state drift from a frozen Executive Strategic Briefing becomes an explicit cognition signal.');
 
 $aFinal=research_decision_detail($pdo,$owner,(string)$a['public_id']);$bFinal=research_decision_detail($pdo,$owner,(string)$b['public_id']);$existingPlanFinal=research_action_plan_detail($pdo,$owner,(string)$existingPlan['public_id']);$draftPlanFinal=research_action_plan_detail($pdo,$owner,(string)$draftPlan['public_id']);
 p73s7((string)$aFinal['status']==='accepted'&&(string)$bFinal['status']==='accepted','Section 7 proposal journey never changes recorded Decision dispositions.');
