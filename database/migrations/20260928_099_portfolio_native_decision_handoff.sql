@@ -12,4 +12,6 @@ ALTER TABLE research_intelligence_portfolio_decision_links
   ADD CONSTRAINT fk_intel_decision_native FOREIGN KEY(decision_id) REFERENCES research_decisions(id) ON DELETE CASCADE;
 
 ALTER TABLE research_intelligence_portfolio_decision_links
-  ADD CONSTRAINT chk_intel_portfolio_decision_target CHECK (outcome_id IS NOT NULL OR decision_id IS NOT NULL);
+  ADD CONSTRAINT chk_intel_portfolio_decision_target CHECK ((outcome_id IS NOT NULL AND decision_id IS NULL) OR (outcome_id IS NULL AND decision_id IS NOT NULL)),
+  ADD CONSTRAINT chk_intel_portfolio_native_handoff_key CHECK (decision_id IS NULL OR handoff_key IS NOT NULL),
+  ADD CONSTRAINT chk_intel_portfolio_native_no_task CHECK (decision_id IS NULL OR task_id IS NULL);
