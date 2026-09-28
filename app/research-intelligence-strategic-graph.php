@@ -178,37 +178,92 @@ function research_intelligence_strategic_edge_events(PDO $pdo,array $viewer,stri
     $edge=research_intelligence_strategic_edge_access($pdo,$viewer,$edgePublic);if(!$edge)return [];$limit=max(1,min(300,$limit));
     $q=$pdo->prepare('SELECT public_id,event_type,actor_user_id,snapshot_json,created_at FROM research_intelligence_strategic_edge_events WHERE edge_id=? ORDER BY id DESC LIMIT '.$limit);$q->execute([(int)$edge['id']]);$rows=$q->fetchAll()?:[];foreach($rows as &$r){$x=json_decode((string)$r['snapshot_json'],true);$r['snapshot']=is_array($x)?$x:[];unset($r['snapshot_json']);}unset($r);return $rows;
 }
+function research_intelligence_strategic_materiality_weight(string $materiality): int {
+    return ['low'=>1,'medium'=>2,'high'=>3,'critical'=>4][$materiality]??2;
+}
+function research_intelligence_strategic_dependency_ready(array $target): bool {
+    if(($target['type']??'')==='decision')return (string)($target['status']??'')==='accepted';
+    if(($target['type']??'')==='action_plan')return (string)($target['status']??'')==='completed';
+    return false;
+}
+function research_intelligence_strategic_attention_reasons(array $edge): array {
+    if(empty($edge['active']))return [];$reasons=[];
+    if(!empty($edge['stale']))$reasons[]='stale_relationship';
+    $relation=(string)$edge['relation_type'];$materiality=(string)($edge['materiality']??'medium');
+    if($relation==='conflicts_with')$reasons[]='conflict';
+    if($relation==='blocks')$reasons[]='blocking_relationship';
+    if($relation==='duplicates')$reasons[]='possible_duplicate';
+    if($relation==='materially_affects'&&in_array($materiality,['high','critical'],true))$reasons[]='material_impact';
+    if($relation==='depends_on'&&!research_intelligence_strategic_dependency_ready((array)$edge['target']))$reasons[]='dependency_unresolved';
+    if(in_array($materiality,['high','critical'],true)&&in_array($relation,['conflicts_with','blocks','duplicates','materially_affects'],true))$reasons[]='high_materiality';
+    return array_values(array_unique($reasons));
+}
+function research_intelligence_strategic_attention_weight(array $item): int {
+    $reasons=(array)($item['reasons']??[]);$weight=research_intelligence_strategic_materiality_weight((string)($item['materiality']??'medium'))*2;
+    if(in_array('stale_relationship',$reasons,true))$weight+=10;
+    if(in_array('blocking_relationship',$reasons,true))$weight+=8;
+    if(in_array('conflict',$reasons,true))$weight+=6;
+    if(in_array('dependency_unresolved',$reasons,true))$weight+=5;
+    if(in_array('possible_duplicate',$reasons,true))$weight+=3;
+    if(in_array('material_impact',$reasons,true))$weight+=4;
+    return $weight;
+}
 function research_intelligence_portfolio_strategic_graph(PDO $pdo,array $viewer,string $portfolioPublic,bool $includeRemoved=false,int $limit=300): array {
     if(!research_intelligence_strategic_graph_ready($pdo))return ['ready'=>false,'summary'=>[],'edges'=>[],'nodes'=>[],'attention'=>[]];
     $portfolio=research_intelligence_portfolio_access($pdo,$viewer,trim($portfolioPublic));if(!$portfolio)throw new RuntimeException('Portfolio not found.');$limit=max(1,min(600,$limit));
-    $nodes=research_intelligence_strategic_portfolio_nodes($pdo,$viewer,(string)$portfolio['public_id']);$keys=[];foreach($nodes as $n)$keys[research_intelligence_strategic_node_key($n['type'],$n['public_id'])]=true;
-    $where=$includeRemoved?'':' AND active=1';$q=$pdo->query("SELECT public_id FROM research_intelligence_strategic_edges WHERE 1=1{$where} ORDER BY active DESC,updated_at DESC,id DESC LIMIT ".$limit*3);
-    $edges=[];$degrees=[];$summary=['active_edges'=>0,'removed_edges'=>0,'dependencies'=>0,'supports'=>0,'conflicts'=>0,'duplicates'=>0,'supersedes'=>0,'blocks'=>0,'materially_affects'=>0,'stale_edges'=>0,'cross_portfolio_edges'=>0];
+    $baseNodes=research_intelligence_strategic_portfolio_nodes($pdo,$viewer,(string)$portfolio['public_id']);$nodeMap=[];$baseKeys=[];
+    foreach($baseNodes as $n){$key=research_intelligence_strategic_node_key($n['type'],$n['public_id']);$nodeMap[$key]=$n;$baseKeys[$key]=true;}
+    $where=$includeRemoved?'':' AND active=1';$q=$pdo->query("SELECT public_id FROM research_intelligence_strategic_edges WHERE 1=1{$where} ORDER BY active DESC,updated_at DESC,id DESC LIMIT ".($limit*4));
+    $edges=[];$degrees=[];$summary=[
+      'active_edges'=>0,'removed_edges'=>0,'dependencies'=>0,'supports'=>0,'conflicts'=>0,'duplicates'=>0,'supersedes'=>0,'blocks'=>0,'materially_affects'=>0,
+      'stale_edges'=>0,'cross_portfolio_edges'=>0,'high_or_critical_edges'=>0,'high_or_critical_conflicts'=>0,'unresolved_dependencies'=>0,
+      'decision_contradicting_refs'=>0,'open_decision_challenges'=>0,'high_open_decision_challenges'=>0,'reversal_conditions'=>0
+    ];
     foreach($q->fetchAll(PDO::FETCH_COLUMN)?:[] as $edgePublic){
         $edge=research_intelligence_strategic_edge_access($pdo,$viewer,(string)$edgePublic);if(!$edge)continue;
-        $sk=research_intelligence_strategic_node_key((string)$edge['source_type'],(string)$edge['source_public_id']);$tk=research_intelligence_strategic_node_key((string)$edge['target_type'],(string)$edge['target_public_id']);if(!isset($keys[$sk])&&!isset($keys[$tk]))continue;
-        $edges[]=$edge;if($edge['active'])$summary['active_edges']++;else $summary['removed_edges']++;
-        $map=['depends_on'=>'dependencies','supports'=>'supports','conflicts_with'=>'conflicts','duplicates'=>'duplicates','supersedes'=>'supersedes','blocks'=>'blocks','materially_affects'=>'materially_affects'];if($edge['active']&&isset($map[$edge['relation_type']]))$summary[$map[$edge['relation_type']]]++;
-        if($edge['active']&&$edge['stale'])$summary['stale_edges']++;if($edge['active']&&$edge['cross_portfolio'])$summary['cross_portfolio_edges']++;
+        $sk=research_intelligence_strategic_node_key((string)$edge['source_type'],(string)$edge['source_public_id']);$tk=research_intelligence_strategic_node_key((string)$edge['target_type'],(string)$edge['target_public_id']);
+        if(!isset($baseKeys[$sk])&&!isset($baseKeys[$tk]))continue;
+        $nodeMap[$sk]=$edge['source'];$nodeMap[$tk]=$edge['target'];$edges[]=$edge;
+        if($edge['active'])$summary['active_edges']++;else $summary['removed_edges']++;
+        $map=['depends_on'=>'dependencies','supports'=>'supports','conflicts_with'=>'conflicts','duplicates'=>'duplicates','supersedes'=>'supersedes','blocks'=>'blocks','materially_affects'=>'materially_affects'];
+        if($edge['active']&&isset($map[$edge['relation_type']]))$summary[$map[$edge['relation_type']]]++;
+        if($edge['active']&&$edge['stale'])$summary['stale_edges']++;
+        if($edge['active']&&$edge['cross_portfolio'])$summary['cross_portfolio_edges']++;
+        if($edge['active']&&in_array((string)($edge['materiality']??'medium'),['high','critical'],true))$summary['high_or_critical_edges']++;
+        if($edge['active']&&$edge['relation_type']==='conflicts_with'&&in_array((string)($edge['materiality']??'medium'),['high','critical'],true))$summary['high_or_critical_conflicts']++;
+        if($edge['active']&&$edge['relation_type']==='depends_on'&&!research_intelligence_strategic_dependency_ready((array)$edge['target']))$summary['unresolved_dependencies']++;
         if($edge['active']){$degrees[$sk]=($degrees[$sk]??0)+1;$degrees[$tk]=($degrees[$tk]??0)+1;}
         if(count($edges)>=$limit)break;
     }
-    foreach($nodes as &$n)$n['degree']=$degrees[research_intelligence_strategic_node_key($n['type'],$n['public_id'])]??0;unset($n);
-    $attention=[];foreach($edges as $e)if($e['active']&&($e['stale']||in_array($e['relation_type'],['conflicts_with','blocks'],true)))$attention[]=[
-      'edge_id'=>(string)$e['public_id'],'relation_type'=>(string)$e['relation_type'],'stale'=>(bool)$e['stale'],'cross_portfolio'=>(bool)$e['cross_portfolio'],
-      'source_type'=>(string)$e['source_type'],'source_public_id'=>(string)$e['source_public_id'],'source_title'=>(string)$e['source']['title'],
-      'target_type'=>(string)$e['target_type'],'target_public_id'=>(string)$e['target_public_id'],'target_title'=>(string)$e['target']['title'],'rationale'=>(string)$e['rationale']
-    ];
-    usort($attention,fn($a,$b)=>(($b['stale']?4:0)+($b['relation_type']==='blocks'?2:0)+($b['relation_type']==='conflicts_with'?1:0))<=>(($a['stale']?4:0)+($a['relation_type']==='blocks'?2:0)+($a['relation_type']==='conflicts_with'?1:0)));
+    $nodes=array_values($nodeMap);foreach($nodes as &$n){$key=research_intelligence_strategic_node_key($n['type'],$n['public_id']);$n['degree']=$degrees[$key]??0;$n['in_portfolio']=isset($baseKeys[$key]);
+      if($n['type']==='decision'){$cc=(array)($n['challenge_counts']??[]);$summary['decision_contradicting_refs']+=(int)($cc['contradicting_refs']??0);$summary['open_decision_challenges']+=(int)($cc['open_challenges']??0);$summary['high_open_decision_challenges']+=(int)($cc['high_open_challenges']??0);$summary['reversal_conditions']+=(int)($cc['reversal_conditions']??0);}
+    }unset($n);
+    usort($nodes,fn($a,$b)=>($b['in_portfolio']<=>$a['in_portfolio'])?:strcmp($a['type'].'|'.$a['title'].'|'.$a['public_id'],$b['type'].'|'.$b['title'].'|'.$b['public_id']));
+    $attention=[];foreach($edges as $e){$reasons=research_intelligence_strategic_attention_reasons($e);if(!$reasons)continue;$attention[]=[
+      'edge_id'=>(string)$e['public_id'],'relation_type'=>(string)$e['relation_type'],'materiality'=>(string)($e['materiality']??'medium'),'confidence'=>$e['confidence']!==null?(float)$e['confidence']:null,
+      'stale'=>(bool)$e['stale'],'cross_portfolio'=>(bool)$e['cross_portfolio'],'reasons'=>$reasons,
+      'source_type'=>(string)$e['source_type'],'source_public_id'=>(string)$e['source_public_id'],'source_title'=>(string)$e['source']['title'],'source_status'=>(string)$e['source']['status'],
+      'target_type'=>(string)$e['target_type'],'target_public_id'=>(string)$e['target_public_id'],'target_title'=>(string)$e['target']['title'],'target_status'=>(string)$e['target']['status'],'rationale'=>(string)$e['rationale']
+    ];}
+    usort($attention,fn($a,$b)=>research_intelligence_strategic_attention_weight($b)<=>research_intelligence_strategic_attention_weight($a)?:strcmp((string)$a['edge_id'],(string)$b['edge_id']));
     return ['ready'=>true,'summary'=>$summary,'edges'=>$edges,'nodes'=>$nodes,'attention'=>$attention,'generated_at'=>date('Y-m-d H:i:s')];
 }
 function research_intelligence_organization_strategic_graph(PDO $pdo,array $viewer): array {
-    $dashboard=research_intelligence_portfolio_dashboard($pdo,$viewer);$summary=['active_edges'=>0,'conflicts'=>0,'blocks'=>0,'stale_edges'=>0,'cross_portfolio_edges'=>0];$attention=[];$seen=[];
-    foreach($dashboard['portfolios'] as $row){$g=research_intelligence_portfolio_strategic_graph($pdo,$viewer,(string)$row['public_id'],false,300);foreach(array_keys($summary) as $k)$summary[$k]+=(int)($g['summary'][$k]??0);
-      foreach($g['attention'] as $a)if(!isset($seen[$a['edge_id']])){$seen[$a['edge_id']]=true;$attention[]=['portfolio_id'=>(string)$row['public_id'],'portfolio_title'=>(string)$row['title']]+$a;}}
-    /* Edges present in two accessible Portfolios are counted twice above; de-duplicate organization totals from actual accessible unique edges. */
-    $unique=[];foreach($dashboard['portfolios'] as $row){$g=research_intelligence_portfolio_strategic_graph($pdo,$viewer,(string)$row['public_id'],false,300);foreach($g['edges'] as $e)if($e['active'])$unique[$e['public_id']]=$e;}
-    $summary=['active_edges'=>count($unique),'conflicts'=>0,'blocks'=>0,'stale_edges'=>0,'cross_portfolio_edges'=>0];foreach($unique as $e){if($e['relation_type']==='conflicts_with')$summary['conflicts']++;if($e['relation_type']==='blocks')$summary['blocks']++;if($e['stale'])$summary['stale_edges']++;if($e['cross_portfolio'])$summary['cross_portfolio_edges']++;}
-    usort($attention,fn($a,$b)=>(($b['stale']?4:0)+($b['relation_type']==='blocks'?2:0)+($b['relation_type']==='conflicts_with'?1:0))<=>(($a['stale']?4:0)+($a['relation_type']==='blocks'?2:0)+($a['relation_type']==='conflicts_with'?1:0)));
-    return ['summary'=>$summary,'attention'=>array_slice($attention,0,80),'generated_at'=>date('Y-m-d H:i:s')];
+    if(!research_intelligence_strategic_graph_ready($pdo))return ['ready'=>false,'summary'=>[],'attention'=>[],'edges'=>[]];
+    $dashboard=research_intelligence_portfolio_dashboard($pdo,$viewer);$unique=[];$attentionMap=[];
+    foreach($dashboard['portfolios'] as $row){
+        $g=research_intelligence_portfolio_strategic_graph($pdo,$viewer,(string)$row['public_id'],false,300);
+        foreach((array)$g['edges'] as $e)if(!empty($e['active']))$unique[(string)$e['public_id']]=$e;
+        foreach((array)$g['attention'] as $a){$id=(string)$a['edge_id'];if(!isset($attentionMap[$id]))$attentionMap[$id]=['portfolio_id'=>(string)$row['public_id'],'portfolio_title'=>(string)$row['title']]+$a;}
+    }
+    $summary=['active_edges'=>count($unique),'dependencies'=>0,'supports'=>0,'conflicts'=>0,'duplicates'=>0,'supersedes'=>0,'blocks'=>0,'materially_affects'=>0,'stale_edges'=>0,'cross_portfolio_edges'=>0,'high_or_critical_edges'=>0,'high_or_critical_conflicts'=>0,'unresolved_dependencies'=>0];
+    $map=['depends_on'=>'dependencies','supports'=>'supports','conflicts_with'=>'conflicts','duplicates'=>'duplicates','supersedes'=>'supersedes','blocks'=>'blocks','materially_affects'=>'materially_affects'];
+    foreach($unique as $e){if(isset($map[$e['relation_type']]))$summary[$map[$e['relation_type']]]++;if($e['stale'])$summary['stale_edges']++;if($e['cross_portfolio'])$summary['cross_portfolio_edges']++;
+      if(in_array((string)($e['materiality']??'medium'),['high','critical'],true))$summary['high_or_critical_edges']++;
+      if($e['relation_type']==='conflicts_with'&&in_array((string)($e['materiality']??'medium'),['high','critical'],true))$summary['high_or_critical_conflicts']++;
+      if($e['relation_type']==='depends_on'&&!research_intelligence_strategic_dependency_ready((array)$e['target']))$summary['unresolved_dependencies']++;
+    }
+    $attention=array_values($attentionMap);usort($attention,fn($a,$b)=>research_intelligence_strategic_attention_weight($b)<=>research_intelligence_strategic_attention_weight($a)?:strcmp((string)$a['edge_id'],(string)$b['edge_id']));
+    return ['ready'=>true,'summary'=>$summary,'attention'=>array_slice($attention,0,80),'edges'=>array_values($unique),'generated_at'=>date('Y-m-d H:i:s')];
 }
+
