@@ -193,14 +193,24 @@ function research_action_plan_record_execution_observation(PDO $pdo,array $viewe
     }
     $public=ulid_like();$material=(bool)($input['material']??false);$sourceType=research_action_plan_text((string)($input['source_type']??''),64);$sourcePublic=research_action_plan_text((string)($input['source_public_id']??''),80);
     $sourceSnapshot=array_key_exists('source_snapshot',$input)?research_action_plan_variance_value($input['source_snapshot']):null;
-    $pdo->prepare("INSERT INTO research_action_plan_execution_observations(public_id,action_plan_id,baseline_id,milestone_id,task_id,observation_type,subject_type,subject_key,summary,expected_json,actual_json,assessment,source_type,source_public_id,source_snapshot_json,observed_on,material,idempotency_key,recorded_by_user_id,recorded_by_agent)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([
-      $public,(int)$plan['id'],(int)$baseline['id'],$subject['milestone_id'],$subject['task_id'],$type,$subject['subject_type'],$subject['subject_key']!==''?$subject['subject_key']:null,$summary,
-      $expected===null?null:json_encode(research_action_plan_variance_value($expected),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION),
-      $actual===null?null:json_encode($actual,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION),
-      $assessment,$sourceType!==''?$sourceType:null,$sourcePublic!==''?$sourcePublic:null,$sourceSnapshot===null?null:json_encode($sourceSnapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION),
-      $observed,$material?1:0,$idem,(int)$viewer['id'],$byAgent?1:0
-    ]);
+    try{
+      $pdo->prepare("INSERT INTO research_action_plan_execution_observations(public_id,action_plan_id,baseline_id,milestone_id,task_id,observation_type,subject_type,subject_key,summary,expected_json,actual_json,assessment,source_type,source_public_id,source_snapshot_json,observed_on,material,idempotency_key,recorded_by_user_id,recorded_by_agent)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")->execute([
+        $public,(int)$plan['id'],(int)$baseline['id'],$subject['milestone_id'],$subject['task_id'],$type,$subject['subject_type'],$subject['subject_key']!==''?$subject['subject_key']:null,$summary,
+        $expected===null?null:json_encode(research_action_plan_variance_value($expected),JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION),
+        $actual===null?null:json_encode($actual,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION),
+        $assessment,$sourceType!==''?$sourceType:null,$sourcePublic!==''?$sourcePublic:null,$sourceSnapshot===null?null:json_encode($sourceSnapshot,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION),
+        $observed,$material?1:0,$idem,(int)$viewer['id'],$byAgent?1:0
+      ]);
+    }catch(PDOException $e){
+      if((string)$e->getCode()!=='23000')throw $e;
+      $q->execute([(int)$plan['id'],$idem]);$existing=(string)($q->fetchColumn()?:'');
+      if($existing!==''){
+        $rows=research_action_plan_execution_observations($pdo,$viewer,$planPublic,200);
+        foreach($rows as $row)if((string)$row['public_id']===$existing)return ['observation'=>$row,'variance'=>null,'reused'=>true];
+      }
+      throw $e;
+    }
     $observationId=(int)$pdo->lastInsertId();research_action_plan_event($pdo,$plan,'execution_observation_recorded',$byAgent?'agent':'user',(int)$viewer['id'],[
       'observation_id'=>$public,'observation_type'=>$type,'subject_type'=>$subject['subject_type'],'subject_key'=>$subject['subject_key'],'assessment'=>$assessment,'material'=>$material
     ]);
