@@ -57,6 +57,25 @@ function research_intelligence_strategic_briefing_render_sections(array $packet,
     $html.='<h2>Governance boundary</h2><p>This briefing can summarize and communicate strategic state. Team Review and publication do not change Decision lifecycle, Action Plan lifecycle, execution variance, Strategic Graph edges, Outcome Memory, Research Tasks, or Agent authority.</p>';
     return $html;
 }
+function research_intelligence_strategic_briefing_render_document(array $portfolio,array $packet,?array $sourceReview=null): string {
+    $state=(array)($packet['state']??[]);$aggregate=(array)($state['aggregate']??[]);$summary=(array)($aggregate['summary']??[]);$h=fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
+    $html='<h1>'.$h((string)$portfolio['title']).' — Executive Strategic Briefing</h1><p>'.$h((string)$portfolio['objective']).'</p>';
+    $html.='<p><strong>Frozen strategic packet:</strong> '.$h((string)($packet['captured_at']??'')).' · <strong>State hash:</strong> '.$h((string)($packet['state_hash']??'')).'</p>';
+    $html.='<h2>Portfolio overview</h2><ul>';
+    foreach([
+      'Programs'=>(int)($summary['programs']??0),
+      'Active programs'=>(int)($summary['active']??0),
+      'Material changes'=>(int)($summary['material_changes']??0),
+      'High-priority changes'=>(int)($summary['high_changes']??0),
+      'Failed runs · 30d'=>(int)($summary['failed_runs_30d']??0),
+      'Stale evidence'=>(int)($summary['stale_sources']??0)
+    ] as $label=>$value)$html.='<li><strong>'.$h($label).':</strong> '.$h($value).'</li>';
+    $html.='</ul>';
+    $section=function(string $title,array $rows)use(&$html,$h): void {$html.='<h2>'.$h($title).'</h2>';if(!$rows){$html.='<p>No current items in the frozen packet.</p>';return;}$html.='<ul>';foreach(array_slice($rows,0,20) as $row)$html.='<li><strong>'.$h((string)($row['program_title']??$row['kind']??'Portfolio')).':</strong> '.$h((string)($row['summary']??$row['key']??'')).'</li>';$html.='</ul>';};
+    $section('Risks',(array)($aggregate['risks']??[]));$section('Opportunities',(array)($aggregate['opportunities']??[]));$section('Cross-program signals',(array)($aggregate['cross_program']??[]));
+    $trends=(array)($aggregate['trends']??[]);$html.='<h2>What changed</h2>';if(!$trends)$html.='<p>No material deltas are present in this frozen packet.</p>';else{$html.='<ul>';foreach(array_slice($trends,0,20,true) as $type=>$count)$html.='<li>'.$h(str_replace('_',' ',(string)$type)).': '.$h((string)$count).'</li>';$html.='</ul>';}
+    return $html.research_intelligence_strategic_briefing_render_sections($packet,$sourceReview);
+}
 function research_intelligence_strategic_briefing_access(PDO $pdo,array $viewer,string $publicId,bool $includeDrift=false): ?array {
     if(!research_intelligence_strategic_briefings_ready($pdo))return null;
     $q=$pdo->prepare("SELECT sb.*,eb.public_id executive_briefing_public_id,eb.title,eb.status executive_status,
@@ -112,9 +131,8 @@ function research_intelligence_strategic_briefing_create(PDO $pdo,array $viewer,
 
     $programs=research_intelligence_portfolio_programs($pdo,$viewer,$p);if(!$programs)throw new RuntimeException('Add at least one Research Program before creating a Strategic Briefing.');
     $project=$resolved['project'];if(!project_can_write($project))throw new RuntimeException('The Portfolio anchor Research project is not writable.');
-    $previous=research_intelligence_portfolio_previous_snapshot($pdo,$p);$snapshot=research_intelligence_portfolio_snapshot($pdo,$viewer,(string)$p['public_id'],max(1,min(365,(int)($input['window_days']??30))),'briefing');
-    $comparison=research_intelligence_portfolio_compare_snapshots($previous,$snapshot);$inferences=research_intelligence_portfolio_inferences($pdo,$p,40);
-    $html=research_intelligence_portfolio_render_briefing($p,$snapshot,$inferences,$comparison).research_intelligence_strategic_briefing_render_sections($packet,$source);
+    $snapshot=research_intelligence_portfolio_snapshot($pdo,$viewer,(string)$p['public_id'],max(1,min(365,(int)($input['window_days']??30))),'briefing');
+    $html=research_intelligence_strategic_briefing_render_document($p,$packet,$source);
     $title=mb_substr(trim((string)($input['title']??'')),0,240);if($title==='')$title=(string)$p['title'].' — Executive Strategic Briefing — '.gmdate('Y-m-d');
     $doc=research_agent_workspace_create_document($pdo,$viewer,$project,['title'=>$title,'content_html'=>$html,'summary'=>'Executive Strategic Briefing with frozen Decision execution, Pattern Memory, Strategic Graph, and Strategic Review provenance.','document_type'=>'research_brief'],false);
     $briefPublic=ulid_like();$pdo->prepare("INSERT INTO research_executive_briefings(public_id,portfolio_id,snapshot_id,document_object_id,created_by_user_id,title) VALUES(?,?,?,?,?,?)")->execute([$briefPublic,(int)$p['id'],(int)$snapshot['id'],(int)$doc['id'],(int)$viewer['id'],$title]);$briefId=(int)$pdo->lastInsertId();
