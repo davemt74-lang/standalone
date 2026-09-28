@@ -426,6 +426,11 @@ jobs:
           test -f package-website/app/research-intelligence-decision-rollups.php
           test -f package-website/tests/phase73-section2-portfolio-decision-execution-rollups-contract.php
           test -f package-website/tests/phase73-section2-portfolio-decision-execution-rollups-db.php
+          test -f package-website/database/migrations/20260928_100_cross_decision_pattern_memory.sql
+          test -f package-website/app/research-intelligence-pattern-memory.php
+          test -f package-website/tests/phase73-section3-cross-decision-learning-pattern-memory-contract.php
+          test -f package-website/tests/phase73-section3-cross-decision-learning-pattern-memory-db.php
+          test -f package-website/tests/ci/phase73-section3-upgrade-from-099.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md

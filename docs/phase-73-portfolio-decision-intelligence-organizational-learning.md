@@ -156,3 +156,100 @@ It adds no worker, scheduler, queue, or AI ranking path.
 - legacy Phase 61 records are visible but excluded from native execution totals
 - all rollups remain permission checked and Team revocation applies immediately
 
+## Section 3 — Cross-Decision Learning & Pattern Memory
+
+Section 3 adds durable organizational memory above individual Decisions while preserving Phase 71/72 authority.
+
+### Deterministic pattern types
+
+A pattern is created only when the same normalized fact is supported by **two or more distinct native Portfolio Decisions**.
+
+Supported patterns are:
+
+- repeated Decision assumptions
+- repeated Action Plan risks
+- recurring execution variance types
+- recurring Decision outcome assessments
+- repeated explicit expected-versus-actual variance
+- repeated outcome lessons
+
+There is no embedding similarity, fuzzy matching, semantic clustering, or LLM-created pattern membership in Section 3.
+
+### Durable Pattern Memory
+
+Migration 100 adds:
+
+- `research_intelligence_decision_pattern_runs`
+- `research_intelligence_decision_patterns`
+- `research_intelligence_decision_pattern_members`
+
+A Pattern Memory refresh computes deterministic candidates from authoritative Phase 71/72 state, hashes the resulting pattern snapshot, and deduplicates identical refresh state.
+
+Pattern records preserve:
+
+- pattern type and stable fingerprint
+- first seen / last seen
+- active / inactive state
+- evidence count
+- distinct Decision count
+- Action Plan and Outcome counts
+- explicit member snapshots
+
+Pattern runs preserve the deterministic snapshot that produced the current memory.
+
+### Source authority
+
+Pattern Memory is derived from:
+
+- native Portfolio Decisions
+- Decision assumptions
+- Phase 72 Action Plan risks
+- Phase 72 execution variances
+- Decision Outcome Memory assessments
+- explicit outcome variance summaries
+- explicit outcome lessons
+
+Pattern Memory never edits those sources.
+
+It cannot:
+
+- accept, reject, reopen, defer, supersede, or archive a Decision
+- create, activate, pause, complete, cancel, or archive an Action Plan
+- resolve a variance
+- complete a Collaborative Review
+- write Outcome Memory
+- create a Research Task
+- execute an Agent action
+
+### Refresh authority
+
+Users with Portfolio write access may explicitly refresh Pattern Memory.
+
+The existing Portfolio intelligence cycle may also refresh it after a successful cycle. No new worker or scheduler is introduced. A Pattern Memory refresh failure is recorded as a Portfolio event and does not invalidate the Executive Briefing cycle.
+
+### Portfolio and Command Center surfaces
+
+Each Portfolio shows:
+
+- active Pattern count
+- repeated assumptions
+- repeated risks
+- recurring variance patterns
+- recurring outcome patterns
+- repeated lessons
+- first / last seen timestamps
+- explicit evidence-member counts
+
+The organization Command Center aggregates accessible Pattern Memory and surfaces the strongest cross-Decision learning patterns by Decision and evidence coverage.
+
+### Section 3 invariants
+
+- migration 100 creates no synthetic Pattern rows
+- a Pattern requires evidence from at least two distinct native Decisions
+- legacy Phase 61 Portfolio decision rows are excluded from Pattern membership
+- exact normalized evidence only; no fuzzy or AI similarity
+- identical Pattern snapshots deduplicate to one Pattern run
+- Pattern refresh does not mutate Decision, Action Plan, variance, review, or outcome state
+- Team/Portfolio permission revocation immediately removes access
+- existing Portfolio cycles are reused; no scheduler/worker/queue is introduced
+
