@@ -98,7 +98,7 @@ function research_intelligence_organizational_portfolio_cognition(PDO $pdo,array
           'kind'=>'strategic_relationship','severity'=>$severity,'object_type'=>'strategic_edge','object_id'=>(string)$g['edge_id'],
           'title'=>'Strategic relationship needs reasoning · '.(string)$g['source_title'].' → '.(string)$g['target_title'],
           'summary'=>str_replace('_',' ',(string)$g['relation_type']).' · '.implode(' · ',array_map(fn($v)=>str_replace('_',' ',(string)$v),(array)($g['reasons']??[]))).($g['rationale']!==''?' · '.(string)$g['rationale']:''),
-          'recommended_capability'=>'research.decision.open_reconsideration',
+          'recommended_capability'=>'research.portfolio.create_strategic_review',
           'provenance'=>[['type'=>'strategic_edge','id'=>(string)$g['edge_id']],['type'=>(string)$g['source_type'],'id'=>(string)$g['source_public_id']],['type'=>(string)$g['target_type'],'id'=>(string)$g['target_public_id']]]
         ]);
     }
@@ -146,8 +146,8 @@ function research_intelligence_organizational_portfolio_cognition(PDO $pdo,array
 
 function research_intelligence_organizational_cognition_center(PDO $pdo,array $viewer,int $limit=120): array {
     if(!research_intelligence_organizational_cognition_ready($pdo))return ['ready'=>false,'summary'=>[],'signals'=>[],'analogues'=>[]];
-    $dashboard=research_intelligence_portfolio_dashboard($pdo,$viewer);$signals=[];$analogues=[];$summary=['portfolios'=>0,'signals'=>0,'critical'=>0,'high'=>0,'decision_reconsideration'=>0,'execution_follow_through'=>0,'strategic_relationship'=>0,'review_follow_through'=>0,'briefing_follow_through'=>0,'analogues'=>0];
-    foreach((array)$dashboard['portfolios'] as $row){$c=research_intelligence_organizational_portfolio_cognition($pdo,$viewer,(string)$row['public_id'],80);if(!$c['ready'])continue;$summary['portfolios']++;
+    $portfolios=research_intelligence_portfolio_list($pdo,$viewer,120,false);$signals=[];$analogues=[];$summary=['portfolios'=>0,'signals'=>0,'critical'=>0,'high'=>0,'decision_reconsideration'=>0,'execution_follow_through'=>0,'strategic_relationship'=>0,'review_follow_through'=>0,'briefing_follow_through'=>0,'analogues'=>0];
+    foreach($portfolios as $row){$c=research_intelligence_organizational_portfolio_cognition($pdo,$viewer,(string)$row['public_id'],80);if(!$c['ready'])continue;$summary['portfolios']++;
       foreach((array)$c['signals'] as $s)$signals[]=['portfolio_id'=>(string)$row['public_id'],'portfolio_title'=>(string)$row['title'],'portfolio_state_hash'=>(string)$c['state_hash']]+$s;
       foreach((array)$c['analogues'] as $a)$analogues[]=['portfolio_id'=>(string)$row['public_id'],'portfolio_title'=>(string)$row['title']]+$a;
     }
@@ -177,8 +177,7 @@ Action Plan state hash: ".research_action_plan_cognition_state_hash($pdo,$viewer
 Governed proposal capability: ".(string)($s['recommended_capability']??'none');
           foreach((array)$s['provenance'] as $r)$refs[]=$r;
         }
-        foreach(array_slice((array)$c['analogues'],0,6) as $a){$names=implode(' | ',array_map(fn($d)=>(string)$d['title'].' ['.(string)$d['public_id'].']',(array)$a['decisions']));$lines[]='[DECISION ANALOGUE '.(string)$a['pattern_id'].'] '.(string)$a['summary']."
-Linked Decisions: ".$names;foreach((array)$a['provenance'] as $r)$refs[]=$r;}
+        foreach(array_slice((array)$c['analogues'],0,6) as $a){$names=[];foreach((array)$a['decisions'] as $d){$hash='';try{$hash=research_decision_review_state_hash($pdo,$viewer,(string)$d['public_id']);}catch(Throwable $ignored){}$names[]=(string)$d['title'].' ['.(string)$d['public_id'].']'.($hash!==''?' · State hash '.$hash:'');}$lines[]='[DECISION ANALOGUE '.(string)$a['pattern_id'].'] '.(string)$a['summary']."\nLinked Decisions: ".implode(' | ',$names);foreach((array)$a['provenance'] as $r)$refs[]=$r;}
         $lines[]='Follow-through rule for this Portfolio: propose only. For Portfolio capabilities copy the exact Portfolio strategic state hash above. Draft Decisions remain draft; Action Plans remain draft; reconsideration only opens a case; Strategic Reviews and Strategic Briefings only enter their existing human review paths. Existing lifecycle/approval gates remain authoritative.';
     }
     $seen=[];$dedup=[];foreach($refs as $r){$k=(string)($r['type']??'').'|'.(string)($r['id']??'');if($k==='|'||isset($seen[$k]))continue;$seen[$k]=true;$dedup[]=$r;}
