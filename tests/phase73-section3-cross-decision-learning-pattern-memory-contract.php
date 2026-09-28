@@ -27,8 +27,11 @@ $avoid('app/research-intelligence-pattern-memory.php',[
  'research_decision_set_status','research_action_plan_set_status','research_action_plan_resolve_execution_variance',
  'research_decision_record_outcome('
 ],'Phase 73 Section 3 authority');
+$must('app/research-intelligence-pattern-memory.php',[
+ 'decision_pattern_memory_refreshed'
+],'Phase 73 Section 3 Pattern Memory event');
 $must('app/research-intelligence-operations.php',[
- 'decision_pattern_memory_refreshed','decision_pattern_memory_refresh_failed',"'pattern_summary'=>","'learning_patterns'=>"
+ 'decision_pattern_memory_refresh_failed',"'pattern_summary'=>","'learning_patterns'=>"
 ],'Phase 73 Section 3 Portfolio cycle and command center integration');
 $must('api/research-intelligence-portfolios.php',[
  "'refresh_patterns'","research_intelligence_portfolio_pattern_refresh"
