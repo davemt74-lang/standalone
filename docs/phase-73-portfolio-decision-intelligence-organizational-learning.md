@@ -614,3 +614,177 @@ The organization Command Center adds Executive Strategic Briefing attention for 
 - Team / Portfolio permission revocation immediately removes access
 - no new scheduler, worker, queue, or publishing engine is introduced
 - no Decision, Action Plan, variance, Strategic Graph, Outcome Memory, Task, or Agent authority is added
+
+
+## Section 7 — Organizational Agent Cognition & Governed Follow-Through
+
+Section 7 gives the Research Agent an explainable organizational reasoning layer across the authoritative Phase 71–73 systems without creating a parallel cognition database or granting the Agent lifecycle authority.
+
+### No migration 104
+
+Section 7 is intentionally application-only. **No migration 104** is introduced.
+
+The durable systems already contain the necessary organizational memory:
+
+- Phase 71 Decisions, challenges, reconsiderations, and Outcome Memory
+- Phase 72 Action Plans, execution observations, variance, follow-through Programs, reviews, and outcome handoff
+- Phase 73 Portfolio Decision links and execution rollups
+- exact Cross-Decision Pattern Memory
+- Strategic Dependency & Conflict Graph
+- frozen Recurring Strategic Reviews
+- Executive Strategic Briefings and Team Review
+- the existing `agent_action_proposals` confirmation ledger
+
+Section 7 derives cognition from those records at read time. It adds no cognition table, proposal table, scheduler, worker, queue, or autonomous loop.
+
+### Organizational cognition
+
+For every accessible Intelligence Portfolio, the deterministic cognition projection can identify:
+
+- recorded Decisions with current high or critical reconsideration signals and no already-open reconsideration
+- overdue or stale Action Plans
+- material and high / critical execution variance
+- completed Action Plans missing Outcome Memory handoff
+- Strategic Graph conflicts, blocks, unresolved dependencies, and stale relationships
+- overdue Strategic Reviews, requested changes, unresolved objections, and current packet drift
+- overdue Executive Strategic Briefing Team Reviews, requested changes, unresolved objections, and current strategic drift
+
+Every cognition signal carries explicit provenance references back to the authoritative objects that produced it.
+
+### Exact Decision analogues
+
+Organizational analogues reuse Section 3 exact Pattern Memory.
+
+An analogue exists only when durable deterministic Pattern Memory connects at least two native Decisions through the same normalized recorded fact, such as:
+
+- repeated assumptions
+- repeated Action Plan risks
+- recurring variance types
+- recurring outcome assessments
+- explicit expected-versus-actual variance
+- repeated outcome lessons
+
+The Agent does not invent fuzzy analogue membership. It can explain what happened in the linked Decisions and Outcomes because the membership and evidence references already exist in Pattern Memory.
+
+### Agent Chat context
+
+When a Research Agent belongs to a Research project included in an Intelligence Portfolio, Agent Chat receives a bounded Organizational Strategic Cognition context containing:
+
+- Portfolio identity and objective
+- exact current Portfolio strategic state hash
+- prioritized cognition signals
+- exact current Decision state hashes where a Decision proposal may be relevant
+- exact current Action Plan cognition state hashes where execution follow-through may be relevant
+- exact Decision analogues and their provenance
+- the permitted governed follow-through capability for each signal
+
+The context is read-only. The Agent may explain state, compare recorded analogues, identify reasons a Decision may warrant reconsideration, and prepare proposals. It may not claim a mutation occurred until the application confirms execution.
+
+### Governed follow-through
+
+Section 7 extends the existing Agent Action capability registry with five bounded proposal types:
+
+- `research.portfolio.create_decision_draft`
+- `research.decision.create_action_plan_draft`
+- `research.decision.open_reconsideration`
+- `research.portfolio.create_strategic_review`
+- `research.portfolio.create_strategic_briefing`
+
+These capabilities use the existing `agent_action_proposals` ledger and explicit user confirmation UI.
+
+A proposal never performs the write when the Agent generates it.
+
+After confirmation:
+
+- a Portfolio Decision proposal creates only a **draft Decision**
+- an Action Plan proposal creates only a **draft Action Plan**
+- a reconsideration proposal creates only an **open reconsideration case**
+- a Strategic Review proposal freezes state and enters the existing Collaborative Review path
+- a Strategic Briefing proposal creates a frozen briefing and enters the existing Team Review path
+
+The existing `research.create_task` capability remains available for ordinary bounded Research Task follow-through.
+
+### Exact-state stale protection
+
+Portfolio proposals must copy the exact `portfolio_state_hash` supplied in Organizational Strategic Cognition.
+
+Decision proposals must copy the exact `decision_state_hash` supplied in Organizational Strategic Cognition.
+
+A Strategic Briefing sourced from an existing Strategic Review must also copy that review's exact frozen packet hash.
+
+Those hashes are validated when the proposal is created **and again when the user confirms it**.
+
+If the governed source state changes after proposal creation, the proposal is durably marked **stale** and cannot execute. The Agent must reason from current state and create a new proposal.
+
+This protects the human confirmation step from approving reasoning that was based on superseded organizational state.
+
+### Existing lifecycle authority remains intact
+
+Section 7 does not register direct capabilities for:
+
+- accepting, rejecting, deferring, reopening, superseding, or archiving Decisions
+- applying a Decision reconsideration
+- activating, pausing, completing, cancelling, or archiving Action Plans
+- resolving execution variance
+- editing Strategic Graph relationships
+- completing Collaborative Reviews
+- approving or publishing Executive Strategic Briefings
+- bypassing Phase 59 publication governance
+
+Any later lifecycle transition still occurs through the authoritative human-governed surface and existing validation rules.
+
+### Cognitive Feed and Command Center
+
+Section 7 adds organizational cognition to the existing Cognitive Feed and Intelligence Command Center.
+
+The Command Center shows:
+
+- total organizational cognition signals
+- critical / high signals
+- Decision reconsideration attention
+- execution follow-through
+- Strategic Graph reasoning
+- Strategic Review and Strategic Briefing follow-through
+- exact Decision analogue count and evidence
+
+Portfolio detail shows the same permission-checked reasoning for that Portfolio, including its current strategic state hash and exact Decision analogue membership.
+
+### Transaction composition
+
+Because confirmed Strategic Review and Strategic Briefing proposals execute inside the existing Agent Action confirmation transaction, Collaborative Review creation is now transaction-composable: it joins an existing transaction when present and retains its former standalone transaction behavior otherwise.
+
+This is an infrastructure hardening change, not a new review workflow.
+
+### Section 7 authority boundary
+
+Organizational cognition itself is read-only and deterministic. It contains no SQL writes and does not invoke an LLM.
+
+Agent Chat may use that cognition to explain or propose follow-through, but durable writes are still performed only by the existing confirmed Agent Action runtime.
+
+No cognition result can directly:
+
+- change a Decision disposition
+- change an Action Plan lifecycle status
+- resolve variance
+- alter a Strategic Graph edge
+- write or revise Outcome Memory
+- complete a review
+- publish a briefing
+- execute an unconfirmed Agent action
+
+### Section 7 invariants
+
+- No migration 104 is introduced.
+- No parallel cognition, proposal, Decision, Action Plan, review, or briefing ledger is introduced.
+- Organizational cognition is derived only from permission-checked authoritative state.
+- Decision analogues use exact Pattern Memory membership, not fuzzy Agent inference.
+- Every surfaced signal carries explicit provenance.
+- Agent proposals are pending and non-mutating until explicit confirmation.
+- Portfolio and Decision proposals carry exact source-state hashes.
+- A stale proposal is durably marked stale and cannot execute.
+- Confirmed Decision proposals create only draft Decisions.
+- Confirmed Action Plan proposals create only draft Action Plans.
+- Confirmed reconsideration proposals only open a case.
+- Strategic Review and Strategic Briefing proposals reuse their existing human review paths.
+- Existing Team/Portfolio permission revocation applies immediately.
+- Existing Decision, Action Plan, variance, review, and publication authority remains authoritative.
