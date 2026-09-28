@@ -221,6 +221,7 @@ function research_action_plan_set_status(PDO $pdo,array $viewer,string $publicId
     if($activated)$sql.=",activated_at=NOW()";if($completed)$sql.=",completed_at=NOW()";if($cancelled)$sql.=",cancelled_at=NOW()";$sql.=" WHERE id=?";
     $pdo->prepare($sql)->execute([$status,(int)$plan['id']]);$fresh=research_action_plan_by_id($pdo,(int)$plan['id']);
     if(function_exists('research_action_plan_sync_execution_task_plan'))research_action_plan_sync_execution_task_plan($pdo,$viewer,$fresh,$status);
+    if(function_exists('research_action_plan_sync_programs'))research_action_plan_sync_programs($pdo,$viewer,$fresh,$status);
     research_action_plan_event($pdo,$fresh,'action_plan_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['from'=>$current,'to'=>$status]);
     return research_action_plan_detail($pdo,$viewer,$publicId)??$fresh;
 }
@@ -607,7 +608,7 @@ function research_action_plan_program_snapshot(PDO $pdo,array $program): ?array 
     $q=$pdo->prepare("SELECT status,COUNT(*) total FROM research_action_plan_task_links l JOIN research_tasks rt ON rt.id=l.task_id WHERE l.action_plan_id=? GROUP BY status ORDER BY status");$q->execute([(int)$plan['id']]);foreach($q->fetchAll() as $r)$snapshot['task_counts'][(string)$r['status']]=(int)$r['total'];
     $q=$pdo->prepare("SELECT m.*,
       (SELECT COUNT(*) FROM research_action_plan_milestone_dependencies d JOIN research_action_plan_milestones parent ON parent.id=d.depends_on_milestone_id WHERE d.milestone_id=m.id AND parent.status<>'completed') blocked_parent_count
-      FROM research_action_plan_milestones m WHERE m.action_plan_id=? ORDER BY m.position,m.id");$q->execute([(int)$plan['id']);
+      FROM research_action_plan_milestones m WHERE m.action_plan_id=? ORDER BY m.position,m.id");$q->execute([(int)$plan['id']]);
     foreach($q->fetchAll() as $m){
       $taskCounts=[];$tq=$pdo->prepare("SELECT rt.status,COUNT(*) total FROM research_action_plan_task_links l JOIN research_tasks rt ON rt.id=l.task_id WHERE l.milestone_id=? GROUP BY rt.status ORDER BY rt.status");$tq->execute([(int)$m['id']]);foreach($tq->fetchAll() as $r)$taskCounts[(string)$r['status']]=(int)$r['total'];
       $mTerminal=in_array((string)$m['status'],['completed','cancelled'],true);$mOverdue=!$mTerminal&&!empty($m['target_on'])&&(string)$m['target_on']<$today;
