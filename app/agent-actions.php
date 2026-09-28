@@ -741,6 +741,12 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
             $pdo->prepare("UPDATE agent_action_proposals SET status='stale',error_text='Research project changed after proposal.' WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'stale',(int)$viewer['id'],['reason'=>'project_state_changed']);$pdo->commit();throw new AgentActionStale('The Research project changed after this proposal. Ask the Agent to review the current state and propose the action again.');
         }
         $args=json_decode((string)$proposal['arguments_json'],true);if(!is_array($args))throw new RuntimeException('Stored Agent action arguments are invalid.');
+        $provenance=json_decode((string)($proposal['provenance_json']??''),true);$proposalRefs=is_array($provenance)?(array)($provenance['refs']??[]):[];
+        if(!agent_action_validate_project_arguments($pdo,$viewer,$project,(string)$proposal['capability_key'],$args,$proposalRefs)){
+            $pdo->prepare("UPDATE agent_action_proposals SET status='stale',error_text='Governed source state changed after proposal.' WHERE id=?")->execute([$proposal['id']]);
+            agent_action_event($pdo,(int)$proposal['id'],'stale',(int)$viewer['id'],['reason'=>'governed_source_state_changed']);$pdo->commit();
+            throw new AgentActionStale('The governed source state changed after this proposal. Ask the Agent to review current state and propose the action again.');
+        }
         $pdo->prepare("UPDATE agent_action_proposals SET status='confirmed',confirmed_at=NOW(),error_text=NULL WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'confirmed',(int)$viewer['id']);
         $result=agent_action_execute_capability($pdo,$viewer,$project,(string)$proposal['capability_key'],$args);
         if(($result['type']??'')==='document'&&function_exists('research_agent_workspace_post_document_to_chat')){
