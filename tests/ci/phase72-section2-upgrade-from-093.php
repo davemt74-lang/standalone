@@ -45,7 +45,7 @@ try{
     $cols=$pdo->query("SHOW COLUMNS FROM research_action_plans")->fetchAll(PDO::FETCH_COLUMN);if(!in_array('execution_task_plan_id',$cols,true))throw new RuntimeException('094 did not add execution_task_plan_id.');
     $after=$pdo->prepare("SELECT public_id,decision_id,research_agent_id,project_id,created_by_user_id,owner_user_id,title,objective,expected_result,status,priority,source_decision_revision,source_decision_config_hash,source_decision_status,idempotency_key,current_revision,config_hash FROM research_action_plans WHERE id=?");$after->execute([(int)$plan['id']]);$afterRow=$after->fetch();
     if($afterRow!==$beforeRow)throw new RuntimeException('094 rewrote existing Section 1 Action Plan state.');
-    $q=$pdo->prepare('SELECT execution_task_plan_id FROM research_action_plans WHERE id=?');$q->execute([(int)$plan['id']);if($q->fetchColumn()!==null)throw new RuntimeException('094 fabricated an execution Task Plan link.');
+    $q=$pdo->prepare('SELECT execution_task_plan_id FROM research_action_plans WHERE id=?');$q->execute([(int)$plan['id']]);if($q->fetchColumn()!==null)throw new RuntimeException('094 fabricated an execution Task Plan link.');
     foreach(['research_action_plan_milestones','research_action_plan_milestone_dependencies','research_action_plan_task_links'] as $table)if((int)$pdo->query('SELECT COUNT(*) FROM '.$table)->fetchColumn()!==0)throw new RuntimeException('094 fabricated state in '.$table.'.');
     if((int)$pdo->query('SELECT COUNT(*) FROM research_tasks')->fetchColumn()!==$tasksBefore||(int)$pdo->query('SELECT COUNT(*) FROM research_task_plans')->fetchColumn()!==$taskPlansBefore)throw new RuntimeException('094 fabricated existing Research Task state.');
 
