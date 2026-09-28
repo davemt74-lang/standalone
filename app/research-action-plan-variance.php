@@ -275,7 +275,7 @@ function research_action_plan_refresh_execution_variances(PDO $pdo,array $viewer
         'fingerprint'=>hash('sha256','milestone-due|'.(int)$baseline['id'].'|'.$public.'|'.$target)
       ],$byAgent);if($made['created']&&$made['variance'])$created[]=$made['variance'];
     }
-    $currentTasks=[];$q=$pdo->prepare("SELECT rt.* FROM research_action_plan_task_links l JOIN research_tasks rt ON rt.id=l.task_id WHERE l.action_plan_id=?");$q->execute([(int)$plan['id']);foreach($q->fetchAll()?:[] as $t)$currentTasks[(string)$t['public_id']]=$t;
+    $currentTasks=[];$q=$pdo->prepare("SELECT rt.* FROM research_action_plan_task_links l JOIN research_tasks rt ON rt.id=l.task_id WHERE l.action_plan_id=?");$q->execute([(int)$plan['id']]);foreach($q->fetchAll()?:[] as $t)$currentTasks[(string)$t['public_id']]=$t;
     foreach((array)$baseline['tasks'] as $expected){
       $public=(string)($expected['public_id']??'');$due=(string)($expected['due_at']??'');if($public===''||$due==='')continue;$actual=$currentTasks[$public]??null;if(!$actual)continue;$dueDate=substr($due,0,10);
       if(in_array((string)$actual['status'],['complete','done','archived'],true)||$asOf<=$dueDate)continue;
