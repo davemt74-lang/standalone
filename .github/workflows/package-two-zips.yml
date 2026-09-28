@@ -441,6 +441,11 @@ jobs:
           test -f package-website/tests/phase73-section5-recurring-strategic-review-contract.php
           test -f package-website/tests/phase73-section5-recurring-strategic-review-db.php
           test -f package-website/tests/ci/phase73-section5-upgrade-from-101.php
+          test -f package-website/database/migrations/20260928_103_executive_strategic_briefings_team_review.sql
+          test -f package-website/app/research-intelligence-strategic-briefings.php
+          test -f package-website/tests/phase73-section6-executive-strategic-briefings-team-review-contract.php
+          test -f package-website/tests/phase73-section6-executive-strategic-briefings-team-review-db.php
+          test -f package-website/tests/ci/phase73-section6-upgrade-from-102.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
