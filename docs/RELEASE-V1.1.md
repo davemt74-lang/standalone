@@ -29,7 +29,7 @@ This runbook applies to **Annotated V1.1 (`1.1.0`)** on the current Phase 72 rel
 12. Restart workers and run `php bin/release-preflight.php` again.
 13. Reopen traffic only after health checks and the post-deploy journey pass.
 
-Phase 62 CI still protects the original V1.1 release baselines. Phase 72 CI additionally rehearses representative supported development states at migrations 092, 093, 095, and 097 through the final Phase 72 schema boundary at migration 098. Every supported upgrade must preserve existing review state, fabricate no Action Plan history, end with zero pending migrations, and be repeat-safe.
+Phase 62 CI explicitly rehearses migration-046 (RC1-era), migration-056, and migration-058 databases through the original V1.1 migration-059 boundary. Phase 72 CI additionally rehearses representative supported development states at migrations 092, 093, 095, and 097 through the final Phase 72 schema boundary at migration 098. Every supported upgrade must preserve existing review state, fabricate no Action Plan history, end with zero pending migrations, and be repeat-safe.
 
 ## Required workers
 
