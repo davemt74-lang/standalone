@@ -282,6 +282,7 @@ function research_intelligence_portfolio_process_due(PDO $pdo,int $limit=10): ar
             $snapshot=research_intelligence_portfolio_snapshot($pdo,$viewer,(string)$p['public_id'],30,'system');$briefing=null;$briefRow=null;$policy=(string)($p['briefing_policy']??'material_only');if($policy==='always'||$changed){$briefing=research_intelligence_portfolio_create_briefing($pdo,$viewer,(string)$p['public_id'],['snapshot_public_id'=>$snapshot['public_id'],'window_days'=>30],false);$stats['briefings']++;$briefRow=research_intelligence_portfolio_briefing_access($pdo,$viewer,(string)$briefing['public_id']);if(!$briefRow)throw new RuntimeException('Scheduled Executive Briefing could not be reloaded.');research_intelligence_portfolio_notify_briefing($pdo,$viewer,$access,$briefRow,'draft');}
             $status=$briefing?'completed':'skipped';$detail=$briefing?'Executive Briefing draft created.':'No material Portfolio change at the configured threshold.';$pdo->prepare("UPDATE research_intelligence_portfolio_cycles SET status=?,material_hash=?,previous_material_hash=?,material_changed=?,snapshot_id=?,briefing_id=?,detail=?,completed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([$status,$material,$previous?:null,$changed?1:0,(int)$snapshot['id'],$briefRow?(int)$briefRow['id']:null,$detail,(int)$cycle['id']]);$next=research_intelligence_portfolio_schedule_next($p,(new DateTimeImmutable((string)$claim['scheduled_for'],new DateTimeZone('UTC')))->modify('+1 second'));$pdo->prepare('UPDATE research_intelligence_portfolios SET next_cycle_at=?,last_cycle_at=NOW(),last_material_hash=?,updated_at=NOW() WHERE id=?')->execute([$next,$material,(int)$p['id']]);$stats[$status]++;
             research_intelligence_portfolio_event($pdo,(int)$p['id'],'cycle_'.$status,'system',null,['cycle_id'=>$cycle['public_id'],'material_changed'=>$changed,'briefing_id'=>$briefing['public_id']??null]);
+            if(function_exists('research_intelligence_pattern_memory_ready')&&research_intelligence_pattern_memory_ready($pdo)){try{research_intelligence_portfolio_pattern_refresh($pdo,$viewer,(string)$p['public_id'],'cycle');}catch(Throwable $patternError){research_intelligence_portfolio_event($pdo,(int)$p['id'],'decision_pattern_memory_refresh_failed','system',null,['cycle_id'=>$cycle['public_id'],'error'=>mb_substr($patternError->getMessage(),0,500)]);}}
         }catch(Throwable $e){$stats['failed']++;$pdo->prepare("UPDATE research_intelligence_portfolio_cycles SET status='failed',detail=?,completed_at=NOW(),updated_at=NOW() WHERE id=?")->execute([mb_substr($e->getMessage(),0,1000),(int)$cycle['id']]);if((int)$cycle['attempts']>=3){$next=research_intelligence_portfolio_schedule_next($p,(new DateTimeImmutable((string)$claim['scheduled_for'],new DateTimeZone('UTC')))->modify('+1 second'));$pdo->prepare('UPDATE research_intelligence_portfolios SET next_cycle_at=?,last_cycle_at=NOW(),updated_at=NOW() WHERE id=?')->execute([$next,(int)$p['id']]);if($viewer)notification_create($pdo,(int)$viewer['id'],null,'research_portfolio_cycle_failed','research_intelligence_portfolio',(string)$p['public_id'],'Portfolio intelligence cycle failed repeatedly: '.$p['title'],['allow_self'=>true,'category'=>'research','dedupe_key'=>'portfolio-cycle-failed:'.$cycle['public_id'],'context'=>['portfolio_public_id'=>$p['public_id'],'cycle_public_id'=>$cycle['public_id']]]);} }
     }return $stats;
 }
@@ -291,7 +292,8 @@ function research_intelligence_portfolio_operations_detail(PDO $pdo,array $viewe
 }
 
 function research_intelligence_organization_command_center(PDO $pdo,array $viewer): array {
-    $dashboard=research_intelligence_portfolio_dashboard($pdo,$viewer);$needs=[];$changed=[];$opportunities=[];$briefings=[];$decisions=[];$themeMap=[];$executionAttention=[];
+    $dashboard=research_intelligence_portfolio_dashboard($pdo,$viewer);$needs=[];$changed=[];$opportunities=[];$briefings=[];$decisions=[];$themeMap=[];$executionAttention=[];$learningPatterns=[];
+    $patternSummary=['active_patterns'=>0,'repeated_assumptions'=>0,'repeated_plan_risks'=>0,'recurring_variance_types'=>0,'recurring_outcome_assessments'=>0,'expected_actual_variance'=>0,'repeated_lessons'=>0];
     $executionSummary=[
       'native_decisions'=>0,'action_plans'=>0,'active_action_plans'=>0,'completed_action_plans'=>0,'overdue_action_plans'=>0,
       'material_open_variances'=>0,'high_or_critical_open_variances'=>0,'open_reviews'=>0,'overdue_reviews'=>0,
@@ -308,6 +310,14 @@ function research_intelligence_organization_command_center(PDO $pdo,array $viewe
             foreach(research_intelligence_portfolio_decision_rows($pdo,$viewer,$p,20) as $d)if(!empty($d['task_public_id'])&&!in_array((string)$d['task_status'],['complete','done','archived'],true))$decisions[]=['portfolio_id'=>$p['public_id'],'portfolio_title'=>$p['title']]+$d;
             $dx=(array)($p['operations']['decision_execution']??[]);$ds=(array)($dx['summary']??[]);
             foreach(array_keys($executionSummary) as $key)$executionSummary[$key]+=(int)($ds[$key]??0);
+            $pm=(array)($p['operations']['pattern_memory']??[]);$ps=(array)($pm['summary']??[]);
+            foreach(array_keys($patternSummary) as $key)$patternSummary[$key]+=(int)($ps[$key]??0);
+            foreach(array_slice((array)($pm['patterns']??[]),0,12) as $pattern)$learningPatterns[]=[
+              'portfolio_id'=>(string)$p['public_id'],'portfolio_title'=>(string)$p['title'],
+              'pattern_id'=>(string)$pattern['public_id'],'pattern_type'=>(string)$pattern['pattern_type'],'label'=>(string)$pattern['label'],
+              'summary'=>(string)$pattern['summary'],'decision_count'=>(int)$pattern['decision_count'],'evidence_count'=>(int)$pattern['evidence_count'],
+              'first_seen_at'=>(string)$pattern['first_seen_at'],'last_seen_at'=>(string)$pattern['last_seen_at']
+            ];
             foreach((array)($dx['decisions']??[]) as $decision){
                 foreach((array)($decision['action_plans']??[]) as $plan){
                     $reasons=[];if(!empty($plan['overdue']))$reasons[]='overdue';
@@ -331,7 +341,8 @@ function research_intelligence_organization_command_center(PDO $pdo,array $viewe
         $weight=fn(array $x): int=>(in_array('material_variance',$x['reasons'],true)?8:0)+(in_array('overdue',$x['reasons'],true)?4:0)+(in_array('open_review',$x['reasons'],true)?2:0)+(in_array('awaiting_outcome',$x['reasons'],true)?1:0);
         return $weight($b)<=>$weight($a);
     });
-    return ['summary'=>$dashboard['summary'],'execution_summary'=>$executionSummary,'decision_execution_attention'=>array_slice($executionAttention,0,60),'needs_attention'=>$needs,'new_since_last_briefing'=>$changed,'decisions_awaiting_follow_through'=>$decisions,'emerging_opportunities'=>array_slice($opportunities,0,30),'cross_portfolio_themes'=>array_slice($themes,0,30),'briefings_awaiting_review'=>$briefings,'generated_at'=>date('Y-m-d H:i:s')];
+    usort($learningPatterns,fn($a,$b)=>($b['decision_count']<=>$a['decision_count'])?:($b['evidence_count']<=>$a['evidence_count'])?:strcmp((string)$b['last_seen_at'],(string)$a['last_seen_at']));
+    return ['summary'=>$dashboard['summary'],'execution_summary'=>$executionSummary,'pattern_summary'=>$patternSummary,'learning_patterns'=>array_slice($learningPatterns,0,60),'decision_execution_attention'=>array_slice($executionAttention,0,60),'needs_attention'=>$needs,'new_since_last_briefing'=>$changed,'decisions_awaiting_follow_through'=>$decisions,'emerging_opportunities'=>array_slice($opportunities,0,30),'cross_portfolio_themes'=>array_slice($themes,0,30),'briefings_awaiting_review'=>$briefings,'generated_at'=>date('Y-m-d H:i:s')];
 }
 
 function research_intelligence_portfolio_operations_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limit=20): void {
