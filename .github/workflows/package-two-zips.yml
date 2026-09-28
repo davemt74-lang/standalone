@@ -405,6 +405,11 @@ jobs:
           test -f package-website/app/research-action-plan-cognition.php
           test -f package-website/tests/phase72-section5-agent-cognition-contract.php
           test -f package-website/tests/phase72-section5-agent-cognition-db.php
+          test -f package-website/database/migrations/20260928_097_research_action_plan_team_command_review.sql
+          test -f package-website/research-action-plans.php
+          test -f package-website/tests/phase72-section6-team-command-review-contract.php
+          test -f package-website/tests/phase72-section6-team-command-review-db.php
+          test -f package-website/tests/ci/phase72-section6-upgrade-from-096.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
