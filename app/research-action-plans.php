@@ -640,3 +640,32 @@ function research_action_plan_program_compare_snapshots(PDO $pdo,array $program,
     return $out;
 }
 
+function research_action_plan_program_run_allowed(PDO $pdo,array $program): bool {
+    if(!research_action_plan_follow_through_ready($pdo))return true;
+    $q=$pdo->prepare("SELECT l.sync_with_action_plan,rap.status action_plan_status FROM research_action_plan_program_links l JOIN research_action_plans rap ON rap.id=l.action_plan_id WHERE l.program_id=? LIMIT 1");
+    $q->execute([(int)$program['id']]);$row=$q->fetch();if(!$row)return true;
+    if(!(bool)$row['sync_with_action_plan'])return true;
+    return (string)$row['action_plan_status']==='active';
+}
+function research_action_plan_program_context_text(PDO $pdo,array $program): string {
+    $s=research_action_plan_program_snapshot($pdo,$program);if(!$s)return '';
+    $taskCounts=[];foreach((array)$s['task_counts'] as $status=>$count)$taskCounts[]=$status.' '.(int)$count;
+    $milestoneCounts=[];foreach((array)$s['milestones'] as $m){$st=(string)$m['status'];$milestoneCounts[$st]=($milestoneCounts[$st]??0)+1;}
+    $milestones=[];foreach($milestoneCounts as $status=>$count)$milestones[]=$status.' '.$count;
+    $lines=[
+      '[ACTION PLAN FOLLOW-THROUGH]',
+      'Action Plan: '.(string)$s['public_id'].' · status '.(string)$s['status'].' · revision '.(int)$s['current_revision'].' · role '.(string)$s['program_role'],
+      'Pinned Decision: '.(string)$s['source_decision_public_id'].' · pinned status '.(string)$s['source_decision_status'].' · current status '.(string)$s['decision_current_status'].' · pinned revision '.(int)$s['source_decision_revision'].' · current revision '.(int)$s['decision_current_revision'],
+      'Decision provenance stale: '.(!empty($s['source_stale'])?'yes':'no'),
+      'Action Plan overdue: '.(!empty($s['overdue'])?'yes':'no'),
+      'Milestones: '.($milestones?implode(', ',$milestones):'none'),
+      'Execution tasks: '.($taskCounts?implode(', ',$taskCounts):'none')
+    ];
+    if(!empty($s['success_measures'])){
+      $measureLabels=[];foreach(array_slice((array)$s['success_measures'],0,12) as $measure)$measureLabels[]=trim((string)($measure['label']??'')).(trim((string)($measure['target']??''))!==''?' → '.trim((string)$measure['target']):'');
+      $measureLabels=array_values(array_filter($measureLabels,fn($v)=>$v!==''));if($measureLabels)$lines[]='Success measures: '.implode(' | ',$measureLabels);
+    }
+    $lines[]='This context is read-only. Report progress, blockers, risks, evidence changes, or Decision-review reasons; do not change Action Plan, milestone, task, Program, or Decision state.';
+    return implode("\n",$lines);
+}
+
