@@ -8,10 +8,14 @@ $method=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'));
 $input=$method==='POST'?(json_decode(file_get_contents('php://input'),true)?:[]):$_GET;
 
 try{
-    $readActions=['list','summary','detail','execution_detail','milestone_detail','follow_through','execution_variance_detail'];
+    $readActions=['list','summary','detail','execution_detail','milestone_detail','follow_through','execution_variance_detail','command_center'];
     $viewer=in_array($action,$readActions,true)?require_api_user($pdo):require_api_mutation_auth($pdo);
     if(!research_action_plans_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Action Plan Ledger requires the latest database upgrade.']],503);
 
+    if($action==='command_center'){
+        $scope=trim((string)($input['scope']??'all'));
+        json_response(['ok'=>true,'data'=>research_action_plan_command_center($pdo,$viewer,$scope,(int)($input['limit']??150))]);
+    }
     if($action==='list'){
         $agent=trim((string)($input['agent_id']??''));$decision=trim((string)($input['decision_id']??''));
         json_response(['ok'=>true,'data'=>['action_plans'=>research_action_plan_list($pdo,$viewer,$agent!==''?$agent:null,$decision!==''?$decision:null,(int)($input['limit']??100))]]);
