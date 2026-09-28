@@ -48,7 +48,7 @@ try{
     $beforeTask=$pdo->prepare("SELECT public_id,title,status,plan_id FROM research_tasks WHERE id=?");$beforeTask->execute([(int)$task['id']]);$beforeTaskRow=$beforeTask->fetch();
     $beforeProgram=$pdo->prepare("SELECT public_id,title,status,cadence,current_revision,config_hash FROM research_programs WHERE id=?");$beforeProgram->execute([(int)$program['id']]);$beforeProgramRow=$beforeProgram->fetch();
     $beforeRun=$pdo->prepare("SELECT public_id,program_id,status,trigger_type,trigger_key FROM research_program_runs WHERE id=?");$beforeRun->execute([(int)$runRow['id']]);$beforeRunRow=$beforeRun->fetch();
-    $beforeDelta=$pdo->prepare("SELECT public_id,run_id,program_id,delta_type,importance,fingerprint,summary FROM research_program_deltas WHERE public_id=?");$beforeDelta->execute([(string)$delta['public_id']]);$beforeDeltaRow=$beforeDelta->fetch();
+    $beforeDelta=$pdo->prepare("SELECT public_id,run_id,program_id,delta_type,importance,fingerprint,summary FROM research_program_deltas WHERE fingerprint=?");$beforeDelta->execute([(string)$delta['fingerprint']]);$beforeDeltaRow=$beforeDelta->fetch();
 
     $section3Final='20260927_095_research_action_plan_program_follow_through.sql';
     foreach(glob($root.'/database/migrations/*.sql')?:[] as $file){$base=basename($file);if(strcmp($base,$baseline)>0&&strcmp($base,$section3Final)<=0)copy($file,$tmp.'/'.$base);}
@@ -63,7 +63,7 @@ try{
     $afterTask=$pdo->prepare("SELECT public_id,title,status,plan_id FROM research_tasks WHERE id=?");$afterTask->execute([(int)$task['id']]);if($afterTask->fetch()!==$beforeTaskRow)throw new RuntimeException('095 rewrote existing Research Task state.');
     $afterProgram=$pdo->prepare("SELECT public_id,title,status,cadence,current_revision,config_hash FROM research_programs WHERE id=?");$afterProgram->execute([(int)$program['id']]);if($afterProgram->fetch()!==$beforeProgramRow)throw new RuntimeException('095 rewrote existing Research Program state.');
     $afterRun=$pdo->prepare("SELECT public_id,program_id,status,trigger_type,trigger_key FROM research_program_runs WHERE id=?");$afterRun->execute([(int)$runRow['id']]);if($afterRun->fetch()!==$beforeRunRow)throw new RuntimeException('095 rewrote existing Program run state.');
-    $afterDelta=$pdo->prepare("SELECT public_id,run_id,program_id,delta_type,importance,fingerprint,summary FROM research_program_deltas WHERE public_id=?");$afterDelta->execute([(string)$delta['public_id']]);if($afterDelta->fetch()!==$beforeDeltaRow)throw new RuntimeException('095 rewrote existing Program delta state.');
+    $afterDelta=$pdo->prepare("SELECT public_id,run_id,program_id,delta_type,importance,fingerprint,summary FROM research_program_deltas WHERE fingerprint=?");$afterDelta->execute([(string)$delta['fingerprint']]);if($afterDelta->fetch()!==$beforeDeltaRow)throw new RuntimeException('095 rewrote existing Program delta state.');
     if((int)$pdo->query('SELECT COUNT(*) FROM research_action_plan_program_links')->fetchColumn()!==0)throw new RuntimeException('095 fabricated Action Plan Program links.');
 
     $pending=installer_pending_migrations($pdo,$tmp);if($pending)throw new RuntimeException('Phase 72 Section 3 upgrade left pending Section 3 migrations: '.implode(', ',$pending));
