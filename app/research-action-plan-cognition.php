@@ -19,20 +19,20 @@ function research_action_plan_cognition_state_hash(PDO $pdo,array $viewer,string
       ],
       'milestones'=>[],'tasks'=>[],'programs'=>[],'variances'=>[],'observations'=>[]
     ];
-    $q=$pdo->prepare("SELECT public_id,status,target_on,completed_at,updated_at FROM research_action_plan_milestones WHERE action_plan_id=? ORDER BY id");$q->execute([(int)$plan['id']]);
+    $q=$pdo->prepare("SELECT public_id,owner_user_id,title,description,status,completion_criteria_json,position,target_on,completed_at,updated_at FROM research_action_plan_milestones WHERE action_plan_id=? ORDER BY id");$q->execute([(int)$plan['id']]);
     foreach($q->fetchAll()?:[] as $row)$state['milestones'][]=$row;
-    $q=$pdo->prepare("SELECT rt.public_id,rt.status,rt.due_at,rt.updated_at,l.link_role,m.public_id milestone_public_id
+    $q=$pdo->prepare("SELECT rt.public_id,rt.title,rt.description,rt.status,rt.task_type,rt.priority,rt.position,rt.due_at,rt.blocking_reason,rt.updated_at,l.link_role,m.public_id milestone_public_id
       FROM research_action_plan_task_links l JOIN research_tasks rt ON rt.id=l.task_id LEFT JOIN research_action_plan_milestones m ON m.id=l.milestone_id
       WHERE l.action_plan_id=? ORDER BY rt.id");$q->execute([(int)$plan['id']]);
     foreach($q->fetchAll()?:[] as $row)$state['tasks'][]=$row;
     if(research_action_plan_follow_through_ready($pdo)){
-      $q=$pdo->prepare("SELECT rp.public_id,rp.status,rp.updated_at,l.program_role,l.sync_with_action_plan FROM research_action_plan_program_links l JOIN research_programs rp ON rp.id=l.program_id WHERE l.action_plan_id=? ORDER BY rp.id");$q->execute([(int)$plan['id']]);
+      $q=$pdo->prepare("SELECT rp.public_id,rp.title,rp.objective,rp.status,rp.cadence,rp.timezone_name,rp.run_time_local,rp.weekday,rp.day_of_month,rp.quiet_mode,rp.materiality_threshold,rp.catch_up_mode,rp.updated_at,l.program_role,l.sync_with_action_plan FROM research_action_plan_program_links l JOIN research_programs rp ON rp.id=l.program_id WHERE l.action_plan_id=? ORDER BY rp.id");$q->execute([(int)$plan['id']]);
       foreach($q->fetchAll()?:[] as $row)$state['programs'][]=$row;
     }
     if(research_action_plan_variance_ready($pdo)){
-      $q=$pdo->prepare("SELECT public_id,variance_type,severity,material,status,updated_at FROM research_action_plan_variances WHERE action_plan_id=? ORDER BY id");$q->execute([(int)$plan['id']]);
+      $q=$pdo->prepare("SELECT public_id,variance_type,subject_type,subject_key,severity,material,summary,expected_json,actual_json,impact,response,status,resolved_at,updated_at FROM research_action_plan_variances WHERE action_plan_id=? ORDER BY id");$q->execute([(int)$plan['id']]);
       foreach($q->fetchAll()?:[] as $row)$state['variances'][]=$row;
-      $q=$pdo->prepare("SELECT public_id,observation_type,subject_type,subject_key,assessment,material,observed_on,created_at FROM research_action_plan_execution_observations WHERE action_plan_id=? ORDER BY id");$q->execute([(int)$plan['id']]);
+      $q=$pdo->prepare("SELECT public_id,observation_type,subject_type,subject_key,summary,expected_json,actual_json,assessment,source_type,source_public_id,source_snapshot_json,material,observed_on,created_at FROM research_action_plan_execution_observations WHERE action_plan_id=? ORDER BY id");$q->execute([(int)$plan['id']]);
       foreach($q->fetchAll()?:[] as $row)$state['observations'][]=$row;
     }
     return hash('sha256',json_encode($state,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRESERVE_ZERO_FRACTION));
