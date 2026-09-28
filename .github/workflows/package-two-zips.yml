@@ -415,6 +415,9 @@ jobs:
           test -f package-website/tests/phase72-section7-outcome-handoff-contract.php
           test -f package-website/tests/phase72-section7-outcome-handoff-db.php
           test -f package-website/tests/ci/phase72-section7-upgrade-from-097.php
+          test -f package-website/tests/phase72-section8-end-to-end-release-contract.php
+          test -f package-website/tests/phase72-section8-end-to-end-release-db.php
+          test -f package-website/tests/ci/phase72-final-supported-upgrades.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md
