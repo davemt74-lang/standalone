@@ -89,7 +89,7 @@ function research_intelligence_strategic_review_packet(PDO $pdo,array $viewer,st
     $execution=function_exists('research_intelligence_portfolio_decision_execution_rollup')?research_intelligence_portfolio_decision_execution_rollup($pdo,$viewer,(string)$p['public_id'],120):['summary'=>[],'decisions'=>[]];
     $patterns=function_exists('research_intelligence_portfolio_pattern_memory')?research_intelligence_portfolio_pattern_memory($pdo,$viewer,(string)$p['public_id']):['summary'=>[],'patterns'=>[]];
     $graph=function_exists('research_intelligence_portfolio_strategic_graph')?research_intelligence_portfolio_strategic_graph($pdo,$viewer,(string)$p['public_id'],false,400):['summary'=>[],'attention'=>[]];
-    $patternRows=[];foreach(array_slice((array)($patterns['patterns']??[]),0,40) as $x)$patternRows[]=['id'=>(string)$x['public_id'],'type'=>(string)$x['pattern_type'],'label'=>(string)$x['label'],'decision_count'=>(int)$x['decision_count'],'evidence_count'=>(int)$x['evidence_count'],'last_seen_at'=>(string)$x['last_seen_at']];
+    $patternRows=[];foreach(array_slice((array)($patterns['patterns']??[]),0,40) as $x)$patternRows[]=['id'=>(string)$x['public_id'],'type'=>(string)$x['pattern_type'],'label'=>(string)$x['label'],'decision_count'=>(int)$x['decision_count'],'evidence_count'=>(int)$x['evidence_count']];
     $state=[
       'portfolio'=>['public_id'=>(string)$p['public_id'],'title'=>(string)$p['title'],'objective'=>(string)$p['objective']],
       'aggregate'=>['summary'=>$aggregate['summary']??[],'trends'=>$aggregate['trends']??[],'risks'=>array_slice((array)($aggregate['risks']??[]),0,30),'opportunities'=>array_slice((array)($aggregate['opportunities']??[]),0,30),'cross_program'=>array_slice((array)($aggregate['cross_program']??[]),0,30)],
