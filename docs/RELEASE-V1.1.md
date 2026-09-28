@@ -1,13 +1,13 @@
 # Annotated V1.1 Production Release Runbook
 
-This runbook applies to **Annotated V1.1 (`1.1.0`)** on the current Phase 72 release-hardened source tree. The stable product identity remains V1.1; Phase 72 extends the same release line through migration 098.
+This runbook applies to **Annotated V1.1 (`1.1.0`)** on the current Phase 73 release-hardened source tree. The stable product identity remains V1.1; Phase 73 extends the same release line through migration 103.
 
 ## Fresh install
 
 1. Create an empty MariaDB or MySQL 8 database.
 2. Upload the tested website ZIP and open `/install.php`.
 3. Complete database configuration and create the first administrator.
-4. The installer applies the base schema and every bundled migration through 098.
+4. The installer applies the base schema and every bundled migration through 103.
 5. Configure production settings and external private storage.
 6. Start the canonical workers listed by `release_worker_specs()`.
 7. Run `php bin/release-preflight.php`.
@@ -29,7 +29,7 @@ This runbook applies to **Annotated V1.1 (`1.1.0`)** on the current Phase 72 rel
 12. Restart workers and run `php bin/release-preflight.php` again.
 13. Reopen traffic only after health checks and the post-deploy journey pass.
 
-Phase 62 CI explicitly rehearses migration-046 (RC1-era), migration-056, and migration-058 databases through the original V1.1 migration-059 boundary. Phase 72 CI additionally rehearses representative supported development states at migrations 092, 093, 095, and 097 through the final Phase 72 schema boundary at migration 098. Every supported upgrade must preserve existing review state, fabricate no Action Plan history, end with zero pending migrations, and be repeat-safe.
+Phase 62 CI explicitly rehearses migration-046 (RC1-era), migration-056, and migration-058 databases through the original V1.1 migration-059 boundary. Phase 72 CI additionally rehearses representative supported development states at migrations 092, 093, 095, and 097 through migration 098. **Phase 73 CI** rehearses representative baselines at migrations 098, 099, 100, 101, and 102 through the final Phase 73 schema boundary at **migration 103**. These upgrades must preserve existing Collaborative Review state, fabricate no Pattern Memory, Strategic Graph, Strategic Review, or Strategic Briefing rows, end with zero pending migrations, and be repeat-safe. Sections 7 and 8 are application-only and intentionally add no migration 104.
 
 ## Required workers
 
@@ -37,7 +37,7 @@ Use the canonical schedule reported by `release_worker_specs()`. Phase 61 Portfo
 
 `php bin/research-automations.php --limit=25`
 
-There is no separate Portfolio or Phase 62 worker. Phase 72 also introduces no Action Plan worker, Action Plan scheduler, Action Plan queue, cognition worker, or outcome worker; Action Plans continue to reuse the existing Research Task and Research Program runtimes.
+There is no separate Portfolio or Phase 62 worker. Phase 72 also introduces no Action Plan worker, Action Plan scheduler, Action Plan queue, cognition worker, or outcome worker; Action Plans continue to reuse the existing Research Task and Research Program runtimes. Phase 73 introduces no Portfolio Decision worker, Pattern Memory worker, Strategic Graph worker, Strategic Review worker, Strategic Briefing worker, or Organizational Cognition worker. Recurring Strategic Reviews reuse the existing Portfolio cycle clock, and all durable Agent follow-through continues through the existing confirmation ledger.
 
 ## Post-deploy V1.1 journey
 
@@ -69,6 +69,17 @@ Validate with non-admin Team accounts:
 24. Confirm the observed outcome creates the existing Decision reconsideration signal but does not change Decision status by itself.
 25. Resolve/apply reconsideration explicitly and verify only that action changes the Decision.
 26. Revoke a Team member and verify Action Plan, Team Review, and final outcome-provenance access disappears immediately.
+27. From an Intelligence Portfolio, create two native Decisions and verify historical Portfolio decision records remain visible alongside native Decision Memory.
+28. Confirm Portfolio Decision/Action Plan rollups reflect the authoritative Phase 71/72 records without duplicating them.
+29. Refresh Cross-Decision Pattern Memory and verify repeated assumptions, risks, variance, outcomes, or lessons are backed by exact durable members.
+30. Record a Strategic Graph relationship and verify its endpoint revisions/state hashes are frozen without changing either source object.
+31. Create a frozen Strategic Review, complete the existing Collaborative Review, and verify later strategic changes appear as drift rather than rewriting the packet.
+32. Create an Executive Strategic Briefing from an approved Strategic Review and confirm publication remains blocked until its existing Team Review is current and unanimously approved.
+33. Confirm the approved Strategic Briefing enters the existing Phase 59 publication workflow rather than a parallel publisher.
+34. Open Organizational Cognition and verify explainable Decision reconsideration, execution, Strategic Graph, review/briefing attention, and exact Decision analogues include provenance.
+35. Ask the Research Agent for governed follow-through and verify the proposal is pending and non-mutating until explicit confirmation.
+36. Confirm a governed proposal creates only its safe entry state (for example a Draft Decision or Draft Action Plan), and verify changed Portfolio/Decision state makes an older proposal stale.
+37. Revoke a Team member and verify Portfolio, Strategic Review, Strategic Briefing, Team Review, Pattern/Graph, and Organizational Cognition access disappears immediately.
 
 ## Chrome extension
 
@@ -91,7 +102,7 @@ Restore planning is generated by Annotated, but destructive restore execution re
 
 ## Release evidence to archive
 
-- merged Phase 72 Section 8 SHA and tree SHA
+- merged Phase 73 Section 8 SHA and tree SHA
 - CI and full-regression run IDs
 - stable package fingerprint
 - website ZIP SHA-256

@@ -117,6 +117,7 @@ db_tests=(
   tests/phase73-section5-recurring-strategic-review-db.php
   tests/phase73-section6-executive-strategic-briefings-team-review-db.php
   tests/phase73-section7-organizational-agent-cognition-db.php
+  tests/phase73-section8-end-to-end-release-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
