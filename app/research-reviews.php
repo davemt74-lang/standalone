@@ -211,14 +211,14 @@ function research_review_create(PDO $pdo,array $viewer,string $subjectType,strin
     if(!$reviewerIds)throw new InvalidArgumentException('Choose at least one other current project collaborator who can access this Research subject.');
     $due=null;if($dueAt!==null&&trim($dueAt)!==''){$ts=strtotime($dueAt);if($ts===false||$ts<=time())throw new InvalidArgumentException('Review deadline must be in the future.');$due=date('Y-m-d H:i:s',$ts);}
     $public=ulid_like();$title=mb_substr((string)$subject['title'],0,255);$instructions=mb_substr(trim($instructions),0,8000);
-    $pdo->beginTransaction();try{
+    $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{
         $pdo->prepare("INSERT INTO research_reviews(public_id,project_id,requested_by_user_id,subject_type,subject_public_id,subject_hash,subject_version_label,title,instructions,due_at) VALUES(?,?,?,?,?,?,?,?,?,?)")
           ->execute([$public,$subject['project_id'],$viewer['id'],$subject['type'],$subject['public_id'],$subject['hash'],$subject['version_label'],$title,$instructions?:null,$due]);
         $id=(int)$pdo->lastInsertId();$rolesReady=research_review_assignment_roles_ready($pdo);
         if($rolesReady){$ins=$pdo->prepare('INSERT INTO research_review_assignments(review_id,reviewer_user_id,assigned_by_user_id,reviewer_role,is_required) VALUES(?,?,?,?,?)');foreach($reviewerIds as $rid){$opt=is_array($assignmentOptions[$rid]??null)?$assignmentOptions[$rid]:[];$role=in_array((string)($opt['role']??'reviewer'),['reviewer','approver'],true)?(string)($opt['role']??'reviewer'):'reviewer';$required=array_key_exists('required',$opt)?(bool)$opt['required']:true;$ins->execute([$id,$rid,$viewer['id'],$role,$required?1:0]);}}
         else{$ins=$pdo->prepare('INSERT INTO research_review_assignments(review_id,reviewer_user_id,assigned_by_user_id) VALUES(?,?,?)');foreach($reviewerIds as $rid)$ins->execute([$id,$rid,$viewer['id']]);}
-        research_review_event($pdo,$id,'requested',(int)$viewer['id'],['reviewer_user_ids'=>$reviewerIds,'subject_hash'=>$subject['hash'],'due_at'=>$due]);$pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        research_review_event($pdo,$id,'requested',(int)$viewer['id'],['reviewer_user_ids'=>$reviewerIds,'subject_hash'=>$subject['hash'],'due_at'=>$due]);if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     $review=research_review_access($pdo,$viewer,$public);foreach($reviewerIds as $rid)research_review_notify($pdo,$rid,(int)$viewer['id'],'research_review_requested',$review,'Review requested: '.$review['title'],['due_at'=>$due]);
     return $review;
 }

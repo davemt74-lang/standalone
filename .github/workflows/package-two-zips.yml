@@ -446,6 +446,10 @@ jobs:
           test -f package-website/tests/phase73-section6-executive-strategic-briefings-team-review-contract.php
           test -f package-website/tests/phase73-section6-executive-strategic-briefings-team-review-db.php
           test -f package-website/tests/ci/phase73-section6-upgrade-from-102.php
+          test -f package-website/app/research-intelligence-organizational-cognition.php
+          test -f package-website/tests/phase73-section7-organizational-agent-cognition-contract.php
+          test -f package-website/tests/phase73-section7-organizational-agent-cognition-db.php
+          test -f package-website/tests/ci/phase73-section7-no-migration-governance.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md

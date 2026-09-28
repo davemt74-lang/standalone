@@ -153,7 +153,7 @@ function research_intelligence_portfolio_native_decision_link(PDO $pdo,array $vi
     return ['link'=>$link,'decision'=>$decision,'portfolio'=>$portfolio];
 }
 
-function research_intelligence_portfolio_create_native_decision(PDO $pdo,array $viewer,string $portfolioPublic,array $input): array {
+function research_intelligence_portfolio_create_native_decision(PDO $pdo,array $viewer,string $portfolioPublic,array $input,bool $byAgent=false): array {
     $p=research_intelligence_portfolio_access($pdo,$viewer,$portfolioPublic);if(!$p||!research_intelligence_portfolio_can_write($p))throw new RuntimeException('Portfolio decision access is unavailable.');
     if(!research_intelligence_portfolio_native_decisions_ready($pdo))throw new RuntimeException('Native Portfolio Decision handoff requires the latest database upgrade.');
     if(!empty($input['create_follow_up']))throw new InvalidArgumentException('Native Portfolio Decisions do not create direct follow-up Tasks. Accept the Decision, then create an Action Plan for execution.');
@@ -185,13 +185,13 @@ function research_intelligence_portfolio_create_native_decision(PDO $pdo,array $
           'agent_id'=>(string)$program['agent_public_id'],'decision_type'=>$type,'title'=>$title,'statement'=>$statement,'rationale'=>$rationale,
           'confidence'=>$confidence,'accountable_user_id'=>(string)($input['accountable_user_id']??$viewer['public_id']??''),
           'assumptions'=>$input['assumptions']??[],'uncertainty'=>$input['uncertainty']??[],'alternatives'=>$input['alternatives']??[],'refs'=>$refs
-        ],false);
+        ],$byAgent);
         $pdo->prepare("INSERT INTO research_intelligence_portfolio_decision_links(public_id,portfolio_id,outcome_id,decision_id,handoff_key,insight_id,briefing_id,task_id,created_by_user_id) VALUES(?,?,NULL,?,?,?,?,NULL,?)")
           ->execute([ulid_like(),(int)$p['id'],(int)$decision['id'],$handoffKey,$insight['id']??null,$briefing['id']??null,(int)$viewer['id']]);
-        research_intelligence_portfolio_event($pdo,(int)$p['id'],'native_decision_created','user',(int)$viewer['id'],[
+        research_intelligence_portfolio_event($pdo,(int)$p['id'],'native_decision_created',$byAgent?'agent':'user',(int)$viewer['id'],[
           'decision_id'=>(string)$decision['public_id'],'decision_type'=>$type,'anchor_program_id'=>(string)$program['public_id'],'insight_id'=>$insight['public_id']??null,'briefing_id'=>$briefing['public_id']??null
         ]);
-        research_decision_event($pdo,$decision,'decision_portfolio_handoff','user',(int)$viewer['id'],[
+        research_decision_event($pdo,$decision,'decision_portfolio_handoff',$byAgent?'agent':'user',(int)$viewer['id'],[
           'portfolio_id'=>(string)$p['public_id'],'anchor_program_id'=>(string)$program['public_id'],'insight_id'=>$insight['public_id']??null,'briefing_id'=>$briefing['public_id']??null
         ]);
         if($owns)$pdo->commit();
@@ -296,7 +296,8 @@ function research_intelligence_portfolio_operations_detail(PDO $pdo,array $viewe
     $graph=function_exists('research_intelligence_portfolio_strategic_graph')?research_intelligence_portfolio_strategic_graph($pdo,$viewer,(string)$portfolio['public_id'],false,300):['ready'=>false,'summary'=>[],'edges'=>[],'nodes'=>[],'attention'=>[]];
     $strategicReviews=function_exists('research_intelligence_portfolio_strategic_review_summary')?research_intelligence_portfolio_strategic_review_summary($pdo,$viewer,(string)$portfolio['public_id']):['ready'=>false,'settings'=>[],'summary'=>[],'reviews'=>[]];
     $strategicBriefings=function_exists('research_intelligence_portfolio_strategic_briefing_summary')?research_intelligence_portfolio_strategic_briefing_summary($pdo,$viewer,(string)$portfolio['public_id']):['ready'=>false,'summary'=>[],'briefings'=>[]];
-    return ['ready'=>true,'subscription'=>$sub,'cycles'=>research_intelligence_portfolio_cycle_history($pdo,$portfolio,20),'decisions'=>research_intelligence_portfolio_decision_rows($pdo,$viewer,$portfolio,50),'decision_execution'=>$execution,'pattern_memory'=>$patterns,'strategic_graph'=>$graph,'strategic_reviews'=>$strategicReviews,'strategic_briefings'=>$strategicBriefings,'feedback'=>research_intelligence_portfolio_feedback_rows($pdo,$portfolio,50)];
+    $organizationalCognition=function_exists('research_intelligence_organizational_portfolio_cognition')?research_intelligence_organizational_portfolio_cognition($pdo,$viewer,(string)$portfolio['public_id'],80):['ready'=>false,'summary'=>[],'signals'=>[],'analogues'=>[],'state_hash'=>''];
+    return ['ready'=>true,'subscription'=>$sub,'cycles'=>research_intelligence_portfolio_cycle_history($pdo,$portfolio,20),'decisions'=>research_intelligence_portfolio_decision_rows($pdo,$viewer,$portfolio,50),'decision_execution'=>$execution,'pattern_memory'=>$patterns,'strategic_graph'=>$graph,'strategic_reviews'=>$strategicReviews,'strategic_briefings'=>$strategicBriefings,'organizational_cognition'=>$organizationalCognition,'feedback'=>research_intelligence_portfolio_feedback_rows($pdo,$portfolio,50)];
 }
 
 function research_intelligence_organization_command_center(PDO $pdo,array $viewer): array {
@@ -353,7 +354,8 @@ function research_intelligence_organization_command_center(PDO $pdo,array $viewe
     $strategicGraph=function_exists('research_intelligence_organization_strategic_graph')?research_intelligence_organization_strategic_graph($pdo,$viewer):['summary'=>[],'attention'=>[]];
     $strategicReviews=function_exists('research_intelligence_organization_strategic_review_center')?research_intelligence_organization_strategic_review_center($pdo,$viewer):['summary'=>[],'attention'=>[]];
     $strategicBriefings=function_exists('research_intelligence_organization_strategic_briefing_center')?research_intelligence_organization_strategic_briefing_center($pdo,$viewer):['summary'=>[],'attention'=>[]];
-    return ['summary'=>$dashboard['summary'],'execution_summary'=>$executionSummary,'pattern_summary'=>$patternSummary,'learning_patterns'=>array_slice($learningPatterns,0,60),'strategic_graph_summary'=>$strategicGraph['summary'],'strategic_graph_attention'=>$strategicGraph['attention'],'strategic_review_summary'=>$strategicReviews['summary'],'strategic_review_attention'=>$strategicReviews['attention'],'strategic_briefing_summary'=>$strategicBriefings['summary'],'strategic_briefing_attention'=>$strategicBriefings['attention'],'decision_execution_attention'=>array_slice($executionAttention,0,60),'needs_attention'=>$needs,'new_since_last_briefing'=>$changed,'decisions_awaiting_follow_through'=>$decisions,'emerging_opportunities'=>array_slice($opportunities,0,30),'cross_portfolio_themes'=>array_slice($themes,0,30),'briefings_awaiting_review'=>$briefings,'generated_at'=>date('Y-m-d H:i:s')];
+    $organizationalCognition=function_exists('research_intelligence_organizational_cognition_center')?research_intelligence_organizational_cognition_center($pdo,$viewer,120):['summary'=>[],'signals'=>[],'analogues'=>[]];
+    return ['summary'=>$dashboard['summary'],'execution_summary'=>$executionSummary,'pattern_summary'=>$patternSummary,'learning_patterns'=>array_slice($learningPatterns,0,60),'strategic_graph_summary'=>$strategicGraph['summary'],'strategic_graph_attention'=>$strategicGraph['attention'],'strategic_review_summary'=>$strategicReviews['summary'],'strategic_review_attention'=>$strategicReviews['attention'],'strategic_briefing_summary'=>$strategicBriefings['summary'],'strategic_briefing_attention'=>$strategicBriefings['attention'],'organizational_cognition_summary'=>$organizationalCognition['summary'],'organizational_cognition_signals'=>$organizationalCognition['signals'],'organizational_cognition_analogues'=>$organizationalCognition['analogues'],'decision_execution_attention'=>array_slice($executionAttention,0,60),'needs_attention'=>$needs,'new_since_last_briefing'=>$changed,'decisions_awaiting_follow_through'=>$decisions,'emerging_opportunities'=>array_slice($opportunities,0,30),'cross_portfolio_themes'=>array_slice($themes,0,30),'briefings_awaiting_review'=>$briefings,'generated_at'=>date('Y-m-d H:i:s')];
 }
 
 function research_intelligence_portfolio_operations_cognitive_observations(PDO $pdo,array $viewer,array &$items,int $limit=20): void {

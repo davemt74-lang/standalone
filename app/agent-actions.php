@@ -37,6 +37,26 @@ function agent_action_capabilities(): array {
         'label'=>'Open Decision reconsideration from Action Plan','description'=>'Open a human-governed reconsideration case for the Action Plan source Decision after confirmation. This does not change Decision status or apply a recommendation.',
         'arguments'=>['action_plan_id'=>'Action Plan public ID','action_plan_state_hash'=>'exact State hash from Action Plan Strategic Memory','title'=>'string optional','reason'=>'string','materiality'=>'low|medium|high|critical optional']
       ],
+      'research.portfolio.create_decision_draft'=>[
+        'label'=>'Create Portfolio Decision draft','description'=>'Create a native Phase 71 Decision in draft state from current organizational cognition after confirmation. This never accepts, rejects, defers, reopens, or supersedes the Decision.',
+        'arguments'=>['portfolio_id'=>'Intelligence Portfolio public ID','portfolio_state_hash'=>'exact strategic state hash from Organizational Strategic Cognition','title'=>'string','statement'=>'string','rationale'=>'string optional','decision_type'=>'decision|conclusion|recommendation optional','confidence'=>'0..1 optional','assumptions'=>'array optional','uncertainty'=>'array optional','alternatives'=>'array optional']
+      ],
+      'research.decision.create_action_plan_draft'=>[
+        'label'=>'Create Action Plan draft','description'=>'Create a Phase 72 Action Plan in draft state from an Accepted or Reopened Decision after confirmation. This never activates the plan.',
+        'arguments'=>['decision_id'=>'Decision public ID','decision_state_hash'=>'exact Decision state hash from Organizational Strategic Cognition','title'=>'string','objective'=>'string','expected_result'=>'string','priority'=>'low|medium|high|urgent optional','success_measures'=>'array of {label,target}','risks'=>'array optional','assumptions'=>'array optional','start_on'=>'YYYY-MM-DD optional','due_on'=>'YYYY-MM-DD optional']
+      ],
+      'research.decision.open_reconsideration'=>[
+        'label'=>'Open Decision reconsideration','description'=>'Open a human-governed Decision reconsideration case from current organizational cognition after confirmation. This never changes Decision status or applies a recommendation.',
+        'arguments'=>['decision_id'=>'Decision public ID','decision_state_hash'=>'exact Decision state hash from Organizational Strategic Cognition','title'=>'string optional','reason'=>'string','materiality'=>'low|medium|high|critical optional']
+      ],
+      'research.portfolio.create_strategic_review'=>[
+        'label'=>'Create Strategic Review','description'=>'Freeze current Portfolio strategic state and send it through the existing Collaborative Review path after confirmation. This cannot change Decision or execution state.',
+        'arguments'=>['portfolio_id'=>'Intelligence Portfolio public ID','portfolio_state_hash'=>'exact strategic state hash from Organizational Strategic Cognition','instructions'=>'string optional']
+      ],
+      'research.portfolio.create_strategic_briefing'=>[
+        'label'=>'Create Executive Strategic Briefing','description'=>'Create a frozen Executive Strategic Briefing and its existing Team Review after confirmation. This cannot publish the document or bypass Team Review.',
+        'arguments'=>['portfolio_id'=>'Intelligence Portfolio public ID','portfolio_state_hash'=>'exact strategic state hash from Organizational Strategic Cognition','strategic_review_id'=>'source Strategic Review public ID optional','source_packet_hash'=>'exact source packet hash when strategic_review_id is supplied','title'=>'string optional','window_days'=>'1..365 optional']
+      ],
       'research.create_mission'=>[
         'label'=>'Create Research Mission','description'=>'Create a durable outcome-driven Research Mission in draft state. This does not create or start a Plan, Task queue, Program, or autonomous execution.',
         'arguments'=>['title'=>'string','research_question'=>'string','objective'=>'string','success_definition'=>'string optional','priority'=>'low|medium|high|urgent optional','success_criteria'=>'array of strings optional','subquestions'=>'array of strings optional']
@@ -219,6 +239,39 @@ function agent_action_clean_arguments(string $capability,array $args): array {
             return ['action_plan_id'=>$plan,'action_plan_state_hash'=>$stateHash,'title'=>$s($args['title']??'',255),'reason'=>$reason,'materiality'=>$materiality];
         }
     }
+    if($capability==='research.portfolio.create_decision_draft'){
+        $portfolio=$s($args['portfolio_id']??'',64);$stateHash=strtolower($s($args['portfolio_state_hash']??'',64));$title=$s($args['title']??'',255);$statement=$s($args['statement']??'',32000);
+        if($portfolio===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash)||$title===''||$statement==='')throw new InvalidArgumentException('Portfolio, exact strategic state hash, Decision title, and statement are required.');
+        $type=(string)($args['decision_type']??'decision');if(!isset(research_decision_types()[$type]))$type='decision';$confidence=array_key_exists('confidence',$args)&&$args['confidence']!==''?max(0,min(1,(float)$args['confidence'])):null;
+        $cleanList=function($value,$maxItems=30,$maxChars=4000)use($s){$out=[];foreach(array_slice((array)$value,0,$maxItems) as $item){if(is_array($item)){$item=array_map(fn($v)=>is_scalar($v)?mb_substr(trim((string)$v),0,$maxChars):$v,$item);$out[]=$item;}else{$v=$s($item,$maxChars);if($v!=='')$out[]=$v;}}return $out;};
+        return ['portfolio_id'=>$portfolio,'portfolio_state_hash'=>$stateHash,'title'=>$title,'statement'=>$statement,'rationale'=>$s($args['rationale']??'',32000),'decision_type'=>$type,'confidence'=>$confidence,'assumptions'=>$cleanList($args['assumptions']??[]),'uncertainty'=>$cleanList($args['uncertainty']??[]),'alternatives'=>$cleanList($args['alternatives']??[])];
+    }
+    if($capability==='research.decision.create_action_plan_draft'){
+        $decision=$s($args['decision_id']??'',64);$stateHash=strtolower($s($args['decision_state_hash']??'',64));$title=$s($args['title']??'',255);$objective=$s($args['objective']??'',32000);$expected=$s($args['expected_result']??'',32000);
+        if($decision===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash)||$title===''||$objective===''||$expected==='')throw new InvalidArgumentException('Decision, exact Decision state hash, title, objective, and expected result are required.');
+        $priority=(string)($args['priority']??'medium');if(!isset(agent_action_task_priorities()[$priority]))$priority='medium';$measures=[];
+        foreach(array_slice((array)($args['success_measures']??[]),0,30) as $m){if(!is_array($m))continue;$label=$s($m['label']??'',255);$target=$s($m['target']??'',2000);if($label!=='')$measures[]=['label'=>$label,'target'=>$target];}
+        if(!$measures)throw new InvalidArgumentException('Action Plan draft requires at least one success measure.');
+        $cleanList=function($value)use($s){$out=[];foreach(array_slice((array)$value,0,30) as $item){if(is_array($item)){$clean=[];foreach($item as $k=>$v)if(is_scalar($v))$clean[(string)$k]=$s($v,4000);if($clean)$out[]=$clean;}else{$v=$s($item,4000);if($v!=='')$out[]=$v;}}return $out;};
+        return ['decision_id'=>$decision,'decision_state_hash'=>$stateHash,'title'=>$title,'objective'=>$objective,'expected_result'=>$expected,'priority'=>$priority,'success_measures'=>$measures,'risks'=>$cleanList($args['risks']??[]),'assumptions'=>$cleanList($args['assumptions']??[]),'start_on'=>$s($args['start_on']??'',10),'due_on'=>$s($args['due_on']??'',10)];
+    }
+    if($capability==='research.decision.open_reconsideration'){
+        $decision=$s($args['decision_id']??'',64);$stateHash=strtolower($s($args['decision_state_hash']??'',64));$reason=$s($args['reason']??'',16000);
+        if($decision===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash)||$reason==='')throw new InvalidArgumentException('Decision, exact Decision state hash, and reconsideration reason are required.');
+        $materiality=(string)($args['materiality']??'high');if(!in_array($materiality,['low','medium','high','critical'],true))$materiality='high';
+        return ['decision_id'=>$decision,'decision_state_hash'=>$stateHash,'title'=>$s($args['title']??'',255),'reason'=>$reason,'materiality'=>$materiality];
+    }
+    if($capability==='research.portfolio.create_strategic_review'){
+        $portfolio=$s($args['portfolio_id']??'',64);$stateHash=strtolower($s($args['portfolio_state_hash']??'',64));
+        if($portfolio===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash))throw new InvalidArgumentException('Portfolio and exact strategic state hash are required.');
+        return ['portfolio_id'=>$portfolio,'portfolio_state_hash'=>$stateHash,'instructions'=>$s($args['instructions']??'',8000)];
+    }
+    if($capability==='research.portfolio.create_strategic_briefing'){
+        $portfolio=$s($args['portfolio_id']??'',64);$stateHash=strtolower($s($args['portfolio_state_hash']??'',64));$source=$s($args['strategic_review_id']??'',64);$packet=strtolower($s($args['source_packet_hash']??'',64));
+        if($portfolio===''||!preg_match('/^[a-f0-9]{64}$/',$stateHash))throw new InvalidArgumentException('Portfolio and exact strategic state hash are required.');
+        if($source!==''&&!preg_match('/^[a-f0-9]{64}$/',$packet))throw new InvalidArgumentException('An exact source packet hash is required when a Strategic Review source is supplied.');
+        return ['portfolio_id'=>$portfolio,'portfolio_state_hash'=>$stateHash,'strategic_review_id'=>$source,'source_packet_hash'=>$packet,'title'=>$s($args['title']??'',240),'window_days'=>max(1,min(365,(int)($args['window_days']??30)))];
+    }
     if($capability==='research.create_mission'){
         $title=$s($args['title']??'',255);$question=$s($args['research_question']??$args['question']??'',16000);$objective=$s($args['objective']??'',16000);
         if($title===''||$question===''||$objective==='')throw new InvalidArgumentException('Mission title, research question, and objective are required.');
@@ -358,6 +411,29 @@ function agent_action_ref_set(array $refs): array {
 }
 function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $project,string $capability,array $args,array $refs): bool {
     $projectId=(int)$project['id'];$seen=agent_action_ref_set($refs);
+    if(str_starts_with($capability,'research.portfolio.')){
+        $portfolio=(string)($args['portfolio_id']??'');if($portfolio===''||!isset($seen['portfolio:'.$portfolio]))return false;
+        if(!function_exists('research_intelligence_portfolio_contains_project')||!research_intelligence_portfolio_contains_project($pdo,$viewer,$portfolio,$projectId))return false;
+        if(!function_exists('research_intelligence_organizational_state_hash'))return false;
+        try{$current=research_intelligence_organizational_state_hash($pdo,$viewer,$portfolio);}catch(Throwable $e){return false;}
+        if(!hash_equals($current,(string)($args['portfolio_state_hash']??'')))return false;
+        if($capability==='research.portfolio.create_strategic_briefing'&&!empty($args['strategic_review_id'])){
+            $source=(string)$args['strategic_review_id'];if(!isset($seen['strategic_review:'.$source]))return false;
+            if(!function_exists('research_intelligence_strategic_review_access'))return false;$review=research_intelligence_strategic_review_access($pdo,$viewer,$source,false);
+            if(!$review||(string)$review['portfolio_public_id']!==$portfolio||!hash_equals((string)$review['packet_hash'],(string)$args['source_packet_hash']))return false;
+        }
+        return true;
+    }
+    if(str_starts_with($capability,'research.decision.')){
+        $decisionPublic=(string)($args['decision_id']??'');if($decisionPublic===''||!isset($seen['decision:'.$decisionPublic]))return false;
+        if(!function_exists('research_decision_detail')||!function_exists('research_decision_review_state_hash'))return false;$decision=research_decision_detail($pdo,$viewer,$decisionPublic);
+        if(!$decision||(int)$decision['project_id']!==$projectId)return false;
+        try{$current=research_decision_review_state_hash($pdo,$viewer,$decisionPublic);}catch(Throwable $e){return false;}
+        if(!hash_equals($current,(string)($args['decision_state_hash']??'')))return false;
+        if($capability==='research.decision.create_action_plan_draft'&&!in_array((string)$decision['status'],['accepted','reopened'],true))return false;
+        if($capability==='research.decision.open_reconsideration'&&!in_array((string)$decision['status'],['accepted','rejected','deferred','superseded'],true))return false;
+        return true;
+    }
     if($capability==='research.attach_annotation_evidence'){
         if(!isset($seen['claim:'.$args['claim_id']],$seen['annotation:'.$args['annotation_id']]))return false;
         if(!agent_action_claim_row($pdo,$projectId,(string)$args['claim_id']))return false;
@@ -488,6 +564,42 @@ function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,s
             return ['type'=>'decision_reconsideration','public_id'=>(string)$case['public_id'],'label'=>(string)$case['title'],'status'=>(string)$case['status'],'action_plan_id'=>$planPublic,'decision_id'=>(string)$plan['decision_public_id'],'url'=>'/research-project.php?id='.rawurlencode((string)$plan['project_public_id'])];
         }
         throw new RuntimeException('Unsupported Action Plan Agent capability.');
+    }
+    if(str_starts_with($capability,'research.portfolio.')){
+        $portfolioPublic=(string)$args['portfolio_id'];
+        if(!function_exists('research_intelligence_organizational_state_hash'))throw new RuntimeException('Organizational Strategic Cognition is unavailable.');
+        $current=research_intelligence_organizational_state_hash($pdo,$viewer,$portfolioPublic);
+        if(!hash_equals($current,(string)$args['portfolio_state_hash']))throw new AgentActionStale('Portfolio strategic state changed after this proposal. Ask the Agent to reason from current state and propose it again.');
+        if(!research_intelligence_portfolio_contains_project($pdo,$viewer,$portfolioPublic,$projectId))throw new AgentActionForbidden('That Portfolio no longer belongs to this confirmed Research project.');
+        if($capability==='research.portfolio.create_decision_draft'){
+            $input=$args;unset($input['portfolio_id'],$input['portfolio_state_hash']);$input['idempotency_key']='agent-s7-decision|'.hash('sha256',$portfolioPublic.'|'.$current.'|'.json_encode([$input['title'],$input['statement'],$input['rationale']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+            $result=research_intelligence_portfolio_create_native_decision($pdo,$viewer,$portfolioPublic,$input,true);$d=(array)$result['decision'];
+            return ['type'=>'decision','public_id'=>(string)$d['public_id'],'label'=>(string)$d['title'],'status'=>(string)$d['status'],'portfolio_id'=>$portfolioPublic,'url'=>'/research-decisions.php?agent='.rawurlencode((string)$d['agent_public_id']).'&decision='.rawurlencode((string)$d['public_id'])];
+        }
+        if($capability==='research.portfolio.create_strategic_review'){
+            $review=research_intelligence_strategic_review_create($pdo,$viewer,$portfolioPublic,['trigger_type'=>'manual','idempotency_key'=>'agent-s7-review|'.hash('sha256',$portfolioPublic.'|'.$current),'instructions'=>(string)$args['instructions']]);
+            return ['type'=>'strategic_review','public_id'=>(string)$review['public_id'],'label'=>'Strategic Review','status'=>(string)(($review['review']['status']??'open')),'team_review_id'=>(string)($review['collaborative_review_public_id']??''),'portfolio_id'=>$portfolioPublic,'url'=>!empty($review['collaborative_review_public_id'])?'/research-reviews.php?id='.rawurlencode((string)$review['collaborative_review_public_id']):'/research-intelligence-portfolios.php?portfolio='.rawurlencode($portfolioPublic)];
+        }
+        if($capability==='research.portfolio.create_strategic_briefing'){
+            $source=(string)$args['strategic_review_id'];if($source!==''){$sr=research_intelligence_strategic_review_access($pdo,$viewer,$source,false);if(!$sr||(string)$sr['portfolio_public_id']!==$portfolioPublic||!hash_equals((string)$sr['packet_hash'],(string)$args['source_packet_hash']))throw new AgentActionStale('The selected Strategic Review source changed or is unavailable.');}
+            $brief=research_intelligence_strategic_briefing_create($pdo,$viewer,$portfolioPublic,['idempotency_key'=>'agent-s7-brief|'.hash('sha256',$portfolioPublic.'|'.$current.'|'.$source),'strategic_review_id'=>$source,'title'=>(string)$args['title'],'window_days'=>(int)$args['window_days']]);
+            return ['type'=>'strategic_briefing','public_id'=>(string)$brief['public_id'],'label'=>(string)$brief['title'],'status'=>(string)($brief['team_review']['status']??'open'),'team_review_id'=>(string)($brief['team_review_public_id']??''),'executive_briefing_id'=>(string)$brief['executive_briefing_public_id'],'portfolio_id'=>$portfolioPublic,'url'=>!empty($brief['team_review_public_id'])?'/research-reviews.php?id='.rawurlencode((string)$brief['team_review_public_id']):'/research-intelligence-portfolios.php?portfolio='.rawurlencode($portfolioPublic)];
+        }
+        throw new RuntimeException('Unsupported Portfolio Agent capability.');
+    }
+    if(str_starts_with($capability,'research.decision.')){
+        $decisionPublic=(string)$args['decision_id'];$decision=research_decision_detail($pdo,$viewer,$decisionPublic);if(!$decision||(int)$decision['project_id']!==$projectId)throw new AgentActionForbidden('That Decision is no longer available in this confirmed Research project.');
+        $current=research_decision_review_state_hash($pdo,$viewer,$decisionPublic);if(!hash_equals($current,(string)$args['decision_state_hash']))throw new AgentActionStale('Decision state changed after this proposal. Ask the Agent to reason from current state and propose it again.');
+        if($capability==='research.decision.create_action_plan_draft'){
+            $input=$args;unset($input['decision_id'],$input['decision_state_hash']);$input['idempotency_key']='agent-s7-plan|'.hash('sha256',$decisionPublic.'|'.$current.'|'.json_encode([$input['title'],$input['objective'],$input['expected_result']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+            $plan=research_action_plan_from_decision($pdo,$viewer,$decisionPublic,$input,true);
+            return ['type'=>'action_plan','public_id'=>(string)$plan['public_id'],'label'=>(string)$plan['title'],'status'=>(string)$plan['status'],'decision_id'=>$decisionPublic,'url'=>'/research-action-plans.php?action_plan='.rawurlencode((string)$plan['public_id'])];
+        }
+        if($capability==='research.decision.open_reconsideration'){
+            $case=research_decision_open_reconsideration($pdo,$viewer,$decisionPublic,['trigger_type'=>'manual','title'=>(string)($args['title']!==''?$args['title']:'Reconsider '.(string)$decision['title']),'reason'=>(string)$args['reason'],'materiality'=>(string)$args['materiality']],true);
+            return ['type'=>'decision_reconsideration','public_id'=>(string)$case['public_id'],'label'=>(string)$case['title'],'status'=>(string)$case['status'],'decision_id'=>$decisionPublic,'url'=>'/research-decisions.php?agent='.rawurlencode((string)$decision['agent_public_id']).'&decision='.rawurlencode($decisionPublic)];
+        }
+        throw new RuntimeException('Unsupported Decision Agent capability.');
     }
     if($capability==='research.create_mission'){
         if(!function_exists('research_missions_ready')||!research_missions_ready($pdo))throw new RuntimeException('Research Missions require the latest database upgrade.');
@@ -629,6 +741,19 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
             $pdo->prepare("UPDATE agent_action_proposals SET status='stale',error_text='Research project changed after proposal.' WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'stale',(int)$viewer['id'],['reason'=>'project_state_changed']);$pdo->commit();throw new AgentActionStale('The Research project changed after this proposal. Ask the Agent to review the current state and propose the action again.');
         }
         $args=json_decode((string)$proposal['arguments_json'],true);if(!is_array($args))throw new RuntimeException('Stored Agent action arguments are invalid.');
+        $section7Governed=in_array((string)$proposal['capability_key'],[
+          'research.portfolio.create_decision_draft','research.decision.create_action_plan_draft','research.decision.open_reconsideration',
+          'research.portfolio.create_strategic_review','research.portfolio.create_strategic_briefing'
+        ],true);
+        if($section7Governed){
+            $provenance=json_decode((string)($proposal['provenance_json']??''),true);$proposalRefs=[];
+            if(is_array($provenance))$proposalRefs=array_is_list($provenance)?$provenance:(array)($provenance['refs']??[]);
+            if(!agent_action_validate_project_arguments($pdo,$viewer,$project,(string)$proposal['capability_key'],$args,$proposalRefs)){
+                $pdo->prepare("UPDATE agent_action_proposals SET status='stale',error_text='Governed source state changed after proposal.' WHERE id=?")->execute([$proposal['id']]);
+                agent_action_event($pdo,(int)$proposal['id'],'stale',(int)$viewer['id'],['reason'=>'governed_source_state_changed']);$pdo->commit();
+                throw new AgentActionStale('The governed source state changed after this proposal. Ask the Agent to review current state and propose the action again.');
+            }
+        }
         $pdo->prepare("UPDATE agent_action_proposals SET status='confirmed',confirmed_at=NOW(),error_text=NULL WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'confirmed',(int)$viewer['id']);
         $result=agent_action_execute_capability($pdo,$viewer,$project,(string)$proposal['capability_key'],$args);
         if(($result['type']??'')==='document'&&function_exists('research_agent_workspace_post_document_to_chat')){

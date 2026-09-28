@@ -302,6 +302,7 @@ jobs:
           php tests/phase73-section4-strategic-dependency-conflict-graph-db.php
           php tests/phase73-section5-recurring-strategic-review-db.php
           php tests/phase73-section6-executive-strategic-briefings-team-review-db.php
+          php tests/phase73-section7-organizational-agent-cognition-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -665,6 +666,12 @@ jobs:
           DB_PASS: root
           PHASE73_SECTION6_RESET_DB: '1'
         run: php tests/ci/phase73-section6-upgrade-from-102.php
+      - name: MySQL 8 Phase 73 Section 7 no-migration governance gate on schema 103
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_test;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: php tests/ci/phase73-section7-no-migration-governance.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
