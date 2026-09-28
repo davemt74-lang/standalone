@@ -222,6 +222,7 @@ function research_action_plan_set_status(PDO $pdo,array $viewer,string $publicId
     $pdo->prepare($sql)->execute([$status,(int)$plan['id']]);$fresh=research_action_plan_by_id($pdo,(int)$plan['id']);
     if(function_exists('research_action_plan_sync_execution_task_plan'))research_action_plan_sync_execution_task_plan($pdo,$viewer,$fresh,$status);
     if(function_exists('research_action_plan_sync_programs'))research_action_plan_sync_programs($pdo,$viewer,$fresh,$status);
+    if($status==='active'&&function_exists('research_action_plan_capture_execution_baseline'))research_action_plan_capture_execution_baseline($pdo,$viewer,$publicId,$byAgent);
     research_action_plan_event($pdo,$fresh,'action_plan_status_changed',$byAgent?'agent':'user',(int)$viewer['id'],['from'=>$current,'to'=>$status]);
     return research_action_plan_detail($pdo,$viewer,$publicId)??$fresh;
 }
