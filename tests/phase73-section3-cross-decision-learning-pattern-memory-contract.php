@@ -31,7 +31,7 @@ $must('app/research-intelligence-operations.php',[
  'decision_pattern_memory_refreshed','decision_pattern_memory_refresh_failed',"'pattern_summary'=>","'learning_patterns'=>"
 ],'Phase 73 Section 3 Portfolio cycle and command center integration');
 $must('api/research-intelligence-portfolios.php',[
- "if($action==='refresh_patterns')","research_intelligence_portfolio_pattern_refresh"
+ "'refresh_patterns'","research_intelligence_portfolio_pattern_refresh"
 ],'Phase 73 Section 3 API');
 $must('research-intelligence-portfolios.php',[
  'PHASE 73 · CROSS-DECISION PATTERN MEMORY','Refresh Pattern Memory','Repeated assumptions','Repeated lessons'
