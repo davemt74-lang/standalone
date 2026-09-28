@@ -152,7 +152,7 @@ function research_intelligence_portfolio_native_decision_link(PDO $pdo,array $vi
     return ['link'=>$link,'decision'=>$decision,'portfolio'=>$portfolio];
 }
 
-function research_intelligence_portfolio_record_decision(PDO $pdo,array $viewer,string $portfolioPublic,array $input): array {
+function research_intelligence_portfolio_create_native_decision(PDO $pdo,array $viewer,string $portfolioPublic,array $input): array {
     $p=research_intelligence_portfolio_access($pdo,$viewer,$portfolioPublic);if(!$p||!research_intelligence_portfolio_can_write($p))throw new RuntimeException('Portfolio decision access is unavailable.');
     if(!research_intelligence_portfolio_native_decisions_ready($pdo))throw new RuntimeException('Native Portfolio Decision handoff requires the latest database upgrade.');
     if(!empty($input['create_follow_up']))throw new InvalidArgumentException('Native Portfolio Decisions do not create direct follow-up Tasks. Accept the Decision, then create an Action Plan for execution.');
@@ -197,6 +197,20 @@ function research_intelligence_portfolio_record_decision(PDO $pdo,array $viewer,
     }catch(Throwable $e){if($owns&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     $result=research_intelligence_portfolio_native_decision_link($pdo,$viewer,$p,$handoffKey);if(!$result)throw new RuntimeException('Native Portfolio Decision handoff could not be loaded.');
     return $result;
+}
+
+function research_intelligence_portfolio_record_decision(PDO $pdo,array $viewer,string $portfolioPublic,array $input): array {
+    $p=research_intelligence_portfolio_access($pdo,$viewer,$portfolioPublic);if(!$p||!research_intelligence_portfolio_can_write($p))throw new RuntimeException('Portfolio decision access is unavailable.');if(!research_intelligence_portfolio_operations_ready($pdo))throw new RuntimeException('Portfolio follow-through requires the latest database upgrade.');
+    $title=mb_substr(trim((string)($input['title']??'')),0,255);if($title==='')throw new InvalidArgumentException('Decision title is required.');$summary=mb_substr(trim((string)($input['summary']??'')),0,1200);$note=mb_substr(trim((string)($input['note']??'')),0,8000);$decision=(string)($input['decision_type']??'recorded');if(!isset(research_outcome_decision_labels()[$decision]))$decision='recorded';
+    $insight=null;$briefing=null;if(trim((string)($input['insight_id']??''))!==''){$insight=research_intelligence_portfolio_insight($pdo,$p,(string)$input['insight_id']);if(!$insight)throw new RuntimeException('Portfolio insight is unavailable.');}
+    if(trim((string)($input['briefing_id']??''))!==''){$briefing=research_intelligence_portfolio_briefing_access($pdo,$viewer,(string)$input['briefing_id']);if(!$briefing||(int)$briefing['portfolio_id']!==(int)$p['id'])throw new RuntimeException('Executive Briefing is unavailable.');}
+    $programs=research_intelligence_portfolio_programs($pdo,$viewer,$p);if(!$programs)throw new RuntimeException('Portfolio has no Research Programs.');$anchor=$programs[0];foreach($programs as $program)if((int)$program['id']===(int)($p['anchor_program_id']??0)){$anchor=$program;break;}$project=project_access($pdo,(int)$viewer['id'],(string)$anchor['project_public_id']);if(!$project||!project_can_write($project))throw new RuntimeException('Anchor Research workspace is read only.');
+    $task=null;if(!empty($input['create_follow_up'])){$task=research_task_create_for_project($pdo,$viewer,$project,['title'=>mb_substr(trim((string)($input['follow_up_title']??('Follow up: '.$title))),0,255),'description'=>$note!==''?$note:($summary!==''?$summary:'Executive Portfolio decision follow-through.'),'task_type'=>'follow_up','priority'=>(string)($input['priority']??'high'),'due_at'=>(string)($input['due_at']??'')],false);}
+    $refs=[['type'=>'portfolio','public_id'=>$p['public_id'],'role'=>'context']];if($insight)$refs[]=['type'=>'portfolio_insight','public_id'=>$insight['public_id'],'role'=>'source'];if($briefing)$refs[]=['type'=>'executive_briefing','public_id'=>$briefing['public_id'],'role'=>'source'];if($task)$refs[]=['type'=>'task','public_id'=>$task['public_id'],'role'=>'result'];
+    $outcome=research_outcome_record($pdo,$viewer,['event_type'=>'portfolio_decision','decision_type'=>$decision,'source_type'=>'research_intelligence_portfolio','source_public_id'=>$p['public_id'],'project_public_id'=>$project['public_id'],'object_type'=>$insight?'portfolio_insight':($briefing?'executive_briefing':'portfolio'),'object_public_id'=>$insight['public_id']??$briefing['public_id']??$p['public_id'],'result_type'=>$task?'task':'','result_public_id'=>$task['public_id']??'','title'=>$title,'summary'=>$summary,'note'=>$note,'metadata'=>['portfolio_public_id'=>$p['public_id'],'briefing_public_id'=>$briefing['public_id']??null,'insight_public_id'=>$insight['public_id']??null],'refs'=>$refs,'is_manual'=>true,'occurred_at'=>date('Y-m-d H:i:s'),'dedupe_key'=>'portfolio-decision:'.$p['public_id'].':'.ulid_like()]);
+    if(!$outcome)throw new RuntimeException('Decision Memory did not record the Portfolio decision.');$pdo->prepare("INSERT INTO research_intelligence_portfolio_decision_links(public_id,portfolio_id,outcome_id,insight_id,briefing_id,task_id,created_by_user_id) VALUES(?,?,?,?,?,?,?)")->execute([ulid_like(),(int)$p['id'],(int)$outcome['id'],$insight['id']??null,$briefing['id']??null,$task['id']??null,(int)$viewer['id']]);
+    if($task)research_outcome_feedback_set($pdo,$viewer,(string)$outcome['public_id'],null,'follow_up','Follow-through task created from Portfolio decision.');
+    research_intelligence_portfolio_event($pdo,(int)$p['id'],'decision_recorded','user',(int)$viewer['id'],['outcome_id'=>$outcome['public_id'],'task_id'=>$task['public_id']??null]);return ['outcome'=>$outcome,'task'=>$task,'portfolio'=>$p];
 }
 
 function research_intelligence_portfolio_feedback_set(PDO $pdo,array $viewer,string $portfolioPublic,array $input): array {
