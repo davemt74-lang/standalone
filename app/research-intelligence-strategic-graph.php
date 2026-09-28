@@ -20,7 +20,7 @@ function research_intelligence_strategic_relation_types(): array {
     ];
 }
 function research_intelligence_strategic_symmetric_relations(): array {return ['conflicts_with','duplicates'];}
-function research_intelligence_strategic_cycle_relations(): array {return ['depends_on','supersedes'];}
+function research_intelligence_strategic_cycle_relations(): array {return ['depends_on','blocks','supersedes'];}
 function research_intelligence_strategic_node_key(string $type,string $publicId): string {return $type.'|'.$publicId;}
 
 function research_intelligence_strategic_node_portfolios(PDO $pdo,array $viewer,string $type,int $sourceId): array {
@@ -43,10 +43,13 @@ function research_intelligence_strategic_node(PDO $pdo,array $viewer,string $typ
           'public_id'=>(string)$d['public_id'],'status'=>(string)$d['status'],'current_revision'=>(int)$d['current_revision'],
           'config_hash'=>(string)$d['config_hash'],'decided_at'=>(string)($d['decided_at']??'')
         ],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+        $challengeCounts=['contradicting_refs'=>0,'open_challenges'=>0,'high_open_challenges'=>0,'reversal_conditions'=>0];
+        foreach((array)$d['refs'] as $ref)if(($ref['ref_role']??'')==='contradicts')$challengeCounts['contradicting_refs']++;
+        foreach((array)$d['challenges'] as $challenge){if(($challenge['status']??'')==='open'){$challengeCounts['open_challenges']++;if(in_array((string)($challenge['severity']??''),['high','critical'],true))$challengeCounts['high_open_challenges']++;}if(($challenge['challenge_type']??'')==='reversal_condition')$challengeCounts['reversal_conditions']++;}
         return [
           'type'=>'decision','public_id'=>(string)$d['public_id'],'internal_id'=>(int)$d['id'],'title'=>(string)$d['title'],'status'=>(string)$d['status'],
-          'project_public_id'=>(string)$d['project_public_id'],'state_hash'=>$stateHash,
-          'portfolio_ids'=>research_intelligence_strategic_node_portfolios($pdo,$viewer,'decision',(int)$d['id'])
+          'project_public_id'=>(string)$d['project_public_id'],'revision'=>(int)$d['current_revision'],'config_hash'=>(string)$d['config_hash'],'state_hash'=>$stateHash,
+          'challenge_counts'=>$challengeCounts,'portfolio_ids'=>research_intelligence_strategic_node_portfolios($pdo,$viewer,'decision',(int)$d['id'])
         ];
     }
     $p=research_action_plan_detail($pdo,$viewer,$publicId);if(!$p)return null;
@@ -54,8 +57,8 @@ function research_intelligence_strategic_node(PDO $pdo,array $viewer,string $typ
       :hash('sha256',json_encode(['public_id'=>$publicId,'status'=>(string)$p['status'],'current_revision'=>(int)$p['current_revision'],'config_hash'=>(string)$p['config_hash']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
     return [
       'type'=>'action_plan','public_id'=>(string)$p['public_id'],'internal_id'=>(int)$p['id'],'title'=>(string)$p['title'],'status'=>(string)$p['status'],
-      'project_public_id'=>(string)$p['project_public_id'],'state_hash'=>$stateHash,
-      'portfolio_ids'=>research_intelligence_strategic_node_portfolios($pdo,$viewer,'action_plan',(int)$p['id'])
+      'project_public_id'=>(string)$p['project_public_id'],'revision'=>(int)$p['current_revision'],'config_hash'=>(string)$p['config_hash'],'state_hash'=>$stateHash,
+      'decision_public_id'=>(string)$p['decision_public_id'],'portfolio_ids'=>research_intelligence_strategic_node_portfolios($pdo,$viewer,'action_plan',(int)$p['id'])
     ];
 }
 function research_intelligence_strategic_available_nodes(PDO $pdo,array $viewer,int $limit=400): array {
@@ -100,9 +103,9 @@ function research_intelligence_strategic_cycle_exists(PDO $pdo,string $relation,
 function research_intelligence_strategic_edge_snapshot(array $edge,array $source,array $target): array {
     return [
       'public_id'=>(string)$edge['public_id'],'relation_type'=>(string)$edge['relation_type'],
-      'source'=>['type'=>$source['type'],'public_id'=>$source['public_id'],'title'=>$source['title'],'status'=>$source['status'],'state_hash'=>$source['state_hash']],
-      'target'=>['type'=>$target['type'],'public_id'=>$target['public_id'],'title'=>$target['title'],'status'=>$target['status'],'state_hash'=>$target['state_hash']],
-      'rationale'=>(string)$edge['rationale'],'confidence'=>$edge['confidence']!==null?(float)$edge['confidence']:null,'active'=>(bool)$edge['active']
+      'source'=>['type'=>$source['type'],'public_id'=>$source['public_id'],'title'=>$source['title'],'status'=>$source['status'],'revision'=>$source['revision']??null,'state_hash'=>$source['state_hash']],
+      'target'=>['type'=>$target['type'],'public_id'=>$target['public_id'],'title'=>$target['title'],'status'=>$target['status'],'revision'=>$target['revision']??null,'state_hash'=>$target['state_hash']],
+      'rationale'=>(string)$edge['rationale'],'confidence'=>$edge['confidence']!==null?(float)$edge['confidence']:null,'materiality'=>(string)($edge['materiality']??'medium'),'active'=>(bool)$edge['active'],'removal_reason'=>(string)($edge['removal_reason']??'')
     ];
 }
 function research_intelligence_strategic_edge_event(PDO $pdo,int $edgeId,string $type,?int $userId,array $snapshot): void {
