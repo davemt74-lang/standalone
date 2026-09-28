@@ -23,7 +23,7 @@ $must('app/research-intelligence-operations.php',[
  'function research_intelligence_portfolio_record_decision','research_outcome_record'
 ],'Legacy Phase 61 compatibility helper');
 $must('app/research-decisions.php',[
- "$type==='portfolio'","$type==='portfolio_insight'","$type==='executive_briefing'"
+  '\$type===\'portfolio\'','\$type===\'portfolio_insight\'','\$type===\'executive_briefing\''
 ],'Native Decision Portfolio provenance');
 $must('api/research-intelligence-portfolios.php',[
  "research_intelligence_portfolio_create_native_decision"
