@@ -153,7 +153,7 @@ function research_intelligence_portfolio_native_decision_link(PDO $pdo,array $vi
     return ['link'=>$link,'decision'=>$decision,'portfolio'=>$portfolio];
 }
 
-function research_intelligence_portfolio_create_native_decision(PDO $pdo,array $viewer,string $portfolioPublic,array $input): array {
+function research_intelligence_portfolio_create_native_decision(PDO $pdo,array $viewer,string $portfolioPublic,array $input,bool $byAgent=false): array {
     $p=research_intelligence_portfolio_access($pdo,$viewer,$portfolioPublic);if(!$p||!research_intelligence_portfolio_can_write($p))throw new RuntimeException('Portfolio decision access is unavailable.');
     if(!research_intelligence_portfolio_native_decisions_ready($pdo))throw new RuntimeException('Native Portfolio Decision handoff requires the latest database upgrade.');
     if(!empty($input['create_follow_up']))throw new InvalidArgumentException('Native Portfolio Decisions do not create direct follow-up Tasks. Accept the Decision, then create an Action Plan for execution.');
@@ -185,13 +185,13 @@ function research_intelligence_portfolio_create_native_decision(PDO $pdo,array $
           'agent_id'=>(string)$program['agent_public_id'],'decision_type'=>$type,'title'=>$title,'statement'=>$statement,'rationale'=>$rationale,
           'confidence'=>$confidence,'accountable_user_id'=>(string)($input['accountable_user_id']??$viewer['public_id']??''),
           'assumptions'=>$input['assumptions']??[],'uncertainty'=>$input['uncertainty']??[],'alternatives'=>$input['alternatives']??[],'refs'=>$refs
-        ],false);
+        ],$byAgent);
         $pdo->prepare("INSERT INTO research_intelligence_portfolio_decision_links(public_id,portfolio_id,outcome_id,decision_id,handoff_key,insight_id,briefing_id,task_id,created_by_user_id) VALUES(?,?,NULL,?,?,?,?,NULL,?)")
           ->execute([ulid_like(),(int)$p['id'],(int)$decision['id'],$handoffKey,$insight['id']??null,$briefing['id']??null,(int)$viewer['id']]);
-        research_intelligence_portfolio_event($pdo,(int)$p['id'],'native_decision_created','user',(int)$viewer['id'],[
+        research_intelligence_portfolio_event($pdo,(int)$p['id'],'native_decision_created',$byAgent?'agent':'user',(int)$viewer['id'],[
           'decision_id'=>(string)$decision['public_id'],'decision_type'=>$type,'anchor_program_id'=>(string)$program['public_id'],'insight_id'=>$insight['public_id']??null,'briefing_id'=>$briefing['public_id']??null
         ]);
-        research_decision_event($pdo,$decision,'decision_portfolio_handoff','user',(int)$viewer['id'],[
+        research_decision_event($pdo,$decision,'decision_portfolio_handoff',$byAgent?'agent':'user',(int)$viewer['id'],[
           'portfolio_id'=>(string)$p['public_id'],'anchor_program_id'=>(string)$program['public_id'],'insight_id'=>$insight['public_id']??null,'briefing_id'=>$briefing['public_id']??null
         ]);
         if($owns)$pdo->commit();
