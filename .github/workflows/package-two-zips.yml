@@ -389,6 +389,10 @@ jobs:
           test -f package-website/tests/phase72-section1-action-plan-ledger-contract.php
           test -f package-website/tests/phase72-section1-action-plan-ledger-db.php
           test -f package-website/tests/ci/phase72-section1-upgrade-from-092.php
+          test -f package-website/database/migrations/20260927_094_research_action_plan_milestones_tasks_dependencies.sql
+          test -f package-website/tests/phase72-section2-milestones-tasks-dependencies-contract.php
+          test -f package-website/tests/phase72-section2-milestones-tasks-dependencies-db.php
+          test -f package-website/tests/ci/phase72-section2-upgrade-from-093.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
           test -f package-website/docs/phase-71-research-decisions-conclusions-outcome-memory.md

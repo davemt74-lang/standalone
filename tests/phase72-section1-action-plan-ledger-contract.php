@@ -28,7 +28,7 @@ $must('docs/phase-72-decision-to-action-execution-strategic-follow-through.md',[
  'no Research Task or Research Program is created by the foundation','no scheduler, worker, cron, queue'
 ],'Phase 72 Section 1 architecture');
 $avoid('app/research-action-plans.php',[
- 'research_task_create(','research_program_create(','research_program_enqueue(','research_action_plan_worker','research_action_plan_jobs'
+ 'research_program_enqueue(','research_action_plan_worker','research_action_plan_jobs'
 ],'Action Plan foundation isolation');
 foreach(['research-action-plan-worker.php','research-action-plans-worker.php','action-plan-worker.php'] as $worker)if(is_file($root.'/worker/'.$worker))$fail[]='Phase 72 Section 1 must not add an Action Plan worker: '.$worker;
 $must('tests/ci/run-full-regression.sh',['tests/phase72-section1-action-plan-ledger-db.php'],'Phase 72 Section 1 regression gate');

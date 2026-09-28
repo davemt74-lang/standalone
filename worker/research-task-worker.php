@@ -20,6 +20,10 @@ for($n=0;$n<$limit;$n++){
             $pdo->prepare("UPDATE research_tasks SET status='queued',blocking_reason='Waiting for dependent tasks.',updated_at=NOW() WHERE id=?")->execute([(int)$task['id']]);
             job_claim_complete($pdo,'research_task_jobs',$id,$token);$processed++;continue;
         }
+        if(function_exists('research_action_plan_task_execution_ready')&&!research_action_plan_task_execution_ready($pdo,(int)$task['id'])){
+            $pdo->prepare("UPDATE research_tasks SET status='queued',blocking_reason='Waiting for Action Plan or milestone dependencies.',updated_at=NOW() WHERE id=?")->execute([(int)$task['id']]);
+            job_claim_complete($pdo,'research_task_jobs',$id,$token);$processed++;continue;
+        }
         $agent=research_task_agent_by_id($pdo,(int)$task['research_agent_id']);if(!$agent)throw new RuntimeException('Research Agent is unavailable.');
         $viewer=research_task_owner($pdo,$agent);$model=ai_setting_model_id($pdo,'research',true);
         if(!$model){
