@@ -290,6 +290,7 @@ jobs:
           php tests/post-phase71-research-publications-ui-hotfix-db.php
           php tests/phase72-section1-action-plan-ledger-db.php
           php tests/phase72-section2-milestones-tasks-dependencies-db.php
+          php tests/phase72-section3-programs-recurring-follow-through-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -584,6 +585,13 @@ jobs:
           DB_PASS: root
           PHASE72_SECTION2_RESET_DB: '1'
         run: php tests/ci/phase72-section2-upgrade-from-093.php
+      - name: MySQL 8 Phase 72 Section 3 Programs Recurring Follow-Through upgrade rehearsal from migration 094 through 095
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase72_section3_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE72_SECTION3_RESET_DB: '1'
+        run: php tests/ci/phase72-section3-upgrade-from-094.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')
