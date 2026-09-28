@@ -300,6 +300,7 @@ jobs:
           php tests/phase73-section2-portfolio-decision-execution-rollups-db.php
           php tests/phase73-section3-cross-decision-learning-pattern-memory-db.php
           php tests/phase73-section4-strategic-dependency-conflict-graph-db.php
+          php tests/phase73-section5-recurring-strategic-review-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -649,6 +650,13 @@ jobs:
           DB_PASS: root
           PHASE73_SECTION4_RESET_DB: '1'
         run: php tests/ci/phase73-section4-upgrade-from-100.php
+      - name: MySQL 8 Phase 73 Section 5 Recurring Strategic Review upgrade rehearsal from migration 101 through 102
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase73_section5_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE73_SECTION5_RESET_DB: '1'
+        run: php tests/ci/phase73-section5-upgrade-from-101.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')

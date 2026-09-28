@@ -104,6 +104,7 @@ require_once __DIR__ . '/research-intelligence-operations.php';
 require_once __DIR__ . '/research-intelligence-decision-rollups.php';
 require_once __DIR__ . '/research-intelligence-pattern-memory.php';
 require_once __DIR__ . '/research-intelligence-strategic-graph.php';
+require_once __DIR__ . '/research-intelligence-strategic-reviews.php';
 require_once __DIR__ . '/research-network.php';
 require_once __DIR__ . '/research-provenance.php';
 require_once __DIR__ . '/data-attribution.php';

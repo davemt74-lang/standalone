@@ -374,3 +374,128 @@ Graph operations cannot:
 - Team / Portfolio permission revocation immediately removes graph access
 - no worker, scheduler, queue, fuzzy inference, or AI relationship writer is introduced
 
+## Section 5 — Recurring Strategic Review
+
+Section 5 turns the strategic state built in Sections 1–4 into a recurring, human-governed review loop without introducing another scheduler or another review engine.
+
+### Existing systems reused
+
+Recurring Strategic Review deliberately reuses:
+
+- the existing **Portfolio intelligence cycle** as the only recurring clock
+- the existing **Collaborative Research Review** engine for reviewer assignment, responses, objections, deadlines, notifications, completion, and review audit history
+- the existing Decision / Action Plan / Outcome / Pattern Memory / Strategic Graph stores as authoritative source state
+
+There is no new worker, cron, queue, or independent scheduler.
+
+A recurring Strategic Review can only be evaluated when the existing Portfolio cycle runs. If a Portfolio is configured as manual-only, recurring Strategic Review is also manual-only until normal Portfolio scheduling is enabled.
+
+### Strategic Review settings
+
+Each Portfolio may configure:
+
+- active / paused status
+- cadence: every Portfolio cycle, weekly, monthly, or quarterly
+- review deadline offset in hours
+- explicit current collaborators who should receive the Collaborative Review
+
+The cadence is evaluated against the time of the existing Portfolio cycle. A review configuration cannot wake the system independently.
+
+If configured reviewers lose access, the recurring review is not silently reassigned. The failed review handoff is recorded as a Portfolio event and the successful Portfolio cycle remains valid.
+
+### Frozen Strategic Review packet
+
+Migration 102 adds:
+
+- `research_intelligence_strategic_reviews`
+- `research_intelligence_strategic_review_settings`
+
+A Strategic Review packet freezes a deterministic snapshot of:
+
+- Portfolio aggregate signals
+- native Decision and Phase 72 execution summary
+- Action Plan attention: overdue work, material variance, open Team Review, and completed-without-outcome gaps
+- Cross-Decision Pattern Memory summary and strongest patterns
+- Strategic Dependency & Conflict Graph summary and attention
+- deterministic review-focus items
+
+The packet hash excludes capture time so unchanged strategic state remains hash-identical across review cycles.
+
+The packet itself is immutable review evidence. New Portfolio changes do not rewrite an open review packet.
+
+### Collaborative Review subject
+
+Migration 102 extends the existing `research_reviews.subject_type` ENUM with `strategic_review`.
+
+Each packet is handed to the existing Collaborative Review engine as a frozen `strategic_review` subject.
+
+That means Strategic Reviews inherit the normal review behavior:
+
+- reviewer assignment
+- approve / request changes / disagree / abstain responses
+- comments and audit events
+- due dates and overdue state
+- unresolved objections
+- completion by an authorized human
+- review notifications and Review Center visibility
+
+Strategic Review does not add another voting model or another review status system.
+
+### Current-state drift
+
+A completed or open Strategic Review always remains pinned to the packet that was reviewed.
+
+The Portfolio surface may compare the latest packet hash with current strategic state and show **current drift**. Current drift means new Portfolio state exists after the frozen packet; it does not invalidate, rewrite, or silently restart the existing Collaborative Review.
+
+A later manual or recurring review captures the newer state.
+
+### Manual review
+
+A Portfolio writer can create a Strategic Review immediately using the configured reviewers.
+
+Manual creation uses the same frozen packet and Collaborative Review path as recurring creation. An idempotency key prevents an accidental duplicate manual request.
+
+### Organization Command Center
+
+The organization Command Center aggregates accessible Strategic Review state:
+
+- Portfolios with active recurring review configuration
+- total / open / completed Strategic Reviews
+- overdue Strategic Reviews
+- changes requested
+- unresolved objections
+- latest-packet current drift
+- direct links to reviews needing attention
+
+### Authority boundary
+
+Strategic Review is advisory and human-governed.
+
+Creating, responding to, or completing a Strategic Review cannot:
+
+- accept, reject, reopen, defer, supersede, or archive a Decision
+- create, activate, pause, complete, cancel, or archive an Action Plan
+- resolve execution variance
+- change Strategic Graph edges
+- write Decision Outcome Memory
+- create Research Tasks
+- execute Agent actions
+- publish an Executive Briefing
+
+Any follow-through remains an explicit later user action through the existing governed systems.
+
+### Section 5 invariants
+
+- migration 102 fabricates no Strategic Review rows
+- migration 102 preserves all prior Decision, Action Plan, Pattern Memory, Strategic Graph, Portfolio, and Collaborative Review state
+- no scheduler, worker, queue, or cron is introduced
+- recurring review is evaluated only from the existing Portfolio cycle
+- frozen packet hashes are deterministic and ignore capture time
+- recurring review is de-duplicated per Portfolio cycle
+- manual review supports explicit idempotency
+- only explicitly configured current collaborators can be assigned
+- reviewer access revocation is respected immediately
+- Collaborative Research Review remains authoritative for responses and completion
+- packet drift never rewrites an open or completed review
+- Strategic Review never mutates Decision or Action Plan lifecycle state
+
