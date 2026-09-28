@@ -788,3 +788,120 @@ No cognition result can directly:
 - Strategic Review and Strategic Briefing proposals reuse their existing human review paths.
 - Existing Team/Portfolio permission revocation applies immediately.
 - Existing Decision, Action Plan, variance, review, and publication authority remains authoritative.
+
+
+## Section 8 — End-to-End Hardening & Release
+
+Section 8 closes Phase 73 as a release-hardened organizational-learning system. It adds no product authority and no database schema. The purpose is to prove that Sections 1–7 compose correctly as one governed workflow and that supported deployed states upgrade safely to the current release.
+
+### Final schema boundary
+
+**Migration 103 is the final Phase 73 schema boundary.**
+
+Section 8 introduces no migration 104. Section 7 and Section 8 are application-only layers over the authoritative stores created through migration 103.
+
+The final Phase 73 schema consists of:
+
+- migration 099 — native Portfolio → Decision lineage
+- migration 100 — Cross-Decision Pattern Memory
+- migration 101 — Strategic Dependency & Conflict Graph
+- migration 102 — Recurring Strategic Review
+- migration 103 — Executive Strategic Briefing lineage and Team Review
+
+No release migration fabricates Pattern Memory, graph relationships, Strategic Reviews, Strategic Briefings, Decisions, Action Plans, outcomes, or Agent proposals.
+
+### Integrated release journey
+
+The permanent Section 8 database acceptance journey validates the complete chain:
+
+**Portfolio → Decision → Action Plan → Outcome Memory → Pattern Memory → Strategic Review → Executive Strategic Briefing → Organizational Cognition**
+
+The journey also validates Strategic Graph relationships and confirmed governed Agent follow-through inside that chain.
+
+It proves that:
+
+- historical Phase 61 Portfolio decision history coexists with native Phase 71 Decisions
+- Portfolio rollups read the authoritative Decision and Action Plan stores instead of copying them
+- exact Pattern Memory derives organizational learning from durable recorded state
+- Strategic Graph relationships preserve explicit endpoint provenance and do not mutate source lifecycle
+- Strategic Reviews freeze deterministic strategic packets and reuse Collaborative Review
+- Executive Strategic Briefings freeze an approved strategic packet, reuse Research Docs and Team Review, and remain gated before Phase 59 publication
+- Organizational Cognition remains deterministic, permission checked, explainable, and read-only
+- Agent follow-through remains pending and non-mutating before explicit confirmation
+- confirmed Agent follow-through creates only safe entry states
+- existing Decision and Action Plan lifecycle authority remains human governed
+- Team revocation removes access across the complete Phase 73 chain
+
+### Final supported upgrade matrix
+
+The Phase 73 final MySQL 8 matrix rehearses representative supported development baselines at migrations:
+
+- 098 — pre-Phase-73 Action Plan release
+- 099 — native Portfolio Decision handoff
+- 100 — Pattern Memory
+- 101 — Strategic Graph
+- 102 — Recurring Strategic Review
+
+Each baseline upgrades through migration 103.
+
+Every case must:
+
+- apply exactly the missing Phase 73 migrations
+- preserve existing Collaborative Review records byte-for-byte at the tested logical fields
+- end with native Portfolio Decision lineage available
+- end with Strategic Review subject support available
+- create all final Phase 73 tables
+- fabricate zero Pattern Memory, Strategic Graph, Strategic Review, or Strategic Briefing rows
+- leave zero pending migrations
+- make a repeated upgrade a no-op
+- verify that no migration 104 exists
+
+Section-specific upgrade rehearsals remain in place in addition to this final matrix.
+
+### Package hardening
+
+Production package smoke now explicitly requires:
+
+- migration 103
+- Strategic Briefing runtime
+- Organizational Cognition runtime
+- Section 6, Section 7, and Section 8 permanent tests
+- the final Phase 73 supported upgrade matrix
+
+The package smoke syntax pass also includes the final Strategic Briefing and Organizational Cognition runtime files.
+
+The V1.1 production runbook identifies migration 103 as the current schema boundary and includes the Phase 73 post-deploy organizational-learning journey.
+
+### Authority boundary
+
+Section 8 adds no:
+
+- new Decision status transition
+- new Action Plan lifecycle transition
+- automatic variance resolution
+- automatic reconsideration apply
+- automatic Strategic Graph edits
+- automatic review completion
+- automatic briefing publication
+- autonomous Agent execution
+- new scheduler, worker, queue, or authority ledger
+
+The final release preserves the authority model established by Phases 71–73: derived intelligence may explain and propose; authoritative state changes remain explicit and governed.
+
+### Final Phase 73 invariants
+
+- migration 103 is the final Phase 73 schema boundary
+- no migration 104 is introduced
+- Sections 1–7 retain permanent contract and DB coverage
+- Section 8 adds an integrated end-to-end release journey
+- Section 8 adds a representative supported upgrade matrix through migration 103
+- release packages explicitly include and smoke-test the complete Phase 73 runtime and tests
+- historical Portfolio records remain compatible with native Decisions
+- native Decisions and Action Plans remain authoritative
+- Pattern Memory remains exact and deterministic
+- Strategic Graph relationships remain explicit and audited
+- Strategic Reviews and Strategic Briefings remain frozen snapshots
+- Phase 59 remains the only publication workflow
+- Organizational Cognition remains read-only
+- Agent follow-through remains confirmation-gated and stale-safe
+- Team permission revocation applies across the complete Phase 73 chain
