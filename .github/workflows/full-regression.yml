@@ -293,6 +293,7 @@ jobs:
           php tests/phase72-section3-programs-recurring-follow-through-db.php
           php tests/phase72-section4-execution-evidence-variance-db.php
           php tests/phase72-section5-agent-cognition-db.php
+          php tests/phase72-section6-team-command-review-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php
@@ -601,6 +602,13 @@ jobs:
           DB_PASS: root
           PHASE72_SECTION4_RESET_DB: '1'
         run: php tests/ci/phase72-section4-upgrade-from-095.php
+      - name: MySQL 8 Phase 72 Section 6 Action Plan Team Command and Review upgrade rehearsal from migration 096 through 097
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase72_section6_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE72_SECTION6_RESET_DB: '1'
+        run: php tests/ci/phase72-section6-upgrade-from-096.php
 
   package:
     if: contains(github.event.pull_request.title, '[phase-gate]')

@@ -110,6 +110,15 @@ function research_review_subject(PDO $pdo,array $viewer,string $type,string $pub
           'url'=>'/research-decisions.php?decision='.rawurlencode((string)$r['decision_public_id']).'&reconsideration='.rawurlencode($publicId),'summary'=>mb_substr($summary,0,2000),
           'reconsideration_status'=>(string)$r['status'],'recommended_action'=>(string)$r['recommended_action']];
     }
+    if($type==='action_plan'&&function_exists('research_action_plan_review_state_hash')){
+        $r=research_action_plan_detail($pdo,$viewer,$publicId);if(!$r)return null;
+        $hash=research_action_plan_review_state_hash($pdo,$viewer,$publicId);
+        $summary='Objective: '.(string)$r['objective'].' Expected result: '.(string)$r['expected_result'];
+        return ['type'=>'action_plan','public_id'=>$publicId,'project_id'=>(int)$r['project_id'],'project_public_id'=>(string)$r['project_public_id'],'project_title'=>(string)$r['project_title'],
+          'title'=>'Action Plan: '.(string)$r['title'],'hash'=>$hash,'version_label'=>'Action Plan revision '.(int)$r['current_revision'].' · '.ucfirst((string)$r['status']),
+          'url'=>'/research-action-plans.php?action_plan='.rawurlencode($publicId),'summary'=>mb_substr($summary,0,2000),
+          'action_plan_status'=>(string)$r['status'],'action_plan_revision'=>(int)$r['current_revision'],'source_decision_public_id'=>(string)$r['decision_public_id']];
+    }
     if($type==='document'){
         if(!function_exists('research_agent_workspace_object'))return null;$r=research_agent_workspace_object($pdo,$viewer,$publicId,false);if(!$r||($r['object_type']??'')!=='document')return null;
         $hash=hash('sha256',json_encode(['public_id'=>$r['public_id'],'title'=>$r['title'],'revision_number'=>(int)$r['revision_number'],'content_hash'=>(string)$r['content_hash'],'summary'=>(string)($r['document_summary']??'')],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));

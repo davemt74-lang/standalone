@@ -471,3 +471,121 @@ Feed cards use the deterministic state hash as part of their identity and may of
 - variance resolution remains human-governed
 - existing Research Tasks, Research Programs, Decisions, and permissions remain authoritative
 
+## Section 6 — Team Command & Review
+
+Section 6 brings Action Plans into the existing Collaborative Research Review system and adds an execution-oriented Command Center for shared Team governance.
+
+### Native Action Plan Team Review
+
+Action Plans are now first-class Review Center subjects.
+
+A review may be requested from current collaborators on the Action Plan's Research project. The existing review runtime continues to own:
+
+- reviewer assignment
+- reviewer responses: Approve / Request changes / Disagree / Abstain
+- comments and discussion
+- deadlines and overdue state
+- notifications
+- completion/cancellation/restart
+- frozen completion snapshots
+- cognitive-feed review reminders
+- Agent handoff summaries
+
+No parallel review engine is introduced.
+
+### Strategic state-hash pinning
+
+An Action Plan review is **state-hash pinned** to the exact strategic execution state that existed when the review was requested.
+
+The pinned review hash covers:
+
+- Action Plan lifecycle and immutable configuration revision
+- current source Decision state and source-provenance staleness
+- milestones
+- linked existing Research Tasks
+- linked existing Research Programs
+- execution observations
+- execution variances
+- activation/completion/cancellation state
+
+If any of that strategic state changes, the prior review becomes stale. Reviewers must restart the review against current state rather than relying on an approval generated from earlier execution facts.
+
+### Team Review remains advisory
+
+Team Review remains advisory.
+
+Completing an Action Plan review never:
+
+- activates, pauses, completes, cancels, or archives the Action Plan
+- starts, completes, or cancels a milestone
+- completes or bypasses an existing Research Task
+- activates or changes an existing Research Program
+- resolves an execution variance
+- accepts, reopens, supersedes, or otherwise changes the source Decision
+
+All lifecycle and execution mutations continue through their existing explicit human-governed primitives.
+
+### Action Plan Command Center
+
+The new Action Plan Command Center provides one permission-checked execution portfolio across accessible Research Agents and Teams.
+
+For each Action Plan it combines:
+
+- lifecycle status and revision
+- owner
+- source Decision lineage and staleness
+- Section 5 strategic cognition state
+- attention reasons
+- milestone and Research Task status counts
+- open execution variances
+- Action Plan overdue state
+- latest Team Review state and consensus
+- stale Team Review state
+- direct links to Research, Decision Memory, and Review Center
+
+Command Center scopes include:
+
+- All
+- Needs Attention
+- Proposed
+- Active
+- Paused
+- Decision Review
+- Variances
+- Team Reviews
+- Completed
+
+The Command Center is read-only aggregation except for clearly labeled **Explicit Action Plan action** lifecycle controls, which call the existing human Action Plan lifecycle function and preserve all existing transition guards.
+
+### Attention model
+
+The Command Center marks an Action Plan as needing attention when one or more of these conditions is true:
+
+- Section 5 cognition reports **Needs Attention**
+- Section 5 cognition reports **May Affect Underlying Decision**
+- the Action Plan is Proposed and awaiting explicit human disposition
+- latest Team Review contains requested changes, unresolved objection, or mixed review
+- latest Team Review is stale
+
+Critical or high material execution evidence continues to flow through the existing Section 5 strategic classification rather than creating a separate Team severity model.
+
+### Permissions and Team boundaries
+
+Action Plan review and Command Center visibility reuse existing Research Agent/project access.
+
+Only eligible current project collaborators may be assigned to review. Users outside the owning Team/project cannot construct the Action Plan review subject or see it in the Command Center.
+
+### Section 6 invariants
+
+- Action Plans reuse the existing Collaborative Research Review engine
+- no parallel review engine is introduced
+- reviews are pinned to exact strategic Action Plan state
+- execution changes make prior Team Review stale deterministically
+- Team Review remains advisory
+- unanimous approval never auto-activates an Action Plan
+- review completion never mutates Action Plan, milestone, Task, Program, variance, or Decision state
+- Command Center generation is side-effect free
+- explicit lifecycle actions continue through existing Action Plan transition guards
+- Team/project permissions remain authoritative
+- no new worker, queue, scheduler, cron, or autonomous execution loop is introduced
+

@@ -40,7 +40,7 @@ unset($agent);
       <a href="/research-programs.php">Programs</a>
       <a href="/research-portfolio.php">Portfolio</a>
       <a href="/research-publications.php">Publishing</a>
-      <a href="/research-decisions.php">Decisions</a><a href="/research-reviews.php">Review Center</a>
+      <a href="/research-decisions.php">Decisions</a><a href="/research-action-plans.php">Action Plans</a><a href="/research-reviews.php">Review Center</a>
     </nav>
     <details class="researchAdvancedTools">
       <summary>Advanced Research tools</summary>
