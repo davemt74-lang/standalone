@@ -19,7 +19,7 @@ foreach(['missions','tasks','decisions','follow_through','recurring'] as $view){
 $links=research_agent_research_engine_links($agent);
 p74s4(str_contains((string)$links['missions'][0]['href'],rawurlencode($agentId))&&str_contains((string)$links['tasks'][0]['href'],rawurlencode($agentId)),'Mission and Task engine links preserve Agent identity.');
 p74s4($links['decisions'][0]['href']==='/research-decisions.php'&&$links['follow_through'][0]['href']==='/research-action-plans.php','Decision and Follow-through retain authoritative command-center routes.');
-p74s4(count($links['recurring'])===2&&$links['recurring'][1]['href']==='/research-automations.php','Recurring keeps Phase 18 Automations as compatibility only.');
+p74s4(count($links['recurring'])===1&&$links['recurring'][0]['href']==='/research-programs.php?agent='.rawurlencode($agentId),'Recurring exposes Programs only while Phase 18 Automations remain route-level compatibility.');
 
 $mission=research_mission_create($pdo,$owner,['agent_id'=>$agentId,'title'=>'Section 4 Mission','research_question'=>'What should the unified Research surface prove?','objective'=>'Prove Missions stay authoritative.','success_criteria'=>[['label'=>'Mission is visible']]]);
 $plan=research_task_plan_create($pdo,$owner,['agent_id'=>$agentId,'title'=>'Section 4 Plan','objective'=>'Prove task plans stay authoritative.','create_deliverable'=>false,'tasks'=>[]]);
