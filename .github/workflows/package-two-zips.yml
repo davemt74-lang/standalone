@@ -455,6 +455,11 @@ jobs:
           test -f package-website/app/research-surface-map.php
           test -f package-website/tests/phase74-section1-canonical-ui-compatibility-map-contract.php
           test -f package-website/docs/phase-74-research-agent-simplification.md
+          test -f package-website/app/research-agent-shell-ui.php
+          test -f package-website/assets/js/research-agent-unified-shell.js
+          test -f package-website/research-agent-research.php
+          test -f package-website/tests/phase74-section2-unified-research-agent-shell-contract.php
+          test -f package-website/tests/phase74-section2-unified-research-agent-shell-db.php
           test -f package-website/tests/ci/phase73-final-supported-upgrades.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
