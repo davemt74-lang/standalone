@@ -36,8 +36,13 @@ $need('assets/css/app.css','.researchAgentUnifiedShell','Unified shell styles ar
 $need('assets/css/app.css','.researchAgentResearchOverview','Unified Research landing styles are missing.');
 
 $need('research.php','/research-intelligence-portfolios.php','Global Research must expose Portfolios beside Research Agents.');
+$researchPage=$read('research.php');$primaryStart=strpos($researchPage,'<nav class="researchLibraryTabs researchPrimaryActions">');$primaryEnd=$primaryStart===false?false:strpos($researchPage,'</nav>',$primaryStart);$primary=$primaryStart!==false&&$primaryEnd!==false?substr($researchPage,$primaryStart,$primaryEnd-$primaryStart):'';
+if($primary==='')$fail[]='Global Research primary navigation block is missing.';
 foreach(['/research-monitoring.php','/research-missions.php','/research-tasks.php','/research-programs.php','/research-publications.php','/research-decisions.php','/research-action-plans.php','/research-reviews.php'] as $legacy)
-    $avoid('research.php','<a href="'.$legacy.'"','Global Research primary navigation must not expose '.$legacy.'.');
+    if(str_contains($primary,$legacy))$fail[]='Global Research primary navigation must not expose '.$legacy.'.';
+$need('research.php','Advanced Research tools','Legacy/advanced Research compatibility routes must remain discoverable under progressive disclosure.');
+foreach(['/research-portfolio.php','/research-network.php','/research-citations.php','/research-audit.php','/research-provenance.php','/research-verification.php','/research-evidence-packs.php'] as $legacy)
+    if(!str_contains($researchPage,$legacy))$fail[]='Historical Research compatibility route must remain discoverable: '.$legacy.'.';
 foreach(['/research-project.php?id=','/research-tasks.php?agent=','/research-programs.php?agent='] as $legacy)
     $avoid('research.php','<a href="'.$legacy,'"Research Agent cards must use the four canonical shell destinations instead of '.$legacy.'.');
 
