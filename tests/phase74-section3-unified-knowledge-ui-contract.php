@@ -27,7 +27,7 @@ $need('research-agent-knowledge.php',"research_agent_knowledge_render_nav",'Know
 foreach(['research_verification_project_summary','research_monitor_summary','research_longitudinal_summary'] as $engine)$need('research-agent-knowledge.php',$engine,'Unified Knowledge page must read existing '.$engine.' engine.');
 foreach(['FINDINGS','CLAIMS','ENTITIES','VERIFICATION','PROVENANCE','SOURCE INTELLIGENCE'] as $label)$need('research-agent-knowledge.php',$label,'Insights must expose '.$label.'.');
 foreach(['WHAT CHANGED','EVOLUTION','CONFIDENCE MOVEMENT','SOURCE CHANGES'] as $label)$need('research-agent-knowledge.php',$label,'Changes must expose '.$label.'.');
-foreach(['Open Library','Open Desktop','VP3 Library'] as $label)$need('research-agent-knowledge.php',$label,'Library must expose '.$label.'.');
+foreach(['Open Library','Open Desktop','VP3 Library'] as $label)$need('app/research-agent-knowledge-ui.php',$label,'Library must expose '.$label.'.');
 $need('assets/css/app.css','/* Phase 74 Section 3 — Unified Knowledge UI */','Unified Knowledge styles are missing.');
 $need('assets/css/app.css','@media(max-width:760px)','Unified Knowledge mobile layout is missing.');
 
