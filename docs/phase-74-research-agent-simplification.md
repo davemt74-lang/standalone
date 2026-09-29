@@ -358,3 +358,42 @@ Section 3 introduces no migration 104, new knowledge authority, duplicate Claim/
 ### Section 3 permanent gates
 
 CI verifies the exact three-view model, stable Agent identity across views, Library/Desktop/VP3 reachability, Insight inspector reachability, Monitoring/Evolution reachability, Team revocation, presentation-only helper behavior, no migration 104, PHP 8.1/8.3 static gates, MySQL regression, model governance, and production package inclusion.
+
+
+## Section 4 — Unified Research UI
+
+Section 4 turns the Research Agent Research tab into the canonical five-view execution surface:
+
+**Missions | Tasks | Decisions | Follow-through | Recurring**
+
+The page reads the existing authoritative engines directly. It does not create a parallel lifecycle, scheduler, Decision store, Action Plan store, or Program runtime.
+
+### Missions
+
+Missions remain the outcome-driven research objective. The unified view surfaces Mission status, priority, sub-question progress, and success-criteria progress, then deep-links into the existing Mission editor for planning, execution, evidence, review, completion, and history.
+
+### Tasks
+
+Tasks packages the existing Research Plan / Task engine into the canonical Research workspace. Active, waiting, review, and complete counts come from the existing Task summary. Plan rows preserve priorities, completion gates, review state, deliverables, and the mature Task editor.
+
+### Decisions
+
+Decisions reads the Phase 71 Decision Ledger for the selected Research Agent. Decision status, rationale, confidence, reconsideration, Team Review, and Outcome Memory remain authoritative in Phase 71. The unified view is a focused Agent-level index; detailed Decision governance remains in the existing Decision Command Center.
+
+### Follow-through
+
+Follow-through is the user-facing placement for Phase 72 Action Plans. The unified view reads only Action Plans belonging to the selected Agent and exposes their lifecycle, source Decision, due state, and stale-source signal. Execution governance, variance, milestones, reviews, cognition, and final outcome handoff remain in the Phase 72 Action Plan engine.
+
+### Recurring
+
+Recurring makes Research Programs the primary recurring model. Program status, cadence, run health, next run, material-change handling, deliverables, and history remain in the existing Program engine.
+
+Phase 18 Research Automations remain live as a compatibility system for historical scheduled and watch-triggered workflows. They are discoverable from Recurring, but they are no longer presented as a competing primary Research product.
+
+### Authority and compatibility
+
+Section 4 introduces no migration 104 and no new persistence. The helper is presentation-only. The canonical page preserves deep links into Missions, Task Plans, Decisions, Action Plans, Programs, and legacy Automations. Team membership and the existing Research Agent / internal Project boundary remain authoritative.
+
+### Section 4 permanent gates
+
+CI verifies the exact five-view model, stable Agent identity, existing engine reachability, item-level deep links, selected-Agent filtering, Team access and revocation, no duplicate Agent/Project creation, no migration 104, website/extension CSS parity, PHP 8.1/8.3 regressions, MySQL 8 journeys, and production package inclusion.
