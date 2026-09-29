@@ -79,7 +79,7 @@ function research_portfolios_attention_sections(array $center,?string $portfolio
             $id
         );
     }
-    $sections[]=['key'=>'cognition','eyebrow'=>'ORGANIZATIONAL COGNITION','title'=>'Governed strategic reasoning','items'=>$rows];
+    $sections[]=['key'=>'cognition','eyebrow'=>'ORGANIZATIONAL AGENT COGNITION','title'=>'Governed strategic reasoning','items'=>$rows];
 
     $rows=[];
     foreach((array)($center['organizational_cognition_analogues']??[]) as $x){
@@ -101,7 +101,7 @@ function research_portfolios_attention_sections(array $center,?string $portfolio
         $reason=research_portfolios_attention_reason((array)($x['reasons']??[]));if($reason!=='')$meta.=' · '.$reason;
         $rows[]=research_portfolios_attention_item((string)($x['title']??'Executive Strategic Briefing'),$meta,$review!==''?'/research-reviews.php?id='.rawurlencode($review):$portfolioHref($id),$id);
     }
-    $sections[]=['key'=>'strategic_briefings','eyebrow'=>'EXECUTIVE STRATEGIC BRIEFINGS','title'=>'Team review attention','items'=>$rows];
+    $sections[]=['key'=>'strategic_briefings','eyebrow'=>'EXECUTIVE STRATEGIC BRIEFINGS & TEAM REVIEW','title'=>'Team-reviewed leadership briefs','items'=>$rows];
 
     $rows=[];
     foreach((array)($center['strategic_review_attention']??[]) as $x){
@@ -123,7 +123,7 @@ function research_portfolios_attention_sections(array $center,?string $portfolio
         $reason=research_portfolios_attention_reason((array)($x['reasons']??[]));if($reason!=='')$meta.=' · '.$reason;
         $rows[]=research_portfolios_attention_item($label,$meta,$portfolioHref($id),$id);
     }
-    $sections[]=['key'=>'strategic_graph','eyebrow'=>'STRATEGIC DEPENDENCIES','title'=>'Relationship attention','items'=>$rows];
+    $sections[]=['key'=>'strategic_graph','eyebrow'=>'STRATEGIC DEPENDENCY & CONFLICT GRAPH','title'=>'Relationship attention','items'=>$rows];
 
     $rows=[];
     foreach((array)($center['learning_patterns']??[]) as $x){
