@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__).'/app/bootstrap.php';
+require_once dirname(__DIR__).'/app/teams-core.php';
 api_headers();
 $viewer=require_api_mutation_auth($pdo);
 $action=trim((string)($_GET['action']??''));
@@ -66,11 +67,8 @@ try{
         global_create_response($sticky,'/home.php?agent='.rawurlencode((string)$agent['conversation_public_id']).'&desktop=1');
     }
     if($action==='team'){
-        $name=mb_substr(trim((string)($input['name']??'')),0,190);if($name==='')throw new InvalidArgumentException('Team name is required.');
-        $public=ulid_like();$pdo->beginTransaction();
-        try{$pdo->prepare('INSERT INTO teams(public_id,owner_user_id,name) VALUES(?,?,?)')->execute([$public,(int)$viewer['id'],$name]);$teamId=(int)$pdo->lastInsertId();$pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'owner')")->execute([$teamId,(int)$viewer['id']]);$pdo->commit();}
-        catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-        global_create_response(['public_id'=>$public,'name'=>$name],'/team.php?id='.rawurlencode($public));
+        $team=team_create($pdo,$viewer,(string)($input['name']??''));
+        global_create_response($team,'/team.php?id='.rawurlencode((string)$team['public_id']));
     }
     if($action==='source'){
         $url=trim((string)($input['url']??''));if($url==='')throw new InvalidArgumentException('Source URL is required.');
