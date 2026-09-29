@@ -3969,3 +3969,27 @@
 .researchAdvancedTools{margin-top:0;margin-left:auto;justify-self:end;align-self:center;text-align:right}
 .researchAdvancedTools summary{display:inline-flex;align-items:center;justify-content:flex-end}
 @media(max-width:700px){.researchAdvancedTools{margin-left:0;justify-self:stretch;text-align:left}.researchAdvancedTools summary{justify-content:flex-start}}
+
+
+/* Global header create launcher */
+.appHeaderCreate{width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;border:1px solid #d8dde2!important;border-radius:50%!important;background:#fff!important;color:#171a1d!important;font-size:1.22rem!important;font-weight:500!important;line-height:1!important;display:grid!important;place-items:center!important}
+.appHeaderCreate:hover{background:#f4f5f6!important;border-color:#c7ccd2!important}
+.appCreateDialog{width:min(760px,calc(100vw - 28px));max-height:min(82vh,760px);padding:0;border:1px solid #d8dde2;border-radius:16px;background:#fff;box-shadow:0 28px 90px rgba(17,24,39,.24);overflow:auto}
+.appCreateDialog::backdrop{background:rgba(17,24,39,.34);backdrop-filter:blur(2px)}
+.appCreateMenu,.appCreateForm{padding:22px}
+.appCreateMenu>header,.appCreateForm>header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.appCreateMenu h2,.appCreateForm h2{margin:3px 0 0;font-size:1.35rem;letter-spacing:-.025em}.appCreateMenu header p{max-width:520px;margin:7px 0 0;color:#737b84;font-size:.76rem;line-height:1.45}
+.appCreateClose,.appCreateBack{width:32px!important;height:32px!important;min-height:32px!important;padding:0!important;border:1px solid #dfe3e7!important;border-radius:50%!important;background:#f6f7f8!important;color:#363c43!important}
+.appCreateForm>header{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:start}.appCreateForm>header>div{min-width:0}
+.appCreateGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.appCreateChoice{min-height:104px;display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:start;padding:13px!important;border:1px solid #dfe3e7!important;border-radius:11px!important;background:#fff!important;color:#20252a!important;text-align:left!important}
+.appCreateChoice:hover{background:#f8f9fa!important;border-color:#c9ced4!important;transform:translateY(-1px)}
+.appCreateChoiceIcon{width:32px;height:32px;display:grid;place-items:center;border:1px solid #d9dde2;border-radius:8px;background:#f7f8f9;font-size:.78rem;font-weight:850}
+.appCreateChoice>span:nth-child(2){min-width:0;display:grid;gap:4px}.appCreateChoice strong{font-size:.76rem}.appCreateChoice small{color:#7b838c;font-size:.61rem;line-height:1.35;font-weight:500}.appCreateChoice i{align-self:center;color:#a0a6ad;font-style:normal}
+.appCreateFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.appCreateFields>label{display:grid;gap:6px;color:#464d55;font-size:.69rem;font-weight:760}.appCreateFields>label:has(textarea),.appCreateFields>label:has(input[type="url"]){grid-column:1/-1}
+.appCreateFields label small{color:#8a9199;font-size:.58rem;font-weight:600}.appCreateFields input,.appCreateFields textarea,.appCreateFields select{width:100%;padding:.72rem .78rem;border:1px solid #d8dde2;border-radius:9px;background:#fff;color:#171a1d;font:inherit;font-size:.75rem}.appCreateFields textarea{resize:vertical;line-height:1.45}
+.appCreateError{margin:0 0 14px;padding:10px 11px;border-radius:8px;background:#fff0f0;color:#8a1111;font-size:.7rem}
+.appCreateForm footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid #eceff2}
+@media(max-width:760px){.appCreateGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.appCreateFields{grid-template-columns:1fr}.appCreateFields>label:has(textarea),.appCreateFields>label:has(input[type="url"]){grid-column:auto}}
+@media(max-width:520px){.appCreateMenu,.appCreateForm{padding:16px}.appCreateGrid{grid-template-columns:1fr}.appCreateChoice{min-height:auto}.appCreateDialog{width:calc(100vw - 16px);max-height:90vh}}
