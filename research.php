@@ -84,8 +84,7 @@ $summary=$home['summary'];
     </div>
     <div class="researchHomeEmpty" data-research-no-agents hidden>
       <strong>No Research Agents yet.</strong>
-      <p>Create one to start a dedicated research workspace.</p>
-      <button type="button" class="button" data-research-agent-add>+ New Research Agent</button>
+      <p>Use + New Research Agent above to start a dedicated research workspace.</p>
     </div>
   </section>
 
