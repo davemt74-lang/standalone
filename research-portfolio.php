@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';$u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
+require __DIR__.'/app/bootstrap.php';$u=require_user($pdo);research_legacy_redirect_if_needed($pdo,$u,'research-portfolio.php',$_GET);header('Cache-Control: private, no-store');header('Vary: Cookie');
 $error='';$success='';$ready=research_portfolio_ready($pdo);
 $filters=['attention'=>trim((string)($_GET['attention']??$_POST['attention']??'')),'access'=>trim((string)($_GET['access']??$_POST['access']??'')),'q'=>trim((string)($_GET['q']??$_POST['q']??'')),'pinned'=>(bool)($_GET['pinned']??$_POST['pinned']??false)];
 if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
