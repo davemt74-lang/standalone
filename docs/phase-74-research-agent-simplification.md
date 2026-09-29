@@ -1,0 +1,203 @@
+# Phase 74 — Research Agent Simplification & Unified Workspace
+
+## Section 1 — Canonical UI & Compatibility Map
+
+Phase 74 simplifies the Research Agent by **repackaging mature logic behind a smaller UI**, not by rewriting the research engine.
+
+The architectural rule is:
+
+> Keep the logic. Remove duplicate product concepts.
+
+Section 1 changes no existing route behavior, deletes no database objects, replaces no scheduler, and creates no new authority system. It establishes the source-of-truth compatibility map used by the remaining Phase 74 sections.
+
+The machine-readable contract is `app/research-surface-map.php`. CI scans the repository and fails when a Research page, engine module, or API exists without an explicit consolidation classification.
+
+## Canonical product model
+
+Global Research becomes:
+
+**Research → Research Agents | Portfolios**
+
+Opening a Research Agent becomes:
+
+**Chat | Knowledge | Research | Reports**
+
+Knowledge contains:
+
+**Library | Insights | Changes**
+
+Research contains:
+
+**Missions | Tasks | Decisions | Follow-through | Recurring**
+
+Reports contains:
+
+**Create | Recent | Scheduled | Published**
+
+Portfolios uses the existing Phase 60/73 Intelligence Portfolio engine. The older Research Portfolio concept is compatibility-only.
+
+## Classification vocabulary
+
+### KEEP ENGINE
+
+Preserve the implementation, data, permissions, history, API behavior, workers, schedulers, audit state, and authority boundaries. The engine may be repackaged beneath a simpler UI.
+
+Examples include Phase 54 retrieval, Programs, Monitoring, Phase 71 Decisions, Phase 72 Action Plans, Collaborative Review, Report Studio/System Reports, Phase 59 Publishing, Intelligence Portfolios, Pattern Memory, Strategic Graph, Strategic Reviews/Briefings, Organizational Cognition, and Agent Action confirmation.
+
+### MERGE UI
+
+The current page contains useful functionality that will appear inside one of the canonical surfaces instead of remaining a separate product destination.
+
+### HIDE
+
+The route remains available for deep links, inspectors, advanced provenance, exports, object details, audits, graph views, or contextual actions, but it is not primary navigation.
+
+### LEGACY ROUTE
+
+The old product concept should disappear from normal navigation. A later Phase 74 compatibility section will redirect or deep-link the URL into its canonical surface while preserving inbound links and APIs.
+
+## Core consolidation decisions
+
+| Existing concept | Simplified presentation | Preservation rule |
+| --- | --- | --- |
+| Research Project | Research Agent | Keep Project IDs, Team permissions, ownership and data boundaries internally. |
+| Workspace / Desktop | Knowledge / workspace mode | Keep all file, desktop, note, upload, recording and bookmark logic. |
+| Project Knowledge + Agent Knowledge | Knowledge | Merge presentation; keep retrieval/evidence engines. |
+| Claims / Findings / Entities / Graph | Knowledge → Insights | Keep as object types and inspectors, not separate products. |
+| Monitoring / Evolution / Longitudinal | Knowledge → Changes | Keep watches and change intelligence. |
+| Mission | Research → Missions | Keep Mission as the research objective. |
+| Tasks | Research → Tasks | Keep Tasks as the execution unit. |
+| Programs | Research → Recurring | Keep Program runtime; present recurrence as a Research setting. |
+| Phase 18 Automations | Research → Recurring | Keep compatibility API/runtime; retire standalone Automations UI. |
+| Phase 71 Decisions | Research → Decisions | Canonical Decision Ledger. |
+| Old Decision Memory / Outcomes | Decisions → Outcome Memory | Preserve history; stop presenting a second Decision product. |
+| Phase 72 Action Plans | Research → Follow-through | Keep Action Plan authority; simplify the label/location. |
+| Collaborative Review | Contextual Review / Needs Attention | One review engine, surfaced on the object plus a global attention inbox. |
+| System Reports / Report Studio / Report Runs | Reports | One reporting experience. |
+| Research Briefs | Report template | Preserve historical data/generation logic. |
+| Executive / Strategic Briefings | Governed Report types | Preserve frozen packets, Team Review, Portfolio lineage and publication gates. |
+| Publications | Reports → Published | Keep Phase 59 publication authority. |
+| Delivery / subscriptions | Reports → Scheduled | Keep delivery/subscription runtime. |
+| Legacy Research Portfolio | Research overview | Compatibility-only. |
+| Intelligence Portfolio | Portfolios | The only primary Portfolio concept. |
+| Organization Command Center | Portfolios → Overview | Fold organization-wide intelligence into Portfolios. |
+
+## Route decisions
+
+### MERGE UI
+
+`cross-research.php`, `research-action-plans.php`, `research-agent-knowledge.php`, `research-decisions.php`, `research-entities.php`, `research-evidence-packs.php`, `research-evolution.php`, `research-intelligence-portfolios.php`, `research-missions.php`, `research-monitoring.php`, `research-programs.php`, `research-publications.php`, `research-report.php`, `research-reports.php`, `research-tasks.php`, and `research.php`.
+
+### LEGACY ROUTE
+
+`report-status.php`, `report.php`, `research-automations.php`, `research-brief.php`, `research-intelligence-command-center.php`, `research-knowledge.php`, `research-outcomes.php`, `research-portfolio.php`, `research-project.php`, and `research-reviews.php`.
+
+### HIDE / contextual inspector
+
+Evidence, source, Claim, Finding, Entity, citation, provenance, verification, audit, evidence-pack detail/export, graph/network/timeline, impact, report diff/export/network/provenance, publish action, workspace file and source-compare routes remain deep-linkable but leave primary navigation.
+
+The exact per-route target and reason lives in `research_route_surface_map()` and is enforced by CI.
+
+## Engine preservation
+
+All existing Research-oriented application modules are classified **KEEP ENGINE** in Section 1.
+
+This includes the systems that previously acquired separate user-facing names. Phase 74 does not replace:
+
+- semantic retrieval
+- Research Agent / Project permission boundaries
+- workspace/Desktop objects
+- source/evidence/Claim/Finding/Entity stores
+- Monitoring and longitudinal intelligence
+- Missions and Tasks
+- Programs and recurrence
+- Phase 18 Automation compatibility
+- Phase 71 Decisions and Outcome Memory
+- Phase 72 Action Plans, variance and outcome handoff
+- Collaborative Review
+- System Reports / Report Studio / report runs
+- Research Docs
+- Phase 59 Publishing
+- delivery/subscriptions
+- Intelligence Portfolios
+- Pattern Memory
+- Strategic Graph
+- Strategic Review
+- Executive Strategic Briefings / Team Review
+- Organizational Cognition
+- Agent Action proposal/confirmation governance
+
+## API compatibility
+
+Every current Research API stays live during Phase 74.
+
+`api/research-automations.php`, `api/research-outcomes.php`, and `api/research-portfolio.php` are explicitly marked compatibility-only in the architecture map because their user-facing concepts are being superseded.
+
+Other APIs remain normal KEEP ENGINE contracts even when their UI moves.
+
+No client is forced to migrate during Section 1.
+
+## Data compatibility
+
+**No destructive data migration** is part of this consolidation.
+
+Phase 74 Section 1 treats all mature Research database concepts as KEEP ENGINE. Table names are not renamed merely to match the new UI vocabulary.
+
+In particular:
+
+- `research_projects` remains the internal permission/data boundary.
+- Phase 54 retrieval remains canonical for semantic context.
+- Phase 71 remains the authoritative Decision system.
+- Phase 72 remains the authoritative Action Plan/follow-through system.
+- Collaborative Review remains the authoritative review engine.
+- Phase 59 remains the authoritative publication engine.
+- Phase 60/73 Intelligence Portfolio remains the authoritative Portfolio system.
+- Agent Action proposals remain the authoritative confirmation boundary for consequential Agent follow-through.
+
+Legacy records continue to be readable and usable.
+
+## Anti-redundancy guardrail
+
+The Section 1 contract dynamically inventories:
+
+- root-level Research/report/evidence/source pages
+- Research-oriented `app/` modules
+- Research-oriented `api/` routes
+
+A new matching surface causes CI to fail until it is explicitly classified.
+
+That is intentional: Phase 74 should not create another top-level Research concept without deciding where it belongs in the canonical model.
+
+## Build sequence from this contract
+
+### Phase 74 Section 2 — Unified Research Agent Shell
+
+Build the real Agent application shell:
+
+**Chat | Knowledge | Research | Reports**
+
+Persist the selected Research Agent across tabs. Keep Project internal. Preserve Desktop/Library as workspace modes rather than standalone research systems.
+
+### Section 3 — Unified Knowledge UI
+
+Package Library, retrieval, evidence, Claims, Findings, Entities, Monitoring, Evolution, provenance and verification into **Library | Insights | Changes**.
+
+### Section 4 — Unified Research UI
+
+Package Missions, Tasks, Decisions, Action Plans and Programs into **Missions | Tasks | Decisions | Follow-through | Recurring**.
+
+### Section 5 — Unified Reports UI
+
+Package System Reports, Report Studio, report runs, Research Docs, Briefings, scheduling, delivery, review and publication into **Create | Recent | Scheduled | Published**.
+
+### Section 6 — Portfolios & Global Attention
+
+Keep Intelligence Portfolios, fold Command Center into Portfolio Overview, remove the old Portfolio product surface, and make review/attention contextual.
+
+### Section 7 — Legacy Route & Navigation Compatibility
+
+Redirect/deep-link old product routes into canonical surfaces, remove duplicate navigation, preserve API contracts and inbound links.
+
+### Section 8 — End-to-End Simplification Release
+
+Audit desktop/mobile UX, authority boundaries, permissions, legacy-link compatibility, PHP/MySQL regressions, historical upgrades and production packaging to 10/10.
