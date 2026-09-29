@@ -38,7 +38,8 @@ $need('app/bootstrap.php',"research-agent-research-ui.php",'Bootstrap must load 
 $need('research-agent-research.php',"research_agent_research_view",'Research page must use canonical Research view routing.');
 $need('research-agent-research.php',"research_agent_research_render_nav",'Research page must render Missions / Tasks / Decisions / Follow-through / Recurring navigation.');
 foreach(['research_mission_list','research_task_plan_list','research_decision_list','research_action_plan_list','research_program_list'] as $engine)$need('research-agent-research.php',$engine,'Unified Research page must read existing '.$engine.' engine.');
-foreach(['Decision Ledger','Action Plans','Programs are the primary recurring Research model','Legacy Automations'] as $label)$need('research-agent-research.php',$label,'Unified Research page must preserve '.$label.' context.');
+foreach(['Decision Ledger','Action Plans','Programs are the primary recurring Research model'] as $label)$need('research-agent-research.php',$label,'Unified Research page must preserve '.$label.' context.');
+$need('app/research-agent-research-ui.php','Legacy Automations','Recurring must preserve the Phase 18 compatibility route.');
 $need('assets/css/app.css','/* Phase 74 Section 4 — Unified Research UI */','Unified Research styles are missing.');
 $need('assets/css/app.css','@media(max-width:760px)','Unified Research mobile layout is missing.');
 
