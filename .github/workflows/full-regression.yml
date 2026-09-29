@@ -8,10 +8,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: annotated-full-regression-${{ github.event.pull_request.number }}
-  # Phase-gate runs are expensive release evidence. A benign PR metadata edit must
-  # not discard an otherwise valid MySQL/full-regression run mid-flight.
-  cancel-in-progress: false
+  group: annotated-full-regression-v2-${{ github.event.pull_request.number }}
+  # A new feature-head commit supersedes stale release evidence and must free the
+  # expensive MySQL lane. Benign PR metadata edits still keep a valid run alive.
+  cancel-in-progress: ${{ github.event.action == 'synchronize' }}
 
 jobs:
   full-regression:
@@ -309,6 +309,7 @@ jobs:
           php tests/phase74-section4-unified-research-ui-db.php
           php tests/phase74-section5-unified-reports-ui-db.php
           php tests/phase74-section6-portfolios-global-attention-db.php
+          php tests/phase74-section7-legacy-navigation-compatibility-db.php
           php tests/profile-phase2-showcase-db.php
           php tests/profile-phase3-research-network-db.php
           php tests/admin-subscriptions-packages-v1-db.php

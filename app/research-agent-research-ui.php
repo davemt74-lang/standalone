@@ -58,7 +58,6 @@ function research_agent_research_engine_links(array $agent): array {
         ],
         'recurring'=>[
             ['label'=>'Manage Recurring Research','href'=>$agentPublic!==''?'/research-programs.php?agent='.$agentQ:''],
-            ['label'=>'Legacy Automations','href'=>'/research-automations.php'],
         ],
     ];
 }

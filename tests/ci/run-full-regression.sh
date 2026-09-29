@@ -123,6 +123,7 @@ db_tests=(
   tests/phase74-section4-unified-research-ui-db.php
   tests/phase74-section5-unified-reports-ui-db.php
   tests/phase74-section6-portfolios-global-attention-db.php
+  tests/phase74-section7-legacy-navigation-compatibility-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
