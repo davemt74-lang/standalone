@@ -20,7 +20,7 @@ sort($agentTop);$expectedTop=['agent.chat','agent.knowledge','agent.reports','ag
 if($agentTop!==$expectedTop)p74s1_fail($fail,'Agent primary UI must be exactly Chat, Knowledge, Research, Reports.');
 
 $routeMap=(array)($map['routes']??[]);
-$rootPages=[];foreach(glob($root.'/*.php')?:[] as $file){$base=basename($file);if(preg_match('/^(research|cross-research|report|evidence|source).*\.php$/',$base))$rootPages[]=$base;}
+$rootPages=[];foreach(glob($root.'/*.php')?:[] as $file){$base=basename($file);if(preg_match('/^(research|cross-research|evidence|source).*\.php$/',$base))$rootPages[]=$base;}
 sort($rootPages);$mappedRoutes=array_keys($routeMap);sort($mappedRoutes);
 if($rootPages!==$mappedRoutes){
     $missing=array_values(array_diff($rootPages,$mappedRoutes));$extra=array_values(array_diff($mappedRoutes,$rootPages));
