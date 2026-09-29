@@ -11,9 +11,11 @@ foreach(['@media(max-width:1180px)','@media(max-width:900px)','@media(max-width:
     if(!str_contains($css,$needle))$fail[]='Mission desktop/mobile responsive contract missing '.$needle;
 if($css===''||$extCss===''||!hash_equals(hash('sha256',$css),hash('sha256',$extCss)))$fail[]='Website and extension landing base CSS must remain byte-identical for Mission release.';
 $need('extension/manifest.json','"manifest_version": 3','Chrome extension must remain Manifest V3.');
+$need('research-agent-research.php','research-missions.php','Canonical Research tab must expose Missions.');
+$need('app/research-agent-shell-ui.php',"'research'=>['label'=>'Research']", 'Unified Research Agent shell must expose the Research tab.');
 foreach([
- 'research.php','research-agent-knowledge.php','research-reports.php','research-monitoring.php','research-tasks.php','research-programs.php','research-evolution.php'
-] as $nav)$need($nav,'research-missions.php','Primary Research navigation must expose Missions in '.$nav.'.');
+ 'research-monitoring.php','research-tasks.php','research-programs.php','research-evolution.php'
+] as $nav)$need($nav,'research-missions.php','Legacy Research detail navigation must preserve Missions in '.$nav.'.');
 foreach([
  'database/migrations/20260926_085_research_missions_v1.sql',
  'database/migrations/20260927_086_research_missions_collaboration_cognition_reporting.sql',
