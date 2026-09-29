@@ -329,3 +329,32 @@ CI verifies:
 - each current engine remains reachable from the unified Research tab
 - no migration 104
 - package inclusion for the shell helper, JS, unified Research page, tests, and documentation
+
+
+## Section 3 — Unified Knowledge UI
+
+Section 3 turns the existing Research Agent Knowledge dashboard into the canonical three-view knowledge surface:
+
+**Library | Insights | Changes**
+
+This is a presentation consolidation only. It does not replace the mature knowledge, evidence, monitoring, verification, provenance, source intelligence, or longitudinal engines.
+
+### Library
+
+Library is the canonical home for captured material and retrieval-ready knowledge: Sources, Annotations, files, Documents, recordings, bookmarks, imported VP3 research, recent evidence, semantic retrieval/index state, and the existing Library/Desktop workspace modes.
+
+### Insights
+
+Insights packages Claims, Findings, Entities and relationships, evidence gaps, contradictions, source-health intelligence, verification state, provenance, citations, Evidence Packs, and Claim/Entity graph inspectors. Verification remains an evidence-state review system rather than a truth score.
+
+### Changes
+
+Changes packages Monitoring watches, candidate-source discovery, monitoring events, source-change intelligence, longitudinal snapshots, material changes, confidence movement, and Evolution history.
+
+### Authority and compatibility
+
+Section 3 introduces no migration 104, new knowledge authority, duplicate Claim/Finding/Entity store, replacement retrieval index, monitoring worker, verification system, or rewritten provenance history. Existing APIs, workers, history and advanced routes remain live.
+
+### Section 3 permanent gates
+
+CI verifies the exact three-view model, stable Agent identity across views, Library/Desktop/VP3 reachability, Insight inspector reachability, Monitoring/Evolution reachability, Team revocation, presentation-only helper behavior, no migration 104, PHP 8.1/8.3 static gates, MySQL regression, model governance, and production package inclusion.
