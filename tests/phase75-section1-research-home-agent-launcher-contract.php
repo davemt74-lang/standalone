@@ -33,7 +33,6 @@ $need('tests/ci/run-static-contracts.sh','phase75-section1-research-home-agent-l
 $need('tests/ci/run-full-regression.sh','phase75-section1-research-home-agent-launcher-db.php','Full regression must include Phase 75 Section 1 DB test.');
 $need('.github/workflows/package-two-zips.yml','phase75-section1-research-home-agent-launcher-contract.php','Package must include Phase 75 Section 1 contract.');
 $need('tests/ci/package-smoke.sh','Phase 75 Section 1 Research Home & Agent Launcher package extensions passed.','Package smoke must validate Phase 75 Section 1.');
-$reject('database/migrations/20260929_104_research_home_agent_launcher.sql','', ''); // intentionally inert: Section 1 needs no schema.
 if(glob($root.'/database/migrations/*_104_research_home_agent_launcher.sql'))$fail[]='Phase 75 Section 1 must remain schema-free; favorites are UI preference state, not Research authority.';
 
 if($fail){fwrite(STDERR,implode("\n",array_values(array_unique($fail)))."\n");exit(1);}
