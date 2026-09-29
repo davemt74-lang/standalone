@@ -157,3 +157,4 @@ echo "Phase 74 Section 6 Portfolios & Global Attention package extensions passed
 echo "Phase 74 Section 7 Legacy Route & Navigation Compatibility package extensions passed."
 echo "Phase 74 End-to-End Simplification Release & Hardening package extensions passed."
 echo "Phase 75 Section 1 Research Home & Agent Launcher package extensions passed."
+echo "Team Chat member roster & offline presence package extensions passed."
