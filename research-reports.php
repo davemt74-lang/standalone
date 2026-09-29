@@ -93,16 +93,7 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
 <title>Report Studio · Annotated</title><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-reports">
 <main class="researchLibraryCanvas researchReportsCanvas researchReportStudio">
-  <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions">
-    <a href="/research.php">Research Agents</a>
-    <a href="/research-agent-knowledge.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Knowledge</a>
-    <a href="/research-evolution.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Evolution</a>
-    <a class="active" href="/research-reports.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Reports</a>
-    <a href="/research-monitoring.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Monitoring</a>
-    <a href="/research-missions.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Missions</a>
-    <a href="/research-tasks.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Tasks</a>
-    <a href="/research-programs.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Programs</a>
-  </nav></section>
+  <?php if($selected):?><?=research_agent_shell_render($selected,$agents,'reports',['workspace_controls'=>true])?><?php endif?>
   <header class="researchReportsHero">
     <div><span class="eyebrow">RESEARCH AGENT · REPORT STUDIO</span><h1><?=h((string)($selected['name']??'Report Studio'))?></h1><p>Run reports, subscribe to recurring intelligence from this Research Agent, review material changes, and create an editable Research Document only when you choose.</p></div>
     <?php if($agents):?><label>Research Agent<select onchange="location.href='/research-reports.php?agent='+encodeURIComponent(this.value)"><?php foreach($agents as $a):?><option value="<?=h((string)$a['public_id'])?>" <?=$selectedId===(string)$a['public_id']?'selected':''?>><?=h((string)$a['name'])?></option><?php endforeach?></select></label><?php endif?>
@@ -253,4 +244,5 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
     <?php endif?>
   <?php endif?>
   <?php endif?>
-</main></body></html>
+</main><script src="/assets/js/research-agent-unified-shell.js?v=74.2"></script>
+</body></html>
