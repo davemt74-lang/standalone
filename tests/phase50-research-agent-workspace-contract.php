@@ -40,7 +40,7 @@ $need('extension/sidepanel-workspace.js',"object_type:'bookmark'",'Chrome must m
 $need('extension/content.js','pagePreviewInfo','Chrome must collect bookmark preview metadata without passive browsing history.');
 $need('research.php','research_agent_chat_feed','Research page must show a per-Agent conversation feed.');
 $need('research.php','+ New Research Agent','Research page must expose one clear Research Agent creation action.');
-$need('research.php','Open Agent Chat','Each Research Agent must open its persistent main chat canvas.');
+$need('research.php',"research_agent_shell_href(\$agent,'chat')",'Each Research Agent must open its persistent main chat canvas through the canonical shell.');
 $avoid('research.php','researchLibraryHero','Legacy Research title/hero must be removed.');
 $avoid('research.php','ADD RESEARCH','Legacy Add Research control must be removed.');
 $avoid('research.php','No Research projects yet','Legacy empty standalone-project panel must be removed.');

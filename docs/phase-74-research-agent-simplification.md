@@ -201,3 +201,131 @@ Redirect/deep-link old product routes into canonical surfaces, remove duplicate 
 ### Section 8 — End-to-End Simplification Release
 
 Audit desktop/mobile UX, authority boundaries, permissions, legacy-link compatibility, PHP/MySQL regressions, historical upgrades and production packaging to 10/10.
+
+
+## Section 2 — Unified Research Agent Shell
+
+Section 2 establishes the visible Research Agent application shell without rewriting any research engine.
+
+The canonical Agent workspace is now:
+
+**Chat | Knowledge | Research | Reports**
+
+The same selected Research Agent is carried across all four tabs.
+
+### Identity translation
+
+The existing system intentionally uses two identifiers on different surfaces:
+
+- Agent/Knowledge/Research/Reports use the durable Research Agent public ID.
+- Agent Chat continues to use the existing Agent conversation public ID.
+
+The unified shell translates those identifiers through the existing `research_agents` relationship. No new identity record, Project, conversation, or mapping table is introduced.
+
+The shell also preserves:
+
+- the underlying `research_projects` permission/data boundary
+- Team-scoped Agent access
+- the existing Agent conversation
+- the existing Agent workspace
+- the existing Agent monitoring/automation relationship
+- the existing Agent name and lifecycle
+
+### Workspace modes
+
+**Library** and **Desktop** remain available from the shell, but they are presented as workspace modes rather than peer research products.
+
+They continue to open the existing Home/Agent canvas using:
+
+- `workspace=library`
+- `workspace=desktop`
+
+Their file/document/recording/bookmark/sticky logic is unchanged.
+
+### Unified Research tab
+
+Section 2 adds `research-agent-research.php` as the canonical Research tab.
+
+It is intentionally a packaging layer over the existing engines:
+
+- Missions → existing Research Missions
+- Tasks → existing Research Tasks
+- Decisions → existing Phase 71 Decision Ledger
+- Follow-through → existing Phase 72 Action Plans
+- Recurring → existing Research Programs
+
+The new page performs no research lifecycle writes of its own.
+
+Sections 3 and 4 will progressively bring the detailed Knowledge and Research experiences into these canonical tabs. Until then, the canonical shell deep-links into the mature pages so no functionality is lost.
+
+### Global Research simplification
+
+`research.php` now presents only the two global concepts defined in Section 1:
+
+- Research Agents
+- Portfolios
+
+Each Research Agent card now exposes the same four canonical destinations:
+
+- Open Agent
+- Knowledge
+- Research
+- Reports
+
+Workspace, Tasks, Programs, Monitoring, Decisions, Action Plans, Publishing, and Review Center remain functional routes but are no longer presented as competing primary choices on the global Research landing page.
+
+### Agent switching
+
+The shell includes a Research Agent selector whenever more than one accessible Agent exists.
+
+Changing Agent:
+
+- stays on the current canonical tab
+- carries the correct Agent ID or conversation ID
+- records the selected Agent in browser state for continuity
+- never changes Project ownership
+- never creates a duplicate Agent or Project
+
+A selected Agent that falls outside a bounded list is explicitly reinserted into its shell selector, preventing context loss on older/less-recent Agents.
+
+### Permission behavior
+
+The shell relies entirely on `research_agent_access()` / `research_agent_by_conversation()` and the existing Team membership rules.
+
+If Team access is revoked:
+
+- direct Agent access disappears immediately
+- the revoked Agent cannot remain the resolved shell context
+- no shell-specific permission cache or authority layer exists
+
+### Section 2 authority boundary
+
+The unified shell is presentation/read-only infrastructure.
+
+It introduces:
+
+- no migration 104
+- no new database tables
+- no new scheduler
+- no new worker
+- no new research state
+- no Decision or Action Plan transition
+- no report-generation replacement
+- no new permission model
+
+The shell helper contains no INSERT, UPDATE, DELETE, CREATE TABLE, or ALTER TABLE operations.
+
+### Section 2 permanent gates
+
+CI verifies:
+
+- exactly four primary Agent tabs: Chat, Knowledge, Research, Reports
+- stable Agent identity across all four tab URLs
+- Chat conversation ↔ Agent resolution
+- Library/Desktop remain workspace modes
+- Team Agent permission/revocation behavior
+- no duplicate Agent or Project creation during navigation
+- the global Research landing page exposes Agents + Portfolios rather than the previous long research menu
+- each current engine remains reachable from the unified Research tab
+- no migration 104
+- package inclusion for the shell helper, JS, unified Research page, tests, and documentation

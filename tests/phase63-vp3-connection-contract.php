@@ -11,7 +11,8 @@ $must('app/vp3-connector.php',[
 ],'Phase 63 runtime');
 $must('login.php',['Continue with VP3','/vp3/connect.php?mode=login'],'Phase 63 login');
 $must('settings.php',['VP3 Account','Connect VP3 Account','Imported Research snapshots were preserved','vp3_disconnect'],'Phase 63 settings');
-$must('research.php',['/vp3-library.php','VP3 Library'],'Phase 63 Research navigation');
+$must('vp3-library.php',['Add to Research Agent','Update Research snapshot','View original in VP3','VP3 provenance','Transcript','AI summary'],'Phase 63 VP3 Library');
+$must('app/research-surface-map.php',["'vp3_library'=>['surface'=>'Knowledge → Library'","'target'=>'agent.knowledge.library'"],'Phase 63 canonical Knowledge Library placement');
 $must('vp3-library.php',['Add to Research Agent','Update Research snapshot','View original in VP3','VP3 provenance','Transcript','AI summary'],'Phase 63 VP3 Library');
 $must('vp3/connect.php',['vp3_connector_begin'],'Phase 63 connect entry');
 $must('vp3/callback.php',['vp3_connector_callback','session_regenerate_id'],'Phase 63 callback');

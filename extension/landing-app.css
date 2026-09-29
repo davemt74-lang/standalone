@@ -3719,3 +3719,53 @@
 @media(max-width:900px){.researchMissionsHero,.researchMissionCommandHeader,.researchMissionPlanPanel>header,.researchMissionProgramBound{flex-direction:column}.researchMissionsHero label{width:100%}.researchMissionsTopGrid,.researchMissionWorkspaceGrid{grid-template-columns:1fr}.researchMissionsCreate{position:static}.researchMissionCardGrid{grid-template-columns:1fr}.researchMissionCommandActions,.researchMissionPanelLinks,.researchMissionProgramActions{justify-content:flex-start}.researchMissionProgramBind{grid-template-columns:1fr}}
 @media(max-width:620px){.researchMissionsStats,.researchMissionProgressGrid{grid-template-columns:1fr}.researchMissionProgressHero{grid-column:auto}.researchMissionQuestionRow,.researchMissionCriterionRow{grid-template-columns:1fr}.researchMissionCommandActions>*{width:100%}.researchMissionPanelLinks>*{width:100%;justify-content:center}}
 
+
+
+/* Phase 74 Section 2 — Unified Research Agent Shell */
+.researchAgentUnifiedShell{
+  width:100%;min-width:0;display:grid;grid-template-columns:minmax(180px,.8fr) auto minmax(180px,.8fr);
+  align-items:center;gap:16px;margin:0 0 22px;padding:9px 11px;border:1px solid var(--line,#d9dde2);
+  border-radius:12px;background:rgba(255,255,255,.97);box-shadow:0 1px 3px rgba(17,24,39,.05);
+}
+.researchAgentUnifiedIdentity{min-width:0;display:flex;align-items:center;gap:9px}
+.researchAgentUnifiedIdentity>div{min-width:0;display:grid;gap:1px}
+.researchAgentUnifiedIdentity span{font-size:.58rem;font-weight:820;letter-spacing:.08em;color:var(--muted,#777)}
+.researchAgentUnifiedIdentity strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.84rem}
+.researchAgentUnifiedBack{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line,#d9dde2);border-radius:8px;color:inherit;text-decoration:none;font-weight:850}
+.researchAgentUnifiedBack:hover{background:var(--soft,#f4f5f6)}
+.researchAgentUnifiedTabs{display:flex;align-items:center;justify-content:center;gap:3px;padding:3px;border-radius:10px;background:var(--soft,#f4f5f6)}
+.researchAgentUnifiedTabs a{min-height:32px;display:inline-flex;align-items:center;justify-content:center;padding:0 13px;border-radius:8px;color:var(--muted,#666);text-decoration:none;font-size:.73rem;font-weight:800}
+.researchAgentUnifiedTabs a:hover{color:var(--ink,#171717);background:rgba(255,255,255,.72)}
+.researchAgentUnifiedTabs a.active{background:var(--panel,#fff);color:var(--ink,#171717);box-shadow:0 1px 3px rgba(17,24,39,.08)}
+.researchAgentUnifiedTools{min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.researchAgentUnifiedTools>a{min-height:30px;display:inline-flex;align-items:center;padding:0 9px;border:1px solid var(--line,#d9dde2);border-radius:8px;color:inherit;text-decoration:none;font-size:.68rem;font-weight:760}
+.researchAgentUnifiedTools>a:hover{background:var(--soft,#f4f5f6)}
+.researchAgentUnifiedSwitcher select{max-width:170px;height:32px;padding:0 28px 0 9px;border-radius:8px;font-size:.69rem;font-weight:720}
+.researchAgentUnifiedClose{position:static!important;inset:auto!important;flex:0 0 32px!important;width:32px!important;height:32px!important}
+.researchAgentCanvasUnified{left:14px;right:14px;top:10px;justify-content:stretch}
+.researchAgentCanvasUnified .researchAgentUnifiedShell{margin:0}
+.researchAgentLibraryUnifiedLinks{gap:8px!important}
+.researchUnifiedGlobalNav{justify-content:flex-start}
+.researchAgentResearchHero{padding:28px 4px 20px}
+.researchAgentResearchHero h1{margin:.25rem 0 .45rem;font-size:clamp(1.8rem,3vw,3rem)}
+.researchAgentResearchHero p{max-width:820px;margin:0;color:var(--muted,#666);line-height:1.55}
+.researchAgentResearchOverview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.researchAgentResearchCard{min-height:190px;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:6px;color:inherit;text-decoration:none;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.researchAgentResearchCard:hover{transform:translateY(-2px);border-color:#bfc5cb;box-shadow:0 10px 25px rgba(17,24,39,.06)}
+.researchAgentResearchCard>strong{font-size:2rem;line-height:1}.researchAgentResearchCard h2{margin:0;font-size:1.05rem}.researchAgentResearchCard p{margin:0;color:var(--muted,#666);line-height:1.45}
+.researchAgentResearchOpen{font-size:.73rem;font-weight:800}
+.researchAgentResearchGuide{margin-top:14px}.researchAgentResearchGuide h2{margin:.2rem 0 .5rem}.researchAgentResearchGuide p{margin:0;color:var(--muted,#666);line-height:1.55}
+@media(max-width:920px){
+  .researchAgentUnifiedShell{grid-template-columns:1fr auto;gap:9px}
+  .researchAgentUnifiedTabs{grid-column:1/-1;grid-row:2;justify-content:stretch}
+  .researchAgentUnifiedTabs a{flex:1}
+}
+@media(max-width:700px){
+  .researchAgentUnifiedShell{padding:8px;grid-template-columns:minmax(0,1fr) auto}
+  .researchAgentUnifiedTools>a[data-research-agent-workspace-link]{display:none}
+  .researchAgentUnifiedSwitcher select{max-width:125px}
+  .researchAgentUnifiedTabs{overflow:auto;justify-content:flex-start}
+  .researchAgentUnifiedTabs a{flex:1 0 auto;padding:0 11px}
+  .researchAgentResearchOverview{grid-template-columns:1fr}
+  .researchAgentCanvasUnified{left:6px;right:6px;top:6px}
+}

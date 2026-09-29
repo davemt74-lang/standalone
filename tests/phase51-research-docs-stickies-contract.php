@@ -37,7 +37,7 @@ $avoid('app/workspace-context.php','document_plain_text','Workspace continuity m
 $need('api/research-workspace-objects.php',"\$action==='save_document'",'Workspace API must expose document autosave.');
 $need('api/research-workspace-objects.php',"\$action==='restore_document_revision'",'Workspace API must expose revision restore.');
 $need('api/research-workspace-objects.php',"\$action==='update_sticky'",'Workspace API must persist floating sticky layout changes.');
-$need('home.php','data-research-desktop-open','Research Agent canvas must expose its workspace through the Desktop control.');
+$need('app/research-agent-shell-ui.php','data-research-desktop-open','Research Agent canvas must expose its workspace through the unified shell Desktop control.');
 $need('home.php','data-research-document-window','Documents must open in a durable window inside the Research Agent Desktop.');
 $need('assets/js/research-agent-workspace-ui.js','askAgentAbout','Open documents must retain a direct Ask Agent handoff.');
 $need('home.php','data-research-desktop-stickies','Sticky notes must float on the Research Agent Desktop.');

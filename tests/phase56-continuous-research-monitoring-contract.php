@@ -55,8 +55,9 @@ foreach(['researchMonitorUrl','renderLibraryMonitoring',"libraryFilter==='monito
 $page=(string)file_get_contents($root.'/research-monitoring.php');
 foreach(['CONTINUOUS RESEARCH','data-monitor-create','data-monitor-action','data-candidate-action','Research Agent'] as $needle)$must(str_contains($page,$needle),'Phase 56 Monitoring control-center contract missing: '.$needle);
 
-$research=(string)file_get_contents($root.'/research.php');
-$must(str_contains($research,'href="/research-monitoring.php">Monitoring</a>'),'Research landing must expose Monitoring.');
+$surfaceMap=(string)file_get_contents($root.'/app/research-surface-map.php');
+$knowledgePage=(string)file_get_contents($root.'/research-agent-knowledge.php');
+$must(str_contains($surfaceMap,"'research-monitoring.php'=>['classification'=>'MERGE_UI','target'=>'agent.knowledge.changes'")&&str_contains($knowledgePage,'WHAT CHANGED'),'Phase 56 Monitoring must remain available through canonical Knowledge → Changes.');
 
 $release=(string)file_get_contents($root.'/app/release.php');
 foreach(["'research_monitor'=>['command'=>'php worker/research-monitor-worker.php'","'research_monitor'=>'research_monitor_jobs'"] as $needle)$must(str_contains($release,$needle),'Phase 56 release-health contract missing: '.$needle);

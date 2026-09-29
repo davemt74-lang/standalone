@@ -51,8 +51,9 @@ foreach(['RESEARCH EXECUTION','data-plan-create','data-plan-update','data-task-a
   $must(str_contains($page,$needle),'Phase 57 Task Center contract missing: '.$needle);
 
 $research=(string)file_get_contents($root.'/research.php');
-foreach(['href="/research-tasks.php">Tasks</a>','researchAgentTaskSummary','task_summary'] as $needle)
-  $must(str_contains($research,$needle),'Phase 57 Research Agent integration missing: '.$needle);
+$must(str_contains($research,'researchAgentTaskSummary')&&str_contains($research,'task_summary'),'Phase 57 Research landing must retain per-Agent Task summaries.');
+$researchTab=(string)file_get_contents($root.'/research-agent-research.php');
+$must(str_contains($researchTab,'/research-tasks.php?agent=')&&str_contains($researchTab,'TASKS'),'Phase 57 Tasks must remain reachable through the canonical Agent Research tab.');
 
 $cognitive=(string)file_get_contents($root.'/app/cognitive-feed.php');
 $must(str_contains($cognitive,'research_task_cognitive_observations'),'Phase 57 task state must feed Now/cognitive surfaces.');

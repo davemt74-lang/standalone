@@ -5,6 +5,7 @@ $root=dirname(__DIR__);
 $home=(string)file_get_contents($root.'/home.php');
 $js=(string)file_get_contents($root.'/assets/js/agent-chat.js');
 $css=(string)file_get_contents($root.'/assets/css/app.css');
+$shell=(string)file_get_contents($root.'/app/research-agent-shell-ui.php');
 
 function home_agent_feed_assert(bool $ok,string $message): void {
     if(!$ok)throw new RuntimeException('FAIL: '.$message);
@@ -14,7 +15,7 @@ function home_agent_feed_assert(bool $ok,string $message): void {
 home_agent_feed_assert(str_contains($home,'$requestedResearchAgent=research_agent_by_conversation'),'Home verifies requested Agent conversations against Research Agents');
 home_agent_feed_assert(str_contains($home,'data-research-agent-conversation'),'Home exposes the verified Research Agent conversation to the client');
 home_agent_feed_assert(str_contains($home,'data-home-inline-agent'),'Home includes an inline Agent Chat surface inside the feed canvas');
-home_agent_feed_assert(str_contains($home,'data-agent-panel-close'),'Research Agent canvas has an explicit return-to-feed control');
+home_agent_feed_assert(str_contains($home,"research_agent_shell_render(\$requestedResearchAgent,\$homeResearchAgents,'chat',['workspace_controls'=>true,'close'=>true])")&&str_contains($shell,'data-agent-panel-close'),'Research Agent canvas requests and renders an explicit return-to-feed control through the unified shell');
 
 home_agent_feed_assert(str_contains($js,'requestedResearchAgentConversation'),'Agent Chat reads the verified Research Agent conversation');
 home_agent_feed_assert(str_contains($js,'setModeAgent(research=false)'),'Agent canvas mode requires an explicit Research Agent decision');

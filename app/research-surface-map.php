@@ -60,6 +60,7 @@ function research_concept_aliases(): array {
         'intelligence_portfolio'=>['surface'=>'Portfolios','target'=>'portfolios','rule'=>'Keep Phase 60/73 Intelligence Portfolio as the canonical Portfolio engine.'],
         'report_studio'=>['surface'=>'Reports','target'=>'agent.reports','rule'=>'Keep System Reports, Report Runs, Report Studio, presets, delivery, provenance, and documents as one Reports engine.'],
         'desktop_workspace'=>['surface'=>'Knowledge / workspace mode','target'=>'agent.knowledge.library','rule'=>'Keep Desktop and workspace object logic; Desktop is a view of Agent files, not a separate research system.'],
+        'vp3_library'=>['surface'=>'Knowledge → Library','target'=>'agent.knowledge.library','rule'=>'Keep VP3 connection/import and vp3-library.php compatibility; package imported VP3 research into the unified Knowledge Library.'],
     ];
 }
 
@@ -71,6 +72,7 @@ function research_route_surface_map(): array {
         'report.php'=>['classification'=>'LEGACY_ROUTE','target'=>'agent.reports.recent','reason'=>'Legacy report reader folds into Reports.'],
         'research-action-plans.php'=>['classification'=>'MERGE_UI','target'=>'agent.research.follow_through','reason'=>'Keep Phase 72 logic; present Action Plans as Decision follow-through.'],
         'research-agent-knowledge.php'=>['classification'=>'MERGE_UI','target'=>'agent.knowledge','reason'=>'Primary foundation for the unified Agent Knowledge tab.'],
+        'research-agent-research.php'=>['classification'=>'MERGE_UI','target'=>'agent.research','reason'=>'Canonical unified Agent Research tab packages Missions, Tasks, Decisions, Follow-through, and Recurring work.'],
         'research-audit-export.php'=>['classification'=>'HIDE','target'=>'agent.knowledge.insights','reason'=>'Export action remains available from provenance/audit inspectors.'],
         'research-audit-receipt.php'=>['classification'=>'HIDE','target'=>'agent.knowledge.insights','reason'=>'Audit receipt remains a deep-link inspector.'],
         'research-audit.php'=>['classification'=>'HIDE','target'=>'agent.knowledge.insights','reason'=>'Audit remains object-level advanced detail.'],
@@ -125,7 +127,7 @@ function research_engine_surface_map(): array {
         'app/living-research.php'=>'knowledge.changes','app/proactive-intelligence.php'=>'knowledge.changes',
         'app/research-action-plan-cognition.php'=>'research.follow_through','app/research-action-plan-outcomes.php'=>'research.follow_through',
         'app/research-action-plan-variance.php'=>'research.follow_through','app/research-action-plans.php'=>'research.follow_through',
-        'app/research-agent-workspace-ui.php'=>'workspace','app/research-agent-workspace.php'=>'workspace','app/research-agents.php'=>'agent',
+        'app/research-agent-shell-ui.php'=>'agent','app/research-agent-workspace-ui.php'=>'workspace','app/research-agent-workspace.php'=>'workspace','app/research-agents.php'=>'agent',
         'app/research-automation.php'=>'research.recurring','app/research-autonomy.php'=>'research','app/research-decisions.php'=>'research.decisions',
         'app/research-entities.php'=>'knowledge.insights','app/research-evidence-packs.php'=>'knowledge.insights',
         'app/research-intelligence-decision-rollups.php'=>'portfolios','app/research-intelligence-delivery.php'=>'reports',

@@ -25,7 +25,7 @@ $need('database/migrations/20260923_051_research_desktop_uploads_recordings.sql'
 
 $need('home.php','data-research-desktop-upload','Research Desktop must expose + Upload.');
 $need('home.php','data-research-desktop-recording','Research Desktop must expose + Recording.');
-$need('home.php','data-research-library-open','Research Agent canvas must expose the Library drawer control.');
+$need('app/research-agent-shell-ui.php','data-research-library-open','Research Agent canvas must expose the Library drawer control through the unified shell.');
 $need('home.php','data-research-library-drawer','Research Agent must include the slide-out Research Library.');
 $need('home.php','data-research-library-filter="transcript"','Research Library must expose ready transcripts as a first-class filter.');
 $avoid('home.php','researchAgentCanvasHeader researchAgentChatHeader','Legacy Research Agent header markup must be removed.');

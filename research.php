@@ -31,26 +31,29 @@ unset($agent);
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research">
 <main class="researchLibraryCanvas">
-  <section class="researchLibraryToolbar" aria-label="Research workspace tools">
+  <section class="researchLibraryToolbar researchUnifiedGlobalNav" aria-label="Research">
     <nav class="researchLibraryTabs researchPrimaryActions">
-      <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a><a href="/vp3-library.php">VP3 Library</a><a href="/research-agent-knowledge.php<?=!empty($researchAgents)?'?agent='.h(rawurlencode((string)$researchAgents[0]['public_id'])):''?>">Knowledge</a><a href="/research-reports.php<?=!empty($researchAgents)?'?agent='.h(rawurlencode((string)$researchAgents[0]['public_id'])):''?>">Reports</a>
-      <a href="/research-monitoring.php">Monitoring</a>
-      <a href="/research-missions.php">Missions</a>
-      <a href="/research-tasks.php">Tasks</a>
-      <a href="/research-programs.php">Programs</a>
-      <a href="/research-portfolio.php">Portfolio</a>
-      <a href="/research-publications.php">Publishing</a>
-      <a href="/research-decisions.php">Decisions</a><a href="/research-action-plans.php">Action Plans</a><a href="/research-reviews.php">Review Center</a>
+      <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a>
+      <a href="/research-intelligence-portfolios.php">Portfolios</a>
     </nav>
-    <details class="researchAdvancedTools">
+    <details class="researchAdvancedTools researchCompatibilityTools">
       <summary>Advanced Research tools</summary>
       <div class="researchAdvancedMenu">
+        <a href="/research-portfolio.php">Legacy Portfolio</a>
         <a href="/research-network.php">Research Network</a>
         <a href="/research-citations.php">Citations</a>
         <a href="/research-audit.php">Audit Ledger</a>
         <a href="/research-provenance.php">Provenance</a>
         <a href="/research-verification.php">Verification</a>
         <a href="/research-evidence-packs.php">Evidence Packs</a>
+        <a href="/research-monitoring.php">Monitoring</a>
+        <a href="/research-missions.php">Missions</a>
+        <a href="/research-tasks.php">Tasks</a>
+        <a href="/research-programs.php">Programs</a>
+        <a href="/research-publications.php">Publishing</a>
+        <a href="/research-decisions.php">Decisions</a>
+        <a href="/research-action-plans.php">Action Plans</a>
+        <a href="/research-reviews.php">Review Center</a>
         <a href="/research-outcomes.php">Decision Memory</a>
         <a href="/cross-research.php">Related Research</a>
         <a href="/research-automations.php">Automations</a>
@@ -94,13 +97,11 @@ unset($agent);
             </div>
           <?php endforeach?><?php endif?>
         </div>
-        <footer>
-          <a class="researchAgentLibraryOpen" href="/home.php?agent=<?=h(rawurlencode((string)$agent['conversation_public_id']))?>">Open Agent Chat</a>
-          <a href="/research-project.php?id=<?=h(rawurlencode((string)$agent['project_public_id']))?>">Workspace</a>
-          <a href="/research-tasks.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Tasks</a>
-          <a href="/research-programs.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Programs</a>
-          <a href="/research-agent-knowledge.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Knowledge</a>
-          <a href="/research-reports.php?agent=<?=h(rawurlencode((string)$agent['public_id']))?>">Reports</a>
+        <footer class="researchAgentLibraryUnifiedLinks">
+          <a class="researchAgentLibraryOpen" href="<?=h(research_agent_shell_href($agent,'chat'))?>">Open Agent</a>
+          <a href="<?=h(research_agent_shell_href($agent,'knowledge'))?>">Knowledge</a>
+          <a href="<?=h(research_agent_shell_href($agent,'research'))?>">Research</a>
+          <a href="<?=h(research_agent_shell_href($agent,'reports'))?>">Reports</a>
         </footer>
       </article>
       <?php endforeach?>

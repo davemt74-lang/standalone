@@ -19,7 +19,9 @@ $must('assets/css/app.css',[
     '.researchMissionsCanvas','.researchMissionsTopGrid','.researchMissionProgressGrid','.researchMissionTaskGraph','.researchMissionProgramPanel',
     '@media(max-width:900px)'
 ],'Mission Command Center responsive styles');
-foreach(['research.php','research-agent-knowledge.php','research-reports.php','research-monitoring.php','research-tasks.php','research-programs.php','research-evolution.php'] as $file)$must($file,['research-missions.php'],'Mission primary navigation');
+$must('research-agent-research.php',['research-missions.php'],'Mission canonical Research-tab navigation');
+foreach(['research-monitoring.php','research-tasks.php','research-programs.php','research-evolution.php'] as $file)$must($file,['research-missions.php'],'Mission legacy detail navigation');
+$must('app/research-agent-shell-ui.php',["'research'=>['label'=>'Research']"],'Mission unified Research Agent shell');
 $must('docs/research-missions-v1.md',['## Section 5 — Mission Command Center','no new migration','full Mission progress is loaded only for the selected Mission'],'Section 5 architecture');
 $avoid('research-missions.php',['research_mission_jobs','mission-worker.php','research_program_enqueue('],'Mission UI execution isolation');
 $must('tests/ci/run-full-regression.sh',['tests/research-missions-v1-section5-db.php'],'Section 5 regression gate');
