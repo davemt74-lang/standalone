@@ -55,6 +55,9 @@ $need('.github/workflows/full-regression.yml',"cancel-in-progress: ${{ github.ev
 $need('.github/workflows/package-two-zips.yml','phase74-section8-end-to-end-simplification-release-contract.php','Website package must include final Phase 74 contract.');
 $need('.github/workflows/package-two-zips.yml','phase74-section8-end-to-end-simplification-release-db.php','Website package must include final Phase 74 DB journey.');
 $need('tests/ci/package-smoke.sh','Phase 74 End-to-End Simplification Release package extensions passed.','Package smoke must explicitly validate final Phase 74 contents.');
+$need('docs/RELEASE-V1.1.md','current Phase 74 release-hardened source tree','Production runbook must identify Phase 74 as the current release tree.');
+$need('docs/RELEASE-V1.1.md','Phase 74 CI','Production runbook must document the final Phase 74 acceptance matrix.');
+$need('docs/RELEASE-V1.1.md','Chat | Knowledge | Research | Reports','Post-deploy runbook must validate the simplified Agent shell.');
 
 if(glob($root.'/database/migrations/*_104_*.sql'))$fail[]='Phase 74 must remain schema-free; migration 104 is not allowed.';
 foreach(['research-simplification-worker.php','research-ui-worker.php','research-agent-simplification-worker.php'] as $worker)if(is_file($root.'/worker/'.$worker))$fail[]='Phase 74 must not ship a parallel simplification authority worker: '.$worker;
