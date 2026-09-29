@@ -86,3 +86,5 @@ while IFS= read -r test_file; do
   php "$test_file"
 done < <(find tests -maxdepth 1 -type f -name 'phase*-contract.php' -print | sort -V)
 php tests/team-chat-member-roster-contract.php
+php tests/live-explore-agent-chat-ui-contract.php
+php tests/global-create-launcher-contract.php

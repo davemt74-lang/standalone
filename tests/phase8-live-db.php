@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
 $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-require_once $root.'/app/storage.php';require_once $root.'/app/functions.php';require_once $root.'/app/access.php';require_once $root.'/app/live.php';
+require_once $root.'/app/storage.php';require_once $root.'/app/functions.php';require_once $root.'/app/access.php';require_once $root.'/app/notifications.php';require_once $root.'/app/live.php';
 function p8(bool $v,string $m): void {if(!$v)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
 function p8throws(callable $fn,string $m): void {try{$fn();}catch(Throwable $e){echo "PASS: $m\n";return;}throw new RuntimeException('FAIL: '.$m);}
 $run='p8'.substr(bin2hex(random_bytes(6)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
@@ -22,6 +22,13 @@ p8(live_room_scope($pdo,$outsider,$source['public_id'],'project',$projectPublic)
 p8($viewerProject!==null&&!$viewerProject['can_post'],'Research viewer receives read-only room');
 p8(live_room_scope($pdo,$viewer,$source['public_id'],'project',$projectPublic,true)===null,'Research viewer cannot resolve writable room');
 p8($projectRoom['can_post']&&$projectRoom['can_moderate'],'Research owner can post and moderate');
+$teamInvitees=live_room_invite_candidates($pdo,$owner,$teamRoom,20);
+p8(in_array($researcher['username'],array_column($teamInvitees,'username'),true)&&!in_array($outsider['username'],array_column($teamInvitees,'username'),true),'Team Live invite list includes only people who already have room access');
+p8(live_room_invite($pdo,$owner,$teamRoom,(string)$researcher['username'])===true,'authorized Team Live invite creates a notification');
+$q=$pdo->prepare("SELECT notification_type,object_type,object_public_id,context_json FROM notifications WHERE user_id=? AND notification_type='live_room_invite' ORDER BY id DESC LIMIT 1");$q->execute([$researcher['id']]);$inviteNotification=$q->fetch();
+p8(($inviteNotification['object_type']??'')==='source'&&($inviteNotification['object_public_id']??'')===$source['public_id'],'Live invite notification is anchored to the source');
+p8throws(fn()=>live_room_invite($pdo,$owner,$teamRoom,(string)$outsider['username']),'Live invite cannot grant private room access to a nonmember');
+
 
 $ownerSession='owner-session-'.$run;$researcherSession='research-session-'.$run;$viewerSession='viewer-session-'.$run;$outsiderSession='outside-session-'.$run;
 live_presence_touch($pdo,$owner,$publicRoom,$ownerSession,'visible');

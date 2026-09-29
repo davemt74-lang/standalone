@@ -205,6 +205,62 @@ function app_shell_admin_nav(string $path): string {
 function app_shell_search(): string {
     return '<form class="appHeaderSearch" action="/search.php" method="get"><span aria-hidden="true">⌕</span><input name="q" aria-label="Search Annotated" placeholder="Search people, sources, annotations, research"></form>';
 }
+function app_shell_create_launcher(PDO $pdo,array $user): string {
+    $agents=app_shell_research_agent_rows($pdo,$user,60);
+    $agentOptions='';$currentAgent='';
+    $requested=trim((string)($_GET['agent']??''));
+    foreach($agents as $agent){
+        $public=(string)($agent['public_id']??'');$conversation=(string)($agent['conversation_public_id']??'');if($public==='')continue;
+        if($requested!==''&&($requested===$public||$requested===$conversation))$currentAgent=$public;
+        $agentOptions.='<option value="'.app_shell_h($public).'"'.($currentAgent===$public?' selected':'').'>'.app_shell_h((string)($agent['name']??'Research Agent')).'</option>';
+    }
+    if($agentOptions==='')$agentOptions='<option value="">Create a Research Agent first</option>';
+    $teamOptions='<option value="">Personal</option>';
+    if(function_exists('research_agent_workspace_options')){try{foreach(research_agent_workspace_options($pdo,$user) as $team)$teamOptions.='<option value="'.app_shell_h((string)$team['public_id']).'">'.app_shell_h((string)$team['name']).'</option>';}catch(Throwable $e){}}
+    $decisionOptions='<option value="">Select an accepted Decision</option>';
+    try{
+        if(function_exists('research_decisions_ready')&&research_decisions_ready($pdo)){
+            $q=$pdo->prepare("SELECT rd.public_id,rd.title,ra.name agent_name FROM research_decisions rd JOIN research_agents ra ON ra.id=rd.research_agent_id LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=? WHERE rd.status IN ('accepted','reopened') AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?)) ORDER BY rd.updated_at DESC LIMIT 80");
+            $q->execute([(int)$user['id'],(int)$user['id'],(int)$user['id']]);
+            foreach($q->fetchAll() as $d)$decisionOptions.='<option value="'.app_shell_h((string)$d['public_id']).'">'.app_shell_h((string)$d['title']).' · '.app_shell_h((string)$d['agent_name']).'</option>';
+        }
+    }catch(Throwable $e){}
+    $agentSelect='<label>Research Agent<select name="agent_id" required>'.$agentOptions.'</select></label>';
+    $teamSelect='<label>Workspace<select name="team_id">'.$teamOptions.'</select></label>';
+    $actions=[
+      ['research_agent','✦','Research Agent','Dedicated Agent + research workspace'],
+      ['portfolio','▦','Portfolio','Roll up programs, decisions, risk and briefings'],
+      ['mission','◎','Mission','Durable research objective with success criteria'],
+      ['task','✓','Task','Queue a concrete research task'],
+      ['program','↻','Program','Recurring research and follow-through'],
+      ['decision','◇','Decision','Record a conclusion or formal decision'],
+      ['action_plan','→','Action Plan','Turn an accepted Decision into execution'],
+      ['document','▤','Document','Create a Research workspace document'],
+      ['report','≡','Report','Generate a Research Agent report'],
+      ['sticky','□','Sticky Note','Add a note to the Agent Desktop'],
+      ['team','♙','Team','Create a shared research workspace'],
+      ['source','⌁','Add Source','Add a URL to Annotated']
+    ];
+    $cards='';foreach($actions as [$key,$icon,$title,$desc])$cards.='<button type="button" class="appCreateChoice" data-create-action="'.app_shell_h($key).'"><span class="appCreateChoiceIcon">'.$icon.'</span><span><strong>'.app_shell_h($title).'</strong><small>'.app_shell_h($desc).'</small></span><i>→</i></button>';
+    $panel=function(string $key,string $title,string $fields,string $submit): string {
+        return '<form class="appCreateForm" data-create-panel="'.app_shell_h($key).'" hidden><header><button type="button" class="appCreateBack" data-create-back>←</button><div><span class="eyebrow">CREATE</span><h2>'.app_shell_h($title).'</h2></div><button type="button" class="appCreateClose" data-create-close aria-label="Close">×</button></header><div class="appCreateError" data-create-error hidden></div><div class="appCreateFields">'.$fields.'</div><footer><button type="button" class="button secondary" data-create-back>Back</button><button type="submit">'.$submit.'</button></footer></form>';
+    };
+    $panels='';
+    $panels.=$panel('research_agent','Research Agent','<label>Name<input name="name" maxlength="190" required placeholder="Research Agent name"></label><label>Research objective<textarea name="description" rows="4" maxlength="4000" placeholder="What should this Agent research or monitor?"></textarea></label>'.$teamSelect.'<label>Monitoring<select name="cadence"><option value="daily">Daily</option><option value="hourly">Hourly</option><option value="weekly">Weekly</option><option value="manual">Manual only</option></select></label><input type="hidden" name="timezone_name" value="UTC">','Create Research Agent');
+    $panels.=$panel('portfolio','Portfolio','<label>Title<input name="title" maxlength="255" required placeholder="Portfolio title"></label><label>Objective<textarea name="objective" rows="4" maxlength="16000" required placeholder="What should this Portfolio track across Research Programs?"></textarea></label>'.$teamSelect.'<label>Briefing cadence<select name="briefing_cadence"><option value="manual">Manual</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></label><input type="hidden" name="timezone_name" value="UTC">','Create Portfolio');
+    $panels.=$panel('mission','Mission',$agentSelect.'<label>Mission title<input name="title" maxlength="255" required></label><label>Research question<textarea name="research_question" rows="3" maxlength="16000" required></textarea></label><label>Objective<textarea name="objective" rows="4" maxlength="16000" required></textarea></label><label>Priority<select name="priority"><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option><option value="low">Low</option></select></label><label>Success criteria <small>one per line</small><textarea name="criteria_lines" rows="4"></textarea></label>','Create Mission');
+    $panels.=$panel('task','Task',$agentSelect.'<label>Task title<input name="title" maxlength="255" required></label><label>Description<textarea name="description" rows="4" maxlength="12000"></textarea></label><label>Type<select name="task_type"><option value="general">General research</option><option value="find_source">Find source</option><option value="verify_claim">Verify claim</option><option value="review_source_change">Review source change</option></select></label><label>Priority<select name="priority"><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option><option value="low">Low</option></select></label><label>Due<input type="datetime-local" name="due_at"></label>','Create Task');
+    $panels.=$panel('program','Program',$agentSelect.'<label>Program title<input name="title" maxlength="255" required></label><label>Objective<textarea name="objective" rows="4" maxlength="16000" required></textarea></label><label>Cadence<select name="cadence"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="hourly">Hourly</option><option value="monthly">Monthly</option><option value="manual">Manual only</option></select></label><label>Priority<select name="priority"><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option><option value="low">Low</option></select></label><input type="hidden" name="timezone_name" value="UTC">','Create Program');
+    $panels.=$panel('decision','Decision',$agentSelect.'<label>Title<input name="title" maxlength="255" required></label><label>Decision / conclusion<textarea name="statement" rows="4" maxlength="64000" required></textarea></label><label>Rationale<textarea name="rationale" rows="4" maxlength="64000"></textarea></label><label>Confidence <small>0–1</small><input type="number" name="confidence" min="0" max="1" step="0.01"></label>','Create Decision');
+    $panels.=$panel('action_plan','Action Plan','<label>Decision<select name="decision_id" required>'.$decisionOptions.'</select></label><label>Title<input name="title" maxlength="255" placeholder="Defaults from Decision"></label><label>Objective<textarea name="objective" rows="4" maxlength="16000" required></textarea></label><label>Expected result<textarea name="expected_result" rows="3" maxlength="16000" required></textarea></label><label>Priority<select name="priority"><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option><option value="low">Low</option></select></label>','Create Action Plan');
+    $panels.=$panel('document','Document',$agentSelect.'<label>Title<input name="title" maxlength="240" required></label><label>Type<select name="document_type"><option value="document">Document</option><option value="research_brief">Research Brief</option><option value="memo">Memo</option><option value="report">Report</option><option value="analysis">Analysis</option><option value="source_summary">Source Summary</option><option value="timeline">Timeline</option><option value="weekly_report">Weekly Report</option></select></label><label>Content<textarea name="body" rows="8" maxlength="50000"></textarea></label>','Create Document');
+    $panels.=$panel('report','Report',$agentSelect.'<label>Report type<select name="report_type"><option value="research_brief">Research Brief</option><option value="full_intelligence">Full Intelligence Report</option><option value="evidence_audit">Evidence Audit</option><option value="claims_verification">Claims & Verification</option><option value="contradictions_gaps">Contradictions & Gaps</option><option value="source_freshness">Source Freshness & Change</option><option value="timeline">Research Timeline</option><option value="action_plan">Research Action Plan</option><option value="mission_brief">Mission Brief</option><option value="mission_review">Mission Review</option></select></label><label>Custom title<input name="title" maxlength="240" placeholder="Optional"></label>','Generate Report');
+    $panels.=$panel('sticky','Sticky Note',$agentSelect.'<label>Title<input name="title" maxlength="240" placeholder="Sticky note"></label><label>Note<textarea name="body" rows="6" maxlength="10000" required></textarea></label><label>Color<select name="color"><option value="yellow">Yellow</option><option value="blue">Blue</option><option value="green">Green</option><option value="pink">Pink</option><option value="purple">Purple</option></select></label>','Create Sticky Note');
+    $panels.=$panel('team','Team','<label>Team name<input name="name" maxlength="190" required placeholder="Research Team"></label>','Create Team');
+    $panels.=$panel('source','Add Source','<label>URL<input type="url" name="url" required placeholder="https://example.com/article"></label><label>Title<input name="title" maxlength="500" placeholder="Optional source title"></label>','Add Source');
+    return '<button type="button" class="appHeaderCreate" data-create-launcher-open aria-label="Create" title="Create">+</button>'
+      .'<dialog class="appCreateDialog" data-create-launcher data-csrf="'.app_shell_h(csrf_token()).'"><section class="appCreateMenu" data-create-menu><header><div><span class="eyebrow">CREATE</span><h2>What do you want to create?</h2><p>Start something new without leaving your current workspace.</p></div><button type="button" class="appCreateClose" data-create-close aria-label="Close">×</button></header><div class="appCreateGrid">'.$cards.'</div></section>'.$panels.'</dialog>';
+}
 function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode,int $unread=0): string {
     $links=$adminMode?app_shell_admin_nav($path):app_shell_user_nav($pdo,$user,$path,$unread);
     return '<details class="appMobileMenu"><summary aria-label="Open navigation">☰</summary><div class="appMobileMenuPanel">'.$links.'</div></details>';
@@ -230,7 +286,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
         $aside.=app_shell_research_agents($pdo,$user,$path).app_shell_research_projects($pdo,$user,$path);
     }
     $aside.='</aside>';
-    $header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>';
+    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>';
     $footer='<footer class="appShellFooter"><span>Annotated · Research the web in context.</span><nav><a href="/explore.php">Explore</a><a href="/teams.php">Teams</a><a href="/chrome-extension.php">Chrome Extension</a><a href="/settings.php">Privacy & Settings</a></nav></footer>';
     return [$aside,$header,$footer];
 }
@@ -248,7 +304,7 @@ function app_shell_transform(string $html): string {
     $mode=(string)($state['mode']??'full');$headerOnly=$mode==='header_only';
     $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1" data-chat-presence-csrf="'.app_shell_h(csrf_token()).'">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.'<div class="appShellContent">';
     $presenceScript=(function_exists('conversation_presence_ready')&&conversation_presence_ready($pdo))?'<script src="/assets/js/chat-presence.js?v=12.0"></script>':'';
-    $researchAgentScript=$headerOnly?'':'<script src="/assets/js/research-agent-shell.js?v=47.0"></script>';
+    $researchAgentScript=($headerOnly?'':'<script src="/assets/js/research-agent-shell.js?v=47.0"></script>').'<script src="/assets/js/create-launcher.js?v=1.0"></script>';
     $close='</div>'.$footer.'</div></div>'.$presenceScript.$researchAgentScript;
 
     $html=(string)preg_replace('#<body([^>]*)>#i','<body$1>'.$open,$html,1);
