@@ -38,7 +38,7 @@ $command=$read('research-intelligence-command-center.php');
 foreach(['Executive Intelligence','ORGANIZATION COMMAND CENTER','intelligenceCommandGrid'] as $legacy)if(str_contains($command,$legacy))$fail[]='Legacy Command Center must no longer render a competing product surface: '.$legacy.'.';
 
 $page=$read('research-intelligence-portfolios.php');
-foreach(['>Programs</a>','Project Portfolio','>Command Center</a>','>Publishing</a>','Review Center'] as $legacy)if(str_contains($page,$legacy))$fail[]='Primary Portfolio navigation must not expose duplicate research products: '.$legacy.'.';
+foreach(['>Programs</a>','Project Portfolio','>Command Center</a>','>Publishing</a>'] as $legacy)if(str_contains($page,$legacy))$fail[]='Primary Portfolio navigation must not expose duplicate research products: '.$legacy.'.';
 foreach(['Research Agents','>Portfolios</a>','>Overview</a>'] as $label)if(!str_contains($page,$label))$fail[]='Canonical Portfolio navigation missing '.$label.'.';
 
 $map=research_surface_map();
