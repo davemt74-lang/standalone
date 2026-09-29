@@ -3826,3 +3826,16 @@
 .researchUnifiedCompatibility{margin-top:12px}.researchUnifiedCompatibility h3{margin:.25rem 0}.researchUnifiedCompatibility p{max-width:850px;color:var(--muted,#666)}
 @media(max-width:1000px){.researchUnifiedNav{grid-template-columns:repeat(3,minmax(0,1fr))}.researchUnifiedStats{grid-template-columns:repeat(2,minmax(0,1fr))}.researchUnifiedRow{grid-template-columns:1fr}.researchUnifiedRowMetrics{justify-content:flex-start;max-width:none}.researchUnifiedRowMetrics span{text-align:left}}
 @media(max-width:760px){.researchUnifiedNav{display:flex;overflow:auto}.researchUnifiedNav a{flex:0 0 170px}.researchUnifiedNav span{display:none}.researchUnifiedIntro{display:grid}.researchUnifiedActions{justify-content:flex-start}.researchUnifiedStats{grid-template-columns:1fr 1fr}.researchUnifiedRowMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}}
+
+
+/* Phase 74 Section 5 — Unified Reports UI */
+.researchReportsUnifiedNav strong{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.researchReportsUnifiedNav strong em{font-style:normal;font-size:.72rem;line-height:1;min-width:1.6rem;text-align:center;padding:5px 7px;border:1px solid currentColor;border-radius:999px;opacity:.72}
+.researchReportsCreateBridge,.researchReportsPublishDocument{margin-top:18px}
+.researchReportsPublished{display:grid;gap:18px}
+.researchPublicationMetrics{grid-template-columns:repeat(6,minmax(0,1fr))}
+.researchReportsPublished .researchReportRow nav{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+@media(max-width:760px){
+  .researchPublicationMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .researchReportsPublished .sectionHeadWeb{align-items:flex-start;gap:12px}
+}
