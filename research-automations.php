@@ -22,9 +22,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
     }catch(Throwable $e){$error=$e->getMessage();}
 }
-$ready=research_automation_ready($pdo);$automations=$ready?research_automation_list($pdo,$u,100):[];$selected=trim((string)($_GET['id']??''));$runs=$ready?research_automation_run_list($pdo,$u,$selected!==''?$selected:null,60):[];
-$q=$pdo->prepare("SELECT DISTINCT rp.public_id,rp.title,CASE WHEN rp.owner_user_id=? THEN 'owner' ELSE COALESCE(tm.role,'viewer') END access_role FROM research_projects rp LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=? WHERE rp.owner_user_id=? OR tm.user_id=? ORDER BY rp.updated_at DESC");$q->execute([$u['id'],$u['id'],$u['id'],$u['id']]);$projects=$q->fetchAll();
-$watches=$ready&&proactive_intelligence_ready($pdo)?proactive_watch_list($pdo,$u):[];$workflowDefs=research_automation_workflows();$cadences=research_automation_cadences();$days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+$ready=research_automation_ready($pdo);$selected=trim((string)($_GET['id']??''));$automations=[];$runs=[];$projects=[];$watches=[];
+try{
+    $automations=$ready?research_automation_list($pdo,$u,100):[];
+    $runs=$ready?research_automation_run_list($pdo,$u,$selected!==''?$selected:null,60):[];
+    $projects=research_automation_project_options($pdo,$u,250);
+    $watches=$ready&&proactive_intelligence_ready($pdo)?proactive_watch_list($pdo,$u):[];
+}catch(Throwable $e){
+    $loadMessage='Research Automations could not load all page data. '.$e->getMessage();
+    $error=$error!==''?$error.' '.$loadMessage:$loadMessage;
+}
+$workflowDefs=research_automation_workflows();$cadences=research_automation_cadences();$days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Research Automations · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
 <main class="layout automationLayout"><section>
 <div class="pageTitle"><span class="eyebrow">STAGE 18 · RESEARCH AUTOMATION</span><h1>Recurring Agent workflows</h1><p>Schedule evidence-aware briefings, proposal-only Research reviews, or source refreshes. Automated reviews can prepare actions, but Stage 15 confirmation is still required before any Research write executes.</p></div>
