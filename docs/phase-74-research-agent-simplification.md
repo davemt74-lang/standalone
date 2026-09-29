@@ -439,3 +439,29 @@ Existing APIs and deep links remain live.
 ### Section 5 permanent gates
 
 CI verifies the exact four-view Reports model, stable Agent identity, Report Studio/preset reachability, Report Run and delivery history, Program-owned scheduling, Phase 59 publication authority, Project-scoped publication filtering, strategic-briefing reachability, compatibility aliases, inherited Team/Project permission boundaries, no duplicate persistence, no migration 104, website/extension CSS parity, PHP 8.1/8.3 regressions, MySQL 8 journeys, and production package inclusion.
+
+
+## Section 7 — Legacy Route & Navigation Compatibility
+
+Section 7 turns the Section 1 compatibility map into runtime behavior without deleting any mature Research engine, database store, API, or advanced inspector.
+
+Generic legacy product entry points now resolve into the canonical Phase 74 UI:
+
+- Research Automations → Research → Recurring
+- Research Brief → Reports → Create using the Research Brief template
+- Project Knowledge → Agent Knowledge → Library
+- Outcome Memory → Research → Decisions
+- Legacy Research Portfolio → canonical Research home
+- mapped Research Project → Agent Chat
+- generic Review Center → Portfolios → Overview / review attention
+- Organization Command Center → Portfolios → Overview
+
+Object-specific legacy links remain reachable where they still provide advanced history, editing, review, or compatibility behavior. The compatibility router also accepts `legacy=1` as an explicit escape hatch for advanced screens.
+
+The router never creates or mutates Research state. It only resolves the existing Agent↔Project relationship and emits canonical GET redirects. Projects that do not have a Research Agent mapping are left on their historical page rather than losing access.
+
+The canonical Research UI no longer advertises the old standalone Automations product. Phase 18 automation runtime and API contracts remain intact underneath Recurring Research.
+
+During the audit, `report.php` and `report-status.php` were identified as Trust & Safety moderation routes rather than Research Report routes. They are explicitly excluded from the Research compatibility inventory and remain unchanged.
+
+Section 7 adds no migration 104, no new scheduler, no new worker, no new permission model, and no new authority system.
