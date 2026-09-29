@@ -13,7 +13,7 @@ $need('assets/js/team-chat.js',"row.team_role||'member'",'Team Chat roster must 
 $need('app/conversations.php','tm.role team_role','Team Chat roster payload must include canonical Team roles.');
 $need('app/conversations.php','$presenceReady=conversation_presence_ready($pdo);','Team membership visibility must be independent from live presence availability.');
 $need('app/conversations.php',"'auto' status_mode,'' custom_status,0 active_now",'Presence-unavailable fallback must still return Team members as inactive.');
-$avoid('app/conversations.php',"if(!conversation_presence_ready($pdo)||($conversation['conversation_type']??'')!=='team'","Team Chat roster must not disappear when presence tracking is unavailable.");
+$avoid('app/conversations.php','if(!conversation_presence_ready($pdo)||($conversation[\'conversation_type\']??\'\')!==\'team\'','Team Chat roster must not disappear when presence tracking is unavailable.');
 $need('tests/phase12a-conversations-db.php','Team Chat roster includes every active Team member regardless of login state','Database suite must cover offline member roster visibility.');
 $need('tests/phase12a-conversations-db.php','member with no presence session remains visible as offline with Team role','Database suite must verify offline role/status payload.');
 $need('assets/css/app.css','.teamChatMemberStatus.status-offline','Website CSS must style inactive Team members.');
