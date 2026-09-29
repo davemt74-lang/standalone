@@ -66,6 +66,7 @@ php tests/phase73-section7-organizational-agent-cognition-contract.php
 php tests/phase73-section8-end-to-end-release-contract.php
 php tests/phase74-section1-canonical-ui-compatibility-map-contract.php
 php tests/phase74-section2-unified-research-agent-shell-contract.php
+php tests/phase74-section3-unified-knowledge-ui-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
