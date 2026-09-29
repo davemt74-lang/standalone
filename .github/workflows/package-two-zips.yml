@@ -467,6 +467,9 @@ jobs:
           test -f package-website/app/research-agent-research-ui.php
           test -f package-website/tests/phase74-section4-unified-research-ui-contract.php
           test -f package-website/tests/phase74-section4-unified-research-ui-db.php
+          test -f package-website/app/research-agent-reports-ui.php
+          test -f package-website/tests/phase74-section5-unified-reports-ui-contract.php
+          test -f package-website/tests/phase74-section5-unified-reports-ui-db.php
           test -f package-website/tests/ci/phase73-final-supported-upgrades.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
