@@ -39,9 +39,12 @@ $must('research-intelligence-portfolios.php',[
  'PHASE 73 · STRATEGIC DEPENDENCY & CONFLICT GRAPH','Record relationship','Acknowledge current state','Remove relationship',
  'Materiality','Removal reason','CROSS-PORTFOLIO','STALE'
 ],'Section 4 Portfolio UI');
-$must('research-intelligence-command-center.php',[
- 'STRATEGIC DEPENDENCY & CONFLICT GRAPH','Relationship attention','Strategic conflicts','Stale relationships'
-],'Section 4 Command Center UI');
+$must('app/research-portfolios-ui.php',[
+ 'STRATEGIC DEPENDENCY & CONFLICT GRAPH','Relationship attention'
+],'Section 4 canonical Portfolio attention UI');
+$must('research-intelligence-portfolios.php',[
+ 'Strategic conflicts','Stale relationships'
+],'Section 4 canonical Portfolio Overview metrics');
 $must('docs/phase-73-portfolio-decision-intelligence-organizational-learning.md',[
  '## Section 4 — Strategic Dependency & Conflict Graph','conflicts_with','depends_on','Supersedes','state hashes',
  'materiality','removal reason','no worker, scheduler, queue'

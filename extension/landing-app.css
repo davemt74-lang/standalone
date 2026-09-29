@@ -3839,3 +3839,27 @@
   .researchPublicationMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
   .researchReportsPublished .sectionHeadWeb{align-items:flex-start;gap:12px}
 }
+
+
+/* Phase 74 Section 6 — Portfolios & Global Attention */
+.portfolioUnifiedTabs{display:flex;gap:10px;align-items:center;margin:0 0 18px;padding:0 2px}
+.portfolioUnifiedTabs a{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 14px;border:1px solid var(--line,#d9dde3);border-radius:10px;text-decoration:none;font-weight:700}
+.portfolioUnifiedTabs a.active{background:var(--panel-strong,#111827);color:#fff;border-color:var(--panel-strong,#111827)}
+.portfolioOverviewStats{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+.portfolioAttentionIntro{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin:0 0 18px}
+.portfolioAttentionIntro h2,.portfolioOverviewDirectory h2,.portfolioAttentionCard h2{margin:4px 0 6px}
+.portfolioAttentionGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:22px}
+.portfolioAttentionCard>header,.portfolioContextAttention>header,.portfolioOverviewDirectory>header{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.portfolioAttentionCard>header>strong,.portfolioContextAttention>header>strong{display:inline-flex;min-width:32px;height:32px;align-items:center;justify-content:center;border-radius:999px;background:var(--panel-soft,#f3f4f6)}
+.portfolioAttentionRow{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line,#e5e7eb)}
+.portfolioAttentionRow:first-of-type{border-top:0}
+.portfolioAttentionRow>div{min-width:0;display:grid;gap:3px}
+.portfolioAttentionRow small{display:block;line-height:1.35;opacity:.72}
+.portfolioAttentionRow>a{white-space:nowrap}
+.portfolioOverviewDirectory{margin-top:6px}
+.portfolioOverviewCards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:14px}
+.portfolioContextAttention{margin:16px 0 20px;padding:16px;border:1px solid var(--line,#e5e7eb);border-radius:14px;background:var(--panel-soft,#fafafa)}
+.portfolioContextAttentionGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:12px}
+.portfolioContextAttentionGrid>section{min-width:0}
+.portfolioContextAttentionGrid h4{margin:0 0 6px}
+@media(max-width:800px){.portfolioAttentionGrid,.portfolioContextAttentionGrid{grid-template-columns:1fr}.portfolioAttentionIntro{display:block}.portfolioAttentionIntro small{display:block;margin-top:8px}.portfolioUnifiedTabs{overflow:auto}}

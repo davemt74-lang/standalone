@@ -39,9 +39,10 @@ $must('api/research-intelligence-portfolios.php',[
 $must('research-intelligence-portfolios.php',[
  'PHASE 73 · CROSS-DECISION PATTERN MEMORY','Refresh Pattern Memory','Repeated assumptions','Repeated lessons'
 ],'Phase 73 Section 3 Portfolio UI');
-$must('research-intelligence-command-center.php',[
- 'CROSS-DECISION LEARNING','Pattern Memory','Learning patterns'
-],'Phase 73 Section 3 Command Center UI');
+$must('app/research-portfolios-ui.php',[
+ 'CROSS-DECISION LEARNING','Pattern Memory'
+],'Phase 73 Section 3 canonical Portfolio attention UI');
+$must('research-intelligence-portfolios.php',['Learning patterns'],'Phase 73 Section 3 canonical Portfolio Overview metric');
 $must('docs/phase-73-portfolio-decision-intelligence-organizational-learning.md',[
  '## Section 3 — Cross-Decision Learning & Pattern Memory','two or more distinct native Portfolio Decisions',
  'no embedding similarity','Migration 100','No new worker or scheduler'

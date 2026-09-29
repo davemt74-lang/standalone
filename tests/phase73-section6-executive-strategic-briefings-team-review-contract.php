@@ -31,9 +31,10 @@ $must('app/research-intelligence-operations.php',[
 $must('research-intelligence-portfolios.php',[
  'PHASE 73 · EXECUTIVE STRATEGIC BRIEFINGS &amp; TEAM REVIEW','Create Executive Strategic Briefing','Open Team Review','PUBLICATION READY'
 ],'Section 6 Portfolio UI');
-$must('research-intelligence-command-center.php',[
- 'EXECUTIVE STRATEGIC BRIEFINGS &amp; TEAM REVIEW','Team-reviewed leadership briefs','strategic_briefing_attention','Strategic briefs ready'
-],'Section 6 Command Center UI');
+$must('app/research-portfolios-ui.php',[
+ 'EXECUTIVE STRATEGIC BRIEFINGS & TEAM REVIEW','Team-reviewed leadership briefs','strategic_briefing_attention'
+],'Section 6 canonical Portfolio attention UI');
+$must('research-intelligence-portfolios.php',['Strategic briefs ready'],'Section 6 canonical Portfolio Overview metric');
 $must('docs/phase-73-portfolio-decision-intelligence-organizational-learning.md',[
  '## Section 6 — Executive Strategic Briefings & Team Review','Migration 103','unanimously approved',
  'document edit makes the Team Review stale','Phase 59 remains the only publication workflow','no new scheduler, worker, queue, or publishing engine'

@@ -17,9 +17,9 @@ $must('app/research-intelligence-portfolios.php',[
  'research_agent_workspace_create_document','research_publication_workflow_create'
 ],'Phase 60 runtime');
 $must('research-intelligence-portfolios.php',[
- 'Research Intelligence Portfolios','Cross-program trends & tensions','AGENT INTERPRETATION',
- 'Create frozen snapshot','Create Executive Briefing','Send to Phase 59 review','Project Portfolio'
-],'Phase 60 dashboard');
+ 'PHASE 74 · PORTFOLIOS &amp; GLOBAL ATTENTION','<h1>Portfolios</h1>','Cross-program trends & tensions','AGENT INTERPRETATION',
+ 'Create frozen snapshot','Create Executive Briefing','Send to Phase 59 review'
+],'Phase 60 canonical Portfolio dashboard');
 $must('api/research-intelligence-portfolios.php',['dashboard','add_program','snapshot','create_briefing','prepare_publication','add_inference'],'Phase 60 API');
 $must('app/bootstrap.php',["research-intelligence-portfolios.php"],'Phase 60 bootstrap');
 $must('app/cognitive-feed.php',['research_intelligence_portfolio_cognitive_observations'],'Phase 60 Now integration');

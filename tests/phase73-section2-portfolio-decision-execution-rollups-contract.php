@@ -32,9 +32,12 @@ $must('app/research-intelligence-operations.php',[
 $must('research-intelligence-portfolios.php',[
  'PHASE 73 · DECISION & EXECUTION ROLLUP','Strategic execution state','Material variances','Awaiting outcome'
 ],'Section 2 Portfolio UI');
-$must('research-intelligence-command-center.php',[
- 'PHASE 73 · PORTFOLIO DECISION & EXECUTION','DECISION & EXECUTION ATTENTION','Native decisions','Material variances'
-],'Section 2 Command Center UI');
+$must('app/research-portfolios-ui.php',[
+ 'DECISION & EXECUTION','Strategic follow-through'
+],'Section 2 canonical Portfolio attention UI');
+$must('research-intelligence-portfolios.php',[
+ 'Native decisions','Material variances'
+],'Section 2 canonical Portfolio Overview metrics');
 $must('docs/phase-73-portfolio-decision-intelligence-organizational-learning.md',[
  '## Section 2 — Portfolio Decision & Execution Rollups','schema-free','completed-without-outcome'
 ],'Section 2 architecture');

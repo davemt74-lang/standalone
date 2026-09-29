@@ -28,9 +28,10 @@ $must('api/research-intelligence-portfolios.php',["'strategic_review_configure'"
 $must('research-intelligence-portfolios.php',[
  'PHASE 73 · RECURRING STRATEGIC REVIEW','Save Strategic Review settings','Create Strategic Review now','Open Review Center'
 ],'Section 5 Portfolio UI');
-$must('research-intelligence-command-center.php',[
- 'RECURRING STRATEGIC REVIEW','Open strategic reviews','Human review attention'
-],'Section 5 Command Center UI');
+$must('app/research-portfolios-ui.php',[
+ 'STRATEGIC REVIEW','Human review attention'
+],'Section 5 canonical Portfolio attention UI');
+$must('research-intelligence-portfolios.php',['Open strategic reviews'],'Section 5 canonical Portfolio Overview metric');
 $must('docs/phase-73-portfolio-decision-intelligence-organizational-learning.md',[
  '## Section 5 — Recurring Strategic Review','no new worker, cron, queue, or independent scheduler',
  'frozen `strategic_review` subject','current drift','Strategic Review never mutates Decision or Action Plan lifecycle state'
