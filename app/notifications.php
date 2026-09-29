@@ -61,7 +61,15 @@ function notification_create(PDO $pdo,int $userId,?int $actorUserId,string $type
 function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
     $type=(string)($n['object_type']??'');$public=(string)($n['object_public_id']??'');if($public==='')return true;
     if($type==='annotation')return annotation_access($pdo,$public,$viewer)!==null;
-    if($type==='source')return source_access($pdo,$public,$viewer)!==null;
+    if($type==='source'){
+        if(source_access($pdo,$public,$viewer)===null)return false;
+        if(($n['notification_type']??'')==='live_room_invite'){
+            $context=json_decode((string)($n['context_json']??''),true)?:[];
+            $roomType=(string)($context['room_type']??'public');$roomId=isset($context['room_id'])?(string)$context['room_id']:null;
+            return function_exists('live_room_scope')&&live_room_scope($pdo,$viewer,$public,$roomType,$roomId?:null,false)!==null;
+        }
+        return true;
+    }
     if($type==='user'){
         $q=$pdo->prepare("SELECT id FROM users WHERE public_id=? AND status='active'");$q->execute([$public]);$id=(int)($q->fetchColumn()?:0);
         return $id>0&&!is_blocked($pdo,(int)$viewer['id'],$id);
@@ -146,7 +154,12 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
     if($type==='model_improvement_case')return ($viewer['role']??'')==='admin'?'/admin/model-improvements.php?case='.rawurlencode($public):null;
     if($type==='model_improvement_campaign')return ($viewer['role']??'')==='admin'?'/admin/model-campaigns.php?campaign='.rawurlencode($public):null;
     if($type==='annotation')return '/annotation.php?id='.rawurlencode($public).(!empty($context['comment_id'])?'#discussion':'');
-    if($type==='source')return '/source.php?id='.rawurlencode($public).(!empty($context['source_change_event_id'])?'#change-'.rawurlencode((string)$context['source_change_event_id']):'');
+    if($type==='source'){
+        if(($n['notification_type']??'')==='live_room_invite'){
+            $url=(string)($context['primary_url']??'');if($url!==''&&str_starts_with($url,'/')&&!str_starts_with($url,'//'))return $url;
+        }
+        return '/source.php?id='.rawurlencode($public).(!empty($context['source_change_event_id'])?'#change-'.rawurlencode((string)$context['source_change_event_id']):'');
+    }
     if($type==='user'){
         $q=$pdo->prepare('SELECT username FROM users WHERE public_id=?');$q->execute([$public]);$u=(string)($q->fetchColumn()?:'');return $u!==''?profile_path($u):null;
     }
