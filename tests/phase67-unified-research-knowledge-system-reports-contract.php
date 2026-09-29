@@ -41,7 +41,7 @@ $must('app/research-agent-knowledge-ui.php',[
 $must('research-agent-research.php',['Missions','Tasks','Decisions','Follow-through','Recurring'],'Phase 67 working-research compatibility through canonical Research tab');
 $must('research-reports.php',['Recent Reports'],'Phase 67 report-run compatibility through canonical Reports tab');
 $must('research-reports.php',[
- 'RESEARCH AGENT · REPORT STUDIO','Run Report','Recent Reports','Saved Presets','Create Document'
+ 'RESEARCH AGENT · REPORTS','Run Report','Recent Reports','Saved Presets','Create Document'
 ],'Phase 67 Reports surface');
 $must('home.php',[
  'data-research-library-filter="claim"','data-research-library-filter="finding"','data-research-library-filter="entity"','data-research-library-filter="relation"','data-research-library-filter="report"',
