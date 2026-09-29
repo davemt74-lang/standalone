@@ -38,7 +38,9 @@ $need('extension/sidepanel.html','id="bookmarkAgent"','Chrome bookmark flow must
 $need('extension/sidepanel-workspace.js','phase50SaveBookmark','Chrome must persist bookmarks into the Research Agent workspace API.');
 $need('extension/sidepanel-workspace.js',"object_type:'bookmark'",'Chrome must make the saved bookmark current workspace context.');
 $need('extension/content.js','pagePreviewInfo','Chrome must collect bookmark preview metadata without passive browsing history.');
-$need('research.php','research_agent_chat_feed','Research page must show a per-Agent conversation feed.');
+$avoid('research.php','research_agent_chat_feed','Research Home must not duplicate per-Agent conversation feeds.');
+$need('research.php','researchHomeAgentGrid','Research Home must expose Research Agents as launcher objects.');
+$need('research.php',"research_agent_shell_href(\$agent,'chat')",'Research Home must hand Agents to the persistent main Agent Chat canvas.');
 $need('research.php','+ New Research Agent','Research page must expose one clear Research Agent creation action.');
 $need('research.php',"research_agent_shell_href(\$agent,'chat')",'Each Research Agent must open its persistent main chat canvas through the canonical shell.');
 $avoid('research.php','researchLibraryHero','Legacy Research title/hero must be removed.');
