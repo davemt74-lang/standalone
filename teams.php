@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
+require_once __DIR__.'/app/teams-core.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');$error='';
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$name=trim((string)($_POST['name']??''));
     if($name==='')$error='Team name is required.';
     else{
         $pdo->beginTransaction();
-        try{$public=ulid_like();$q=$pdo->prepare('INSERT INTO teams(public_id,owner_user_id,name) VALUES(?,?,?)');$q->execute([$public,$u['id'],$name]);$teamId=(int)$pdo->lastInsertId();$pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'owner')")->execute([$teamId,$u['id']]);$pdo->commit();header('Location:/team.php?id='.rawurlencode($public));exit;}
-        catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();$error='Unable to create team.';}
+        try{$team=team_create($pdo,$u,$name);header('Location:/team.php?id='.rawurlencode((string)$team['public_id']));exit;}
+        catch(Throwable $e){$error='Unable to create team.';}
     }
 }
 $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,t.created_at,tm.role,
