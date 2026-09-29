@@ -485,6 +485,10 @@ jobs:
           test -f package-website/tests/phase75-section1-research-home-agent-launcher-db.php
           test -f package-website/tests/team-chat-member-roster-contract.php
           test -f package-website/tests/live-explore-agent-chat-ui-contract.php
+          test -f package-website/api/create.php
+          test -f package-website/app/teams-core.php
+          test -f package-website/assets/js/create-launcher.js
+          test -f package-website/tests/global-create-launcher-contract.php
           test -f package-website/tests/ci/phase73-final-supported-upgrades.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
