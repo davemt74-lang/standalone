@@ -25,6 +25,9 @@ $team=['id'=>$teamId,'public_id'=>$teamPublic,'name'=>'Phase 12A Team','owner_us
 
 $c1=conversation_team_ensure($pdo,$team,$owner);$c2=conversation_team_ensure($pdo,$team,$owner);
 $teamPresence=conversation_presence_rows($pdo,$member,array_merge($c1,['conversation_type'=>'team','team_id'=>$teamId]));
+p12(count($teamPresence)===4,'Team Chat roster includes every active Team member regardless of login state');
+$offlineMember=array_values(array_filter($teamPresence,fn($p)=>($p['username']??'')===$member['username']))[0]??[];
+p12(($offlineMember['effective_status']??'')==='offline'&&($offlineMember['team_role']??'')==='researcher','member with no presence session remains visible as offline with Team role');
 $ownerStatus=array_values(array_filter($teamPresence,fn($p)=>($p['username']??'')===$owner['username']))[0]??[];
 p12(($ownerStatus['effective_status']??'')==='busy'&&($ownerStatus['custom_status']??'')==='Deep research','teammates receive busy/custom Chat Status from presence rows');
 $invisible=conversation_status_update($pdo,$owner,'invisible','Heads down');
