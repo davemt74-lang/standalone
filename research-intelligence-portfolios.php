@@ -43,12 +43,43 @@ $dashboard=research_intelligence_portfolio_dashboard($pdo,$u);$portfolios=$dashb
 if(!$selected&&$portfolios){$portfolioId=(string)$portfolios[0]['public_id'];$selected=research_intelligence_portfolio_detail($pdo,$u,$portfolioId);}
 $teams=[];try{$q=$pdo->prepare("SELECT t.public_id,t.name,tm.role FROM teams t JOIN team_members tm ON tm.team_id=t.id WHERE tm.user_id=? AND tm.role IN ('owner','admin','researcher') ORDER BY t.name");$q->execute([(int)$u['id']]);$teams=$q->fetchAll()?:[];}catch(Throwable $e){}
 $csrf=csrf_token();$summary=$dashboard['summary'];
+$portfolioView=research_portfolios_view((string)($_GET['view']??'overview'));
+$center=research_intelligence_portfolio_operations_ready($pdo)?research_intelligence_organization_command_center($pdo,$u):['summary'=>[],'generated_at'=>date('Y-m-d H:i:s')];
+$overviewSections=research_portfolios_attention_sections($center);
+$overviewAttentionCount=research_portfolios_attention_count($overviewSections);
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Intelligence Portfolios · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=61.0"></head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-intelligence-portfolios">
 <main class="intelligencePortfolioCanvas">
-<section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions"><a href="/research.php">Research Agents</a><a href="/research-programs.php">Programs</a><a href="/research-portfolio.php">Project Portfolio</a><a class="active" href="/research-intelligence-portfolios.php">Intelligence Portfolios</a><a href="/research-intelligence-command-center.php">Command Center</a><a href="/research-publications.php">Publishing</a><a href="/research-reviews.php">Review Center</a></nav></section>
-<header class="intelligencePortfolioHero"><div><span class="eyebrow">PHASE 61 · PORTFOLIO INTELLIGENCE OPERATIONS · PHASE 73</span><h1>Research Intelligence Portfolios</h1><p>Run explainable cross-program intelligence continuously, prepare draft Executive Briefings when due or materially changed, and connect leadership decisions directly to the native Decision Ledger and the Phase 72 execution/learning loop.</p></div><a class="button" href="/research-intelligence-command-center.php">Open Command Center</a></header>
+<section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions"><a href="/research.php">Research Agents</a><a class="active" href="/research-intelligence-portfolios.php">Portfolios</a></nav></section>
+<header class="intelligencePortfolioHero"><div><span class="eyebrow">PHASE 74 · PORTFOLIOS &amp; GLOBAL ATTENTION</span><h1>Portfolios</h1><p>One organization-level home for Phase 60/73 Portfolio intelligence, strategic attention, review, Decision follow-through, Pattern Memory, dependencies, and Executive Briefings.</p></div></header>
+<nav class="portfolioUnifiedTabs" aria-label="Portfolio views"><a class="<?=$portfolioView==='overview'?'active':''?>" href="<?=h(research_portfolios_href('overview'))?>">Overview</a><a class="<?=$portfolioView==='portfolios'?'active':''?>" href="<?=h(research_portfolios_href('portfolios',$portfolioId))?>">Portfolios</a></nav>
 <?php if($success):?><div class="success"><?=h($success)?></div><?php endif?><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>
+<?php if($portfolioView==='overview'):$cs=(array)($center['summary']??[]);$xs=(array)($center['execution_summary']??[]);$ps=(array)($center['pattern_summary']??[]);$gs=(array)($center['strategic_graph_summary']??[]);$rs=(array)($center['strategic_review_summary']??[]);$bs=(array)($center['strategic_briefing_summary']??[]);$os=(array)($center['organizational_cognition_summary']??[]);?>
+<section class="intelligencePortfolioStats portfolioOverviewStats">
+<div><strong><?=h((string)($cs['portfolios']??$summary['portfolios']??0))?></strong><span>Portfolios</span></div>
+<div><strong><?=h((string)$overviewAttentionCount)?></strong><span>Needs attention</span></div>
+<div><strong><?=h((string)($xs['native_decisions']??0))?></strong><span>Decisions</span></div>
+<div><strong><?=h((string)($xs['action_plans']??0))?></strong><span>Action plans</span></div>
+<div><strong><?=h((string)($ps['active_patterns']??0))?></strong><span>Learning patterns</span></div>
+<div><strong><?=h((string)($gs['conflicts']??0))?></strong><span>Strategic conflicts</span></div>
+<div><strong><?=h((string)($rs['open']??0))?></strong><span>Open reviews</span></div>
+<div><strong><?=h((string)($bs['publication_ready']??0))?></strong><span>Briefs ready</span></div>
+<div><strong><?=h((string)($os['signals']??0))?></strong><span>Cognition signals</span></div>
+</section>
+<section class="portfolioAttentionIntro card"><div><span class="eyebrow">GLOBAL ATTENTION</span><h2>What needs review now</h2><p>Existing organization intelligence is grouped here instead of living in a separate Command Center. Every item deep-links to its authoritative Portfolio, Review, Action Plan, Task, or Phase 59 publication workflow.</p></div><small>Generated <?=h((string)($center['generated_at']??date('Y-m-d H:i:s')))?></small></section>
+<section class="portfolioAttentionGrid">
+<?php foreach($overviewSections as $section):?>
+<article class="card portfolioAttentionCard" data-attention-key="<?=h((string)$section['key'])?>"><header><div><span class="eyebrow"><?=h((string)$section['eyebrow'])?></span><h2><?=h((string)$section['title'])?></h2></div><strong><?=h((string)$section['count'])?></strong></header>
+<?php if(empty($section['items'])):?><p class="empty">Nothing currently needs attention in this area.</p><?php endif?>
+<?php foreach(array_slice((array)$section['items'],0,24) as $item):?><div class="portfolioAttentionRow"><div><strong><?=h((string)$item['label'])?></strong><?php if((string)$item['meta']!==''):?><small><?=h((string)$item['meta'])?></small><?php endif?></div><a href="<?=h((string)$item['href'])?>">Open</a></div><?php endforeach?>
+</article>
+<?php endforeach?>
+</section>
+<section class="portfolioOverviewDirectory"><header><div><span class="eyebrow">PORTFOLIO DIRECTORY</span><h2>Organization intelligence</h2></div><a class="button" href="<?=h(research_portfolios_href('portfolios'))?>">Manage Portfolios</a></header><div class="portfolioOverviewCards">
+<?php if(!$portfolios):?><div class="card empty"><h3>No Portfolios yet.</h3><p>Create one from the Portfolios view and add existing Research Programs.</p></div><?php endif?>
+<?php foreach($portfolios as $p):$pa=$p['aggregate']['summary']??[];?><article class="card intelligencePortfolioCard"><a href="<?=h(research_portfolios_href('portfolios',(string)$p['public_id']))?>"><div><span><?=!empty($p['team_name'])?h((string)$p['team_name']):'PERSONAL'?></span><h3><?=h((string)$p['title'])?></h3></div><strong><?=h((string)$p['program_count'])?> Programs</strong></a><p><?=h(mb_substr((string)$p['objective'],0,260))?></p><div class="intelligencePortfolioMeta"><span><?=h((string)($pa['material_changes']??0))?> changes</span><span><?=h((string)($pa['high_changes']??0))?> high</span><span><?=!empty($p['briefing_due'])?'Briefing due':'Briefing current'?></span></div></article><?php endforeach?>
+</div></section>
+<?php else:?>
 <section class="intelligencePortfolioStats">
 <div><strong><?=h((string)$summary['portfolios'])?></strong><span>Portfolios</span></div><div><strong><?=h((string)$summary['programs'])?></strong><span>Programs</span></div><div><strong><?=h((string)$summary['briefings'])?></strong><span>Briefings</span></div><div><strong><?=h((string)$summary['risk_signals'])?></strong><span>Risk signals</span></div><div><strong><?=h((string)$summary['opportunity_signals'])?></strong><span>Opportunity signals</span></div><div><strong><?=h((string)$summary['cross_program_tensions'])?></strong><span>Cross-program tensions</span></div>
 </section>
@@ -61,7 +92,7 @@ $csrf=csrf_token();$summary=$dashboard['summary'];
 <article class="card intelligencePortfolioCard <?=$sel?'is-selected':''?>"><a href="/research-intelligence-portfolios.php?portfolio=<?=rawurlencode((string)$p['public_id'])?>"><div><span><?=!empty($p['team_name'])?h((string)$p['team_name']):'PERSONAL'?></span><h3><?=h((string)$p['title'])?></h3></div><strong><?=h((string)$p['program_count'])?> Programs</strong></a><p><?=h(mb_substr((string)$p['objective'],0,260))?></p><div class="intelligencePortfolioMeta"><span><?=h((string)($a['material_changes']??0))?> changes</span><span><?=h((string)($a['high_changes']??0))?> high</span><span><?=!empty($p['briefing_due'])?'Briefing due':'Briefing current'?></span></div></article>
 <?php endforeach?>
 </section></section>
-<?php if($selected):$a=$selected['aggregate'];$canWrite=research_intelligence_portfolio_can_write($selected);?>
+<?php if($selected):$a=$selected['aggregate'];$canWrite=research_intelligence_portfolio_can_write($selected);$portfolioAttentionSections=research_portfolios_attention_sections($center,(string)$selected['public_id']);$portfolioAttentionCount=research_portfolios_attention_count($portfolioAttentionSections);?>
 <section class="card intelligencePortfolioDetail">
 <header class="intelligencePortfolioDetailHeader"><div><span class="eyebrow">PROGRAM PORTFOLIO</span><h2><?=h((string)$selected['title'])?></h2><p><?=h((string)$selected['objective'])?></p></div><div class="intelligencePortfolioDetailMeta"><span><?=!empty($selected['team_name'])?h((string)$selected['team_name']):'Personal scope'?></span><span><?=h((string)$selected['access_role'])?></span></div></header>
 <section class="intelligencePortfolioOverview"><div><strong><?=h((string)$a['summary']['programs'])?></strong><span>Programs</span></div><div><strong><?=h((string)$a['summary']['material_changes'])?></strong><span>Material changes</span></div><div><strong><?=h((string)$a['summary']['high_changes'])?></strong><span>High changes</span></div><div><strong><?=h((string)$a['summary']['failed_runs_30d'])?></strong><span>Failed runs · 30d</span></div><div><strong><?=h((string)$a['summary']['stale_sources'])?></strong><span>Stale evidence</span></div></section>
