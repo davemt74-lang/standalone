@@ -48,7 +48,7 @@ function research_legacy_route_target(PDO $pdo,array $viewer,string $route,array
 
     return match($route){
         'research-intelligence-command-center.php'=>research_portfolios_href('overview'),
-        'research-portfolio.php'=>research_portfolios_href('overview'),
+        'research-portfolio.php'=>'/research.php',
         'research-knowledge.php'=>($knowledgeAgent=$projectId!==''?research_legacy_agent_by_project($pdo,$viewer,$projectId):$agent)
             ?research_legacy_query_url('/research-agent-knowledge.php',['agent'=>(string)$knowledgeAgent['public_id'],'view'=>'library'])
             :null,
