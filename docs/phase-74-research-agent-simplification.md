@@ -397,3 +397,45 @@ Section 4 introduces no migration 104 and no new persistence. The helper is pres
 ### Section 4 permanent gates
 
 CI verifies the exact five-view model, stable Agent identity, existing engine reachability, item-level deep links, selected-Agent filtering, Team access and revocation, no duplicate Agent/Project creation, no migration 104, website/extension CSS parity, PHP 8.1/8.3 regressions, MySQL 8 journeys, and production package inclusion.
+
+
+## Section 5 — Unified Reports UI
+
+Section 5 turns the Research Agent Reports tab into the canonical four-view reporting surface:
+
+**Create | Recent | Scheduled | Published**
+
+The implementation deliberately reuses the existing System Reports, Report Studio, Research Document, intelligence-delivery, Collaborative Review, Phase 59 publishing, and strategic-briefing engines. It introduces no replacement report store, scheduler, review system, publishing workflow, or migration 104.
+
+### Create
+
+Create is the single report-authoring entry point. It contains the existing System Report catalog and Report Studio builder, keeps Saved Presets as reusable configurations instead of a separate top-level product, and links Portfolio / Executive Strategic Briefings back to the existing Portfolio briefing engine so frozen packets, Team Review, lineage, and publication gates stay authoritative.
+
+### Recent
+
+Recent combines Report Run history with the existing Intelligence Inbox. Report freshness, comparisons, provenance, Agent handoff, delivered/suppressed/failed cycles, and optional Research Document creation remain backed by the existing report and delivery engines. A derived Research Document can move directly into Published without altering the immutable source Report Run.
+
+### Scheduled
+
+Scheduled packages Report subscriptions around the existing Research Program scheduler. Presets, Programs, delivery policies, pause/resume/archive, manual delivery, notification delivery, Agent Chat delivery, and audit history remain in the Phase 69 runtime. Section 5 adds no worker or scheduler.
+
+### Published
+
+Published is the Research Agent-level front door to Phase 59 Collaborative Review, Approval & Publishing. It filters publication workflows to the selected Agent or its internal Project boundary, exposes publication state and immutable publication history, and deep-links into the mature governed workflow for reviewer assignment, anchored discussion, approval gates, owner approval, explicit publishing, and distribution.
+
+Published documents remain immutable snapshots. Living Research Documents may continue changing after publication.
+
+### Compatibility aliases
+
+Legacy Report Studio URLs remain valid during Phase 74:
+
+- `run`, `studio`, and `presets` resolve to **Create**
+- `inbox`, `delivery`, and `history` resolve to **Recent**
+- `subscriptions` and `schedule` resolve to **Scheduled**
+- `publishing` and `publications` resolve to **Published**
+
+Existing APIs and deep links remain live.
+
+### Section 5 permanent gates
+
+CI verifies the exact four-view Reports model, stable Agent identity, Report Studio/preset reachability, Report Run and delivery history, Program-owned scheduling, Phase 59 publication authority, Project-scoped publication filtering, strategic-briefing reachability, compatibility aliases, inherited Team/Project permission boundaries, no duplicate persistence, no migration 104, website/extension CSS parity, PHP 8.1/8.3 regressions, MySQL 8 journeys, and production package inclusion.

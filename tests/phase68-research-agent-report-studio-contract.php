@@ -53,9 +53,9 @@ $must('api/research-system-reports.php',[
 ],'Phase 68 API');
 
 $must('research-reports.php',[
-  'RESEARCH AGENT · REPORT STUDIO','Run Report','Recent Reports','Saved Presets','REPORT RUN','Create Document','Ask Agent','Refresh','WHAT CHANGED',
+  'RESEARCH AGENT · REPORTS','Run Report','Recent Reports','Saved Presets','REPORT RUN','Create Document','Ask Agent','Refresh','WHAT CHANGED',
   'Research Program'
-],'Phase 68 per-Agent UI');
+],'Phase 68 per-Agent UI repackaged by Phase 74');
 
 $must('app/research-agent-shell-ui.php',[
   "'reports'=>['label'=>'Reports']",'/research-reports.php?agent='

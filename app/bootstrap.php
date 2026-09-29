@@ -82,6 +82,7 @@ require_once __DIR__ . '/research-agents.php';
 require_once __DIR__ . '/research-agent-shell-ui.php';
 require_once __DIR__ . '/research-agent-knowledge-ui.php';
 require_once __DIR__ . '/research-agent-research-ui.php';
+require_once __DIR__ . '/research-agent-reports-ui.php';
 require_once __DIR__ . '/research-agent-workspace.php';
 require_once __DIR__ . '/profile-network.php';
 require_once __DIR__ . '/research-retrieval.php';
