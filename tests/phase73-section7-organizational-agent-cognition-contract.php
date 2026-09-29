@@ -48,9 +48,9 @@ $must('app/bootstrap.php',["research-intelligence-organizational-cognition.php"]
 $must('research-intelligence-portfolios.php',[
  'ORGANIZATIONAL AGENT COGNITION &amp; GOVERNED FOLLOW-THROUGH','EXACT DECISION ANALOGUES','Strategic state hash'
 ],'Section 7 Portfolio UI');
-$must('research-intelligence-command-center.php',[
+$must('app/research-portfolios-ui.php',[
  'ORGANIZATIONAL AGENT COGNITION','Governed strategic reasoning','DECISION ANALOGUES','organizational_cognition_signals'
-],'Section 7 Command Center UI');
+],'Section 7 canonical Portfolio attention UI');
 $must('docs/phase-73-portfolio-decision-intelligence-organizational-learning.md',[
  '## Section 7 — Organizational Agent Cognition & Governed Follow-Through','No migration 104','agent_action_proposals',
  'stale proposal','draft Decision','draft Action Plan','exact Pattern Memory','authority boundary'
