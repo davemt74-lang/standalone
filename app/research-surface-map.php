@@ -127,7 +127,7 @@ function research_engine_surface_map(): array {
         'app/living-research.php'=>'knowledge.changes','app/proactive-intelligence.php'=>'knowledge.changes',
         'app/research-action-plan-cognition.php'=>'research.follow_through','app/research-action-plan-outcomes.php'=>'research.follow_through',
         'app/research-action-plan-variance.php'=>'research.follow_through','app/research-action-plans.php'=>'research.follow_through',
-        'app/research-agent-shell-ui.php'=>'agent','app/research-agent-knowledge-ui.php'=>'knowledge','app/research-agent-workspace-ui.php'=>'workspace','app/research-agent-workspace.php'=>'workspace','app/research-agents.php'=>'agent',
+        'app/research-agent-shell-ui.php'=>'agent','app/research-agent-knowledge-ui.php'=>'knowledge','app/research-agent-research-ui.php'=>'research','app/research-agent-workspace-ui.php'=>'workspace','app/research-agent-workspace.php'=>'workspace','app/research-agents.php'=>'agent',
         'app/research-automation.php'=>'research.recurring','app/research-autonomy.php'=>'research','app/research-decisions.php'=>'research.decisions',
         'app/research-entities.php'=>'knowledge.insights','app/research-evidence-packs.php'=>'knowledge.insights',
         'app/research-intelligence-decision-rollups.php'=>'portfolios','app/research-intelligence-delivery.php'=>'reports',
