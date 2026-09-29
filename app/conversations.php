@@ -42,15 +42,27 @@ function conversation_presence_leave(PDO $pdo,array $viewer,string $clientSessio
     if($clientSessionId==='')return;$pdo->prepare('DELETE FROM chat_presence_sessions WHERE user_id=? AND client_session_id=?')->execute([$viewer['id'],$clientSessionId]);
 }
 function conversation_presence_rows(PDO $pdo,array $viewer,array $conversation): array {
-    if(!conversation_presence_ready($pdo)||($conversation['conversation_type']??'')!=='team'||empty($conversation['team_id']))return [];
-    conversation_presence_cleanup($pdo);
-    $q=$pdo->prepare("SELECT u.public_id,u.username,u.display_name,u.profile_image_url,COALESCE(sp.status_mode,'auto') status_mode,COALESCE(sp.custom_status,'') custom_status,
-      EXISTS(SELECT 1 FROM chat_presence_sessions ps WHERE ps.user_id=u.id AND ps.last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND)) active_now
-      FROM team_members tm JOIN users u ON u.id=tm.user_id AND u.status='active'
-      LEFT JOIN chat_status_preferences sp ON sp.user_id=u.id
-      WHERE tm.team_id=? ORDER BY u.display_name,u.username");
+    if(($conversation['conversation_type']??'')!=='team'||empty($conversation['team_id']))return [];
+    $presenceReady=conversation_presence_ready($pdo);
+    if($presenceReady)conversation_presence_cleanup($pdo);
+    if($presenceReady){
+        $q=$pdo->prepare("SELECT u.public_id,u.username,u.display_name,u.profile_image_url,tm.role team_role,COALESCE(sp.status_mode,'auto') status_mode,COALESCE(sp.custom_status,'') custom_status,
+          EXISTS(SELECT 1 FROM chat_presence_sessions ps WHERE ps.user_id=u.id AND ps.last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND)) active_now
+          FROM team_members tm JOIN users u ON u.id=tm.user_id AND u.status='active'
+          LEFT JOIN chat_status_preferences sp ON sp.user_id=u.id
+          WHERE tm.team_id=? ORDER BY FIELD(tm.role,'owner','admin','researcher','viewer'),u.display_name,u.username");
+    }else{
+        $q=$pdo->prepare("SELECT u.public_id,u.username,u.display_name,u.profile_image_url,tm.role team_role,'auto' status_mode,'' custom_status,0 active_now
+          FROM team_members tm JOIN users u ON u.id=tm.user_id AND u.status='active'
+          WHERE tm.team_id=? ORDER BY FIELD(tm.role,'owner','admin','researcher','viewer'),u.display_name,u.username");
+    }
     $q->execute([$conversation['team_id']]);$out=[];
-    foreach($q->fetchAll() as $row){$mode=(string)$row['status_mode'];$active=(bool)$row['active_now'];$row['effective_status']=!$active||$mode==='invisible'?'offline':($mode==='busy'?'busy':($mode==='away'?'away':'online'));if($mode==='invisible')$row['custom_status']='';unset($row['active_now']);$out[]=$row;}
+    foreach($q->fetchAll() as $row){
+        $mode=(string)$row['status_mode'];$active=(bool)$row['active_now'];
+        $row['effective_status']=!$active||$mode==='invisible'?'offline':($mode==='busy'?'busy':($mode==='away'?'away':'online'));
+        if($mode==='invisible')$row['custom_status']='';
+        unset($row['active_now']);$out[]=$row;
+    }
     return $out;
 }
 
