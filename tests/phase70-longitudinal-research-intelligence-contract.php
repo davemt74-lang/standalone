@@ -55,8 +55,9 @@ $must('api/research-longitudinal.php',[
   "\$action==='summary'","\$action==='snapshots'","\$action==='changes'","\$action==='compare'","\$action==='capture'",
   'METHOD_NOT_ALLOWED','require_api_mutation_auth'
 ],'Phase 70 API');
-$must('research-agent-knowledge.php',['research-evolution.php','Evolution'],'Phase 70 Knowledge navigation');
-$must('research-reports.php',['research-evolution.php','Evolution'],'Phase 70 Reports navigation');
+$must('research-agent-knowledge.php',['WHAT CHANGED','Monitoring intelligence'],'Phase 70 Knowledge Changes integration');
+$must('app/research-surface-map.php',["'research-evolution.php'=>['classification'=>'MERGE_UI','target'=>'agent.knowledge.changes'"],'Phase 70 Evolution canonical Knowledge placement');
+$must('app/research-system-reports.php',["'research_evolution'","'what_changed'"],'Phase 70 longitudinal Reports integration');
 $must('app/bootstrap.php',['research-longitudinal-intelligence.php'],'Phase 70 bootstrap');
 
 $must('docs/phase-70-longitudinal-research-intelligence-synthesis.md',[
