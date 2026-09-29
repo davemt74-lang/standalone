@@ -18,14 +18,7 @@ $counts=(array)($workspace['counts']??[]);
 <title>Research Agent Knowledge · Annotated</title><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-agent-knowledge">
 <main class="researchLibraryCanvas researchKnowledgeCanvas">
-  <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions">
-    <a href="/research.php">Research Agents</a><a class="active" href="/research-agent-knowledge.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Knowledge</a>
-    <a href="/research-evolution.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Evolution</a>
-    <a href="/research-reports.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Reports</a>
-    <a href="/research-monitoring.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Monitoring</a>
-    <a href="/research-missions.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Missions</a>
-    <a href="/research-tasks.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Tasks</a><a href="/research-programs.php<?= $selectedId!==''?'?agent='.rawurlencode($selectedId):''?>">Programs</a>
-  </nav></section>
+  <?php if($selected):?><?=research_agent_shell_render($selected,$agents,'knowledge',['workspace_controls'=>true])?><?php endif?>
   <header class="researchKnowledgeHero">
     <div><span class="eyebrow">RESEARCH AGENT KNOWLEDGE</span><h1><?=h((string)($selected['name']??'Research Agent'))?></h1><p>A transparent view of what this Agent knows, what evidence supports it, what remains uncertain, what changed, and what the Agent is working on.</p></div>
     <?php if($agents):?><label>Research Agent<select onchange="location.href='/research-agent-knowledge.php?agent='+encodeURIComponent(this.value)"><?php foreach($agents as $a):?><option value="<?=h((string)$a['public_id'])?>" <?=$selectedId===(string)$a['public_id']?'selected':''?>><?=h((string)$a['name'])?></option><?php endforeach?></select></label><?php endif?>
@@ -84,4 +77,5 @@ $counts=(array)($workspace['counts']??[]);
     <?php if(!$reports):?><div class="card empty">No Report Runs have been generated yet.</div><?php endif?><div class="researchKnowledgeEvidenceGrid"><?php foreach($reports as $r):?><article class="card"><span class="eyebrow"><?=h(strtoupper((string)$r['type_label']))?> · <?=h(strtoupper((string)($r['freshness_state']??'current')))?></span><h3><?=h((string)$r['title'])?></h3><small><?=h((string)$r['created_at'])?> · <?=!empty($r['document_public_id'])?'Document created':'Report only'?></small><a href="/research-reports.php?agent=<?=h(rawurlencode($selectedId))?>&view=recent&report=<?=h(rawurlencode((string)$r['public_id']))?>">Open Report Run</a><?php if(!empty($r['document_public_id'])):?><a href="/home.php?agent=<?=h(rawurlencode($conversation))?>&doc=<?=h(rawurlencode((string)$r['document_public_id']))?>">Open Document</a><?php endif?></article><?php endforeach?></div>
   </section>
   <?php endif?>
-</main></body></html>
+</main><script src="/assets/js/research-agent-unified-shell.js?v=74.2"></script>
+</body></html>
