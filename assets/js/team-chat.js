@@ -7,6 +7,7 @@
   const composer=rail.querySelector('#teamChatComposer');
   const input=rail.querySelector('#teamChatInput');
   const memberCount=rail.querySelector('#teamChatMemberCount');
+  const members=rail.querySelector('#teamChatMembers');
   const unread=rail.querySelector('#teamChatUnread');
   const openTeam=rail.querySelector('#teamChatOpenTeam');
   const reply=rail.querySelector('#teamChatReply');
@@ -64,9 +65,37 @@
     return json.data||{};
   }
 
+  function renderTeamMembers(rows=[]){
+    if(!members)return;
+    members.replaceChildren();
+    if(!rows.length){
+      const empty=document.createElement('div');empty.className='teamChatMembersEmpty';empty.textContent='No team members available.';members.appendChild(empty);return;
+    }
+    const rank={online:0,away:1,busy:2,offline:3};
+    const sorted=[...rows].sort((a,b)=>{
+      const sa=rank[statusClass(a.effective_status)]??3,sb=rank[statusClass(b.effective_status)]??3;
+      if(sa!==sb)return sa-sb;
+      return String(a.display_name||a.username||'').localeCompare(String(b.display_name||b.username||''));
+    });
+    for(const row of sorted){
+      const link=document.createElement('a');link.className='teamChatMember';link.href=absoluteProfile(row.username);
+      link.appendChild(avatar(row,'30'));
+      const identity=document.createElement('span');identity.className='teamChatMemberIdentity';
+      const name=document.createElement('strong');name.textContent=row.display_name||row.username||'Annotated user';
+      const meta=document.createElement('small');meta.textContent='@'+(row.username||'user')+' · '+String(row.team_role||'member').replace(/^./,m=>m.toUpperCase());
+      identity.append(name,meta);
+      const status=document.createElement('span');const state=statusClass(row.effective_status);
+      status.className='teamChatMemberStatus status-'+state;
+      status.textContent=row.custom_status||(state==='offline'?'Inactive':statusLabel(state));
+      status.title=row.custom_status||statusLabel(state);
+      link.append(identity,status);members.appendChild(link);
+    }
+  }
+
   function applyPresence(rows=[]){
     presenceByUsername.clear();
     for(const row of rows)presenceByUsername.set(String(row.username||''),row);
+    renderTeamMembers(rows);
     document.querySelectorAll('.teamChatAvatar[data-username]').forEach(node=>{
       const p=currentPresence(node.dataset.username),dot=node.querySelector('[data-presence-dot]');
       if(dot){dot.className='chatPresenceDot status-'+statusClass(p.effective_status);dot.title=p.custom_status||statusLabel(p.effective_status);dot.setAttribute('aria-label',p.custom_status||statusLabel(p.effective_status));}
