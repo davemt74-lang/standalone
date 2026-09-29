@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';$u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
+require __DIR__.'/app/bootstrap.php';$u=require_user($pdo);research_legacy_redirect_if_needed($pdo,$u,'research-reviews.php',$_GET);header('Cache-Control: private, no-store');header('Vary: Cookie');
 $error='';$success='';$ready=research_reviews_ready($pdo);
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$op=(string)($_POST['op']??'');
