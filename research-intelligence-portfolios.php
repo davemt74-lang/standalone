@@ -58,12 +58,14 @@ $overviewAttentionCount=research_portfolios_attention_count($overviewSections);
 <section class="intelligencePortfolioStats portfolioOverviewStats">
 <div><strong><?=h((string)($cs['portfolios']??$summary['portfolios']??0))?></strong><span>Portfolios</span></div>
 <div><strong><?=h((string)$overviewAttentionCount)?></strong><span>Needs attention</span></div>
-<div><strong><?=h((string)($xs['native_decisions']??0))?></strong><span>Decisions</span></div>
+<div><strong><?=h((string)($xs['native_decisions']??0))?></strong><span>Native decisions</span></div>
 <div><strong><?=h((string)($xs['action_plans']??0))?></strong><span>Action plans</span></div>
+<div><strong><?=h((string)($xs['material_open_variances']??0))?></strong><span>Material variances</span></div>
 <div><strong><?=h((string)($ps['active_patterns']??0))?></strong><span>Learning patterns</span></div>
 <div><strong><?=h((string)($gs['conflicts']??0))?></strong><span>Strategic conflicts</span></div>
-<div><strong><?=h((string)($rs['open']??0))?></strong><span>Open reviews</span></div>
-<div><strong><?=h((string)($bs['publication_ready']??0))?></strong><span>Briefs ready</span></div>
+<div><strong><?=h((string)($gs['stale_edges']??0))?></strong><span>Stale relationships</span></div>
+<div><strong><?=h((string)($rs['open']??0))?></strong><span>Open strategic reviews</span></div>
+<div><strong><?=h((string)($bs['publication_ready']??0))?></strong><span>Strategic briefs ready</span></div>
 <div><strong><?=h((string)($os['signals']??0))?></strong><span>Cognition signals</span></div>
 </section>
 <section class="portfolioAttentionIntro card"><div><span class="eyebrow">GLOBAL ATTENTION</span><h2>What needs review now</h2><p>Existing organization intelligence is grouped here instead of living in a separate Command Center. Every item deep-links to its authoritative Portfolio, Review, Action Plan, Task, or Phase 59 publication workflow.</p></div><small>Generated <?=h((string)($center['generated_at']??date('Y-m-d H:i:s')))?></small></section>
