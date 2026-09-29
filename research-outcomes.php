@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
-$u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');$error='';$success='';
+$u=require_user($pdo);research_legacy_redirect_if_needed($pdo,$u,'research-outcomes.php',$_GET);header('Cache-Control: private, no-store');header('Vary: Cookie');$error='';$success='';
 $projectFilter=trim((string)($_GET['project']??$_POST['project']??''));$decisionFilter=trim((string)($_GET['decision']??$_POST['decision_filter']??''));
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$action=(string)($_POST['action']??'');
