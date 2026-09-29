@@ -407,6 +407,9 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
   <header class="teamChatHeader"><div><span class="eyebrow">TEAM CHAT</span><h3>Messages</h3></div><div class="teamChatHeaderActions"><button type="button" class="teamChatPopoutCurrent" data-team-chat-popout aria-label="Pop out current team chat" title="Pop out chat">↗</button><button type="button" class="teamChatClose" data-team-chat-close aria-label="Close team chat">×</button></div></header>
   <div class="teamChatTeamPicker"><select id="teamChatConversation" aria-label="Choose team"><?php foreach($chatTeams as $chat):?><option value="<?=h($chat['public_id'])?>" data-team="<?=h($chat['team_public_id'])?>" data-members="<?=h((string)$chat['member_count'])?>" data-unread="<?=h((string)$chat['unread_count'])?>" <?=$preferredTeam!==''&&$preferredTeam===$chat['team_public_id']?'selected':''?>><?=h($chat['team_name'])?><?=$chat['unread_count']?' · '.$chat['unread_count'].' new':''?></option><?php endforeach?></select><a id="teamChatOpenTeam" href="/team.php?id=<?=h($chatTeams[0]['team_public_id'])?>">Team</a></div>
   <div class="teamChatStatus"><span id="teamChatMemberCount"></span><span id="teamChatUnread" hidden></span></div>
+  <section class="teamChatMembers" id="teamChatMembers" aria-label="Team members">
+    <div class="teamChatMembersLoading">Loading team members…</div>
+  </section>
   <div class="teamChatHistoryBar"><button type="button" id="teamChatLoadEarlier" hidden>Load earlier messages</button></div>
   <div class="teamChatMessages" id="teamChatMessages" role="log" aria-live="polite" aria-label="Team messages"><div class="teamChatLoading">Loading messages…</div></div>
   <div class="teamChatReply" id="teamChatReply" hidden><span></span><button type="button" aria-label="Cancel reply">×</button></div>
