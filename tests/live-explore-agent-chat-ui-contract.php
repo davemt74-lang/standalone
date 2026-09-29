@@ -22,7 +22,7 @@ $need('explore.php','Researchers to discover','Explore must retain people discov
 $need('explore.php','Sources gaining attention','Explore must retain trending sources.');
 $need('explore.php','Growing research threads','Explore must retain topic/entity discovery.');
 $need('explore.php','Recommended annotations','Explore must retain personalized recommendations.');
-$need('explore.php','Published Research','Explore must retain published Research discovery.');
+$need('explore.php','PUBLISHED RESEARCH','Explore must retain published Research discovery.');
 
 $need('assets/css/app.css','/* Agent Chat — AI conversation layout */','Agent Chat must have the AI-first conversation style layer.');
 $need('assets/css/app.css','.agentChatMessage.is-agent{padding:0;background:transparent!important;border:0!important;box-shadow:none!important','Assistant response container must be explicitly borderless and transparent.');
