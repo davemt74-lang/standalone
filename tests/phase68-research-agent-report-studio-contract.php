@@ -57,9 +57,12 @@ $must('research-reports.php',[
   'Research Program'
 ],'Phase 68 per-Agent UI');
 
-$must('research-agent-knowledge.php',[
-  'REPORT RUNS','Open Report Studio','Report only','Open Report Run'
-],'Phase 68 Knowledge integration');
+$must('app/research-agent-shell-ui.php',[
+  "'reports'=>['label'=>'Reports']",'/research-reports.php?agent='
+],'Phase 68 canonical Reports placement');
+$must('app/research-surface-map.php',[
+  "'report_studio'=>['surface'=>'Reports','target'=>'agent.reports'"
+],'Phase 68 Report Studio compatibility through Phase 74');
 
 $must('app/bootstrap.php',[
   'research-system-reports.php','research-report-studio.php'
