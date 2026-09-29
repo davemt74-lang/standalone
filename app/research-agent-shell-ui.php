@@ -46,6 +46,8 @@ function research_agent_shell_href(array $agent,string $tab): string {
 
 function research_agent_shell_render(?array $agent,array $agents,string $active='chat',array $options=[]): string {
     if(!$agent)return '';
+    $hasCurrent=false;foreach($agents as $row)if(hash_equals((string)($row['public_id']??''),(string)$agent['public_id'])){$hasCurrent=true;break;}
+    if(!$hasCurrent)array_unshift($agents,$agent);
     $active=array_key_exists($active,research_agent_shell_tabs())?$active:'chat';
     $showWorkspace=!array_key_exists('workspace_controls',$options)||!empty($options['workspace_controls']);
     $showClose=!empty($options['close']);
