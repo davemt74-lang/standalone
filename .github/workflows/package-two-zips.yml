@@ -460,6 +460,10 @@ jobs:
           test -f package-website/research-agent-research.php
           test -f package-website/tests/phase74-section2-unified-research-agent-shell-contract.php
           test -f package-website/tests/phase74-section2-unified-research-agent-shell-db.php
+          test -f package-website/app/research-agent-knowledge-ui.php
+          test -f package-website/research-agent-knowledge.php
+          test -f package-website/tests/phase74-section3-unified-knowledge-ui-contract.php
+          test -f package-website/tests/phase74-section3-unified-knowledge-ui-db.php
           test -f package-website/tests/ci/phase73-final-supported-upgrades.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php

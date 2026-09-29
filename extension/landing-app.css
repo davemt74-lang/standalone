@@ -3769,3 +3769,30 @@
   .researchAgentResearchOverview{grid-template-columns:1fr}
   .researchAgentCanvasUnified{left:6px;right:6px;top:6px}
 }
+
+
+/* Phase 74 Section 3 — Unified Knowledge UI */
+.researchKnowledgeUnifiedCanvas{max-width:1500px}
+.researchKnowledgeUnifiedHero{padding:10px 4px 18px}
+.researchKnowledgeUnifiedHero h1{margin:.2rem 0 .35rem;font-size:clamp(1.75rem,3vw,2.8rem)}
+.researchKnowledgeUnifiedHero p{max-width:800px;margin:0;color:var(--muted,#666);line-height:1.55}
+.researchKnowledgeUnifiedNav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 18px;padding:5px;border:1px solid var(--line,#d9dde2);border-radius:13px;background:var(--soft,#f4f5f6)}
+.researchKnowledgeUnifiedNav a{min-width:0;display:grid;gap:3px;padding:11px 13px;border-radius:9px;color:inherit;text-decoration:none}
+.researchKnowledgeUnifiedNav a:hover{background:rgba(255,255,255,.72)}
+.researchKnowledgeUnifiedNav a.active{background:var(--panel,#fff);box-shadow:0 1px 4px rgba(17,24,39,.08)}
+.researchKnowledgeUnifiedNav strong{font-size:.82rem}
+.researchKnowledgeUnifiedNav span{font-size:.67rem;line-height:1.35;color:var(--muted,#666)}
+.researchKnowledgeUnifiedStats{margin-bottom:12px}
+.researchKnowledgeUnifiedActions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.researchKnowledgeUnifiedIntro{margin:0 0 16px}
+.researchKnowledgeUnifiedIntro h2{margin:.2rem 0 .4rem}
+.researchKnowledgeUnifiedIntro p{max-width:900px;margin:0;color:var(--muted,#666);line-height:1.55}
+.researchKnowledgeInsightsGrid,.researchKnowledgeChangesGrid{align-items:start}
+.researchKnowledgeMiniStats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:8px 0 10px}
+.researchKnowledgeMiniStats>div{display:grid;gap:1px;padding:9px;border:1px solid var(--line,#e1e4e7);border-radius:8px;background:var(--soft,#f7f7f5)}
+.researchKnowledgeMiniStats strong{font-size:1.05rem}.researchKnowledgeMiniStats span{font-size:.64rem;color:var(--muted,#666)}
+@media(max-width:760px){
+  .researchKnowledgeUnifiedNav{grid-template-columns:1fr}
+  .researchKnowledgeUnifiedNav a{padding:9px 10px}
+  .researchKnowledgeUnifiedActions>*{flex:1 1 145px;justify-content:center}
+}
