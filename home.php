@@ -12,7 +12,8 @@ if(empty($schemaStatus['ready'])){
     }
     $incident=app_schema_runtime_incident((string)($schemaStatus['error']?:('Runtime schema is not current: '.implode(', ',(array)($schemaStatus['pending']??[])).' changed='.implode(',',(array)($schemaStatus['changed']??[])))),'home-schema');
     http_response_code(503);
-    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated database update required</title><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head><body><main class="panel narrow"><h1>Database update required</h1><p>Annotated cannot safely load the Home workspace until the database schema matches this release.</p><?php if(($u['role']??'')==='admin'):?><p><a class="button" href="/upgrade.php">Open database upgrade</a></p><?php else:?><p>Please ask an Annotated administrator to complete the database upgrade.</p><?php endif?><p class="meta">Reference: <?=h($incident)?></p></main></body></html><?php
+    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated database update required</title><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head><body><main class="panel narrow"><h1>Database update required</h1><p>Annotated cannot safely load the Home workspace until the database schema matches this release.</p><?php if(($u['role']??'')==='admin'):?><p><a class="button" href="/upgrade.php">Open database upgrade</a></p><?php else:?><p>Please ask an Annotated administrator to complete the database upgrade.</p><?php endif?><p class="meta">Reference: <?=h($incident)?></p></main><script src="/assets/js/research-agent-unified-shell.js?v=74.2"></script>
+</body></html><?php
     exit;
 }
 
@@ -182,12 +183,8 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout">
 <?php if($requestedResearchAgent):?>
-<div class="researchAgentCanvasTopActions" data-research-canvas-controls>
-  <button type="button" class="researchLibraryOpenButton" data-research-library-open>LIBRARY</button>
-  <button type="button" class="researchDesktopOpenButton" data-research-desktop-open>DESKTOP</button>
-  <a class="researchCanvasTopLink" href="/research-agent-knowledge.php?agent=<?=h(rawurlencode((string)$requestedResearchAgent['public_id']))?>">KNOWLEDGE</a>
-  <a class="researchCanvasTopLink" href="/research-reports.php?agent=<?=h(rawurlencode((string)$requestedResearchAgent['public_id']))?>">REPORTS</a>
-  <button type="button" class="agentChatPanelClose" data-agent-panel-close aria-label="Close Research Agent">×</button>
+<div class="researchAgentCanvasTopActions researchAgentCanvasUnified" data-research-canvas-controls>
+  <?=research_agent_shell_render($requestedResearchAgent,$homeResearchAgents,'chat',['workspace_controls'=>true,'close'=>true])?>
 </div>
 <?php endif?>
 <section id="homeFeedCanvas" data-home-feed-canvas data-feed-mode="<?=h($feedMode)?>">
