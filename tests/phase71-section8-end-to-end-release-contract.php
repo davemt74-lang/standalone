@@ -27,7 +27,8 @@ $need('.github/workflows/full-regression.yml','phase71-final-supported-upgrades.
 $need('.github/workflows/package-two-zips.yml','phase71-section8-end-to-end-release-contract.php','Production package must include the final Phase 71 release contract.');
 $need('.github/workflows/package-two-zips.yml','phase71-final-supported-upgrades.php','Production package must include the supported Phase 71 upgrade matrix.');
 $need('tests/ci/package-smoke.sh','Phase 71 End-to-End Hardening & Release package extensions passed.','Package smoke must explicitly validate final Phase 71 contents.');
-$need('research.php','/research-decisions.php','Primary Research navigation must expose the Decision Command Center.');
+$need('research-agent-research.php','/research-decisions.php?agent=','Canonical Agent Research navigation must expose Decisions.');
+$need('app/research-surface-map.php',"'research-decisions.php'=>['classification'=>'MERGE_UI','target'=>'agent.research.decisions'",'Decision Command Center must retain canonical Phase 74 placement.');
 $need('research-project.php','/research-decisions.php','Research project lifecycle navigation must expose Decision governance.');
 $need('research-reviews.php','Decision reconsiderations','Review Center must advertise Decision/reconsideration review support.');
 $need('app/agent-chat.php','Decision Memory context is read-only in Agent Chat','Agent Chat must preserve read-only Decision authority.');
