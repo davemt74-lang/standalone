@@ -10,7 +10,7 @@ $need('app/shell.php','data-create-launcher-open','Universal shell must expose t
 $need('app/shell.php','data-create-launcher','Universal shell must render the create modal.');
 $need('app/shell.php','What do you want to create?','Create launcher must start with an action chooser.');
 foreach(['research_agent','portfolio','mission','task','program','decision','action_plan','document','report','sticky','team','source'] as $action)
-    $need('app/shell.php','data-create-action="'.$action.'"','Create launcher missing action '.$action.'.');
+    $need('app/shell.php',"['".$action."'",'Create launcher registry missing action '.$action.'.');
 foreach([
  'research_agent_create','research_intelligence_portfolio_create','research_mission_create','research_task_create_for_project',
  'research_program_create','research_decision_create','research_action_plan_from_decision','research_agent_workspace_create_document',
