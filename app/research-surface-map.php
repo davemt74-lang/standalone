@@ -60,6 +60,7 @@ function research_concept_aliases(): array {
         'intelligence_portfolio'=>['surface'=>'Portfolios','target'=>'portfolios','rule'=>'Keep Phase 60/73 Intelligence Portfolio as the canonical Portfolio engine.'],
         'report_studio'=>['surface'=>'Reports','target'=>'agent.reports','rule'=>'Keep System Reports, Report Runs, Report Studio, presets, delivery, provenance, and documents as one Reports engine.'],
         'desktop_workspace'=>['surface'=>'Knowledge / workspace mode','target'=>'agent.knowledge.library','rule'=>'Keep Desktop and workspace object logic; Desktop is a view of Agent files, not a separate research system.'],
+        'vp3_library'=>['surface'=>'Knowledge → Library','target'=>'agent.knowledge.library','rule'=>'Keep VP3 connection/import and vp3-library.php compatibility; package imported VP3 research into the unified Knowledge Library.'],
     ];
 }
 
