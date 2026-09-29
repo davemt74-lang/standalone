@@ -476,6 +476,8 @@ jobs:
           test -f package-website/app/research-legacy-compat.php
           test -f package-website/tests/phase74-section7-legacy-navigation-compatibility-contract.php
           test -f package-website/tests/phase74-section7-legacy-navigation-compatibility-db.php
+          test -f package-website/tests/phase74-section8-end-to-end-simplification-release-contract.php
+          test -f package-website/tests/phase74-section8-end-to-end-simplification-release-db.php
           test -f package-website/tests/ci/phase73-final-supported-upgrades.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
