@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/research-knowledge.php';require_once __DIR__.'/app/research-intelligence.php';require_once __DIR__.'/app/research-entities.php';require_once __DIR__.'/app/ai.php';require_once __DIR__.'/app/ai-access.php';require_once __DIR__.'/app/research-workspace.php';
-$u=require_user($pdo);$id=(string)($_GET['id']??$_POST['id']??'');$project=project_access($pdo,(int)$u['id'],$id);if(!$project){http_response_code(404);exit('Research project not found.');}$canWrite=project_can_write($project);$success='';$error='';$aiAnswer='';
+$u=require_user($pdo);research_legacy_redirect_if_needed($pdo,$u,'research-knowledge.php',$_GET);$id=(string)($_GET['id']??$_POST['id']??'');$project=project_access($pdo,(int)$u['id'],$id);if(!$project){http_response_code(404);exit('Research project not found.');}$canWrite=project_can_write($project);$success='';$error='';$aiAnswer='';
 if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();$op=(string)($_POST['op']??'');try{
     if(!$canWrite)throw new RuntimeException('You have view-only access to this project.');
     if($op==='create_claim'){
