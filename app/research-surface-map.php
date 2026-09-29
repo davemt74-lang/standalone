@@ -140,7 +140,7 @@ function research_engine_surface_map(): array {
         'app/research-programs.php'=>'research.recurring','app/research-provenance.php'=>'knowledge.insights',
         'app/research-publishing.php'=>'reports.published','app/research-report-studio.php'=>'reports',
         'app/research-reports.php'=>'reports','app/research-retrieval.php'=>'knowledge',
-        'app/research-reviews.php'=>'governance','app/research-system-reports.php'=>'reports',
+        'app/research-reviews.php'=>'governance','app/research-surface-map.php'=>'architecture','app/research-system-reports.php'=>'reports',
         'app/research-tasks.php'=>'research.tasks','app/research-verification.php'=>'knowledge.insights',
         'app/research-workflow.php'=>'workspace','app/research-workspace.php'=>'workspace',
     ];
