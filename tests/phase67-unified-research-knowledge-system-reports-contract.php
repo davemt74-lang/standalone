@@ -33,8 +33,13 @@ $must('app/agent-actions.php',[
 ],'Phase 67 governed Agent report action');
 $must('app/bootstrap.php',["research-system-reports.php"],'Phase 67 bootstrap');
 $must('research-agent-knowledge.php',[
- 'RESEARCH AGENT KNOWLEDGE','WHAT I KNOW','OPEN QUESTIONS','DISPUTED','KNOWLEDGE GRAPH','WHAT CHANGED','WORKING ON','REPORT RUNS'
-],'Phase 67 Knowledge surface');
+ 'RESEARCH AGENT KNOWLEDGE','FINDINGS','CLAIMS','OPEN QUESTIONS','CONTRADICTIONS','ENTITIES','SOURCE INTELLIGENCE','WHAT CHANGED','EVOLUTION'
+],'Phase 67 Knowledge engines in canonical Phase 74 surface');
+$must('app/research-agent-knowledge-ui.php',[
+ "'library'=>","'insights'=>","'changes'=>",'Verification','Provenance','Evidence Packs','Entity Graph','Claim Graph','Manage Monitoring','Evolution History'
+],'Phase 67 Knowledge compatibility through Phase 74 views');
+$must('research-agent-research.php',['Missions','Tasks','Decisions','Follow-through','Recurring'],'Phase 67 working-research compatibility through canonical Research tab');
+$must('research-reports.php',['Recent Reports'],'Phase 67 report-run compatibility through canonical Reports tab');
 $must('research-reports.php',[
  'RESEARCH AGENT · REPORT STUDIO','Run Report','Recent Reports','Saved Presets','Create Document'
 ],'Phase 67 Reports surface');
