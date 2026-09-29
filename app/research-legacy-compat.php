@@ -49,19 +49,17 @@ function research_legacy_route_target(PDO $pdo,array $viewer,string $route,array
     return match($route){
         'research-intelligence-command-center.php'=>research_portfolios_href('overview'),
         'research-portfolio.php'=>research_portfolios_href('overview'),
-        'research-knowledge.php'=>research_legacy_query_url('/research-agent-knowledge.php',[
-            'agent'=>(string)(($projectId!==''?research_legacy_agent_by_project($pdo,$viewer,$projectId):$agent)['public_id']??''),
-            'view'=>'library',
-        ]),
+        'research-knowledge.php'=>($knowledgeAgent=$projectId!==''?research_legacy_agent_by_project($pdo,$viewer,$projectId):$agent)
+            ?research_legacy_query_url('/research-agent-knowledge.php',['agent'=>(string)$knowledgeAgent['public_id'],'view'=>'library'])
+            :null,
         'research-project.php'=>($projectId!==''&&($projectAgent=research_legacy_agent_by_project($pdo,$viewer,$projectId)))
             ?research_legacy_query_url('/home.php',['agent'=>(string)$projectAgent['conversation_public_id']])
-            :'/research.php',
-        'research-brief.php'=>research_legacy_query_url('/research-reports.php',[
-            'agent'=>(string)(($projectId!==''?research_legacy_agent_by_project($pdo,$viewer,$projectId):$agent)['public_id']??''),
-            'view'=>'create','type'=>'research_brief',
-        ]),
+            :null,
+        'research-brief.php'=>($briefAgent=$projectId!==''?research_legacy_agent_by_project($pdo,$viewer,$projectId):$agent)
+            ?research_legacy_query_url('/research-reports.php',['agent'=>(string)$briefAgent['public_id'],'view'=>'create','type'=>'research_brief'])
+            :null,
         'research-outcomes.php'=>trim((string)($query['id']??''))!==''?null:research_legacy_query_url('/research-agent-research.php',['agent'=>$agentId,'view'=>'decisions']),
-        'research-reviews.php'=>trim((string)($query['id']??''))!==''?null:research_portfolios_href('overview',null,['focus'=>'review']),
+        'research-reviews.php'=>array_diff_key($query,['legacy'=>true])?null:research_portfolios_href('overview',null,['focus'=>'review']),
         'research-automations.php'=>trim((string)($query['id']??''))!==''?null:research_legacy_query_url('/research-agent-research.php',['agent'=>$agentId,'view'=>'recurring']),
         default=>null,
     };
