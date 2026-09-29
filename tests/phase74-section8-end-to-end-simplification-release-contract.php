@@ -51,7 +51,7 @@ $need('docs/phase-74-research-agent-simplification.md','report.php and report-st
 $need('tests/ci/run-static-contracts.sh','phase74-section8-end-to-end-simplification-release-contract.php','Static contracts must execute final Phase 74 release contract.');
 $need('tests/ci/run-full-regression.sh','phase74-section8-end-to-end-simplification-release-db.php','Full regression must execute final Phase 74 integrated journey.');
 $need('.github/workflows/full-regression.yml','phase74-section8-end-to-end-simplification-release-db.php','MySQL workflow must execute the Phase 74 final journey.');
-$need('.github/workflows/full-regression.yml',"cancel-in-progress: ${{ github.event.action == 'synchronize' }}",'Full regression must cancel superseded feature heads while preserving metadata-edit evidence.');
+$need('.github/workflows/full-regression.yml',"cancel-in-progress: \${{ github.event.action == 'synchronize' }}",'Full regression must cancel superseded feature heads while preserving metadata-edit evidence.');
 $need('.github/workflows/package-two-zips.yml','phase74-section8-end-to-end-simplification-release-contract.php','Website package must include final Phase 74 contract.');
 $need('.github/workflows/package-two-zips.yml','phase74-section8-end-to-end-simplification-release-db.php','Website package must include final Phase 74 DB journey.');
 $need('tests/ci/package-smoke.sh','Phase 74 End-to-End Simplification Release package extensions passed.','Package smoke must explicitly validate final Phase 74 contents.');
