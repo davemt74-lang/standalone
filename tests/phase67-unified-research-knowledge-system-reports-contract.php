@@ -40,8 +40,11 @@ $must('research-reports.php',[
 ],'Phase 67 Reports surface');
 $must('home.php',[
  'data-research-library-filter="claim"','data-research-library-filter="finding"','data-research-library-filter="entity"','data-research-library-filter="relation"','data-research-library-filter="report"',
- '/research-agent-knowledge.php?agent=','/research-reports.php?agent='
+ "research_agent_shell_render(\$requestedResearchAgent,\$homeResearchAgents,'chat'"
 ],'Phase 67 Research Agent canvas');
+$must('app/research-agent-shell-ui.php',[
+ '/research-agent-knowledge.php?agent=','/research-reports.php?agent='
+],'Phase 67 canonical Agent Knowledge/Reports routes');
 $must('research.php',['Knowledge','Reports',"research_agent_shell_href(\$agent,'knowledge')","research_agent_shell_href(\$agent,'reports')"],'Phase 67 Research Agents canonical navigation');
 $must('app/research-agent-shell-ui.php',["'knowledge'=>['label'=>'Knowledge']","'reports'=>['label'=>'Reports']"],'Phase 67 unified Agent shell navigation');
 $must('api/research-system-reports.php',["\$action==='types'","\$action==='knowledge'","\$action==='generate'","\$action==='archive'","METHOD_NOT_ALLOWED","require_api_mutation_auth","research_system_report_archive(\$pdo,\$viewer,(string)(\$input['report_id']??''),\$agent)"],'Phase 67 report API lineage');
