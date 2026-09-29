@@ -30,6 +30,7 @@ $need('assets/css/app.css','.agentChatMessage.is-agent .agentChatMessageBody{max
 $need('assets/css/app.css','.agentChatMessage.is-user{display:grid;justify-items:end}','User prompts must remain visually distinct from Agent responses.');
 $need('assets/css/app.css','.homeFeedPage.agentChatMode .homeAgentDock','Agent Chat composer must retain a dedicated AI-chat dock.');
 $need('home.php','/assets/css/app.css?v=76.0','Home must load the refreshed chat styles.');
+$need('assets/css/app.css','.researchAdvancedTools{margin-top:0;margin-left:auto;justify-self:end;align-self:center;text-align:right}','Advanced Research tools control must float to the right on desktop.');
 
 $site=$read('assets/css/app.css');$ext=$read('extension/landing-app.css');
 if($site!==''&&$ext!==''&&!hash_equals(hash('sha256',$site),hash('sha256',$ext)))$fail[]='Extension landing CSS must remain byte-identical to website CSS.';
