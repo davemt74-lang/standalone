@@ -75,14 +75,7 @@ $choices=$selected?research_report_studio_scope_choices($pdo,$u,$selectedId):['s
 $subscriptions=$deliveryReady&&$selected?research_report_subscription_list($pdo,$u,$selectedId,100,false):[];
 $deliveries=$deliveryReady&&$selected?research_report_delivery_list($pdo,$u,$selectedId,100,true):[];
 $newDeliveryCount=count(array_filter($deliveries,fn($d)=>($d['status']??'')==='delivered'));
-$publicationWorkflows=[];
-if($publicationReady&&$selected){
-    foreach(research_publication_list($pdo,$u,'all',250) as $workflow){
-        $sameAgent=!empty($workflow['agent_public_id'])&&hash_equals((string)$workflow['agent_public_id'],$selectedId);
-        $sameProject=!empty($workflow['project_public_id'])&&!empty($selected['project_public_id'])&&hash_equals((string)$workflow['project_public_id'],(string)$selected['project_public_id']);
-        if($sameAgent||$sameProject)$publicationWorkflows[]=$workflow;
-    }
-}
+$publicationWorkflows=$publicationReady&&$selected?research_agent_reports_filter_publications($selected,research_publication_list($pdo,$u,'all',250)):[];
 $publicationCounts=[];foreach($publicationWorkflows as $workflow){$status=(string)($workflow['status']??'draft');$publicationCounts[$status]=(int)($publicationCounts[$status]??0)+1;}
 $publicationDocumentId=trim((string)($_GET['doc']??''));$publicationDocument=null;
 if($publicationDocumentId!==''&&$selected){$candidate=research_agent_workspace_object($pdo,$u,$publicationDocumentId,false);if($candidate&&($candidate['object_type']??'')==='document'&&hash_equals((string)$candidate['project_public_id'],(string)$selected['project_public_id']))$publicationDocument=$candidate;}
@@ -156,7 +149,7 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
 
     <section class="researchReportsCreateBridge card"><span class="eyebrow">BRIEFINGS</span><h2>Portfolio & executive briefings</h2><p>Strategic briefings keep their existing Portfolio lineage, Team Review, frozen-packet, and publication gates. Reports is the entry point; the Portfolio engine remains authoritative.</p><a class="button secondary" href="/research-intelligence-portfolios.php">Open Portfolio briefings</a></section>
 
-    <section class="researchReportsHistory"><div class="sectionHeadWeb"><div><span class="eyebrow">SAVED PRESETS · CREATE</span><h2>Reusable report configurations</h2></div><a class="button" href="/research-reports.php?agent=<?=h(rawurlencode($selectedId))?>&view=create">New preset</a></div>
+    <section class="researchReportsHistory"><div class="sectionHeadWeb"><div><span class="eyebrow">CREATE · REUSABLE CONFIGURATIONS</span><h2>Saved Presets</h2></div><a class="button" href="/research-reports.php?agent=<?=h(rawurlencode($selectedId))?>&view=create">New preset</a></div>
     <?php if(!$presets):?><div class="card empty">No saved presets for this Research Agent yet.</div><?php endif?>
     <div class="researchReportsList"><?php foreach($presets as $p):?><article class="card researchReportRow"><div><span class="eyebrow"><?=h(strtoupper((string)($types[$p['report_type']]['label']??$p['report_type'])))?></span><h3><?=h((string)$p['name'])?></h3><small><?=h((string)($p['parameters']['depth']??'standard'))?> depth<?php if(!empty($p['program_title'])):?> · Program: <?=h((string)$p['program_title'])?><?php endif?><?php if(!empty($p['last_run_at'])):?> · Last run <?=h((string)$p['last_run_at'])?><?php endif?></small></div><div class="inlineActions">
       <form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent" value="<?=h($selectedId)?>"><input type="hidden" name="preset_id" value="<?=h((string)$p['public_id'])?>"><button class="button" name="op" value="run_preset">Run</button><button class="button secondary" name="op" value="archive_preset">Archive</button></form>
@@ -182,7 +175,7 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
           <button class="button" name="op" value="create_subscription">Create subscription</button>
         </form><?php endif?>
       </article>
-      <section class="researchReportsHistory"><div class="sectionHeadWeb"><div><span class="eyebrow">SUBSCRIPTIONS</span><h2><?=h((string)$selected['name'])?></h2></div></div>
+      <section class="researchReportsHistory"><div class="sectionHeadWeb"><div><span class="eyebrow">SCHEDULED</span><h2>Subscriptions · <?=h((string)$selected['name'])?></h2></div></div>
         <?php if(!$subscriptions):?><div class="card empty">No Report subscriptions for this Research Agent yet.</div><?php endif?>
         <div class="researchReportsList"><?php foreach($subscriptions as $s):?><article class="card researchReportRow <?=$activeSubscription&&$activeSubscription['public_id']===$s['public_id']?'is-active':''?>">
           <div><span class="eyebrow"><?=h(strtoupper((string)$s['status']))?> · <?=h(strtoupper(str_replace('_',' ',(string)$s['delivery_policy'])))?></span><h3><?=h((string)$s['name'])?></h3><small><?=h((string)$s['preset_name'])?> · <?=h((string)$s['program_title'])?> · <?=h((string)$s['program_cadence'])?><?php if(!empty($s['program_next_run_at'])):?> · Next <?=h((string)$s['program_next_run_at'])?><?php endif?><?php if(!empty($s['last_delivered_at'])):?> · Last delivered <?=h((string)$s['last_delivered_at'])?><?php endif?></small></div>
@@ -210,7 +203,7 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
     <section class="card empty"><h2>Scheduled Reports need the latest database upgrade.</h2><p>The existing Research Program scheduler and delivery runtime remain authoritative.</p><?php if(($u['role']??'')==='admin'):?><a class="button" href="/upgrade.php">Run database upgrade</a><?php endif?></section>
   <?php elseif($view==='recent'):?>
     <?php if($deliveryReady):?>
-    <section class="researchReportsHistory"><div class="sectionHeadWeb"><div><span class="eyebrow">RECENT · INTELLIGENCE INBOX</span><h2>What this Research Agent delivered</h2><p>Delivered, suppressed, and failed cycles are preserved so you can see both signal and intentional silence.</p></div></div>
+    <section class="researchReportsHistory"><div class="sectionHeadWeb"><div><span class="eyebrow">RECENT DELIVERY HISTORY</span><h2>Intelligence Inbox</h2><p>Delivered, suppressed, and failed cycles are preserved so you can see both signal and intentional silence.</p></div></div>
       <?php if(!$deliveries):?><div class="card empty">No intelligence deliveries yet. A linked Research Program cycle or “Deliver now” will create the first delivery.</div><?php endif?>
       <div class="researchReportsList"><?php foreach($deliveries as $d):?><article class="card researchReportRow reportDeliveryRow <?=$activeDelivery&&$activeDelivery['public_id']===$d['public_id']?'is-active':''?>">
         <div><span class="eyebrow"><?=h(strtoupper((string)$d['status']))?><?=((int)$d['material_change_count']>0?' · '.h((string)$d['material_change_count']).' MATERIAL CHANGE'.((int)$d['material_change_count']===1?'':'S'):'' )?></span><h3><?=h((string)($d['report_title']?:$d['preset_name']?:'Research intelligence cycle'))?></h3><p><?=h((string)($d['summary']?:str_replace('_',' ',(string)$d['reason_code'])))?></p><small><?=h((string)$d['program_title'])?> · <?=h(str_replace('_',' ',(string)$d['trigger_type']))?> · <?=h((string)$d['created_at'])?></small></div>
@@ -224,7 +217,7 @@ $selectOptions=function(array $rows,string $selectedValue=''): string{$html='';f
     </section><?php endif?>
     <?php endif?>
     <section class="researchReportsHistory">
-      <div class="sectionHeadWeb"><div><span class="eyebrow">RECENT REPORTS · REPORT RUNS</span><h2>History for <?=h((string)$selected['name'])?></h2></div><a class="button" href="/research-reports.php?agent=<?=h(rawurlencode($selectedId))?>&view=create">Run report</a></div>
+      <div class="sectionHeadWeb"><div><span class="eyebrow">REPORT RUNS</span><h2>Recent Reports for <?=h((string)$selected['name'])?></h2></div><a class="button" href="/research-reports.php?agent=<?=h(rawurlencode($selectedId))?>&view=create">Run report</a></div>
       <?php if(!$reports):?><div class="card empty">No Report Runs yet.</div><?php endif?>
       <div class="researchReportsList"><?php foreach($reports as $r):?><article class="card researchReportRow <?=$active&&$active['public_id']===$r['public_id']?'is-active':''?>">
         <div><span class="eyebrow"><?=h(strtoupper((string)$r['type_label']))?> · <?=h(strtoupper((string)($r['freshness_state']??'current')))?></span><h3><?=h((string)$r['title'])?></h3><small>Data state <?=h(substr((string)$r['input_state_hash'],0,12))?> · <?=h((string)$r['created_at'])?> · <?=!empty($r['document_public_id'])?'Document created':'Report only'?></small></div>
