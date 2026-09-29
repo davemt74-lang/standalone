@@ -115,6 +115,25 @@ function research_automation_list(PDO $pdo,array $viewer,int $limit=100): array 
     foreach($q->fetchAll(PDO::FETCH_COLUMN) as $id){$row=research_automation_access($pdo,$viewer,(string)$id);if($row)$out[]=$row;}return $out;
 }
 
+function research_automation_project_options(PDO $pdo,array $viewer,int $limit=250): array {
+    $limit=max(1,min(500,$limit));
+    $q=$pdo->prepare("SELECT rp.public_id,rp.title,
+      CASE WHEN rp.owner_user_id=? THEN 'owner' ELSE COALESCE(tm.role,'viewer') END access_role,
+      rp.updated_at automation_sort_updated_at,rp.id automation_sort_id
+      FROM research_projects rp
+      LEFT JOIN team_members tm ON tm.team_id=rp.team_id AND tm.user_id=?
+      WHERE rp.owner_user_id=? OR tm.user_id=?
+      ORDER BY rp.updated_at DESC,rp.id DESC
+      LIMIT ".$limit);
+    $q->execute([$viewer['id'],$viewer['id'],$viewer['id'],$viewer['id']]);
+    $seen=[];$out=[];
+    foreach($q->fetchAll() as $row){
+        $public=(string)($row['public_id']??'');if($public===''||isset($seen[$public]))continue;$seen[$public]=true;
+        unset($row['automation_sort_updated_at'],$row['automation_sort_id']);$out[]=$row;
+    }
+    return $out;
+}
+
 function research_automation_update(PDO $pdo,array $viewer,string $publicId,array $input): array {
     $current=research_automation_access($pdo,$viewer,$publicId);if(!$current)throw new RuntimeException('Research Automation not found.');
     $title=mb_substr(trim((string)($input['title']??$current['title'])),0,190);if($title==='')throw new InvalidArgumentException('Automation title is required.');
