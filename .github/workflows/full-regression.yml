@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: annotated-full-regression-v2-${{ github.event.pull_request.number }}
+  group: annotated-full-regression-v3-${{ github.event.pull_request.number }}
   # A new feature-head commit supersedes stale release evidence and must free the
   # expensive MySQL lane. Benign PR metadata edits still keep a valid run alive.
   cancel-in-progress: ${{ github.event.action == 'synchronize' }}
