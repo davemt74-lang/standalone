@@ -16,7 +16,7 @@ foreach([
  'assets/js/research-agent-workspace-ui.js','tests/phase52-research-agent-desktop-db.php'
 ] as $file)if(!is_file($root.'/'.$file))$fail[]='Phase 52 file missing: '.$file;
 
-$need('home.php','data-research-desktop-open','Research Agent chat must expose a DESKTOP control.');
+$need('app/research-agent-shell-ui.php','data-research-desktop-open','Research Agent chat must expose a DESKTOP control through the unified shell.');
 $need('home.php','researchAgentCanvasTopActions','DESKTOP and close controls must share the Agent canvas top-action area.');
 $need('home.php','data-research-desktop','Research Agent must include a dedicated full-width Desktop layer.');
 $need('home.php','data-research-desktop-icons','Desktop must have an icon layer.');
