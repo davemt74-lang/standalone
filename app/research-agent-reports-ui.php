@@ -60,6 +60,17 @@ function research_agent_reports_engine_links(array $agent): array {
     ];
 }
 
+function research_agent_reports_filter_publications(array $agent,array $workflows): array {
+    $agentPublic=trim((string)($agent['public_id']??''));
+    $projectPublic=trim((string)($agent['project_public_id']??''));
+    return array_values(array_filter($workflows,static function(array $workflow)use($agentPublic,$projectPublic): bool {
+        $workflowAgent=trim((string)($workflow['agent_public_id']??''));
+        $workflowProject=trim((string)($workflow['project_public_id']??''));
+        return ($agentPublic!==''&&$workflowAgent!==''&&hash_equals($workflowAgent,$agentPublic))
+            ||($projectPublic!==''&&$workflowProject!==''&&hash_equals($workflowProject,$projectPublic));
+    }));
+}
+
 function research_agent_reports_publication_href(string $agentPublic,array $workflow): string {
     $public=trim((string)($workflow['public_id']??''));
     if($public==='')return research_agent_reports_href($agentPublic,'published');
