@@ -90,7 +90,7 @@ The old product concept should disappear from normal navigation. A later Phase 7
 
 ### LEGACY ROUTE
 
-`report-status.php`, `report.php`, `research-automations.php`, `research-brief.php`, `research-intelligence-command-center.php`, `research-knowledge.php`, `research-outcomes.php`, `research-portfolio.php`, `research-project.php`, and `research-reviews.php`.
+`research-automations.php`, `research-brief.php`, `research-intelligence-command-center.php`, `research-knowledge.php`, `research-outcomes.php`, `research-portfolio.php`, `research-project.php`, and `research-reviews.php`.
 
 ### HIDE / contextual inspector
 
@@ -465,3 +465,43 @@ The canonical Research UI no longer advertises the old standalone Automations pr
 During the audit, `report.php` and `report-status.php` were identified as Trust & Safety moderation routes rather than Research Report routes. They are explicitly excluded from the Research compatibility inventory and remain unchanged.
 
 Section 7 adds no migration 104, no new scheduler, no new worker, no new permission model, and no new authority system.
+
+
+## Section 8 — End-to-End Simplification Release
+
+Section 8 closes Phase 74 as a release-hardening phase rather than adding another Research subsystem.
+
+The final product model is:
+
+**Global Research → Research Agents | Portfolios**
+
+**Research Agent → Chat | Knowledge | Research | Reports**
+
+**Knowledge → Library | Insights | Changes**
+
+**Research → Missions | Tasks | Decisions | Follow-through | Recurring**
+
+**Reports → Create | Recent | Scheduled | Published**
+
+**Portfolios → Overview | Portfolios**
+
+The end-to-end acceptance journey proves that one Team Research Agent keeps the same Agent, Project, conversation and permission identities while navigating every canonical surface. Missions, Task Plans, Decisions, Action Plans, Programs and Intelligence Portfolios continue to use the mature authoritative engines underneath the simplified UI.
+
+Legacy compatibility remains bounded and read-only at the routing layer. Old Project, Knowledge, Brief, Automations, Portfolio, Review Center and Command Center entry points resolve into their canonical Phase 74 surfaces when a safe mapping exists. Object-specific legacy inspectors remain available where they preserve advanced history or actions.
+
+The Section 7 audit also corrected an architectural inventory mistake: **report.php and report-status.php are Trust & Safety moderation routes, not Research Report routes**. They remain unchanged and outside the Research product compatibility map.
+
+Phase 74 introduces no migration 104, no replacement scheduler, no duplicate Agent/Project authority, no parallel reporting engine, no parallel review engine and no simplification worker. Migration 103 remains the current schema boundary.
+
+Release acceptance requires:
+
+- PHP 8.1 and PHP 8.3 contract suites
+- model-governance integration
+- PHP 8.1 and PHP 8.3 full historical regression
+- MySQL fresh install and supported upgrade rehearsals through migration 103
+- Section 1–8 permanent contracts
+- website and Chrome extension production packaging
+- package smoke tests and checksums
+- exact-head validation before merge
+
+**Phase 74 is complete** when those gates are green on the exact Section 8 feature head and the zero-diff merge is verified.
