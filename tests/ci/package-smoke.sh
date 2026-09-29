@@ -47,7 +47,7 @@ required=(
   app/research-surface-map.php tests/phase74-section1-canonical-ui-compatibility-map-contract.php docs/phase-74-research-agent-simplification.md
   app/research-agent-shell-ui.php assets/js/research-agent-unified-shell.js research-agent-research.php tests/phase74-section2-unified-research-agent-shell-contract.php tests/phase74-section2-unified-research-agent-shell-db.php
   app/research-agent-reports-ui.php tests/phase74-section5-unified-reports-ui-contract.php tests/phase74-section5-unified-reports-ui-db.php
-  app/research-portfolios-ui.php tests/phase74-section6-portfolios-global-attention-contract.php tests/phase74-section6-portfolios-global-attention-db.php app/research-legacy-compat.php tests/phase74-section7-legacy-navigation-compatibility-contract.php tests/phase74-section7-legacy-navigation-compatibility-db.php
+  app/research-portfolios-ui.php tests/phase74-section6-portfolios-global-attention-contract.php tests/phase74-section6-portfolios-global-attention-db.php app/research-legacy-compat.php tests/phase74-section7-legacy-navigation-compatibility-contract.php tests/phase74-section7-legacy-navigation-compatibility-db.php tests/phase74-section8-end-to-end-simplification-release-contract.php tests/phase74-section8-end-to-end-simplification-release-db.php
   extension/manifest.json downloads/Annotated-Chrome-Extension.zip
 )
 for path in "${required[@]}"; do [[ -f "$tmp/site/$path" ]] || { echo "Missing website package file: $path" >&2; exit 1; }; done
@@ -155,3 +155,4 @@ echo "Phase 74 Section 4 Unified Research UI package extensions passed."
 echo "Phase 74 Section 5 Unified Reports UI package extensions passed."
 echo "Phase 74 Section 6 Portfolios & Global Attention package extensions passed."
 echo "Phase 74 Section 7 Legacy Route & Navigation Compatibility package extensions passed."
+echo "Phase 74 End-to-End Simplification Release package extensions passed."

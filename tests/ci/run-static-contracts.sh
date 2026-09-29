@@ -71,6 +71,7 @@ php tests/phase74-section4-unified-research-ui-contract.php
 php tests/phase74-section5-unified-reports-ui-contract.php
 php tests/phase74-section6-portfolios-global-attention-contract.php
 php tests/phase74-section7-legacy-navigation-compatibility-contract.php
+php tests/phase74-section8-end-to-end-simplification-release-contract.php
 php tests/research-folder-canvas-contract.php
 php tests/workspace-library-canvas-contract.php
 php -n tests/runtime-compat-contract.php
