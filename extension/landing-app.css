@@ -3863,3 +3863,51 @@
 .portfolioContextAttentionGrid>section{min-width:0}
 .portfolioContextAttentionGrid h4{margin:0 0 6px}
 @media(max-width:800px){.portfolioAttentionGrid,.portfolioContextAttentionGrid{grid-template-columns:1fr}.portfolioAttentionIntro{display:block}.portfolioAttentionIntro small{display:block;margin-top:8px}.portfolioUnifiedTabs{overflow:auto}}
+
+
+/* Phase 75 Section 1 — Research Home & Agent Launcher */
+.researchHomeCanvas{width:min(100%,1480px);margin:0 auto;padding:34px 36px 80px}
+.researchHomeHero{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;padding:8px 2px 26px}
+.researchHomeHero h1{margin:.16em 0 .18em;font-size:clamp(2.2rem,4.4vw,4.1rem);line-height:.98;letter-spacing:-.055em}
+.researchHomeHero p{max-width:760px;margin:0;color:#636a72;font-size:.95rem;line-height:1.55}
+.researchHomeHeroActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.researchHomeStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 30px}
+.researchHomeStats a{display:grid;gap:3px;padding:15px 16px;border:1px solid #dfe2e6;border-radius:10px;background:#fff;text-decoration:none}
+.researchHomeStats a:hover{border-color:#c6cbd1;box-shadow:0 6px 18px rgba(17,24,39,.05)}
+.researchHomeStats strong{font-size:1.35rem;letter-spacing:-.04em}.researchHomeStats span{color:#7a8088;font-size:.67rem;font-weight:700}
+.researchHomeSection{margin:0 0 30px}.researchHomeSection[hidden]{display:none!important}
+.researchHomeSectionHead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 2px 12px}
+.researchHomeSectionHead h2{margin:3px 0 0;font-size:1.08rem;letter-spacing:-.02em}
+.researchHomeSectionHead>a,.researchHomeSectionHead>span,.researchHomeSectionHead>small{color:#747b83;font-size:.66rem;text-decoration:none}
+.researchHomeSectionHead>a:hover{color:#111;text-decoration:underline}
+.researchHomeAgentGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:14px}
+.researchHomeAgentCard{min-width:0;display:flex;flex-direction:column;border:1px solid #dce0e4;border-radius:11px;background:#fff;box-shadow:0 1px 2px rgba(17,24,39,.035);overflow:hidden}
+.researchHomeAgentCard.is-favorite{border-color:#c8cdd3;box-shadow:0 7px 20px rgba(17,24,39,.06)}
+.researchHomeAgentMain{flex:1;display:block;padding:16px;color:inherit;text-decoration:none}
+.researchHomeAgentMain:hover{background:#fbfbfa}
+.researchHomeAgentTop{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:center}
+.researchHomeAgentIcon{width:32px;height:32px;display:grid;place-items:center;border:1.5px solid #22262b;border-radius:8px;background:#f7f8f9;font-size:.8rem}
+.researchHomeAgentTop small{display:block;margin-bottom:2px;color:#8b9199;font-size:.57rem;font-weight:760;letter-spacing:.05em;text-transform:uppercase}
+.researchHomeAgentTop h3{margin:0;overflow:hidden;font-size:.93rem;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
+.researchHomeAgentMain>p{min-height:37px;margin:12px 0 10px;color:#666d75;font-size:.7rem;line-height:1.42}
+.researchHomeAgentState{display:flex;justify-content:space-between;gap:10px;color:#888f97;font-size:.61rem}
+.researchHomeAgentMain blockquote{margin:11px 0 0;padding:7px 9px;border:0;border-left:2px solid #d8dce1;border-radius:0;background:#fafbfc;color:#666d75;font-size:.64rem;line-height:1.4}
+.researchHomeAgentCard>footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-top:1px solid #eceef1;background:#fcfcfb}
+.researchHomeFavorite{width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;border:1px solid #dfe2e6!important;border-radius:7px!important;background:#fff!important;color:#5f666e!important;font-size:.95rem!important}
+.researchHomeAgentCard>footer nav{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.researchHomeAgentCard>footer a{color:#747b83;font-size:.61rem;text-decoration:none}.researchHomeAgentCard>footer a:hover{color:#111;text-decoration:underline}
+.researchHomeColumns{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.researchHomeCompactList,.researchHomeActivityList{border:1px solid #dfe2e6;border-radius:10px;background:#fff;overflow:hidden}
+.researchHomeCompactRow,.researchHomeActivityRow{display:grid;align-items:center;gap:14px;padding:12px 14px;border-bottom:1px solid #eceef1;color:inherit;text-decoration:none}
+.researchHomeCompactRow{grid-template-columns:minmax(0,1fr) auto}.researchHomeActivityRow{grid-template-columns:30px minmax(0,1fr) auto}
+.researchHomeCompactRow:last-child,.researchHomeActivityRow:last-child{border-bottom:0}
+.researchHomeCompactRow:hover,.researchHomeActivityRow:hover{background:#f8f9fa}
+.researchHomeCompactRow div,.researchHomeActivityRow div{min-width:0;display:grid;gap:2px}
+.researchHomeCompactRow strong,.researchHomeActivityRow strong{overflow:hidden;font-size:.73rem;text-overflow:ellipsis;white-space:nowrap}
+.researchHomeCompactRow small,.researchHomeActivityRow small{overflow:hidden;color:#858c94;font-size:.61rem;text-overflow:ellipsis;white-space:nowrap}
+.researchHomeCompactRow>span,.researchHomeActivityRow time{color:#959ba2;font-size:.59rem;white-space:nowrap}
+.researchHomeActivityIcon{width:28px;height:28px;display:grid;place-items:center;border-radius:7px;background:#f1f3f4;color:#555c64;font-size:.68rem}
+.researchHomeEmpty{padding:28px;border:1px dashed #cfd4d9;border-radius:10px;background:#fff;text-align:center}.researchHomeEmpty p{color:#777f87}
+.researchHomeEmptyLine{margin:0;padding:18px;color:#858c94;font-size:.69rem}
+@media(max-width:900px){.researchHomeStats{grid-template-columns:repeat(2,minmax(0,1fr))}.researchHomeColumns{grid-template-columns:1fr}.researchHomeHero{align-items:flex-start;flex-direction:column}.researchHomeHeroActions{justify-content:flex-start}}
+@media(max-width:620px){.researchHomeCanvas{padding:24px 16px 64px}.researchHomeStats{grid-template-columns:1fr 1fr}.researchHomeAgentGrid{grid-template-columns:1fr}.researchHomeSectionHead{align-items:flex-start;flex-direction:column}.researchHomeActivityRow{grid-template-columns:28px minmax(0,1fr)}.researchHomeActivityRow time{grid-column:2}.researchHomeHeroActions{width:100%}.researchHomeHeroActions .button,.researchHomeHeroActions button{flex:1}}

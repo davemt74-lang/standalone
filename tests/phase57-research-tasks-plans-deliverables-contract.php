@@ -51,7 +51,8 @@ foreach(['RESEARCH EXECUTION','data-plan-create','data-plan-update','data-task-a
   $must(str_contains($page,$needle),'Phase 57 Task Center contract missing: '.$needle);
 
 $research=(string)file_get_contents($root.'/research.php');
-$must(str_contains($research,'researchAgentTaskSummary')&&str_contains($research,'task_summary'),'Phase 57 Research landing must retain per-Agent Task summaries.');
+$must(!str_contains($research,'researchAgentTaskSummary')&&!str_contains($research,'research_task_summary('),'Phase 75 Research Home must not duplicate per-Agent Task summaries.');
+$must(str_contains($research,'researchHomeAgentGrid'),'Phase 57 Tasks remain reachable from Research Home through canonical Agent launcher objects.');
 $researchTab=(string)file_get_contents($root.'/research-agent-research.php');
 $researchUi=(string)file_get_contents($root.'/app/research-agent-research-ui.php');
 $must(str_contains($researchTab,'research_task_plan_list')&&str_contains($researchUi,'/research-tasks.php?agent=')&&str_contains($researchUi,"'label'=>'Tasks'"),'Phase 57 Tasks must remain reachable through the canonical Agent Research tab.');

@@ -1,25 +1,15 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
-require_once __DIR__.'/app/research-library.php';
+require_once __DIR__.'/app/research-home-ui.php';
 $u=require_user($pdo);
 $researchAgents=[];
 try{
     if(function_exists('research_agent_ensure_default'))research_agent_ensure_default($pdo,$u);
-    if(function_exists('research_agent_list'))$researchAgents=research_agent_list($pdo,$u,30);
+    if(function_exists('research_agent_list'))$researchAgents=research_agent_list($pdo,$u,50);
 }catch(Throwable $e){}
-foreach($researchAgents as &$agent){
-    $agent['chat_feed']=function_exists('research_agent_chat_feed')
-        ?research_agent_chat_feed($pdo,$u,(string)$agent['public_id'],6)
-        :[];
-    $agent['task_summary']=function_exists('research_tasks_ready')&&research_tasks_ready($pdo)
-        ?research_task_summary($pdo,$u,(string)$agent['public_id'])
-        :['active'=>0,'waiting'=>0,'review'=>0,'complete'=>0];
-    $agent['program_summary']=function_exists('research_programs_ready')&&research_programs_ready($pdo)
-        ?research_program_summary($pdo,$u,(string)$agent['public_id'])
-        :['active'=>0,'review_tasks'=>0,'failed_runs'=>0,'next_run_at'=>null];
-}
-unset($agent);
+$home=research_home_dashboard($pdo,$u,$researchAgents);
+$summary=$home['summary'];
 ?>
 <!doctype html>
 <html>
@@ -27,88 +17,119 @@ unset($agent);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css?v=59.0">
+<link rel="stylesheet" href="/assets/css/app.css?v=75.1">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research">
-<main class="researchLibraryCanvas">
-  <section class="researchLibraryToolbar researchUnifiedGlobalNav" aria-label="Research">
-    <nav class="researchLibraryTabs researchPrimaryActions">
-      <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a>
-      <a href="/research-intelligence-portfolios.php">Portfolios</a>
-    </nav>
-    <details class="researchAdvancedTools researchCompatibilityTools">
-      <summary>Advanced Research tools</summary>
-      <div class="researchAdvancedMenu">
-        <a href="/research-portfolio.php">Legacy Portfolio</a>
-        <a href="/research-network.php">Research Network</a>
-        <a href="/research-citations.php">Citations</a>
-        <a href="/research-audit.php">Audit Ledger</a>
-        <a href="/research-provenance.php">Provenance</a>
-        <a href="/research-verification.php">Verification</a>
-        <a href="/research-evidence-packs.php">Evidence Packs</a>
-        <a href="/research-monitoring.php">Monitoring</a>
-        <a href="/research-missions.php">Missions</a>
-        <a href="/research-tasks.php">Tasks</a>
-        <a href="/research-programs.php">Programs</a>
-        <a href="/research-publications.php">Publishing</a>
-        <a href="/research-decisions.php">Decisions</a>
-        <a href="/research-action-plans.php">Action Plans</a>
-        <a href="/research-reviews.php">Review Center</a>
-        <a href="/research-outcomes.php">Decision Memory</a>
-        <a href="/cross-research.php">Related Research</a>
-        <a href="/research-automations.php">Automations</a>
-      </div>
-    </details>
+<main class="researchHomeCanvas" data-research-home>
+  <header class="researchHomeHero">
+    <div>
+      <span class="eyebrow">RESEARCH</span>
+      <h1>Your research workspace</h1>
+      <p>Open a Research Agent, continue recent work, or move into Portfolios for organization-level intelligence.</p>
+    </div>
+    <div class="researchHomeHeroActions">
+      <button type="button" class="button" data-research-agent-add>+ New Research Agent</button>
+      <a class="button secondary" href="/research-intelligence-portfolios.php">Portfolios</a>
+    </div>
+  </header>
+
+  <section class="researchHomeStats" aria-label="Research overview">
+    <a href="#recent-agents"><strong><?=h((string)$summary['agents'])?></strong><span>Research Agents</span></a>
+    <a href="#teams"><strong><?=h((string)$summary['teams'])?></strong><span>Teams</span></a>
+    <a href="#portfolios"><strong><?=h((string)$summary['portfolios'])?></strong><span>Portfolios</span></a>
+    <a href="/research-intelligence-portfolios.php?view=overview"><strong><?=h((string)$summary['attention'])?></strong><span>Needs attention</span></a>
   </section>
 
-  <section class="researchAgentLibrarySection" aria-label="Research Agents">
-    <header class="researchAgentLibraryHead">
-      <div><span class="eyebrow">RESEARCH AGENTS</span><h2>Your active agents</h2></div>
-      <button type="button" class="button secondary researchAgentLibraryAdd" data-research-agent-add>+ New Research Agent</button>
+  <section class="researchHomeSection" data-research-favorites-section hidden>
+    <header class="researchHomeSectionHead">
+      <div><span class="eyebrow">FAVORITES</span><h2>Pinned Research Agents</h2></div>
+      <small>Favorites are kept on this device.</small>
     </header>
-    <div class="researchAgentLibraryGrid">
+    <div class="researchHomeAgentGrid" data-research-favorites-grid></div>
+  </section>
+
+  <section class="researchHomeSection" id="recent-agents">
+    <header class="researchHomeSectionHead">
+      <div><span class="eyebrow">RECENT</span><h2>Research Agents</h2></div>
+      <span><?=h((string)$summary['personal_agents'])?> personal · <?=h((string)$summary['team_agents'])?> team</span>
+    </header>
+    <div class="researchHomeAgentGrid" data-research-recent-grid>
       <?php foreach($researchAgents as $agent):?>
-      <article class="researchAgentLibraryCard">
-        <header>
-          <div class="researchAgentLibraryIcon" aria-hidden="true">✦</div>
-          <div class="researchAgentLibraryIdentity">
-            <span><?=!empty($agent['is_default'])?'Default Agent':h($agent['team_name']?:'Research Agent')?></span>
-            <h3><?=h($agent['name'])?></h3>
-          </div>
-          <span class="researchAgentLibraryStatus"><?=h(ucfirst((string)$agent['status']))?></span>
-        </header>
-        <?php if(trim((string)($agent['description']??''))!==''):?><p><?=h($agent['description'])?></p><?php endif?>
-        <div class="researchAgentLibraryMeta">
-          <span><strong><?=h(ucfirst((string)$agent['monitoring_cadence']))?></strong><small>Monitoring</small></span>
-          <span><strong><?=h($agent['last_message']!==''?'Active':'Ready')?></strong><small>Agent state</small></span>
-        </div>
-        <div class="researchAgentTaskSummary">
-          <span><strong><?=h((string)($agent['task_summary']['active']??0))?></strong> tasks active</span>
-          <span><strong><?=h((string)($agent['task_summary']['review']??0))?></strong> task review</span>
-          <span><strong><?=h((string)($agent['program_summary']['active']??0))?></strong> programs</span>
-          <span><strong><?=h((string)($agent['program_summary']['failed_runs']??0))?></strong> failed runs</span>
-        </div>
-        <div class="researchAgentLibraryChatFeed" aria-label="<?=h($agent['name'])?> chat feed">
-          <?php if(empty($agent['chat_feed'])):?><div class="researchAgentLibraryChatEmpty">No conversation yet. Open the Agent to start researching.</div>
-          <?php else:?><?php foreach((array)$agent['chat_feed'] as $message):?>
-            <div class="researchAgentLibraryChatMessage <?=($message['sender_type']??'')==='agent'?'is-agent':'is-user'?>">
-              <strong><?=h((string)$message['speaker'])?></strong>
-              <p><?=h((string)$message['body'])?></p>
+      <article class="researchHomeAgentCard" data-research-agent-card data-agent-id="<?=h((string)$agent['public_id'])?>">
+        <a class="researchHomeAgentMain" href="<?=h(research_agent_shell_href($agent,'chat'))?>">
+          <div class="researchHomeAgentTop">
+            <span class="researchHomeAgentIcon" aria-hidden="true">✦</span>
+            <div>
+              <small><?=h(research_home_agent_scope($agent))?></small>
+              <h3><?=h((string)$agent['name'])?></h3>
             </div>
-          <?php endforeach?><?php endif?>
-        </div>
-        <footer class="researchAgentLibraryUnifiedLinks">
-          <a class="researchAgentLibraryOpen" href="<?=h(research_agent_shell_href($agent,'chat'))?>">Open Agent</a>
-          <a href="<?=h(research_agent_shell_href($agent,'knowledge'))?>">Knowledge</a>
-          <a href="<?=h(research_agent_shell_href($agent,'research'))?>">Research</a>
-          <a href="<?=h(research_agent_shell_href($agent,'reports'))?>">Reports</a>
+          </div>
+          <?php if(trim((string)($agent['description']??''))!==''):?><p><?=h(mb_substr(trim((string)$agent['description']),0,180))?></p><?php endif?>
+          <div class="researchHomeAgentState">
+            <span><?=h(ucfirst((string)($agent['monitoring_cadence']??'manual')))?> monitoring</span>
+            <span><?=h(research_home_time_label((string)($agent['activity_at']??$agent['updated_at']??'')))?></span>
+          </div>
+          <?php if(trim((string)($agent['last_message']??''))!==''):?><blockquote><?=h((string)$agent['last_message'])?></blockquote><?php endif?>
+        </a>
+        <footer>
+          <button type="button" class="researchHomeFavorite" data-research-favorite aria-pressed="false" title="Add to favorites">☆</button>
+          <nav aria-label="<?=h((string)$agent['name'])?> shortcuts">
+            <a href="<?=h(research_agent_shell_href($agent,'knowledge'))?>">Knowledge</a>
+            <a href="<?=h(research_agent_shell_href($agent,'research'))?>">Research</a>
+            <a href="<?=h(research_agent_shell_href($agent,'reports'))?>">Reports</a>
+          </nav>
         </footer>
       </article>
       <?php endforeach?>
     </div>
+    <div class="researchHomeEmpty" data-research-no-agents hidden>
+      <strong>No Research Agents yet.</strong>
+      <p>Use + New Research Agent above to start a dedicated research workspace.</p>
+    </div>
   </section>
 
+  <div class="researchHomeColumns">
+    <section class="researchHomeSection" id="teams">
+      <header class="researchHomeSectionHead"><div><span class="eyebrow">TEAMS</span><h2>Shared research</h2></div><a href="/teams.php">View Teams</a></header>
+      <div class="researchHomeCompactList">
+        <?php if(empty($home['teams'])):?><p class="researchHomeEmptyLine">No Team Research Agents yet.</p><?php endif?>
+        <?php foreach(array_slice((array)$home['teams'],0,6) as $team):?>
+        <a href="/teams.php" class="researchHomeCompactRow">
+          <div><strong><?=h((string)$team['name'])?></strong><small><?=h((string)$team['agent_count'])?> Research Agent<?=((int)$team['agent_count']===1?'':'s')?></small></div>
+          <span><?=h(research_home_time_label((string)($team['latest_activity_at']??'')))?> →</span>
+        </a>
+        <?php endforeach?>
+      </div>
+    </section>
+
+    <section class="researchHomeSection" id="portfolios">
+      <header class="researchHomeSectionHead"><div><span class="eyebrow">PORTFOLIOS</span><h2>Organization intelligence</h2></div><a href="/research-intelligence-portfolios.php">View all</a></header>
+      <div class="researchHomeCompactList">
+        <?php if(empty($home['portfolios'])):?><p class="researchHomeEmptyLine">No Portfolios yet. Build one from existing Research Programs.</p><?php endif?>
+        <?php foreach(array_slice((array)$home['portfolios'],0,6) as $portfolio):?>
+        <a href="/research-intelligence-portfolios.php?portfolio=<?=rawurlencode((string)$portfolio['public_id'])?>" class="researchHomeCompactRow">
+          <div><strong><?=h((string)$portfolio['title'])?></strong><small><?=!empty($portfolio['team_name'])?h((string)$portfolio['team_name']):'Personal'?> · <?=h((string)($portfolio['program_count']??0))?> Programs</small></div>
+          <span><?=h(research_home_time_label((string)($portfolio['latest_briefing_at']??$portfolio['updated_at']??'')))?> →</span>
+        </a>
+        <?php endforeach?>
+      </div>
+    </section>
+  </div>
+
+  <section class="researchHomeSection">
+    <header class="researchHomeSectionHead"><div><span class="eyebrow">ACTIVITY</span><h2>Continue where you left off</h2></div></header>
+    <div class="researchHomeActivityList">
+      <?php foreach((array)$home['activity'] as $item):?>
+      <a href="/home.php?agent=<?=rawurlencode((string)$item['conversation_public_id'])?>" class="researchHomeActivityRow">
+        <span class="researchHomeActivityIcon" aria-hidden="true">✦</span>
+        <div><strong><?=h((string)$item['name'])?></strong><small><?=h((string)$item['scope'])?><?php if($item['summary']!==''):?> · <?=h((string)$item['summary'])?><?php endif?></small></div>
+        <time><?=h(research_home_time_label((string)$item['activity_at']))?></time>
+      </a>
+      <?php endforeach?>
+    </div>
+  </section>
 </main>
 <script src="/assets/js/workspace-state.js?v=34.0"></script>
+<script src="/assets/js/research-home.js?v=75.1"></script>
 </body>
 </html>
