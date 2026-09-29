@@ -20,6 +20,7 @@ foreach(['research_agent_chat_feed(','research_task_summary(','research_program_
 $need('app/research-home-ui.php','function research_home_dashboard','Research Home must use one read-only composition helper.');
 $need('app/research-home-ui.php','research_intelligence_portfolio_list','Research Home must reuse canonical Portfolio listing.');
 $need('app/research-home-ui.php','research_intelligence_organization_command_center','Research Home must reuse canonical global attention.');
+$need('app/research-surface-map.php',"'app/research-home-ui.php'=>'research.home'",'Research Home composition must be classified in the canonical engine map.');
 $reject('app/research-home-ui.php','INSERT INTO','Research Home composition must remain read-only.');
 $reject('app/research-home-ui.php','UPDATE ','Research Home composition must remain read-only.');
 $reject('app/research-home-ui.php','DELETE FROM','Research Home composition must remain read-only.');
