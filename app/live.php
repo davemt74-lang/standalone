@@ -45,6 +45,37 @@ function live_rooms_for_user(PDO $pdo,array $viewer): array {
     foreach($projects as &$p)$p['can_post']=project_can_write($p);unset($p);
     return ['teams'=>$teams,'projects'=>$projects];
 }
+function live_room_invite_candidates(PDO $pdo,array $viewer,array $room,int $limit=8): array {
+    $limit=max(1,min(24,$limit));$q=$pdo->prepare("SELECT u.* FROM users u
+      WHERE u.id<>? AND u.status='active'
+      AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=u.id) OR (b.blocker_user_id=u.id AND b.blocked_user_id=?))
+      ORDER BY u.created_at DESC LIMIT 80");
+    $q->execute([(int)$viewer['id'],(int)$viewer['id'],(int)$viewer['id']]);$out=[];
+    foreach($q->fetchAll() as $candidate){
+        $access=live_room_scope($pdo,$candidate,(string)$room['source']['public_id'],(string)$room['room_type'],$room['room_public_id']?:null,false);
+        if(!$access)continue;
+        $out[]=['public_id'=>$candidate['public_id'],'username'=>$candidate['username'],'display_name'=>$candidate['display_name'],'profile_image_url'=>$candidate['profile_image_url']??null];
+        if(count($out)>=$limit)break;
+    }
+    return $out;
+}
+function live_room_invite(PDO $pdo,array $viewer,array $room,string $username): bool {
+    $username=trim($username);if($username==='')throw new InvalidArgumentException('Choose a person to invite.');
+    $q=$pdo->prepare("SELECT * FROM users WHERE username=? AND status='active' LIMIT 1");$q->execute([$username]);$target=$q->fetch();
+    if(!$target||(int)$target['id']===(int)$viewer['id'])throw new InvalidArgumentException('That person is not available for this room.');
+    $access=live_room_scope($pdo,$target,(string)$room['source']['public_id'],(string)$room['room_type'],$room['room_public_id']?:null,false);
+    if(!$access)throw new RuntimeException('That person does not currently have access to this private room.');
+    $url='/live.php?id='.rawurlencode((string)$room['source']['public_id']).'&room_type='.rawurlencode((string)$room['room_type']);
+    if(!empty($room['room_public_id']))$url.='&room_id='.rawurlencode((string)$room['room_public_id']);
+    $roomKey=(string)$room['room_type'].':'.((string)($room['room_public_id']?:$room['source']['public_id']));
+    return notification_create($pdo,(int)$target['id'],(int)$viewer['id'],'live_room_invite','source',(string)$room['source']['public_id'],'invited you to a Live room.',[
+      'category'=>'live',
+      'dedupe_key'=>'live-room-invite:'.$roomKey.':'.(int)$target['id'].':'.gmdate('YmdH'),
+      'group_key'=>'live-room:'.$roomKey,
+      'context'=>['primary_url'=>$url,'source_public_id'=>$room['source']['public_id'],'live_room_key'=>$roomKey,'room_type'=>$room['room_type'],'room_id'=>$room['room_public_id']]
+    ]);
+}
+
 function live_presence_cleanup(PDO $pdo): void {
     $pdo->exec("DELETE FROM live_presence_sessions WHERE last_seen_at<DATE_SUB(NOW(),INTERVAL 90 SECOND)");
     $pdo->exec("DELETE p FROM live_presence_sessions p LEFT JOIN team_members tm ON tm.team_id=p.team_id AND tm.user_id=p.user_id WHERE p.room_type='team' AND (p.team_id IS NULL OR tm.user_id IS NULL)");
@@ -61,12 +92,12 @@ function live_presence_touch(PDO $pdo,array $viewer,array $room,string $clientSe
     return live_presence_rows($pdo,$viewer,$room,$mode);
 }
 function live_presence_rows(PDO $pdo,array $viewer,array $room,string $viewerMode='cloaked'): array {
-    live_presence_cleanup($pdo);[$where,$params]=live_room_sql($room,'p');$sql="SELECT p.user_id,u.live_presence_mode presence_mode,p.cloak_alias,u.public_id,u.username,u.display_name,EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=p.user_id) is_following FROM live_presence_sessions p JOIN users u ON u.id=p.user_id WHERE p.source_id=? AND $where AND p.last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND)";
+    live_presence_cleanup($pdo);[$where,$params]=live_room_sql($room,'p');$sql="SELECT p.user_id,u.live_presence_mode presence_mode,p.cloak_alias,u.public_id,u.username,u.display_name,u.profile_image_url,EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id=? AND f.followed_user_id=p.user_id) is_following FROM live_presence_sessions p JOIN users u ON u.id=p.user_id WHERE p.source_id=? AND $where AND p.last_seen_at>=DATE_SUB(NOW(),INTERVAL 90 SECOND)";
     $q=$pdo->prepare($sql);$q->execute(array_merge([(int)$viewer['id'],(int)$room['source_id']],$params));$visible=[];$cloaked=[];$total=0;$following=0;$seenUsers=[];
     foreach($q->fetchAll() as $r){
         $subject=(int)$r['user_id'];if(isset($seenUsers[$subject])||is_blocked($pdo,(int)$viewer['id'],$subject))continue;$seenUsers[$subject]=1;$total++;
         $canSee=presence_identity_visible($pdo,(int)$viewer['id'],$subject,(string)$r['presence_mode']);
-        if($canSee){$visible[]=['public_id'=>$r['public_id'],'username'=>$r['username'],'display_name'=>$r['display_name'],'following'=>(bool)$r['is_following'],'is_self'=>$subject===(int)$viewer['id']];if($r['is_following'])$following++;}
+        if($canSee){$visible[]=['public_id'=>$r['public_id'],'username'=>$r['username'],'display_name'=>$r['display_name'],'profile_image_url'=>$r['profile_image_url']??null,'following'=>(bool)$r['is_following'],'is_self'=>$subject===(int)$viewer['id']];if($r['is_following'])$following++;}
         else $cloaked[]=['alias'=>(string)$r['cloak_alias'],'is_self'=>$subject===(int)$viewer['id']];
     }
     return ['total'=>$total,'visible'=>$visible,'cloaked'=>$cloaked,'following_visible'=>$following,'mode'=>$viewerMode];
@@ -103,13 +134,13 @@ function live_message_access(PDO $pdo,array $viewer,array $room,string $publicId
 }
 function live_message_rows(PDO $pdo,array $viewer,array $room,int $afterId=0,int $limit=100): array {
     $limit=max(1,min(100,$limit));[$where,$params]=live_room_sql($room,'lm');
-    $sql="SELECT lm.*,u.public_id user_public_id,u.username,u.display_name,(SELECT COUNT(*) FROM live_message_reactions r WHERE r.message_id=lm.id AND r.reaction='like') like_count,EXISTS(SELECT 1 FROM live_message_reactions r WHERE r.message_id=lm.id AND r.user_id=? AND r.reaction='like') viewer_liked FROM live_messages lm JOIN users u ON u.id=lm.user_id WHERE lm.source_id=? AND $where AND lm.id>? AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=lm.user_id) OR (b.blocker_user_id=lm.user_id AND b.blocked_user_id=?)) ORDER BY lm.pinned_at IS NULL,lm.pinned_at DESC,lm.id ASC LIMIT $limit";
+    $sql="SELECT lm.*,u.public_id user_public_id,u.username,u.display_name,u.profile_image_url,(SELECT COUNT(*) FROM live_message_reactions r WHERE r.message_id=lm.id AND r.reaction='like') like_count,EXISTS(SELECT 1 FROM live_message_reactions r WHERE r.message_id=lm.id AND r.user_id=? AND r.reaction='like') viewer_liked FROM live_messages lm JOIN users u ON u.id=lm.user_id WHERE lm.source_id=? AND $where AND lm.id>? AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=? AND b.blocked_user_id=lm.user_id) OR (b.blocker_user_id=lm.user_id AND b.blocked_user_id=?)) ORDER BY lm.pinned_at IS NULL,lm.pinned_at DESC,lm.id ASC LIMIT $limit";
     $q=$pdo->prepare($sql);$q->execute(array_merge([(int)$viewer['id'],(int)$room['source_id']],$params,[$afterId,(int)$viewer['id'],(int)$viewer['id']]));
     $out=[];$cursor=$afterId;
     foreach($q->fetchAll() as $m){$cursor=max($cursor,(int)$m['id']);$isSelf=(int)$m['user_id']===(int)$viewer['id'];$identityVisible=$m['identity_mode']==='visible'||($m['identity_mode']==='team_only'&&presence_identity_visible($pdo,(int)$viewer['id'],(int)$m['user_id'],'team_only'));$deleted=!empty($m['deleted_at']);
         $row=['public_id'=>$m['public_id'],'body'=>$deleted?null:$m['body'],'deleted'=>$deleted,'source_timestamp_seconds'=>$m['source_timestamp_seconds'],'created_at'=>$m['created_at'],'pinned'=>!empty($m['pinned_at']),'parent_public_id'=>null,'is_self'=>$isSelf,'can_delete'=>$isSelf||$room['can_moderate'],'can_pin'=>$room['can_moderate'],'like_count'=>(int)$m['like_count'],'viewer_liked'=>(bool)$m['viewer_liked'],'identity_mode'=>$m['identity_mode']];
         if($m['parent_message_id']){$pq=$pdo->prepare('SELECT public_id FROM live_messages WHERE id=?');$pq->execute([$m['parent_message_id']]);$row['parent_public_id']=$pq->fetchColumn()?:null;}
-        if($identityVisible)$row['author']=['public_id'=>$m['user_public_id'],'username'=>$m['username'],'display_name'=>$m['display_name']];else $row['cloak_alias']=$m['cloak_alias']?:'Cloaked participant';
+        if($identityVisible)$row['author']=['public_id'=>$m['user_public_id'],'username'=>$m['username'],'display_name'=>$m['display_name'],'profile_image_url'=>$m['profile_image_url']??null];else $row['cloak_alias']=$m['cloak_alias']?:'Cloaked participant';
         $out[]=$row;
     }
     return ['messages'=>$out,'cursor'=>$cursor];
