@@ -53,7 +53,8 @@ foreach(['RESEARCH EXECUTION','data-plan-create','data-plan-update','data-task-a
 $research=(string)file_get_contents($root.'/research.php');
 $must(str_contains($research,'researchAgentTaskSummary')&&str_contains($research,'task_summary'),'Phase 57 Research landing must retain per-Agent Task summaries.');
 $researchTab=(string)file_get_contents($root.'/research-agent-research.php');
-$must(str_contains($researchTab,'/research-tasks.php?agent=')&&str_contains($researchTab,'TASKS'),'Phase 57 Tasks must remain reachable through the canonical Agent Research tab.');
+$researchUi=(string)file_get_contents($root.'/app/research-agent-research-ui.php');
+$must(str_contains($researchTab,'research_task_plan_list')&&str_contains($researchUi,'/research-tasks.php?agent=')&&str_contains($researchUi,"'label'=>'Tasks'"),'Phase 57 Tasks must remain reachable through the canonical Agent Research tab.');
 
 $cognitive=(string)file_get_contents($root.'/app/cognitive-feed.php');
 $must(str_contains($cognitive,'research_task_cognitive_observations'),'Phase 57 task state must feed Now/cognitive surfaces.');
