@@ -30,7 +30,8 @@ if(research_portfolios_attention_count($scoped)!==2)$fail[]='Contextual attentio
 
 $need('app/bootstrap.php','research-portfolios-ui.php','Bootstrap must load the unified Portfolio presentation helper.');
 $need('research-intelligence-portfolios.php','research_portfolios_view','Canonical Portfolio page must route Overview and Portfolios views.');
-$need('research-intelligence-portfolios.php',"$requestedPortfolioId!==''||$_SERVER['REQUEST_METHOD']==='POST'",'Legacy ?portfolio= deep links and Portfolio form posts must open the Portfolios view.');
+$need('research-intelligence-portfolios.php','$requestedPortfolioId','Legacy ?portfolio= deep links must preserve explicit Portfolio selection.');
+$need('research-intelligence-portfolios.php',"REQUEST_METHOD']==='POST'",'Portfolio form posts must remain in the Portfolios view.');
 $need('research-intelligence-portfolios.php','app.css?v=74.6','Canonical Portfolio UI must use the current Section 6 stylesheet cache tag.');
 $need('research-intelligence-portfolios.php','GLOBAL ATTENTION','Portfolio Overview must contain Global Attention.');
 $need('research-intelligence-portfolios.php','CONTEXTUAL ATTENTION','Selected Portfolio detail must contain contextual attention.');
