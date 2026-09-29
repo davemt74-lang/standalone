@@ -26,14 +26,14 @@ $need('home.php',"research_agent_shell_render(\$requestedResearchAgent,\$homeRes
 $need('research-agent-knowledge.php',"research_agent_shell_render(\$selected,\$agents,'knowledge'",'Knowledge must use the unified shell.');
 $need('research-agent-research.php',"research_agent_shell_render(\$selected,\$agents,'research'",'Research must use the unified shell.');
 $need('research-reports.php',"research_agent_shell_render(\$selected,\$agents,'reports'",'Reports must use the unified shell.');
-$need('research-agent-research.php','/research-missions.php?agent=','Unified Research must retain Missions engine access.');
-$need('research-agent-research.php','/research-tasks.php?agent=','Unified Research must retain Tasks engine access.');
-$need('research-agent-research.php','/research-decisions.php?agent=','Unified Research must retain Decisions engine access.');
-$need('research-agent-research.php','/research-action-plans.php?agent=','Unified Research must retain Action Plan engine access.');
-$need('research-agent-research.php','/research-programs.php?agent=','Unified Research must retain Program engine access.');
+$need('app/research-agent-research-ui.php','/research-missions.php?agent=','Unified Research must retain Missions engine access.');
+$need('app/research-agent-research-ui.php','/research-tasks.php?agent=','Unified Research must retain Tasks engine access.');
+$need('app/research-agent-research-ui.php','/research-decisions.php','Unified Research must retain Decisions engine access.');
+$need('app/research-agent-research-ui.php','/research-action-plans.php','Unified Research must retain Action Plan engine access.');
+$need('app/research-agent-research-ui.php','/research-programs.php?agent=','Unified Research must retain Program engine access.');
 $need('assets/js/research-agent-unified-shell.js',"annotated.researchAgent.last",'Unified shell must persist the selected Agent context in browser state.');
 $need('assets/css/app.css','.researchAgentUnifiedShell','Unified shell styles are missing.');
-$need('assets/css/app.css','.researchAgentResearchOverview','Unified Research landing styles are missing.');
+$need('assets/css/app.css','.researchUnifiedNav','Unified Research canonical navigation styles are missing.');
 
 $need('research.php','/research-intelligence-portfolios.php','Global Research must expose Portfolios beside Research Agents.');
 $researchPage=$read('research.php');$primaryStart=strpos($researchPage,'<nav class="researchLibraryTabs researchPrimaryActions">');$primaryEnd=$primaryStart===false?false:strpos($researchPage,'</nav>',$primaryStart);$primary=$primaryStart!==false&&$primaryEnd!==false?substr($researchPage,$primaryStart,$primaryEnd-$primaryStart):'';
