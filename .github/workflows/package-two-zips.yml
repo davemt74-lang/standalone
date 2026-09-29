@@ -483,6 +483,7 @@ jobs:
           test -f package-website/docs/phase-75-research-agent-daily-experience.md
           test -f package-website/tests/phase75-section1-research-home-agent-launcher-contract.php
           test -f package-website/tests/phase75-section1-research-home-agent-launcher-db.php
+          test -f package-website/tests/team-chat-member-roster-contract.php
           test -f package-website/tests/ci/phase73-final-supported-upgrades.php
           test -f package-website/tests/phase71-section8-end-to-end-release-db.php
           test -f package-website/tests/ci/phase71-final-supported-upgrades.php
