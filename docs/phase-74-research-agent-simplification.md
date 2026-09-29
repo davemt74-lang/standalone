@@ -465,3 +465,20 @@ The canonical Research UI no longer advertises the old standalone Automations pr
 During the audit, `report.php` and `report-status.php` were identified as Trust & Safety moderation routes rather than Research Report routes. They are explicitly excluded from the Research compatibility inventory and remain unchanged.
 
 Section 7 adds no migration 104, no new scheduler, no new worker, no new permission model, and no new authority system.
+
+
+## Section 8 — End-to-End Simplification Release & Hardening
+
+Section 8 closes Phase 74 as the production release gate for the simplified Research Agent product.
+
+The canonical user journey is now:
+
+**Chat → Knowledge → Research → Reports → Portfolios**
+
+Research home remains the global entry for Agents and Portfolios. The Research Agent shell keeps one identity across Chat, Knowledge, Research, and Reports. Knowledge packages Library / Insights / Changes. Research packages Missions / Tasks / Decisions / Follow-through / Recurring. Reports packages Create / Recent / Scheduled / Published. Portfolios owns organizational rollups and global attention.
+
+All mature engines, APIs, data stores, permissions, provenance, collaboration, publishing, automation, Decision, Action Plan, Program, Portfolio, and cognition logic remain authoritative underneath these simpler surfaces. Legacy routes translate into the canonical UI where safe; object-specific advanced screens and the explicit `legacy=1` compatibility escape hatch remain available.
+
+Phase 74 is intentionally schema-free: **migration 103 remains the schema boundary**. Section 8 adds no migration 104, no parallel Research engine, no duplicate authority layer, and no new worker.
+
+Final acceptance requires the complete Phase 74 Section 1–7 contract set, the integrated Research Agent journey, legacy-route compatibility, PHP 8.1/8.3 regression, MySQL fresh-install and historical upgrades, package smoke validation, extension packaging, and exact-head/merge zero-diff verification.
