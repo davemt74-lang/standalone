@@ -36,6 +36,29 @@ unset($agent);
       <a class="active" href="/research.php">Research Agents <span><?=h((string)count($researchAgents))?></span></a>
       <a href="/research-intelligence-portfolios.php">Portfolios</a>
     </nav>
+    <details class="researchAdvancedTools researchCompatibilityTools">
+      <summary>Advanced Research tools</summary>
+      <div class="researchAdvancedMenu">
+        <a href="/research-portfolio.php">Legacy Portfolio</a>
+        <a href="/research-network.php">Research Network</a>
+        <a href="/research-citations.php">Citations</a>
+        <a href="/research-audit.php">Audit Ledger</a>
+        <a href="/research-provenance.php">Provenance</a>
+        <a href="/research-verification.php">Verification</a>
+        <a href="/research-evidence-packs.php">Evidence Packs</a>
+        <a href="/research-monitoring.php">Monitoring</a>
+        <a href="/research-missions.php">Missions</a>
+        <a href="/research-tasks.php">Tasks</a>
+        <a href="/research-programs.php">Programs</a>
+        <a href="/research-publications.php">Publishing</a>
+        <a href="/research-decisions.php">Decisions</a>
+        <a href="/research-action-plans.php">Action Plans</a>
+        <a href="/research-reviews.php">Review Center</a>
+        <a href="/research-outcomes.php">Decision Memory</a>
+        <a href="/cross-research.php">Related Research</a>
+        <a href="/research-automations.php">Automations</a>
+      </div>
+    </details>
   </section>
 
   <section class="researchAgentLibrarySection" aria-label="Research Agents">
