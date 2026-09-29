@@ -22,10 +22,10 @@ $expected=[
 foreach($expected as $tab=>$href)if(research_agent_shell_href($fixture,$tab)!==$href)$fail[]='Shell href mismatch for '.$tab.'.';
 
 $need('app/bootstrap.php',"research-agent-shell-ui.php",'Bootstrap must load the unified Research Agent shell helper.');
-$need('home.php',"research_agent_shell_render($requestedResearchAgent,$homeResearchAgents,'chat'",'Agent Chat must use the unified shell.');
-$need('research-agent-knowledge.php',"research_agent_shell_render($selected,$agents,'knowledge'",'Knowledge must use the unified shell.');
-$need('research-agent-research.php',"research_agent_shell_render($selected,$agents,'research'",'Research must use the unified shell.');
-$need('research-reports.php',"research_agent_shell_render($selected,$agents,'reports'",'Reports must use the unified shell.');
+$need('home.php',"research_agent_shell_render(\$requestedResearchAgent,\$homeResearchAgents,'chat'",'Agent Chat must use the unified shell.');
+$need('research-agent-knowledge.php',"research_agent_shell_render(\$selected,\$agents,'knowledge'",'Knowledge must use the unified shell.');
+$need('research-agent-research.php',"research_agent_shell_render(\$selected,\$agents,'research'",'Research must use the unified shell.');
+$need('research-reports.php',"research_agent_shell_render(\$selected,\$agents,'reports'",'Reports must use the unified shell.');
 $need('research-agent-research.php','/research-missions.php?agent=','Unified Research must retain Missions engine access.');
 $need('research-agent-research.php','/research-tasks.php?agent=','Unified Research must retain Tasks engine access.');
 $need('research-agent-research.php','/research-decisions.php?agent=','Unified Research must retain Decisions engine access.');
