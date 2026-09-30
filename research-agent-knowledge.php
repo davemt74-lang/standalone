@@ -40,8 +40,12 @@ $strengthening=array_values(array_filter($changes,fn($x)=>in_array((string)($x['
 $atRisk=array_values(array_filter($changes,fn($x)=>in_array((string)($x['change_type']??''),['weakened','disputed','removed'],true)));
 $engineLinks=$selected?research_agent_knowledge_engine_links($selected):['library'=>[],'insights'=>[],'changes'=>[]];
 $memoryReady=(bool)($selected&&function_exists('research_memory_ready')&&research_memory_ready($pdo)&&research_retrieval_ready($pdo));
-$memoryItems=$memoryReady?research_memory_catalog($pdo,$u,$project,120):[];
-$memorySummary=$memoryReady?research_memory_summary($pdo,$u,$project):['total'=>0,'excluded'=>0,'corrected'=>0,'used'=>0,'private'=>0,'team'=>0,'public'=>0];
+$memoryQuery=mb_substr(trim((string)($_GET['memory_q']??'')),0,190);
+$memoryPage=max(1,(int)($_GET['memory_page']??1));$memoryPerPage=50;$memoryOffset=($memoryPage-1)*$memoryPerPage;
+$memoryItems=$memoryReady?research_memory_catalog($pdo,$u,$project,$memoryPerPage,$memoryOffset,$memoryQuery):[];
+$memoryTotal=$memoryReady?research_memory_catalog_count($pdo,$u,$project,$memoryQuery):0;
+$memoryPages=max(1,(int)ceil($memoryTotal/$memoryPerPage));if($memoryPage>$memoryPages)$memoryPage=$memoryPages;
+$memorySummary=$memoryReady?research_memory_summary($pdo,$u,$project):['total'=>0,'excluded'=>0,'corrected'=>0,'used'=>0];
 $changeObjectTitle=static function(array $change): string {
     $row=(array)($change['after']??$change['before']??[]);
     if(function_exists('research_longitudinal_object_title'))return research_longitudinal_object_title((string)($change['object_type']??''),$row);
@@ -84,6 +88,13 @@ $changeObjectTitle=static function(array $change): string {
           <div><strong><?=h((string)$memorySummary['corrected'])?></strong><span>Corrected</span></div>
           <div><strong><?=h((string)$memorySummary['excluded'])?></strong><span>Excluded</span></div>
         </div>
+        <form class="researchMemorySearch" method="get" action="/research-agent-knowledge.php">
+          <input type="hidden" name="agent" value="<?=h($selectedId)?>">
+          <input type="hidden" name="view" value="library">
+          <label><span>Find knowledge</span><input type="search" name="memory_q" value="<?=h($memoryQuery)?>" placeholder="Title, type, or knowledge ID"></label>
+          <button type="submit" class="button secondary">Search</button>
+          <?php if($memoryQuery!==''):?><a class="button secondary" href="<?=h(research_agent_knowledge_href($selectedId,'library'))?>">Clear</a><?php endif?>
+        </form>
         <div class="researchMemoryLegend"><span>Privacy reflects the underlying Source / Annotation / Research workspace permission.</span><span>Retrieval controls affect future Agent context immediately.</span></div>
         <?php if(!$memoryItems):?><div class="researchMemoryEmpty">No indexed knowledge is available yet. Open Library or add Research evidence, then allow the retrieval worker to index it.</div><?php endif?>
         <div class="researchMemoryList">
@@ -127,6 +138,13 @@ $changeObjectTitle=static function(array $change): string {
           </details>
           <?php endforeach?>
         </div>
+        <?php if($memoryPages>1):?>
+        <nav class="researchMemoryPagination" aria-label="Agent Memory pages">
+          <?php if($memoryPage>1):?><a class="button secondary" href="<?=h(research_agent_knowledge_href($selectedId,'library',['memory_q'=>$memoryQuery,'memory_page'=>$memoryPage-1]))?>">← Previous</a><?php endif?>
+          <span>Page <?=h((string)$memoryPage)?> of <?=h((string)$memoryPages)?> · <?=h((string)$memoryTotal)?> matching item<?=($memoryTotal===1?'':'s')?></span>
+          <?php if($memoryPage<$memoryPages):?><a class="button secondary" href="<?=h(research_agent_knowledge_href($selectedId,'library',['memory_q'=>$memoryQuery,'memory_page'=>$memoryPage+1]))?>">Next →</a><?php endif?>
+        </nav>
+        <?php endif?>
       <?php endif?>
     </section>
     <section class="researchKnowledgeEvidence">
