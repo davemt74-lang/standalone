@@ -180,7 +180,7 @@ try{
 $homeAgentUrl=$homePrimaryAgent?'/home.php?agent='.rawurlencode((string)$homePrimaryAgent['conversation_public_id']):'/research.php';
 $homeDesktopUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=desktop':'/research.php';
 $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.php';
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"><link rel="stylesheet" href="/assets/css/home-team-chat.css?v=74.4"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"><link rel="stylesheet" href="/assets/css/home-team-chat.css?v=74.5"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout<?=$chatTeams?' hasTeamChatRail':''?>">
 <?php if($requestedResearchAgent):?>
 <div class="researchAgentCanvasTopActions researchAgentCanvasUnified" data-research-canvas-controls>
@@ -416,11 +416,23 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
   <form class="teamChatComposer" id="teamChatComposer"><textarea id="teamChatInput" rows="1" maxlength="5000" placeholder="Message your team…" aria-label="Message your team"></textarea><button type="submit" aria-label="Send message">↑</button></form>
   <footer class="teamChatFooter"><span class="teamChatSelfStatus" data-team-chat-self-status><i class="chatPresenceDot status-<?=h((string)$chatStatus['effective_status'])?>"></i><span><?=h((string)($chatStatus['custom_status']?:ucfirst((string)$chatStatus['status_mode'])))?></span></span><a class="teamChatSettingsButton" href="/chat-settings.php" aria-label="Chat status settings" title="Chat status settings">⚙</a></footer>
 </section>
-<button type="button" class="teamChatMiniRail" data-team-chat-mini-rail aria-controls="team-chat" aria-expanded="false" aria-label="Open Team Chat">
-  <span class="teamChatMiniRailLabel">Chat</span>
-  <span class="teamChatMiniMembers" id="teamChatMiniMembers" aria-hidden="true"></span>
-  <span class="teamChatMiniUnread" data-team-chat-mini-unread hidden></span>
-</button>
+<aside class="teamChatMiniRail" data-team-chat-mini-rail aria-label="Team Chat quick rail">
+  <button type="button" class="teamChatMiniOpen" data-team-chat-mini-open aria-controls="team-chat" aria-expanded="false" aria-label="Open Team Chat">
+    <span class="teamChatMiniRailLabel">Chat</span>
+    <span class="teamChatMiniMembers" id="teamChatMiniMembers" aria-hidden="true"></span>
+    <span class="teamChatMiniUnread" data-team-chat-mini-unread hidden></span>
+  </button>
+  <div class="teamChatMiniStatus">
+    <button type="button" class="teamChatMiniSettings" data-team-chat-status-toggle aria-expanded="false" aria-controls="team-chat-status-menu" aria-label="Chat status settings" title="Chat status settings">⚙</button>
+    <div class="teamChatStatusMenu" id="team-chat-status-menu" data-team-chat-status-menu hidden>
+      <strong>Chat status</strong>
+      <?php foreach(['auto'=>'Automatic','available'=>'Available','away'=>'Away','busy'=>'Busy','invisible'=>'Invisible'] as $mode=>$label):?>
+      <button type="button" data-team-chat-status-mode="<?=h($mode)?>" class="<?=($chatStatus['status_mode']??'auto')===$mode?'active':''?>"><i class="chatPresenceDot status-<?=$mode==='invisible'?'offline':($mode==='available'||$mode==='auto'?'online':h($mode))?>"></i><span><?=h($label)?></span></button>
+      <?php endforeach?>
+      <a href="/chat-settings.php">More settings</a>
+    </div>
+  </div>
+</aside>
 <?php else:?>
 <div class="card"><div class="profileMini"><?=app_shell_avatar($u,'avatarImageLg')?><span><strong><?=h($u['display_name'])?></strong><small>@<?=h($u['username'])?></small></span></div><div class="profileStats"><span><strong><?=h((string)$stats['followers'])?></strong> followers</span><span><strong><?=h((string)$stats['following_count'])?></strong> following</span><span><strong><?=h((string)$stats['annotation_count'])?></strong> annotations</span></div><a href="<?=h(profile_path((string)$u['username']))?>">View your profile</a></div>
 <div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">PEOPLE</span><h3>Discover researchers</h3></div></div><?php foreach($people as $p):?><a class="profileMini" style="margin:12px 0" href="<?=h(profile_path((string)$p['username']))?>"><?=app_shell_avatar($p,'avatarSm')?><span><strong><?=h($p['display_name'])?></strong><small>@<?=h($p['username'])?> · <?=h((string)$p['annotation_count'])?> annotations</small></span></a><?php endforeach?><?php if(!$people):?><p class="meta">No new profile suggestions right now.</p><?php endif?><a href="/explore.php">Explore Annotated</a></div>
