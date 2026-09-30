@@ -9,7 +9,7 @@ $need('app/admin-operations.php',"'change_platform_feature'",'Action catalog mus
 $need('app/admin-operations.php','admin_platform_execute_feature_action','Action execution must route approved platform feature changes to V2.60.');
 foreach(["'admin.platform.view'","'admin.platform.manage'","'admin.platform.release'","'/admin/platform-governance.php'=>['admin.platform.view','admin.platform.view']","'platform_governance'=>'admin.platform.view'"] as $n)$need('app/admin-access.php',$n,'Admin access registry or operation-specific route boundary missing '.$n);
 $need('app/admin-ui.php',"'platform_governance'=>['label'=>'Platform Governance'",'Admin navigation must include Platform Governance.');
-$need('app/admin-ui.php','Admin V2.60','Admin shell must identify V2.60.');
+$need('app/admin-ui.php',"'platform_governance'=>['label'=>'Platform Governance'",'Admin shell must preserve Platform Governance navigation.');
 foreach(['ADMIN V2.60 · PLATFORM CONFIGURATION, FEATURE GOVERNANCE & RELEASE OPERATIONS','FEATURE GOVERNANCE','MODULE REGISTRY','INTEGRATION REGISTRY','PLATFORM CHANGE LEDGER','Preview → Approve → Execute'] as $n)$need('admin/platform-governance.php',$n,'Platform Governance workspace missing '.$n);
 $need('admin/index.php','Platform readiness','Command Center must surface platform readiness.');
 $need('admin/index.php','PLATFORM GOVERNANCE','Command Center must link Platform Governance.');

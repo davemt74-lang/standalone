@@ -90,3 +90,5 @@ php tests/team-chat-member-roster-contract.php
 php tests/home-team-chat-rail-contract.php
 php tests/live-explore-agent-chat-ui-contract.php
 php tests/global-create-launcher-contract.php
+
+php tests/admin-shell-dashboard-refresh-contract.php

@@ -13,7 +13,7 @@ $need('app/functions.php','admin_access_authorize_request','require_admin must e
 $need('app/bootstrap.php',"/admin-access.php'",'V2.10 access runtime must load globally.');
 $need('app/admin-ui.php',"'roles_permissions'=>",'Admin navigation must expose Roles & Permissions.');
 $need('app/admin-ui.php','admin_access_nav_capability','Shared Admin navigation must hide unauthorized destinations.');
-$need('app/admin-ui.php','Admin V2.10','Shared Admin shell must identify V2.10.');
+$need('app/admin-ui.php',"'roles_permissions'=>",'Shared Admin shell must preserve Roles & Permissions navigation.');
 foreach(['Roles, delegated permissions & approval policies','Delegated Admin assignments','ROLE REGISTRY','SEPARATION OF DUTIES','SECURITY AUDIT'] as $n)$need('admin/roles-permissions.php',$n,'Roles & Permissions workspace missing '.$n);
 foreach(['Preview governed action','Request approval','Approve','Reject','Execute reviewed action','APPROVAL INBOX','ACTION LEDGER'] as $n)$need('admin/action-center.php',$n,'V2.10 Action Center missing '.$n);
 $need('app/admin-operations.php','admin_access_bind_action_policy','Governed previews must bind the current approval policy.');

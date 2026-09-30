@@ -13,7 +13,7 @@ $need('app/admin-access.php',"'admin.finance.export'",'Finance export capability
 $need('app/admin-access.php',"'/admin/financial-reporting.php'=>['admin.finance.view','admin.finance.manage']", 'Financial Reporting route must separate view and mutation authority.');
 $need('app/admin-access.php',"'/admin/financial-export.php'=>['admin.finance.export','admin.finance.export']", 'Finance export endpoint must require explicit export capability.');
 $need('app/admin-ui.php',"'financial_reporting'=>['label'=>'Financial Reporting'",'Shared Admin navigation must expose Financial Reporting.');
-$need('app/admin-ui.php','Admin V2.30','Shared Admin shell must identify V2.30.');
+$need('app/admin-ui.php',"'financial_reporting'=>['label'=>'Financial Reporting'",'Shared Admin shell must preserve Financial Reporting navigation.');
 foreach(['ADMIN V2.30 · FINANCIAL REPORTING & RECONCILIATION','Finance workspace','RECONCILIATION','RECEIVABLE AGING','PERIOD CLOSE','CLOSE LEDGER','ACCOUNT FINANCIAL LEDGER','AUDITED EXPORTS'] as $n)$need('admin/financial-reporting.php',$n,'Financial Reporting workspace missing '.$n);
 $need('admin/financial-export.php',"Content-Type: text/csv",'Finance export endpoint must return CSV content.');
 $need('admin/index.php','Finance exceptions','Command Center must surface finance exceptions.');

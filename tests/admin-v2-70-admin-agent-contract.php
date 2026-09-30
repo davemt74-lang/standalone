@@ -71,7 +71,7 @@ foreach([
 ] as $needle)$need('api/admin-agent.php',$needle,'Admin Agent API missing '.$needle);
 
 $need('app/admin-ui.php',"'assistant'=>['label'=>'Admin Agent','url'=>'/admin/assistant.php']", 'Shared Admin navigation must expose Admin Agent.');
-$need('app/admin-ui.php','Admin V2.70 · Admin Agent','Shared Admin shell must identify V2.70.');
+$need('app/admin-ui.php',"'assistant'=>['label'=>'Admin Agent','url'=>'/admin/assistant.php']",'Shared Admin shell must preserve Admin Agent navigation.');
 $need('app/admin-access.php',"'/admin/assistant.php'=>['admin.operations.view','admin.operations.view']", 'Admin Agent page must remain on explicit delegated read authority.');
 
 $web=$read('assets/css/app.css');$ext=$read('extension/landing-app.css');if($web!==$ext)$fail[]='Extension landing base CSS must remain exactly synchronized with website base CSS.';

@@ -9,11 +9,11 @@ $need('app/admin-operations.php',"status='executing'",'Governed execution must c
 $need('app/admin-operations.php',"(int)\$record['actor_user_id']!==(int)\$admin['id']", 'Governed previews must be executable only by their creating administrator.');
 $need('app/admin-operations.php','source condition is no longer active','Operations alerts must auto-resolve only when their source condition disappears.');
 $need('app/admin-operations.php','admin.*','V2.0 capability groundwork must preserve super-admin authority.');
-foreach(['ADMIN V2.0 · ADMIN CONTROL CENTER','GLOBAL OPERATIONS SEARCH','NEEDS ATTENTION','Save this view','GOVERNED ACTIONS'] as $n)$need('admin/index.php',$n,'Command Center missing '.$n);
+foreach(['class="adminDashboardHeader"','class="adminDashboardSearch"','NEEDS ATTENTION','Save this view','GOVERNED ACTIONS'] as $n)$need('admin/index.php',$n,'Command Center missing '.$n);
 foreach(['Governed action center','Preview governed action','Execute reviewed action','ACTION LEDGER'] as $n)$need('admin/action-center.php',$n,'Action Center missing '.$n);
 foreach(['ADMIN V2.0 · ACCOUNT 360','Unified commercial account','UNIFIED AUDIT TIMELINE','Account 360 history'] as $n)$need('admin/account.php',$n,'Account 360 missing '.$n);
 $need('app/admin-ui.php',"'action_center'=>",'Admin navigation must expose Action Center.');
-$need('app/admin-ui.php','Admin V2.0','Shared Admin shell must identify V2.0.');
+$need('app/admin-ui.php',"'action_center'=>",'Shared Admin shell must preserve the Action Center navigation.');
 $need('app/agent-chat.php','admin_ops_agent_context','Admin Agent must receive read-only V2.0 operational context.');
 $need('app/agent-chat.php','Admin V2.0 operations context is read-only','Admin Agent must not gain operations mutation authority.');
 $need('tests/ci/run-full-regression.sh','tests/admin-v2-0-operations-command-center-db.php','Full regression must execute V2.0 database journey.');

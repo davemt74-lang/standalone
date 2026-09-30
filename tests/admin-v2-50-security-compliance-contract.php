@@ -11,7 +11,7 @@ $need('app/admin-access.php',"'admin.security.view'",'Security view capability m
 $need('app/admin-access.php',"'admin.privacy.manage'",'Privacy manage capability must be registered.');
 $need('app/admin-access.php',"'/admin/security-compliance.php'=>['admin.security.view','admin.security.manage']", 'Security & Compliance route must be permission bounded.');
 $need('app/admin-ui.php',"'security_compliance'=>['label'=>'Security & Compliance'",'Admin navigation must expose Security & Compliance.');
-$need('app/admin-ui.php','Admin V2.50','Admin shell must identify V2.50.');
+$need('app/admin-ui.php',"'security_compliance'=>['label'=>'Security & Compliance'",'Admin shell must preserve Security & Compliance navigation.');
 foreach(['ADMIN V2.50 · SECURITY, COMPLIANCE & ADMINISTRATIVE AUDIT CENTER','ADMINISTRATIVE AUDIT LEDGER','SECURITY CASES','PERMISSION REVIEW','PRIVACY & COMPLIANCE','Export CSV','Source details redacted'] as $n)$need('admin/security-compliance.php',$n,'Security & Compliance workspace missing '.$n);
 $need('admin/security-export.php','admin_security_export','Security export endpoint must use governed export runtime.');
 $need('admin/index.php','Open security cases','Command Center must surface V2.50 posture.');

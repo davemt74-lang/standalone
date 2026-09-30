@@ -18,7 +18,7 @@ $need('app/admin-access.php',"'admin.customer_success.view'",'Customer Success v
 $need('app/admin-access.php',"'admin.customer_success.manage'",'Customer Success manage capability must be registered.');
 $need('app/admin-access.php',"'/admin/customer-success.php'=>['admin.customer_success.view','admin.customer_success.manage']", 'Customer Success route must separate read and mutation authority.');
 $need('app/admin-ui.php',"'customer_success'=>['label'=>'Customer Success'",'Shared Admin navigation must expose Customer Success.');
-$need('app/admin-ui.php','Admin V2.40','Shared Admin shell must identify V2.40.');
+$need('app/admin-ui.php',"'customer_success'=>['label'=>'Customer Success'",'Shared Admin shell must preserve Customer Success navigation.');
 foreach(['ADMIN V2.40 · CUSTOMER SUCCESS, ACCOUNT HEALTH & RETENTION','Account health portfolio','Refresh health evidence','PORTFOLIO OWNERSHIP'] as $n)$need('admin/customer-success.php',$n,'Customer Success portfolio missing '.$n);
 foreach(['ADMIN V2.40 · ACCOUNT SUCCESS 360','WHY THIS HEALTH STATE','ONBOARDING & ADOPTION','SUCCESS PLANS','HEALTH HISTORY','CUSTOMER SUCCESS AUDIT'] as $n)$need('admin/customer-success-account.php',$n,'Account Success 360 missing '.$n);
 $need('admin/index.php','At-risk accounts','Command Center must surface Customer Success health.');
