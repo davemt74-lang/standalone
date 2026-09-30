@@ -39,6 +39,9 @@ $materialChanges=array_values(array_filter($changes,fn($x)=>($x['materiality']??
 $strengthening=array_values(array_filter($changes,fn($x)=>in_array((string)($x['change_type']??''),['strengthened','verified'],true)));
 $atRisk=array_values(array_filter($changes,fn($x)=>in_array((string)($x['change_type']??''),['weakened','disputed','removed'],true)));
 $engineLinks=$selected?research_agent_knowledge_engine_links($selected):['library'=>[],'insights'=>[],'changes'=>[]];
+$memoryReady=(bool)($selected&&function_exists('research_memory_ready')&&research_memory_ready($pdo)&&research_retrieval_ready($pdo));
+$memoryItems=$memoryReady?research_memory_catalog($pdo,$u,$project,120):[];
+$memorySummary=$memoryReady?research_memory_summary($pdo,$u,$project):['total'=>0,'excluded'=>0,'corrected'=>0,'used'=>0,'private'=>0,'team'=>0,'public'=>0];
 $changeObjectTitle=static function(array $change): string {
     $row=(array)($change['after']??$change['before']??[]);
     if(function_exists('research_longitudinal_object_title'))return research_longitudinal_object_title((string)($change['object_type']??''),$row);
@@ -47,7 +50,7 @@ $changeObjectTitle=static function(array $change): string {
 ?><!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Research Agent Knowledge · Annotated</title><link rel="stylesheet" href="/assets/css/app.css?v=74.3"></head>
-<body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-agent-knowledge" data-knowledge-view="<?=h($view)?>">
+<body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-agent-knowledge" data-knowledge-view="<?=h($view)?>" data-memory-agent="<?=h($selectedId)?>" data-memory-csrf="<?=h(csrf_token())?>">
 <main class="researchLibraryCanvas researchKnowledgeCanvas researchKnowledgeUnifiedCanvas">
   <?php if($selected):?><?=research_agent_shell_render($selected,$agents,'knowledge',['workspace_controls'=>true])?><?php endif?>
   <header class="researchKnowledgeHero researchKnowledgeUnifiedHero">
@@ -68,6 +71,64 @@ $changeObjectTitle=static function(array $change): string {
       <?php if($conversation!==''):?><a class="button" href="/home.php?agent=<?=h(rawurlencode($conversation))?>">Ask Agent</a><?php endif?>
     </section>
     <section class="card researchKnowledgeUnifiedIntro"><span class="eyebrow">LIBRARY</span><h2>Captured knowledge</h2><p>Files, documents, recordings, bookmarks, annotations, Sources and imported research remain in the existing Library/Desktop workspace. Retrieval indexing and evidence capture stay automatic underneath this view.</p></section>
+    <section class="card researchMemoryManager" data-research-memory-manager>
+      <header class="researchMemoryHeader">
+        <div><span class="eyebrow">AGENT MEMORY</span><h2>Knowledge management</h2><p>Control what this Agent may retrieve without deleting the underlying evidence. Corrections are shown to the Agent as explicit user-provided notes while original source material remains preserved for provenance.</p></div>
+      </header>
+      <?php if(!$memoryReady):?>
+        <div class="researchMemoryUnavailable">Agent Memory controls will be available after the latest database upgrade and retrieval index are ready.</div>
+      <?php else:?>
+        <div class="researchMemoryStats">
+          <div><strong><?=h((string)$memorySummary['total'])?></strong><span>Knowledge items</span></div>
+          <div><strong><?=h((string)$memorySummary['used'])?></strong><span>Used by Agent</span></div>
+          <div><strong><?=h((string)$memorySummary['corrected'])?></strong><span>Corrected</span></div>
+          <div><strong><?=h((string)$memorySummary['excluded'])?></strong><span>Excluded</span></div>
+        </div>
+        <div class="researchMemoryLegend"><span>Privacy reflects the underlying Source / Annotation / Research workspace permission.</span><span>Retrieval controls affect future Agent context immediately.</span></div>
+        <?php if(!$memoryItems):?><div class="researchMemoryEmpty">No indexed knowledge is available yet. Open Library or add Research evidence, then allow the retrieval worker to index it.</div><?php endif?>
+        <div class="researchMemoryList">
+          <?php foreach($memoryItems as $memory):?>
+          <details class="researchMemoryItem" data-memory-item data-object-type="<?=h((string)$memory['object_type'])?>" data-object-id="<?=h((string)$memory['public_id'])?>">
+            <summary>
+              <span class="researchMemoryType"><?=h(strtoupper(str_replace('_',' ',(string)$memory['object_type'])))?></span>
+              <span class="researchMemoryTitle"><?=h((string)$memory['title'])?></span>
+              <span class="researchMemoryBadges">
+                <span><?=h(ucfirst((string)$memory['privacy_state']))?></span>
+                <span><?=h(ucwords(str_replace('_',' ',(string)$memory['source_kind'])))?></span>
+                <?php if($memory['retrieval_state']==='exclude'):?><span class="isExcluded">Excluded</span><?php elseif($memory['retrieval_state']==='include'):?><span class="isIncluded">Included</span><?php else:?><span>Inherited</span><?php endif?>
+                <?php if(trim((string)$memory['correction_text'])!==''):?><span class="isCorrected">Corrected</span><?php endif?>
+              </span>
+              <span class="researchMemoryUse"><?=h((string)$memory['usage_count'])?> use<?=((int)$memory['usage_count']===1?'':'s')?><?=!empty($memory['last_used_at'])?' · '.h((string)$memory['last_used_at']):''?></span>
+            </summary>
+            <div class="researchMemoryEditor">
+              <div class="researchMemoryMeta">
+                <div><span>Source / provenance</span><strong><?=h(ucwords(str_replace('_',' ',(string)$memory['source_kind'])))?></strong></div>
+                <div><span>Privacy</span><strong><?=h(ucfirst((string)$memory['privacy_state']))?></strong></div>
+                <div><span>Last changed</span><strong><?=h((string)($memory['updated_at']??'—'))?></strong></div>
+                <div><span>Last used by Agent</span><strong><?=h((string)($memory['last_used_at']??'Never'))?></strong></div>
+              </div>
+              <label>Agent retrieval
+                <select data-memory-state>
+                  <option value="inherit" <?=$memory['retrieval_state']==='inherit'?'selected':''?>>Inherit source access</option>
+                  <option value="include" <?=$memory['retrieval_state']==='include'?'selected':''?>>Explicitly include</option>
+                  <option value="exclude" <?=$memory['retrieval_state']==='exclude'?'selected':''?>>Exclude from Agent</option>
+                </select>
+              </label>
+              <label>User correction
+                <textarea data-memory-correction rows="4" maxlength="12000" placeholder="Add a correction or clarification the Agent should use while preserving the original evidence."><?=h((string)$memory['correction_text'])?></textarea>
+              </label>
+              <div class="researchMemoryActions">
+                <button type="button" data-memory-save>Save memory settings</button>
+                <button type="button" class="button secondary" data-memory-history>View history</button>
+                <span data-memory-status aria-live="polite"></span>
+              </div>
+              <div class="researchMemoryHistory" data-memory-history-panel hidden></div>
+            </div>
+          </details>
+          <?php endforeach?>
+        </div>
+      <?php endif?>
+    </section>
     <section class="researchKnowledgeEvidence">
       <div class="sectionHeadWeb"><div><span class="eyebrow">RECENT KNOWLEDGE</span><h2>Evidence & structured objects</h2></div></div>
       <?php if(!$evidence):?><div class="card empty">No recent evidence has been captured yet.</div><?php endif?>
@@ -146,5 +207,5 @@ $changeObjectTitle=static function(array $change): string {
   <?php endif?>
 
   <?php endif?>
-</main><script src="/assets/js/research-agent-unified-shell.js?v=74.3"></script>
+</main><script src="/assets/js/research-agent-unified-shell.js?v=74.3"></script><script src="/assets/js/research-agent-memory.js?v=79.3"></script>
 </body></html>
