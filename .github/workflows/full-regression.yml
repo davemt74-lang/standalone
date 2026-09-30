@@ -221,6 +221,13 @@ jobs:
           DB_PASS: root
           PHASE67_RESET_DB: '1'
         run: php tests/ci/phase67-upgrade-from-079.php
+      - name: Phase 79 Section 3 Agent Memory upgrade rehearsal from migration 113 through 114
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_phase79_s3_upgrade;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+          PHASE79_SECTION3_RESET_DB: '1'
+        run: php tests/ci/phase79-section3-upgrade-from-113.php
 
   mysql8-fresh-install:
     if: contains(github.event.pull_request.title, '[phase-gate]')
