@@ -13,7 +13,7 @@
   .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
     display:block!important;
     position:fixed!important;
-    top:68px!important;
+    top:var(--team-chat-viewport-top,58px)!important;
     right:0!important;
     bottom:0!important;
     width:320px!important;
@@ -21,7 +21,7 @@
     max-height:none!important;
     overflow:visible!important;
     padding:0!important;
-    z-index:133!important;
+    z-index:520!important;
     transform:translateX(100%)!important;
     transition:transform .2s ease!important;
     pointer-events:none!important;
@@ -47,7 +47,7 @@
   /* Independent 50px desktop rail. */
   .teamChatMiniRail{
     position:fixed!important;
-    top:68px!important;
+    top:var(--team-chat-viewport-top,58px)!important;
     right:0!important;
     bottom:0!important;
     width:50px!important;
@@ -62,7 +62,7 @@
     background:#fff!important;
     color:#333!important;
     box-shadow:-5px 0 18px rgba(0,0,0,.05)!important;
-    z-index:132!important;
+    z-index:510!important;
     overflow:visible!important;
   }
   body.teamChatDesktopOpen .teamChatMiniRail{visibility:hidden!important;pointer-events:none!important}
@@ -289,4 +289,19 @@
   overflow-y:auto!important;
   overflow-x:hidden!important;
   -webkit-overflow-scrolling:touch;
+}
+
+
+/* Drawer must own its visible viewport above the global Agent dock. */
+.homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
+  isolation:isolate;
+}
+.homeWorkspaceLayout.hasTeamChatRail .teamChatRail{
+  max-height:100%!important;
+}
+.teamChatComposer,
+.teamChatFooter{
+  position:relative;
+  z-index:2;
+  background:#fff;
 }
