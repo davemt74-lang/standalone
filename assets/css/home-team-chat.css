@@ -204,12 +204,13 @@
   flex:1 1 auto;
 }
 .teamChatTabPanel[hidden]{display:none!important}
-.teamChatTabPanel[data-team-chat-panel="chat"]{
-  display:flex;
+.teamChatTabPanel[data-team-chat-panel="chat"]:not([hidden]){
+  display:flex!important;
   flex-direction:column;
   min-height:0;
 }
-.teamChatTabPanel[data-team-chat-panel="members"]{
+.teamChatTabPanel[data-team-chat-panel="members"]:not([hidden]){
+  display:block!important;
   overflow:auto;
   padding:14px 12px 16px;
 }
@@ -231,3 +232,32 @@
 
 /* Team Chat flex shell for tabbed UI */
 .teamChatRail{display:flex!important;flex-direction:column!important;min-height:0!important}
+
+
+/* Minimal Team Chat scrollbars */
+.teamChatMessages,
+.teamChatTabPanel[data-team-chat-panel="members"]{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(80,86,92,.28) transparent;
+}
+.teamChatMessages::-webkit-scrollbar,
+.teamChatTabPanel[data-team-chat-panel="members"]::-webkit-scrollbar{
+  width:6px;
+}
+.teamChatMessages::-webkit-scrollbar-track,
+.teamChatTabPanel[data-team-chat-panel="members"]::-webkit-scrollbar-track{
+  background:transparent;
+}
+.teamChatMessages::-webkit-scrollbar-thumb,
+.teamChatTabPanel[data-team-chat-panel="members"]::-webkit-scrollbar-thumb{
+  background:rgba(80,86,92,.22);
+  border-radius:999px;
+}
+.teamChatMessages:hover::-webkit-scrollbar-thumb,
+.teamChatTabPanel[data-team-chat-panel="members"]:hover::-webkit-scrollbar-thumb{
+  background:rgba(80,86,92,.36);
+}
+.teamChatMessages{
+  overflow-y:auto!important;
+  overscroll-behavior:contain;
+}

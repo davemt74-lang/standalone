@@ -408,7 +408,12 @@
   select?.addEventListener('change',()=>{setRailReply('','');railNextBefore=null;railHistoryExpanded=false;syncTeamMeta();const option=currentOption();document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{team_public_id:option?.dataset.team||'',surface:'team'}}));loadRailMessages();});
   loadEarlier?.addEventListener('click',loadEarlierMessages);
   popoutCurrent?.addEventListener('click',()=>openPopup(select.value));
-  tabButtons.forEach(button=>button.addEventListener('click',()=>setTeamChatTab(button.dataset.teamChatTab||'chat')));
+  rail.addEventListener('click',e=>{
+    const button=e.target.closest('[data-team-chat-tab]');
+    if(!button||!rail.contains(button))return;
+    e.preventDefault();
+    setTeamChatTab(button.dataset.teamChatTab||'chat');
+  });
   function setRailOpen(open){
     if(matchMedia('(max-width: 900px)').matches){
       document.body.classList.toggle('teamChatMobileOpen',!!open);
@@ -446,6 +451,15 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!settingsModal?.open)setRailOpen(false);});
   document.addEventListener('annotated:chat-presence',e=>updateSelfStatus(e.detail||{}));
   document.addEventListener('annotated:team-chat-share-complete',e=>{const conversation=String(e.detail?.conversation||'');if(!conversation)return;openPopup(conversation);refreshConversationList();if(select?.value===conversation)loadRailMessages({quiet:true});});
+  document.addEventListener('click',e=>{
+    if(matchMedia('(max-width: 900px)').matches)return;
+    if(!document.body.classList.contains('teamChatDesktopOpen'))return;
+    const target=e.target;
+    if(rail.contains(target))return;
+    if(miniRail?.contains(target))return;
+    if(settingsModal?.contains(target))return;
+    setRailOpen(false);
+  });
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
 
   setTeamChatTab('chat');syncTeamMeta();loadRailMessages();restorePopups();
