@@ -1,0 +1,53 @@
+name: Temporary deploy package 19e4ac42
+on:
+  push:
+    branches:
+      - chatgpt/package-19e4ac42
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build extension
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf package-website package-extension
+          mkdir package-website package-extension
+          cp -a extension/. package-extension/
+          (cd package-extension && zip -qr ../Annotated-Chrome-Extension.zip .)
+          unzip -t Annotated-Chrome-Extension.zip
+      - name: Build website
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a ./ package-website/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'extension/' \
+            --exclude 'package-website/' \
+            --exclude 'package-extension/' \
+            --exclude 'Annotated-Website.zip' \
+            --exclude 'Annotated-Chrome-Extension.zip' \
+            --exclude 'config.php'
+          mkdir -p package-website/downloads package-website/extension
+          cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
+          cp extension/manifest.json package-website/extension/manifest.json
+          GITHUB_SHA="19e4ac42e4e28d184b74dded70e7f3455e299157" php package-website/bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
+          (cd package-website && zip -qr ../Annotated-Website.zip .)
+          unzip -t Annotated-Website.zip
+          test -f package-website/home.php
+          test -f package-website/research-intelligence-portfolio-create.php
+          test -f package-website/assets/css/home-team-chat.css
+          test -f package-website/assets/css/create-launcher.css
+          test -f package-website/database/migrations/20260929_105_unified_create_object_launch.sql
+          sha256sum Annotated-Website.zip > Annotated-Website.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Annotated-Website-19e4ac42
+          path: |
+            Annotated-Website.zip
+            Annotated-Website.zip.sha256
+          if-no-files-found: error
