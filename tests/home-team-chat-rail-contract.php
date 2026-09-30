@@ -12,7 +12,7 @@ $need('assets/css/home-team-chat.css','.homeWorkspaceLayout.hasTeamChatRail','Te
 $need('assets/css/home-team-chat.css','>.homeRightRail.teamChatRightRail','Team Chat CSS must explicitly restore the rail hidden by single-column Home styles.');
 $need('home.php','data-team-chat-mini-rail','Home must render the 50px collapsed Team Chat rail.');
 $need('assets/css/home-team-chat.css','width:50px!important','Collapsed Team Chat rail must be 50px wide.');
-$need('assets/css/home-team-chat.css','transform:translateX(320px)!important','Desktop Team Chat must collapse to the right rail.');
+$need('assets/css/home-team-chat.css','transform:translateX(100%)!important','Full Team Chat sidebar must remain fully off-canvas while the independent rail is closed.');
 $need('assets/css/home-team-chat.css','body.teamChatDesktopOpen','Desktop Team Chat must expose an explicit open state.');
 $need('assets/js/team-chat.js',"miniRail?.addEventListener('click'","Clicking the collapsed Team Chat rail must open the chat panel.");
 $need('assets/js/team-chat.js','renderMiniMembers','Collapsed Team Chat rail must render member avatars and presence.');
