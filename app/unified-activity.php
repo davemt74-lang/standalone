@@ -242,6 +242,7 @@ function unified_activity_collect(PDO $pdo,array $viewer,int $limit=60): array {
     unified_activity_reports($pdo,$viewer,$items,$slice);
     unified_activity_workspace_bookmarks($pdo,$viewer,$items,$slice);
     unified_activity_agent($pdo,$viewer,$items,$slice);
+    if(function_exists('research_agent_story_activity'))foreach(research_agent_story_activity($pdo,$viewer,$slice) as $story)$items[$story['key']]=$story;
     $rows=array_values($items);usort($rows,fn($a,$b)=>(strtotime((string)$b['created_at'])?:0)<=>(strtotime((string)$a['created_at'])?:0));
     return array_slice($rows,0,$limit);
 }
