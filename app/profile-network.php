@@ -153,6 +153,11 @@ function profile_network_set_follow(PDO $pdo,array $viewer,string $targetPublicI
     if($desired&&!$before['following']&&$state['following']&&function_exists('notify_user')){
         notify_user($pdo,$targetId,$viewerId,'new_follower','user',(string)$viewer['public_id'],(string)$viewer['display_name'].' followed you.',['dedupe_key'=>'follow:'.$viewerId.':'.$targetId,'group_key'=>'follows','context'=>['actor_public_id'=>$viewer['public_id']]]);
     }
+    if(function_exists('research_agent_story_reconcile_social_delivery')){
+        $state['story_delivery']=research_agent_story_reconcile_social_delivery($pdo,$viewer,$targetId);
+        $targetViewer=['id'=>$targetId,'public_id'=>(string)$target['public_id'],'display_name'=>(string)$target['display_name']];
+        research_agent_story_reconcile_social_delivery($pdo,$targetViewer,$viewerId);
+    }
     $q=$pdo->prepare('SELECT COUNT(*) FROM follows WHERE followed_user_id=?');$q->execute([$targetId]);$state['follower_count']=(int)$q->fetchColumn();
     $q=$pdo->prepare('SELECT COUNT(*) FROM follows WHERE follower_user_id=?');$q->execute([$targetId]);$state['following_count']=(int)$q->fetchColumn();
     return $state;
