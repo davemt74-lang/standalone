@@ -115,6 +115,18 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
     $url='/collection.php?id='.rawurlencode((string)$c['public_id']);
     return '<article class="profileShowcaseCard profileCollectionCard"><div class="profileShowcaseCardTop"><span class="profileObjectType">PUBLIC COLLECTION</span>'.$renderPinControl('collection',(string)$c['public_id'],$returnTab).'</div><div class="profileCollectionGlyph" aria-hidden="true"></div><h3><a href="'.h($url).'">'.h((string)$c['title']).'</a></h3>'.(!empty($c['description'])?'<p>'.nl2br(h((string)$c['description'])).'</p>':'').'<footer><span>'.h((string)$c['item_count']).' public item'.((int)$c['item_count']===1?'':'s').'</span><time>'.h((string)($c['recent_item_at']?:$c['updated_at'])).'</time></footer></article>';
 };
+$renderAgentCard=function(array $agent,string $returnTab='agents')use($renderPinControl): string{
+    $id=(string)$agent['public_id'];$name=(string)($agent['name']??'Research Agent');$avatar=trim((string)($agent['profile_image_url']??''));$initial=mb_strtoupper(mb_substr($name,0,1));
+    $storyCount=(int)($agent['story_count']??0);$latest=trim((string)($agent['latest_at']??$agent['updated_at']??''));
+    $identity=$avatar!==''?'<img src="'.h($avatar).'" alt="">':'<span>'.h($initial?:'R').'</span>';
+    return '<article class="profileShowcaseCard profileAgentCard"><div class="profileShowcaseCardTop"><span class="profileObjectType">PUBLIC RESEARCH AGENT</span>'.$renderPinControl('research_agent',$id,$returnTab).'</div><a class="profileAgentCardLink" href="/research-agent-public.php?agent='.rawurlencode($id).'"><div class="profileDiscoveryIdentity">'.$identity.'<div><strong>'.h($name).'</strong><small>'.$storyCount.' active '.($storyCount===1?'Story':'Stories').'</small></div></div>'.(!empty($agent['description'])?'<p>'.h(mb_substr((string)$agent['description'],0,260)).'</p>':'').'<div class="profileAgentMeta"><span>Public</span>'.($latest!==''?'<span>Updated '.h(date('M j',strtotime($latest)?:time())).'</span>':'').'</div><span class="profileAgentCardAction">View Agent <span aria-hidden="true">→</span></span></a></article>';
+};
+$renderStoryCard=function(array $story,string $returnTab='stories')use($p): string{
+    $public=(string)($story['public_id']??'');$agent=(string)($story['agent_public_id']??'');$name=(string)($story['agent_name']??'Research Agent');$avatar=trim((string)($story['agent_profile_image_url']??''));$initial=mb_strtoupper(mb_substr($name,0,1));
+    $title=trim((string)($story['title']??''))?:'Research update';$body=(string)($story['body']??'');$why=trim((string)($story['why_it_matters']??''));
+    $identity=$avatar!==''?'<img src="'.h($avatar).'" alt="">':h($initial?:'R');
+    return '<article class="profileStoryCard" id="story-'.h($public).'"><header><span class="profileStoryAgentAvatar">'.$identity.'</span><div><strong>'.h($name).'</strong><small>'.h(date('M j · g:i A',strtotime((string)($story['published_at']??''))?:time())).'</small></div></header><span class="profileObjectType">'.h(strtoupper(str_replace('_',' ',(string)($story['story_type']??'story')))).'</span><h3>'.h($title).'</h3><p>'.nl2br(h($body)).'</p>'.($why!==''?'<aside><strong>Why this matters</strong><p>'.h($why).'</p></aside>':'').'<footer><a href="/research-agent-public.php?agent='.rawurlencode($agent).'">View Research Agent →</a><a href="'.h(profile_path((string)($p['username']??''))).'?tab=stories#story-'.rawurlencode($public).'">Link to Story</a></footer></article>';
+};
 ?><!doctype html>
 <html>
 <head>
