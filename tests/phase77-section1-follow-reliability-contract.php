@@ -6,10 +6,10 @@ $need=function(string $file,string $needle,string $message)use(&$fail,$root){$pa
 foreach(['profile_network_relationship','profile_network_set_follow','profile_network_toggle_follow'] as $fn)$need('app/profile-network.php','function '.$fn,'Phase 77.1 missing canonical follow runtime: '.$fn);
 $need('app/profile-network.php','INSERT IGNORE INTO follows','Following must be idempotent and duplicate-safe.');
 $need('app/profile-network.php','DELETE FROM follows WHERE follower_user_id=? AND followed_user_id=?','Unfollow must target the canonical relationship pair.');
-$need('app/profile-network.php',"'friends'=>$following&&$followsYou",'Canonical relationship state must expose mutual friendship.');
-$need('app/profile-network.php',"'blocked'=>$blocked",'Canonical relationship state must expose block state.');
+$need('app/profile-network.php',"'friends'=>\$following&&\$followsYou",'Canonical relationship state must expose mutual friendship.');
+$need('app/profile-network.php',"'blocked'=>\$blocked",'Canonical relationship state must expose block state.');
 $need('app/profile-network.php',"'follower_count'",'Follow mutation responses must return refreshed follower counts.');
-$need('api/profile-follow.php',"array_key_exists('following',$input)",'Follow API must support explicit desired state instead of toggle-only mutation.');
+$need('api/profile-follow.php',"array_key_exists('following',\$input)",'Follow API must support explicit desired state instead of toggle-only mutation.');
 $need('profile.php',"following:desired",'Profile Follow button must send explicit desired state.');
 $need('profile.php','data-profile-follower-count','Profile must update follower count from the canonical response.');
 $need('profile.php',"button.getAttribute('aria-pressed')!=='true'",'Profile Follow button must derive desired state from current UI state.');
