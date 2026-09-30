@@ -1,0 +1,10 @@
+name: Package Research Agent Stories V1
+on:
+  push:
+    branches:
+      - chatgpt/package-26450f21
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
