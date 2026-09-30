@@ -24,7 +24,7 @@ foreach([
  'data-admin-copilot-input',
  'Ask Admin Agent…',
  '/assets/js/admin-agent-copilot.js?v=2.',
- 'Admin V2.',
+ 'function admin_ui_sidebar',
 ] as $needle)$need('app/admin-ui.php',$needle,'Shared Admin shell missing V2.80 copilot contract '.$needle);
 
 foreach([
