@@ -55,6 +55,7 @@ function research_agent_shell_render(?array $agent,array $agents,string $active=
     <section class="researchAgentUnifiedShell" data-research-agent-shell data-agent-id="<?=h((string)$agent['public_id'])?>" data-agent-conversation="<?=h((string)$agent['conversation_public_id'])?>" data-active-tab="<?=h($active)?>">
       <div class="researchAgentUnifiedIdentity">
         <a class="researchAgentUnifiedBack" href="/research.php" aria-label="Back to Research">←</a>
+        <span class="researchAgentUnifiedAvatar"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?><?php endif?></span>
         <div><span>RESEARCH AGENT</span><strong><?=h((string)$agent['name'])?></strong></div>
       </div>
       <nav class="researchAgentUnifiedTabs" aria-label="Research Agent workspace">
