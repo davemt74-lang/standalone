@@ -31,4 +31,7 @@ foreach([
 ] as $file)if(!is_file($root.'/'.$file))$fail[]='Missing Phase 78 migration: '.$file;
 
 if($fail){foreach(array_unique($fail) as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}
+$storySource=file_get_contents(__DIR__.'/../app/research-agent-stories.php');
+if(!is_string($storySource)||!str_contains($storySource,"VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))"))$fail[]='Phase 78 intelligence Story INSERT must bind exactly 16 parameters for 17 values including generated timestamps.';
+
 echo "Phase 78 Section 7 End-to-End Story Hardening & Release contract passed.\n";

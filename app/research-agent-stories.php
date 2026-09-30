@@ -187,7 +187,7 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
     $public=ulid_like();$parentId=(int)($intelligence['parent']['id']??0);
     if(research_agent_story_intelligence_ready($pdo)){
         $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,intelligence_hash,parent_story_id,why_it_matters,status,published_at,expires_at)
-          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
         $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id'],(string)$intelligence['hash'],$parentId>0?$parentId:null,(string)$intelligence['why'],$status,$status]);
     }else{
         $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,status,published_at,expires_at)
