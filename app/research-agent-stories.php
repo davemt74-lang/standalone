@@ -155,10 +155,10 @@ function research_agent_story_access(PDO $pdo,array $viewer,string $publicId): ?
       JOIN research_agents ra ON ra.id=s.agent_id
       JOIN research_projects rp ON rp.id=ra.project_id
       JOIN conversations c ON c.id=ra.conversation_id
-      JOIN users u ON u.id=ra.owner_user_id
+      JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
-      WHERE s.public_id=:story_public AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
+      WHERE s.public_id=:story_public AND ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW()) AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
     $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$params[':story_public']=$publicId;$q->execute($params);
     $row=$q->fetch()?:null;if(!$row)return null;$row['story_url']='/home.php?story='.rawurlencode((string)$row['public_id']);return $row;
 }
@@ -172,7 +172,7 @@ function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $in
       JOIN research_agents ra ON ra.id=s.agent_id
       JOIN research_projects rp ON rp.id=ra.project_id
       JOIN conversations c ON c.id=ra.conversation_id
-      JOIN users u ON u.id=ra.owner_user_id
+      JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
       WHERE ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW()) AND ".research_agent_story_social_visibility_sql().$dismiss."

@@ -98,9 +98,12 @@ function research_agent_discover_public(PDO $pdo,?array $viewer,string $term='',
         $where[]='(ra.name LIKE ? OR ra.description LIKE ? OR u.display_name LIKE ? OR u.username LIKE ?)';
         $like='%'.$term.'%';array_push($params,$like,$like,$like,$like);
     }
+    $storyCount=(function_exists('research_agent_stories_ready')&&research_agent_stories_ready($pdo))
+      ? "(SELECT COUNT(*) FROM research_agent_stories ras WHERE ras.agent_id=ra.id AND (ras.expires_at IS NULL OR ras.expires_at>NOW())) published_story_count"
+      : "0 published_story_count";
     $sql="SELECT ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.updated_at,
       ra.owner_user_id,u.public_id owner_public_id,u.username owner_username,u.display_name owner_display_name,u.profile_image_url owner_profile_image_url,
-      (SELECT COUNT(*) FROM research_agent_stories ras WHERE ras.agent_id=ra.id AND (ras.expires_at IS NULL OR ras.expires_at>NOW())) published_story_count
+      ".$storyCount."
       FROM research_agents ra
       JOIN users u ON u.id=ra.owner_user_id
       LEFT JOIN user_preferences up ON up.user_id=u.id
