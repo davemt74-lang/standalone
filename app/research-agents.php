@@ -15,6 +15,69 @@ function research_agent_ready(PDO $pdo): bool {
     }
 }
 
+function research_agent_social_visibility_sql(bool $requirePublicFollow=false): string {
+    $public=$requirePublicFollow
+      ? "(ra.visibility='public' AND EXISTS(SELECT 1 FROM follows raf WHERE raf.follower_user_id=:social_follow AND raf.followed_user_id=ra.owner_user_id))"
+      : "ra.visibility='public'";
+    return "(
+      ra.owner_user_id=:social_owner
+      OR EXISTS(SELECT 1 FROM team_members ratm WHERE ratm.team_id=ra.team_id AND ratm.user_id=:social_team)
+      OR (
+        (
+          ".$public."
+          OR (
+            ra.visibility='friends'
+            AND EXISTS(SELECT 1 FROM follows raf1 WHERE raf1.follower_user_id=:social_friend1 AND raf1.followed_user_id=ra.owner_user_id)
+            AND EXISTS(SELECT 1 FROM follows raf2 WHERE raf2.follower_user_id=ra.owner_user_id AND raf2.followed_user_id=:social_friend2)
+          )
+        )
+        AND NOT EXISTS(
+          SELECT 1 FROM blocks rab
+          WHERE (rab.blocker_user_id=:social_block1 AND rab.blocked_user_id=ra.owner_user_id)
+             OR (rab.blocker_user_id=ra.owner_user_id AND rab.blocked_user_id=:social_block2)
+        )
+      )
+    )";
+}
+function research_agent_social_visibility_params(array $viewer): array {
+    $id=(int)($viewer['id']??0);
+    return [
+      ':social_owner'=>$id,':social_team'=>$id,':social_follow'=>$id,
+      ':social_friend1'=>$id,':social_friend2'=>$id,':social_block1'=>$id,':social_block2'=>$id
+    ];
+}
+function research_agent_social_access(PDO $pdo,array $viewer,string $publicId): ?array {
+    $publicId=trim($publicId);if($publicId===''||!research_agent_ready($pdo))return null;
+    $sql="SELECT ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.visibility,ra.status,ra.updated_at,
+      ra.owner_user_id,rp.public_id project_public_id,c.public_id conversation_public_id,
+      u.username owner_username,u.display_name owner_display_name,t.public_id team_public_id,t.name team_name
+      FROM research_agents ra
+      JOIN research_projects rp ON rp.id=ra.project_id
+      JOIN conversations c ON c.id=ra.conversation_id
+      JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
+      LEFT JOIN teams t ON t.id=ra.team_id
+      WHERE ra.public_id=:agent_public AND ra.status<>'archived' AND ".research_agent_social_visibility_sql(false)." LIMIT 1";
+    $q=$pdo->prepare($sql);$params=research_agent_social_visibility_params($viewer);$params[':agent_public']=$publicId;$q->execute($params);
+    return $q->fetch()?:null;
+}
+function research_agent_profile_list(PDO $pdo,int $ownerUserId,?array $viewer,int $limit=30): array {
+    if(!research_agent_ready($pdo)||$ownerUserId<1)return [];
+    $limit=max(1,min(60,$limit));$viewerId=(int)($viewer['id']??0);
+    if($viewerId<1){
+        $q=$pdo->prepare("SELECT ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.visibility,ra.updated_at
+          FROM research_agents ra JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
+          WHERE ra.owner_user_id=? AND ra.status<>'archived' AND ra.visibility='public'
+          ORDER BY ra.updated_at DESC,ra.id DESC LIMIT ".$limit);
+        $q->execute([$ownerUserId]);return $q->fetchAll()?:[];
+    }
+    $sql="SELECT ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.visibility,ra.updated_at
+      FROM research_agents ra
+      WHERE ra.owner_user_id=:profile_owner AND ra.status<>'archived' AND ".research_agent_social_visibility_sql(false)."
+      ORDER BY ra.updated_at DESC,ra.id DESC LIMIT ".$limit;
+    $q=$pdo->prepare($sql);$params=research_agent_social_visibility_params($viewer);$params[':profile_owner']=$ownerUserId;$q->execute($params);
+    return $q->fetchAll()?:[];
+}
+
 function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
     if(!research_agent_ready($pdo))return [];
     $limit=max(1,min(50,$limit));
