@@ -180,7 +180,7 @@ try{
 $homeAgentUrl=$homePrimaryAgent?'/home.php?agent='.rawurlencode((string)$homePrimaryAgent['conversation_public_id']):'/research.php';
 $homeDesktopUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=desktop':'/research.php';
 $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.php';
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"><link rel="stylesheet" href="/assets/css/home-team-chat.css?v=74.5"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"><link rel="stylesheet" href="/assets/css/home-team-chat.css?v=74.6"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout<?=$chatTeams?' hasTeamChatRail':''?>">
 <?php if($requestedResearchAgent):?>
 <div class="researchAgentCanvasTopActions researchAgentCanvasUnified" data-research-canvas-controls>
@@ -405,15 +405,22 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
 <?php if($chatTeams):?>
 <section class="teamChatRail" id="team-chat" data-team-chat-rail data-csrf="<?=h(csrf_token())?>" data-preferred-team="<?=h($preferredTeam)?>" data-agent-enabled="<?=(user_is_pro($pdo,$u)||($u['role']??'')==='admin')?'1':'0'?>">
   <header class="teamChatHeader"><div><span class="eyebrow">TEAM CHAT</span><h3>Messages</h3></div><div class="teamChatHeaderActions"><button type="button" class="teamChatPopoutCurrent" data-team-chat-popout aria-label="Pop out current team chat" title="Pop out chat">↗</button><button type="button" class="teamChatClose" data-team-chat-close aria-label="Close team chat">×</button></div></header>
-  <div class="teamChatTeamPicker"><select id="teamChatConversation" aria-label="Choose team"><?php foreach($chatTeams as $chat):?><option value="<?=h($chat['public_id'])?>" data-team="<?=h($chat['team_public_id'])?>" data-members="<?=h((string)$chat['member_count'])?>" data-unread="<?=h((string)$chat['unread_count'])?>" <?=$preferredTeam!==''&&$preferredTeam===$chat['team_public_id']?'selected':''?>><?=h($chat['team_name'])?><?=$chat['unread_count']?' · '.$chat['unread_count'].' new':''?></option><?php endforeach?></select><a id="teamChatOpenTeam" href="/team.php?id=<?=h($chatTeams[0]['team_public_id'])?>">Team</a></div>
-  <div class="teamChatStatus"><span id="teamChatMemberCount"></span><span id="teamChatUnread" hidden></span></div>
-  <section class="teamChatMembers" id="teamChatMembers" aria-label="Team members">
-    <div class="teamChatMembersLoading">Loading team members…</div>
+  <nav class="teamChatTabs" role="tablist" aria-label="Team Chat views">
+    <button type="button" role="tab" aria-selected="true" aria-controls="team-chat-tab-chat" data-team-chat-tab="chat" class="active">Chat</button>
+    <button type="button" role="tab" aria-selected="false" aria-controls="team-chat-tab-members" data-team-chat-tab="members">Members <span id="teamChatMemberCount"></span></button>
+  </nav>
+  <section class="teamChatTabPanel active" id="team-chat-tab-chat" role="tabpanel" data-team-chat-panel="chat">
+    <div class="teamChatTeamPicker"><select id="teamChatConversation" aria-label="Choose team"><?php foreach($chatTeams as $chat):?><option value="<?=h($chat['public_id'])?>" data-team="<?=h($chat['team_public_id'])?>" data-members="<?=h((string)$chat['member_count'])?>" data-unread="<?=h((string)$chat['unread_count'])?>" <?=$preferredTeam!==''&&$preferredTeam===$chat['team_public_id']?'selected':''?>><?=h($chat['team_name'])?><?=$chat['unread_count']?' · '.$chat['unread_count'].' new':''?></option><?php endforeach?></select><a id="teamChatOpenTeam" href="/team.php?id=<?=h($chatTeams[0]['team_public_id'])?>">Team</a></div>
+    <div class="teamChatStatus"><span id="teamChatUnread" hidden></span></div>
+    <div class="teamChatHistoryBar"><button type="button" id="teamChatLoadEarlier" hidden>Load earlier messages</button></div>
+    <div class="teamChatMessages" id="teamChatMessages" role="log" aria-live="polite" aria-label="Team messages"><div class="teamChatLoading">Loading messages…</div></div>
+    <div class="teamChatReply" id="teamChatReply" hidden><span></span><button type="button" aria-label="Cancel reply">×</button></div>
+    <form class="teamChatComposer" id="teamChatComposer"><textarea id="teamChatInput" rows="1" maxlength="5000" placeholder="Message your team…" aria-label="Message your team"></textarea><button type="submit" aria-label="Send message">↑</button></form>
   </section>
-  <div class="teamChatHistoryBar"><button type="button" id="teamChatLoadEarlier" hidden>Load earlier messages</button></div>
-  <div class="teamChatMessages" id="teamChatMessages" role="log" aria-live="polite" aria-label="Team messages"><div class="teamChatLoading">Loading messages…</div></div>
-  <div class="teamChatReply" id="teamChatReply" hidden><span></span><button type="button" aria-label="Cancel reply">×</button></div>
-  <form class="teamChatComposer" id="teamChatComposer"><textarea id="teamChatInput" rows="1" maxlength="5000" placeholder="Message your team…" aria-label="Message your team"></textarea><button type="submit" aria-label="Send message">↑</button></form>
+  <section class="teamChatTabPanel" id="team-chat-tab-members" role="tabpanel" data-team-chat-panel="members" hidden>
+    <div class="teamChatMembersHeading"><strong>Team members</strong><span>Live availability</span></div>
+    <section class="teamChatMembers" id="teamChatMembers" aria-label="Team members"><div class="teamChatMembersLoading">Loading team members…</div></section>
+  </section>
   <footer class="teamChatFooter"><span class="teamChatSelfStatus" data-team-chat-self-status><i class="chatPresenceDot status-<?=h((string)$chatStatus['effective_status'])?>"></i><span><?=h((string)($chatStatus['custom_status']?:ucfirst((string)$chatStatus['status_mode'])))?></span></span><button type="button" class="teamChatSettingsButton" data-team-chat-settings-open aria-haspopup="dialog" aria-controls="team-chat-settings-modal" aria-label="Chat settings" title="Chat settings">⚙</button></footer>
 </section>
 <?php else:?>
