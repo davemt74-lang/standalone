@@ -13,7 +13,7 @@ if(empty($schemaStatus['ready'])){
     $incident=app_schema_runtime_incident((string)($schemaStatus['error']?:('Runtime schema is not current: '.implode(', ',(array)($schemaStatus['pending']??[])).' changed='.implode(',',(array)($schemaStatus['changed']??[])))),'home-schema');
     http_response_code(503);
     ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Annotated database update required</title><link rel="stylesheet" href="/assets/css/app.css?v=76.0"></head><body><main class="panel narrow"><h1>Database update required</h1><p>Annotated cannot safely load the Home workspace until the database schema matches this release.</p><?php if(($u['role']??'')==='admin'):?><p><a class="button" href="/upgrade.php">Open database upgrade</a></p><?php else:?><p>Please ask an Annotated administrator to complete the database upgrade.</p><?php endif?><p class="meta">Reference: <?=h($incident)?></p></main><script src="/assets/js/research-agent-unified-shell.js?v=74.2"></script>
-</body></html><?php
+<script src="/assets/js/research-agent-stories.js?v=1.0"></script></body></html><?php
     exit;
 }
 
@@ -31,7 +31,7 @@ $workspaceResearchContext='';$cognitiveReady=false;$cognitiveRuntimeReady=false;
 $cognitiveBase=['ready'=>false,'items'=>[],'hidden_count'=>0];
 $cognitiveFeed=['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
 $actionCenter=['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
-$proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];
+$proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];$agentStories=[];$agentStoriesLlm=['available'=>false];
 $proactiveAgentHandoff=null;$crossResearchAgentHandoff=null;$reviewAgentHandoff=null;$impactAgentHandoff=null;$portfolioAgentHandoff=null;$directAgentHandoff=null;
 $homeRuntimeIncidents=[];
 
@@ -103,6 +103,9 @@ try{
     $proactiveReady=proactive_intelligence_ready($pdo);
     if($proactiveReady&&$cognitiveRuntimeReady&&$feedMode==='cognitive')proactive_intelligence_sync($pdo,$u,$cognitiveFeed);
     $proactiveBriefing=$proactiveReady?proactive_briefing($pdo,$u,3):$proactiveBriefing;
+    if(function_exists('research_agent_story_sync'))research_agent_story_sync($pdo,$config,$u,8);
+    if(function_exists('research_agent_story_list'))$agentStories=research_agent_story_list($pdo,$u,12);
+    if(function_exists('research_agent_story_llm_available'))$agentStoriesLlm=research_agent_story_llm_available($pdo,$config);
     $proactiveAgentKey=trim((string)($_GET['proactive_agent']??''));
     $proactiveAgentHandoff=$proactiveReady&&$proactiveAgentKey!==''?proactive_agent_handoff($pdo,$u,$proactiveAgentKey):null;
 }catch(Throwable $e){
@@ -207,9 +210,25 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
   </div>
 </section>
 <?php elseif($homePrimaryAgent):?>
-<section class="homeContinueResearch" aria-label="Continue Research">
-  <div><span class="eyebrow">CONTINUE RESEARCH</span><strong><?=h((string)$homePrimaryAgent['name'])?></strong><?php if(!empty($homePrimaryAgent['last_message'])):?><small><?=h((string)$homePrimaryAgent['last_message'])?></small><?php else:?><small>Your Research Agent is ready for evidence, questions, and documents.</small><?php endif?></div>
-  <nav><a href="<?=h($homeAgentUrl)?>">Continue Agent</a><a href="<?=h($homeDesktopUrl)?>">Desktop</a><a href="<?=h($homeLibraryUrl)?>">Library</a></nav>
+<section class="homeAgentStories" aria-label="Research Agent Stories" data-agent-stories>
+  <header class="homeAgentStoriesHead"><div><span class="eyebrow">RESEARCH AGENT STORIES</span><strong>What your Agents want you to know</strong></div><small><?=!empty($agentStoriesLlm['available'])?'Research LLM enhanced':'System research stories'?></small></header>
+  <div class="homeAgentStoriesRail">
+    <?php if(!$agentStories):?>
+      <a class="homeAgentStoryCard emptyStory" href="<?=h($homeAgentUrl)?>">
+        <span class="homeAgentStoryAvatar"><?php if(!empty($homePrimaryAgent['profile_image_url'])):?><img src="<?=h((string)$homePrimaryAgent['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$homePrimaryAgent['name'],0,1)))?><?php endif?></span>
+        <span><strong><?=h((string)$homePrimaryAgent['name'])?></strong><em>No new Story right now.</em><small>Open Agent</small></span>
+      </a>
+    <?php endif?>
+    <?php foreach($agentStories as $story):?>
+      <article class="homeAgentStoryCard <?=$story['viewed_at']?'isViewed':'isNew'?>" data-story-id="<?=h((string)$story['public_id'])?>">
+        <a class="homeAgentStoryMain" href="/home.php?agent=<?=h(rawurlencode((string)$story['conversation_public_id']))?>&story=<?=h(rawurlencode((string)$story['public_id']))?>" data-story-view>
+          <span class="homeAgentStoryAvatar"><?php if(!empty($story['profile_image_url'])):?><img src="<?=h((string)$story['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$story['agent_name'],0,1)))?><?php endif?></span>
+          <span class="homeAgentStoryCopy"><small><?=h(strtoupper((string)$story['story_type']))?><?=($story['generation_quality']??'')==='llm'?' · AI ENHANCED':''?></small><strong><?=h((string)$story['agent_name'])?></strong><em><?=h(mb_substr((string)$story['body'],0,220))?></em></span>
+        </a>
+        <button type="button" data-story-dismiss aria-label="Dismiss Story">×</button>
+      </article>
+    <?php endforeach?>
+  </div>
 </section>
 <?php endif?>
 <div class="homeFeedModeBar" data-cognitive-feed data-csrf="<?=h(csrf_token())?>">
