@@ -7,14 +7,8 @@ $error='';$success='';$requestedPortfolioId=trim((string)($_GET['portfolio']??''
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$op=(string)($_POST['op']??'');
     try{
-        if($op==='create'){
-            $p=research_intelligence_portfolio_create($pdo,$u,[
-              'title'=>(string)($_POST['title']??''),'objective'=>(string)($_POST['objective']??''),'team_id'=>(string)($_POST['team_id']??''),
-              'briefing_cadence'=>(string)($_POST['briefing_cadence']??'manual'),'timezone_name'=>(string)($_POST['timezone_name']??($u['timezone_name']??'UTC')),
-              'briefing_time_local'=>(string)($_POST['briefing_time_local']??'09:00'),'briefing_weekday'=>(int)($_POST['briefing_weekday']??1),'briefing_day_of_month'=>(int)($_POST['briefing_day_of_month']??1),'briefing_policy'=>(string)($_POST['briefing_policy']??'material_only'),'materiality_threshold'=>(string)($_POST['materiality_threshold']??'important')
-            ]);header('Location: /research-intelligence-portfolios.php?portfolio='.rawurlencode((string)$p['public_id']).'&created=1');exit;
-        }
         if($portfolioId==='')throw new InvalidArgumentException('Choose a Portfolio first.');
+
         if($op==='add_program'){research_intelligence_portfolio_add_program($pdo,$u,$portfolioId,(string)($_POST['program_id']??''),(string)($_POST['member_role']??'supporting'));$success='Program added to Portfolio.';}
         elseif($op==='remove_program'){research_intelligence_portfolio_remove_program($pdo,$u,$portfolioId,(string)($_POST['program_id']??''));$success='Program removed from Portfolio.';}
         elseif($op==='snapshot'){research_intelligence_portfolio_snapshot($pdo,$u,$portfolioId,(int)($_POST['window_days']??30),'manual');$success='Frozen Portfolio snapshot created.';}
@@ -51,7 +45,7 @@ $overviewAttentionCount=research_portfolios_attention_count($overviewSections);
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-intelligence-portfolios">
 <main class="intelligencePortfolioCanvas">
 <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions"><a href="/research.php">Research Agents</a><a class="active" href="/research-intelligence-portfolios.php">Portfolios</a></nav></section>
-<header class="intelligencePortfolioHero"><div><span class="eyebrow">PHASE 74 · PORTFOLIOS &amp; GLOBAL ATTENTION</span><h1>Portfolios</h1><p>One organization-level home for Phase 60/73 Portfolio intelligence, strategic attention, review, Decision follow-through, Pattern Memory, dependencies, and Executive Briefings.</p></div></header>
+<header class="intelligencePortfolioHero"><div><span class="eyebrow">PHASE 74 · PORTFOLIOS &amp; GLOBAL ATTENTION</span><h1>Portfolios</h1><p>One organization-level home for Phase 60/73 Portfolio intelligence, strategic attention, review, Decision follow-through, Pattern Memory, dependencies, and Executive Briefings.</p></div><a class="button" href="/research-intelligence-portfolio-create.php">+ New Portfolio</a></header>
 <nav class="portfolioUnifiedTabs" aria-label="Portfolio views"><a class="<?=$portfolioView==='overview'?'active':''?>" href="<?=h(research_portfolios_href('overview'))?>">Overview</a><a class="<?=$portfolioView==='portfolios'?'active':''?>" href="<?=h(research_portfolios_href('portfolios',$portfolioId))?>">Portfolios</a></nav>
 <?php if($success):?><div class="success"><?=h($success)?></div><?php endif?><?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>
 <?php if($portfolioView==='overview'):$cs=(array)($center['summary']??[]);$xs=(array)($center['execution_summary']??[]);$ps=(array)($center['pattern_summary']??[]);$gs=(array)($center['strategic_graph_summary']??[]);$rs=(array)($center['strategic_review_summary']??[]);$bs=(array)($center['strategic_briefing_summary']??[]);$os=(array)($center['organizational_cognition_summary']??[]);?>
@@ -78,22 +72,22 @@ $overviewAttentionCount=research_portfolios_attention_count($overviewSections);
 <?php endforeach?>
 </section>
 <section class="portfolioOverviewDirectory"><header><div><span class="eyebrow">PORTFOLIO DIRECTORY</span><h2>Organization intelligence</h2></div><a class="button" href="<?=h(research_portfolios_href('portfolios'))?>">Manage Portfolios</a></header><div class="portfolioOverviewCards">
-<?php if(!$portfolios):?><div class="card empty"><h3>No Portfolios yet.</h3><p>Create one from the Portfolios view and add existing Research Programs.</p></div><?php endif?>
+<?php if(!$portfolios):?><div class="card empty"><h3>No Portfolios yet.</h3><p>Create a Portfolio, then add existing Research Programs.</p><a class="button" href="/research-intelligence-portfolio-create.php">+ New Portfolio</a></div><?php endif?>
 <?php foreach($portfolios as $p):$pa=$p['aggregate']['summary']??[];?><article class="card intelligencePortfolioCard"><a href="<?=h(research_portfolios_href('portfolios',(string)$p['public_id']))?>"><div><span><?=!empty($p['team_name'])?h((string)$p['team_name']):'PERSONAL'?></span><h3><?=h((string)$p['title'])?></h3></div><strong><?=h((string)$p['program_count'])?> Programs</strong></a><p><?=h(mb_substr((string)$p['objective'],0,260))?></p><div class="intelligencePortfolioMeta"><span><?=h((string)($pa['material_changes']??0))?> changes</span><span><?=h((string)($pa['high_changes']??0))?> high</span><span><?=!empty($p['briefing_due'])?'Briefing due':'Briefing current'?></span></div></article><?php endforeach?>
 </div></section>
 <?php else:?>
 <section class="intelligencePortfolioStats">
 <div><strong><?=h((string)$summary['portfolios'])?></strong><span>Portfolios</span></div><div><strong><?=h((string)$summary['programs'])?></strong><span>Programs</span></div><div><strong><?=h((string)$summary['briefings'])?></strong><span>Briefings</span></div><div><strong><?=h((string)$summary['risk_signals'])?></strong><span>Risk signals</span></div><div><strong><?=h((string)$summary['opportunity_signals'])?></strong><span>Opportunity signals</span></div><div><strong><?=h((string)$summary['cross_program_tensions'])?></strong><span>Cross-program tensions</span></div>
 </section>
-<section class="intelligencePortfolioGrid">
-<aside class="card intelligencePortfolioCreate"><span class="eyebrow">NEW PORTFOLIO</span><h2>Group Research Programs</h2><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h($csrf)?>"><input type="hidden" name="op" value="create"><label>Portfolio title<input name="title" required maxlength="255" placeholder="Market Intelligence"></label><label>Objective<textarea name="objective" required rows="5" maxlength="16000" placeholder="What should leadership continuously understand across these Programs?"></textarea></label><label>Scope<select name="team_id"><option value="">Personal</option><?php foreach($teams as $team):?><option value="<?=h((string)$team['public_id'])?>"><?=h((string)$team['name'])?></option><?php endforeach?></select></label><label>Briefing cadence<select name="briefing_cadence"><option value="manual">Manual</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></label><label>Draft policy<select name="briefing_policy"><option value="material_only">Only when materially changed</option><option value="always">Every scheduled cycle</option></select></label><label>Materiality<select name="materiality_threshold"><option value="important">Important + high</option><option value="high">High only</option><option value="any">Any tracked change</option></select></label><input type="hidden" name="timezone_name" value="<?=h((string)($u['timezone_name']??'UTC'))?>"><button>Create Portfolio</button></form><p class="meta">Portfolios aggregate existing Program state. They do not create another worker, scheduler, Claim store, task system, or document system.</p></aside>
+<section class="intelligencePortfolioDirectory">
 <section class="intelligencePortfolioList">
-<header><div><span class="eyebrow">PORTFOLIOS</span><h2>Organization intelligence</h2></div><small>Generated <?=h((string)$dashboard['generated_at'])?></small></header>
-<?php if(!$portfolios):?><div class="card empty"><h3>No Intelligence Portfolios yet.</h3><p>Create one and add existing Research Programs.</p></div><?php endif?>
+<header><div><span class="eyebrow">PORTFOLIOS</span><h2>Organization intelligence</h2></div><div class="inlineActions"><small>Generated <?=h((string)$dashboard['generated_at'])?></small><a class="button" href="/research-intelligence-portfolio-create.php">+ New Portfolio</a></div></header>
+<?php if(!$portfolios):?><div class="card empty"><h3>No Intelligence Portfolios yet.</h3><p>Create a Portfolio, then add existing Research Programs.</p><a class="button" href="/research-intelligence-portfolio-create.php">+ New Portfolio</a></div><?php endif?>
 <?php foreach($portfolios as $p):$a=$p['aggregate']['summary']??[];$sel=$selected&&$selected['public_id']===$p['public_id'];?>
 <article class="card intelligencePortfolioCard <?=$sel?'is-selected':''?>"><a href="/research-intelligence-portfolios.php?portfolio=<?=rawurlencode((string)$p['public_id'])?>"><div><span><?=!empty($p['team_name'])?h((string)$p['team_name']):'PERSONAL'?></span><h3><?=h((string)$p['title'])?></h3></div><strong><?=h((string)$p['program_count'])?> Programs</strong></a><p><?=h(mb_substr((string)$p['objective'],0,260))?></p><div class="intelligencePortfolioMeta"><span><?=h((string)($a['material_changes']??0))?> changes</span><span><?=h((string)($a['high_changes']??0))?> high</span><span><?=!empty($p['briefing_due'])?'Briefing due':'Briefing current'?></span></div></article>
 <?php endforeach?>
-</section></section>
+</section>
+</section>
 <?php if($selected):$a=$selected['aggregate'];$canWrite=research_intelligence_portfolio_can_write($selected);$portfolioAttentionSections=research_portfolios_attention_sections($center,(string)$selected['public_id']);$portfolioAttentionCount=research_portfolios_attention_count($portfolioAttentionSections);?>
 <section class="card intelligencePortfolioDetail">
 <header class="intelligencePortfolioDetailHeader"><div><span class="eyebrow">PROGRAM PORTFOLIO</span><h2><?=h((string)$selected['title'])?></h2><p><?=h((string)$selected['objective'])?></p></div><div class="intelligencePortfolioDetailMeta"><span><?=!empty($selected['team_name'])?h((string)$selected['team_name']):'Personal scope'?></span><span><?=h((string)$selected['access_role'])?></span></div></header>
