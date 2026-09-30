@@ -6,7 +6,7 @@ $shell=$read('app/shell.php');
 if(str_contains($shell,'<footer class="appShellFooter">'))$fail[]='Authenticated application shell must not render the public footer.';
 if(str_contains($shell,'class="appUserSummary"'))$fail[]='Authenticated header user control must not render display name or username.';
 if(!str_contains($shell,'<summary aria-label="Open profile menu">'))$fail[]='Authenticated header must keep an accessible avatar-only profile menu.';
-if(!str_contains($shell,"app_shell_avatar($user,'appAvatar')"))$fail[]='Authenticated header must retain the profile avatar.';
+if(!str_contains($shell,"app_shell_avatar(\$user,'appAvatar')"))$fail[]='Authenticated header must retain the profile avatar.';
 $home=$read('home.php');
 if(!str_contains($home,'data-team-chat-tab="chat"')||!str_contains($home,'data-team-chat-tab="members"'))$fail[]='Team Chat must expose Chat and Members tabs.';
 if(!str_contains($home,'id="teamChatMembers"')||!str_contains($home,'data-team-chat-panel="members"'))$fail[]='Members roster must live in the Members tab.';
