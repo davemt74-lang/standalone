@@ -1,0 +1,10 @@
+name: Package Team Chat grid 10of10
+on:
+  push:
+    branches:
+      - chatgpt/package-0039b5e3
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
