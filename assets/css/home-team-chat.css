@@ -1,4 +1,4 @@
-/* Home Team Chat — full-height desktop utility rail + mobile drawer. */
+/* Home Team Chat — independent desktop utility rail + separate off-canvas chat panel. */
 @media(min-width:901px){
   .homeWorkspaceLayout.hasTeamChatRail{
     grid-template-columns:minmax(0,820px)!important;
@@ -7,52 +7,51 @@
     justify-content:center!important;
   }
   .homeWorkspaceLayout.hasTeamChatRail>#homeFeedCanvas,
-  .homeWorkspaceLayout.hasTeamChatRail>.homeAgentCanvas{
-    grid-column:1!important;
-    grid-row:1!important;
-  }
+  .homeWorkspaceLayout.hasTeamChatRail>.homeAgentCanvas{grid-column:1!important;grid-row:1!important}
+
+  /* Full chat panel: completely off-canvas when closed. */
   .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
     display:block!important;
     position:fixed!important;
     top:68px!important;
     right:0!important;
     bottom:0!important;
-    width:370px!important;
+    width:320px!important;
     height:auto!important;
     max-height:none!important;
     overflow:visible!important;
     padding:0!important;
-    z-index:132!important;
-    transform:translateX(320px)!important;
+    z-index:133!important;
+    transform:translateX(100%)!important;
     transition:transform .2s ease!important;
     pointer-events:none!important;
   }
   body.teamChatDesktopOpen .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
     transform:translateX(0)!important;
+    pointer-events:auto!important;
   }
   .homeWorkspaceLayout.hasTeamChatRail .teamChatRail{
     width:320px!important;
     height:100%!important;
     min-height:0!important;
-    margin:0 50px 0 0!important;
+    margin:0!important;
     pointer-events:auto!important;
     border-radius:0!important;
     border-top:0!important;
     border-bottom:0!important;
-    box-shadow:0 10px 32px rgba(0,0,0,.11)!important;
+    border-right:0!important;
+    box-shadow:-14px 0 34px rgba(0,0,0,.12)!important;
   }
-  .homeWorkspaceLayout.hasTeamChatRail .teamChatClose{
-    display:grid!important;
-    place-items:center!important;
-  }
+  .homeWorkspaceLayout.hasTeamChatRail .teamChatClose{display:grid!important;place-items:center!important}
 
+  /* Independent 50px desktop rail. */
   .teamChatMiniRail{
-    position:absolute!important;
-    top:0!important;
+    position:fixed!important;
+    top:68px!important;
     right:0!important;
     bottom:0!important;
     width:50px!important;
-    height:100%!important;
+    height:auto!important;
     margin:0!important;
     padding:0!important;
     display:flex!important;
@@ -60,13 +59,13 @@
     align-items:stretch!important;
     border:0!important;
     border-left:1px solid #e1e4e7!important;
-    border-radius:0!important;
     background:#fff!important;
     color:#333!important;
     box-shadow:-5px 0 18px rgba(0,0,0,.05)!important;
-    pointer-events:auto!important;
+    z-index:132!important;
     overflow:visible!important;
   }
+  body.teamChatDesktopOpen .teamChatMiniRail{visibility:hidden!important;pointer-events:none!important}
   .teamChatMiniOpen{
     appearance:none!important;
     flex:1 1 auto!important;
@@ -105,108 +104,69 @@
     gap:8px;
     overflow:hidden;
   }
-  .teamChatMiniPerson{
-    width:34px;
-    height:34px;
-    display:grid;
-    place-items:center;
-    flex:0 0 34px;
-  }
+  .teamChatMiniPerson{width:34px;height:34px;display:grid;place-items:center;flex:0 0 34px}
   .teamChatMiniRail .teamChatAvatar{--team-chat-avatar-size:30px!important}
   .teamChatMiniUnread{
-    min-width:22px;
-    height:22px;
-    padding:0 5px;
-    margin-top:auto;
-    display:grid;
-    place-items:center;
-    border-radius:999px;
-    background:#111;
-    color:#fff;
-    font-size:.62rem;
-    font-weight:850;
+    min-width:22px;height:22px;padding:0 5px;margin-top:auto;display:grid;place-items:center;
+    border-radius:999px;background:#111;color:#fff;font-size:.62rem;font-weight:850
   }
   .teamChatMiniUnread[hidden]{display:none!important}
-
-  .teamChatMiniStatus{
-    position:relative;
-    flex:0 0 50px;
-    width:50px;
-    height:50px;
-    border-top:1px solid #e6e8ea;
-    background:#fff;
-  }
+  .teamChatMiniStatus{flex:0 0 50px;width:50px;height:50px;border-top:1px solid #e6e8ea;background:#fff}
   .teamChatMiniSettings{
-    appearance:none!important;
-    width:50px!important;
-    height:50px!important;
-    margin:0!important;
-    padding:0!important;
-    display:grid!important;
-    place-items:center!important;
-    border:0!important;
-    border-radius:0!important;
-    background:#fff!important;
-    color:#646b72!important;
-    box-shadow:none!important;
-    font-size:1rem!important;
+    appearance:none!important;width:50px!important;height:50px!important;margin:0!important;padding:0!important;
+    display:grid!important;place-items:center!important;border:0!important;border-radius:0!important;background:#fff!important;
+    color:#646b72!important;box-shadow:none!important;font-size:1rem!important
   }
-  .teamChatMiniSettings:hover,
-  .teamChatMiniSettings[aria-expanded="true"]{background:#f2f4f5!important;color:#111!important}
-  .teamChatStatusMenu{
-    position:absolute;
-    right:58px;
-    bottom:8px;
-    width:220px;
-    padding:10px;
-    display:grid;
-    gap:4px;
-    border:1px solid #dcdfe2;
-    border-radius:12px;
-    background:#fff;
-    box-shadow:0 18px 50px rgba(0,0,0,.16);
-    z-index:4;
-  }
-  .teamChatStatusMenu[hidden]{display:none!important}
-  .teamChatStatusMenu>strong{padding:4px 6px 7px;font-size:.72rem}
-  .teamChatStatusMenu>button{
-    appearance:none!important;
-    width:100%!important;
-    min-height:36px!important;
-    margin:0!important;
-    padding:7px 8px!important;
-    display:flex!important;
-    align-items:center!important;
-    gap:8px!important;
-    border:0!important;
-    border-radius:8px!important;
-    background:#fff!important;
-    color:#3e454b!important;
-    box-shadow:none!important;
-    text-align:left!important;
-    font-size:.7rem!important;
-    font-weight:700!important;
-  }
-  .teamChatStatusMenu>button:hover,
-  .teamChatStatusMenu>button.active{background:#f2f4f5!important;color:#111!important}
-  .teamChatStatusMenu>a{
-    margin-top:4px;
-    padding:8px;
-    border-top:1px solid #eceef0;
-    color:#616970;
-    text-decoration:none;
-    font-size:.66rem;
-    font-weight:700;
-  }
-
-  .homeFeedPage.agentChatMode .homeWorkspaceLayout.hasTeamChatRail{
-    grid-template-columns:minmax(0,1fr)!important;
-    max-width:none!important;
-  }
+  .teamChatMiniSettings:hover{background:#f2f4f5!important;color:#111!important}
+  .homeFeedPage.agentChatMode .homeWorkspaceLayout.hasTeamChatRail{grid-template-columns:minmax(0,1fr)!important;max-width:none!important}
 }
+
+/* Canonical Chat Settings modal mirrored from /chat-settings.php */
+.teamChatSettingsModal{
+  width:min(560px,calc(100vw - 28px))!important;
+  max-width:560px!important;
+  max-height:min(84vh,760px)!important;
+  margin:auto!important;
+  padding:0!important;
+  border:1px solid #d9dde0!important;
+  border-radius:16px!important;
+  background:#fff!important;
+  color:#23272b!important;
+  box-shadow:0 28px 80px rgba(0,0,0,.22)!important;
+  overflow:auto!important;
+}
+.teamChatSettingsModal::backdrop{background:rgba(20,24,28,.35);backdrop-filter:blur(2px)}
+.teamChatSettingsForm{padding:20px;display:grid;gap:16px}
+.teamChatSettingsForm>header{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:14px;align-items:start}
+.teamChatSettingsForm>header h2{margin:3px 0 4px;font-size:1.35rem}
+.teamChatSettingsForm>header p{margin:0;color:#6f767d;font-size:.76rem;line-height:1.45}
+.teamChatSettingsForm>header button{
+  width:34px!important;height:34px!important;padding:0!important;border:1px solid #d9dde0!important;border-radius:50%!important;
+  background:#fff!important;color:#555!important;box-shadow:none!important;font-size:1rem!important
+}
+.teamChatSettingsCurrent{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #e4e7e9;border-radius:10px;background:#fafbfb}
+.teamChatSettingsCurrent strong,.teamChatSettingsCurrent small{display:block}.teamChatSettingsCurrent small{margin-top:2px;color:#777;font-size:.67rem}
+.teamChatSettingsChoices{margin:0;padding:0;border:0;display:grid;gap:7px}
+.teamChatSettingsChoices legend{margin-bottom:7px;font-size:.76rem;font-weight:800}
+.teamChatSettingsChoices label{
+  display:grid;grid-template-columns:18px minmax(0,1fr);gap:9px;align-items:start;padding:9px 10px;
+  border:1px solid #e1e4e7;border-radius:9px;background:#fff;cursor:pointer
+}
+.teamChatSettingsChoices label:has(input:checked){border-color:#adb4bb;background:#f6f7f8}
+.teamChatSettingsChoices input{margin-top:3px}
+.teamChatSettingsChoices strong,.teamChatSettingsChoices small{display:block}.teamChatSettingsChoices strong{font-size:.74rem}.teamChatSettingsChoices small{margin-top:2px;color:#747b82;font-size:.64rem;line-height:1.4}
+.teamChatCustomStatus{display:grid;gap:7px;font-size:.72rem;font-weight:800}
+.teamChatCustomStatus input{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #cfd4d8;border-radius:9px;background:#fff;font:inherit}
+.teamChatSettingsPrivacy{margin:0;color:#747b82;font-size:.67rem;line-height:1.45}
+.teamChatSettingsForm>footer{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding-top:14px;border-top:1px solid #eceeef}
+.teamChatSettingsForm>footer>span{margin-right:auto;color:#6e757c;font-size:.67rem}
+.teamChatSettingsForm>footer button{min-height:38px!important;padding:8px 13px!important;border-radius:8px!important}
+.teamChatSettingsForm>footer .secondary{background:#fff!important;color:#444!important;border:1px solid #d6dade!important}
+
 @media(max-width:900px){
-  /* No persistent Team Chat rail on mobile. Team Chat remains an on-demand drawer. */
+  /* No persistent desktop-style chat rail on mobile. */
   .teamChatMiniRail{display:none!important}
   .homeWorkspaceLayout.hasTeamChatRail{grid-template-columns:minmax(0,1fr)!important}
   .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{grid-column:1!important}
+  .teamChatSettingsModal{width:calc(100vw - 16px)!important;max-height:90vh!important}
 }
