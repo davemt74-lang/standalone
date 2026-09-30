@@ -173,6 +173,7 @@ function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $in
       JOIN research_agents ra ON ra.id=s.agent_id
       JOIN research_projects rp ON rp.id=ra.project_id
       JOIN conversations c ON c.id=ra.conversation_id
+      JOIN users u ON u.id=ra.owner_user_id
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
       WHERE ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW()) AND ".research_agent_story_social_visibility_sql().$dismiss."
