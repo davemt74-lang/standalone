@@ -33,6 +33,8 @@
     updateProgress();avatar(story);setText('[data-story-agent-name]',story.agent_name);
     setText('[data-story-meta]',String(story.story_type||'update').replace(/_/g,' ')+' · '+new Date(story.published_at||Date.now()).toLocaleDateString());
     setText('[data-story-title]',story.title);setText('[data-story-body]',story.body);
+    const follow=viewer.querySelector('[data-story-follow-up]');if(follow)follow.hidden=!story.parent_story_id;
+    const why=viewer.querySelector('[data-story-why]');if(why){const copy=why.querySelector('p');if(copy)copy.textContent=String(story.why_it_matters||'');why.hidden=!story.why_it_matters;}
     const source=viewer.querySelector('[data-story-source]');if(source){source.hidden=!story.primary_url;source.href=story.primary_url||'#';}
     const agent=viewer.querySelector('[data-story-agent-action]');
     if(agent){const own=Number(story.social_rank||1)===0;agent.hidden=!own;agent.href=own?'/home.php?agent='+encodeURIComponent(String(story.conversation_public_id||'')):'#';}
