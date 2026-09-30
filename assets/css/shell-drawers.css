@@ -1,13 +1,28 @@
+/* Shell drawers must never enlarge the document's horizontal scroll area. */
+html,body{
+  max-width:100%;
+  overflow-x:clip!important;
+}
+.appShell,.appShellStage,.appShellContent{
+  max-width:100%;
+  min-width:0;
+}
+.notificationActivityDrawer,.universalObjectDrawer{
+  box-sizing:border-box;
+  max-width:100vw;
+  overscroll-behavior-x:none;
+}
+
 /* Phase 74 Section 5 — notification/activity + universal object drawers */
 .appHeaderNotification{position:relative}
 .notificationActivityDrawer,.universalObjectDrawer{
   position:fixed;top:0;right:0;height:100dvh;background:#fff;border-left:1px solid #dce1e5;
-  box-shadow:-20px 0 60px rgba(19,27,35,.16);transform:translateX(102%);transition:transform .18s ease;
+  box-shadow:-20px 0 60px rgba(19,27,35,.16);transform:translate3d(100%,0,0);transition:transform .18s ease;
   display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden
 }
 .notificationActivityDrawer{width:min(430px,100vw);z-index:710}
 .universalObjectDrawer{width:min(520px,100vw);z-index:730}
-.notificationActivityDrawer.open,.universalObjectDrawer.open{transform:translateX(0)}
+.notificationActivityDrawer.open,.universalObjectDrawer.open{transform:translate3d(0,0,0)}
 .notificationDrawerBackdrop,.universalObjectBackdrop{position:fixed;inset:0;background:rgba(20,25,30,.24);backdrop-filter:blur(1px)}
 .notificationDrawerBackdrop{z-index:705}.universalObjectBackdrop{z-index:725}
 .notificationActivityDrawer>header,.universalObjectDrawer>header{
