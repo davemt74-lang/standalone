@@ -6,7 +6,7 @@ $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p
 $avoid=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&str_contains($c,$n))$fail[]=$m;};
 
 $m='database/migrations/20260930_106_research_agent_stories.sql';
-foreach(['profile_image_url','research_agent_stories','research_agent_story_states','observation_key','generation_quality','ai_run_public_id'] as $n)$need($m,$n,'Stories migration missing '.$n);
+foreach(['profile_image_url',"ENUM('private','friends','public')",'research_agent_stories','research_agent_story_states','observation_key','generation_quality','ai_run_public_id'] as $n)$need($m,$n,'Stories migration missing '.$n);
 $need('app/research-agents.php','ra.profile_image_url','Research Agent list must expose profile images.');
 $need('app/research-agents.php','function research_agent_update_profile','Research Agents must support canonical profile updates.');
 $need('api/research-agents.php',"action==='update_profile'","Profile update API must be exposed.");
@@ -29,4 +29,20 @@ $need('app/shell.php','appShellAgentIcon hasImage','Sidebar Agent identity must 
 $need('app/research-agent-shell-ui.php','researchAgentUnifiedAvatar','Unified Agent shell must show the Agent profile image.');
 $need('research.php','data-agent-profile-edit','Research page must expose Agent profile editing.');
 $avoid('app/research-agent-stories.php','cognitive_watches','Stories must not create a second proactive watch engine.');
+
+$need('app/research-agents.php',"in_array($visibility,['private','friends','public'],true)",'Research Agent visibility must be constrained to private, friends, or public.');
+$need('app/shell.php','<option value="friends">Friends only</option>','Agent creation must expose Friends only visibility.');
+$need('research.php','data-agent-visibility','Research Agent profile editing must expose current visibility.');
+$need('app/research-agent-stories.php',"ra.visibility='public'",'Public Agent Stories must be visible through the follow graph.');
+$need('app/research-agent-stories.php',"ra.visibility='friends'",'Friends-only Agent Stories must require mutual follows.');
+$need('app/research-agent-stories.php','JOIN follows ff','Story distribution must reuse the canonical follows table.');
+$need('app/research-agent-stories.php','research_agent_story_notify_social','Important social Stories must integrate with Notifications.');
+$need('app/research-agent-stories.php','social_rank','Social Story viewers must be distinguished from Agent workspace members.');
+$need('app/research-agent-stories.php',"'/profile.php?u='",'Follower Story links must not expose private Agent conversations.');
+$need('bin/proactive-intelligence.php','research_agent_story_sync','Background proactive intelligence must generate Stories without requiring Home page load.');
+$need('app/profile-network.php','function profile_network_toggle_follow','Website Follow must use the canonical follow graph.');
+$need('api/profile-follow.php','profile_network_toggle_follow','Profile Follow must have a normal authenticated web API.');
+$need('profile.php','/api/profile-follow.php','Profile Follow button must not depend on the extension API.');
+$avoid('profile.php','/api/extension.php?action=follow','Profile Follow must not route through extension bearer authentication.');
+
 if($fail){fwrite(STDERR,implode("\n",array_unique($fail))."\n");exit(1);}echo "Research Agent Stories V1 contract passed.\n";
