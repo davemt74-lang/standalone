@@ -18,7 +18,7 @@ foreach(['appShellSidebar','<header class="topbar"','class="panel profilePage"']
 foreach(['profileStandaloneBody','profileStandalonePage','profileV2Page','profileHero','profileHeroBackdrop','profileStatsBar','profileTabs','profileContent','profileFeed','profileGuestHeader'] as $required){
     if(!str_contains($profile,$required))$fail[]='Profile redesign markup missing: '.$required;
 }
-foreach(['profilePrimaryAction','copyProfile','annotation_ui_card','annotation_ui_scripts','profile-v2.css?v=79.1'] as $required){
+foreach(['profilePrimaryAction','copyProfile','annotation_ui_card','annotation_ui_scripts','profile-v2.css?v=79.2'] as $required){
     if(!str_contains($profile,$required))$fail[]='Profile behavior/content contract missing: '.$required;
 }
 foreach(['.profileV2Page','.profileHeroBackdrop','.profileAvatar','.profileStatsBar','.profileTabs','.profileStoryGrid','@media(max-width:640px)'] as $required){

@@ -38,6 +38,7 @@ function profile_showcase_object_owned_public(PDO $pdo,int $userId,string $type,
     if($type==='annotation'){$q=$pdo->prepare("SELECT 1 FROM annotations WHERE public_id=? AND user_id=? AND visibility='public' AND status='published' LIMIT 1");}
     elseif($type==='research_report'){$q=$pdo->prepare("SELECT 1 FROM research_reports WHERE public_id=? AND created_by_user_id=? AND visibility='public' AND status='published' LIMIT 1");}
     elseif($type==='collection'){$q=$pdo->prepare("SELECT 1 FROM collections WHERE public_id=? AND owner_user_id=? AND visibility='public' LIMIT 1");}
+    elseif($type==='research_agent'){$q=$pdo->prepare("SELECT 1 FROM research_agents WHERE public_id=? AND owner_user_id=? AND visibility='public' AND status<>'archived' LIMIT 1");}
     else return false;
     $q->execute([$publicId,$userId]);return (bool)$q->fetchColumn();
 }
@@ -53,29 +54,33 @@ function profile_showcase_prune_pins(PDO $pdo,int $userId): void {
 function profile_showcase_pin_set(PDO $pdo,array $viewer,string $type,string $publicId,bool $pinned): void {
     if(!profile_showcase_ready($pdo))throw new RuntimeException('Profile showcase requires the latest database upgrade.');
     $uid=(int)$viewer['id'];$type=trim($type);$publicId=trim($publicId);
-    if(!in_array($type,['annotation','research_report','collection'],true)||$publicId==='')throw new InvalidArgumentException('Unsupported profile item.');
+    if(!in_array($type,['annotation','research_report','collection','research_agent'],true)||$publicId==='')throw new InvalidArgumentException('Unsupported profile item.');
     if(!profile_showcase_object_owned_public($pdo,$uid,$type,$publicId))throw new RuntimeException('Only your own public content can be pinned.');
     profile_showcase_prune_pins($pdo,$uid);
     if(!$pinned){$pdo->prepare('DELETE FROM profile_pins WHERE user_id=? AND object_type=? AND object_public_id=?')->execute([$uid,$type,$publicId]);profile_showcase_normalize_pins($pdo,$uid);return;}
     $q=$pdo->prepare('SELECT id FROM profile_pins WHERE user_id=? AND object_type=? AND object_public_id=? LIMIT 1');$q->execute([$uid,$type,$publicId]);if($q->fetchColumn())return;
-    $q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([$uid]);if((int)$q->fetchColumn()>=3)throw new RuntimeException('You can pin up to 3 public profile items.');
+    $q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([$uid]);if((int)$q->fetchColumn()>=6)throw new RuntimeException('You can feature up to 6 public profile items.');
     $q=$pdo->prepare('SELECT COALESCE(MAX(position),0)+1 FROM profile_pins WHERE user_id=?');$q->execute([$uid]);$position=(int)$q->fetchColumn();
     $pdo->prepare('INSERT INTO profile_pins(user_id,object_type,object_public_id,position) VALUES(?,?,?,?)')->execute([$uid,$type,$publicId,$position]);
 }
 function profile_showcase_pins(PDO $pdo,array $profile,?array $viewer): array {
-    if(!profile_showcase_ready($pdo))return [];if($viewer&&(int)($viewer['id']??0)===(int)$profile['id'])profile_showcase_prune_pins($pdo,(int)$profile['id']);$q=$pdo->prepare('SELECT object_type,object_public_id,position FROM profile_pins WHERE user_id=? ORDER BY position,id LIMIT 3');$q->execute([(int)$profile['id']]);$out=[];
+    if(!profile_showcase_ready($pdo))return [];if($viewer&&(int)($viewer['id']??0)===(int)$profile['id'])profile_showcase_prune_pins($pdo,(int)$profile['id']);$q=$pdo->prepare('SELECT object_type,object_public_id,position FROM profile_pins WHERE user_id=? ORDER BY position,id LIMIT 6');$q->execute([(int)$profile['id']]);$out=[];
     foreach($q->fetchAll() as $pin){$type=(string)$pin['object_type'];$id=(string)$pin['object_public_id'];$item=null;
       if($type==='annotation')$item=public_discovery_annotation($pdo,$id,$viewer);
       elseif($type==='research_report'){foreach((array)($profile['reports']??[]) as $r)if((string)$r['public_id']===$id){$item=$r;break;}}
       elseif($type==='collection'){foreach(profile_showcase_public_collections($pdo,(int)$profile['id'],60) as $c)if((string)$c['public_id']===$id){$item=$c;break;}}
+      elseif($type==='research_agent'){
+        try{$qa=$pdo->prepare("SELECT public_id,name,description,profile_image_url,visibility,updated_at FROM research_agents WHERE public_id=? AND owner_user_id=? AND visibility='public' AND status<>'archived' LIMIT 1");$qa->execute([$id,(int)$profile['id']]);$item=$qa->fetch()?:null;}catch(Throwable $e){$item=null;}
+      }
       if($item)$out[]=['type'=>$type,'public_id'=>$id,'position'=>(int)$pin['position'],'item'=>$item];
     }return $out;
 }
-function profile_showcase_activity(array $profile,array $collections): array {
+function profile_showcase_activity(array $profile,array $collections,array $stories=[]): array {
     $rows=[];foreach((array)($profile['annotations']??[]) as $a)$rows[]=['type'=>'annotation','at'=>(string)($a['published_at']??''),'item'=>$a];
     foreach((array)($profile['reports']??[]) as $r)$rows[]=['type'=>'research_report','at'=>(string)($r['published_at']??''),'item'=>$r];
     foreach($collections as $c)$rows[]=['type'=>'collection','at'=>(string)($c['recent_item_at']?:$c['updated_at']?:$c['created_at']),'item'=>$c];
-    usort($rows,static fn($a,$b)=>strcmp((string)$b['at'],(string)$a['at']));return array_slice($rows,0,50);
+    foreach($stories as $s)$rows[]=['type'=>'research_agent_story','at'=>(string)($s['published_at']??''),'item'=>$s];
+    usort($rows,static fn($a,$b)=>strcmp((string)$b['at'],(string)$a['at']));return array_slice($rows,0,60);
 }
 
 function profile_showcase_public_agent_stories(PDO $pdo,int $userId,int $limit=40): array {
