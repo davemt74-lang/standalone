@@ -21,7 +21,7 @@ $need('assets/js/agent-chat.js','if(canvasControls)canvasControls.hidden=true','
 $need('assets/js/agent-chat.js','if(canvasControls)canvasControls.hidden=false','Opening Agent mode must reveal Research Agent controls.');
 $need('assets/css/app.css','.researchAgentCanvasTopActions[hidden]{display:none!important}','Hidden Agent controls must not be overridden by authored display rules.');
 $need('assets/css/app.css','/* Research Agent Stories V2 — grouped viewer + feed isolation */','Stories V2 must have dedicated viewer styling.');
-$need('app/notifications.php',"if($type==='research_agent_story')",'Notifications must continue routing through canonical Story access.');
+$need('app/notifications.php',"if(\$type==='research_agent_story')",'Notifications must continue routing through canonical Story access.');
 $need('app/unified-activity.php','research_agent_story_activity','Activity must continue consuming canonical Story activity.');
 $avoid('home.php','homeAgentStoryCopy','The Home Stories rail must remain image/name only.');
 
