@@ -579,6 +579,7 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
         foreach($semanticRows as $row){$key=(string)($row['chunk_id']??'');if($key!==''&&isset($seenChunks[$key]))continue;$rows[]=$row;if($key!=='')$seenChunks[$key]=true;}
     }
 
+    $memoryControlMap=(function_exists('research_memory_controls_map')&&research_memory_ready($pdo))?research_memory_controls_map($pdo,$projectId):null;
     $best=[];foreach($rows as $row){
         if(!research_retrieval_result_allowed($pdo,$viewer,$row))continue;
         $metadata=json_decode((string)($row['metadata_json']??''),true)?:[];
@@ -596,7 +597,7 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
           'citation'=>['type'=>(string)$row['object_type'],'id'=>(string)$row['object_public_id'],'locator'=>$locator?:null,'label'=>(string)$row['title'].($locator!==''?' · '.$locator:'')]
         ];
         if(function_exists('research_memory_apply_result')){
-            $result=research_memory_apply_result($pdo,$viewer,$project,$result);
+            $result=research_memory_apply_result($pdo,$viewer,$project,$result,$memoryControlMap);
             if($result===null)continue;
         }
         $best[$key]=$result;
