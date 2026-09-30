@@ -6,6 +6,7 @@
   const add=document.querySelector('#homeAgentAdd');
   const rightRail=document.querySelector('.homeRightRail');
   const panelClose=document.querySelector('[data-agent-panel-close]');
+  const canvasControls=document.querySelector('[data-research-canvas-controls]');
   const inlineThread=document.querySelector('[data-home-inline-agent]');
   const inlineMessages=document.querySelector('[data-inline-agent-messages]');
   const inlineClose=document.querySelector('[data-inline-agent-close]');
@@ -48,13 +49,13 @@
   function setModeAgent(research=false){
     researchAgentMode=!!research;
     if(!researchAgentMode){
-      feed.hidden=false;canvas.hidden=true;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);return;
+      feed.hidden=false;canvas.hidden=true;if(canvasControls)canvasControls.hidden=true;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);return;
     }
     if(!canvas.hidden)return;
-    feedScroll=window.scrollY||0;feed.hidden=true;canvas.hidden=false;if(rightRail)rightRail.hidden=true;document.body.classList.add('agentChatMode');input.placeholder='Message Research Agent…';saveState(true);window.scrollTo({top:0,behavior:'instant'});
+    feedScroll=window.scrollY||0;feed.hidden=true;canvas.hidden=false;if(canvasControls)canvasControls.hidden=false;if(rightRail)rightRail.hidden=true;document.body.classList.add('agentChatMode');input.placeholder='Message Research Agent…';saveState(true);window.scrollTo({top:0,behavior:'instant'});
   }
   function setModeFeed(){
-    const leavingResearchAgent=researchAgentMode;researchAgentMode=false;if(leavingResearchAgent){activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'home'}}));}canvas.hidden=true;feed.hidden=false;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);
+    const leavingResearchAgent=researchAgentMode;researchAgentMode=false;if(leavingResearchAgent){activeConversation='';document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{clear_agent:true,surface:'home'}}));}canvas.hidden=true;if(canvasControls)canvasControls.hidden=true;feed.hidden=false;if(rightRail)rightRail.hidden=false;document.body.classList.remove('agentChatMode');input.placeholder='Ask Annotated…';saveState(false);
     const url=new URL(location.href);let changed=false;['agent','workspace','doc'].forEach(key=>{if(url.searchParams.has(key)){url.searchParams.delete(key);changed=true;}});if(changed)history.replaceState({},'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);
     requestAnimationFrame(()=>window.scrollTo({top:feedScroll||0,behavior:'instant'}));document.dispatchEvent(new CustomEvent('annotated:agent-chat-feed-restored'));
   }
