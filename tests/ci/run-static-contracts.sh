@@ -70,6 +70,7 @@ php tests/phase74-section3-unified-knowledge-ui-contract.php
 php tests/phase74-section4-unified-research-ui-contract.php
 php tests/phase74-section5-unified-reports-ui-contract.php
 php tests/phase74-section6-portfolios-global-attention-contract.php
+php tests/portfolio-dedicated-create-contract.php
 php tests/phase74-section7-legacy-navigation-compatibility-contract.php
 php tests/phase74-section8-end-to-end-release-contract.php
 php tests/phase75-section1-research-home-agent-launcher-contract.php
