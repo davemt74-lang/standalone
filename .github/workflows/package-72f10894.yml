@@ -1,0 +1,10 @@
+name: Package corrected Team Chat scroll
+on:
+  push:
+    branches:
+      - chatgpt/package-72f10894
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
