@@ -31,7 +31,7 @@ $workspaceResearchContext='';$cognitiveReady=false;$cognitiveRuntimeReady=false;
 $cognitiveBase=['ready'=>false,'items'=>[],'hidden_count'=>0];
 $cognitiveFeed=['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
 $actionCenter=['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
-$proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];$agentStories=[];$agentStoriesLlm=['available'=>false];
+$proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];$agentStories=[];$agentStoryGroups=[];$requestedStory=null;$agentStoriesLlm=['available'=>false];
 $proactiveAgentHandoff=null;$crossResearchAgentHandoff=null;$reviewAgentHandoff=null;$impactAgentHandoff=null;$portfolioAgentHandoff=null;$directAgentHandoff=null;
 $homeRuntimeIncidents=[];
 
@@ -104,7 +104,10 @@ try{
     if($proactiveReady&&$cognitiveRuntimeReady&&$feedMode==='cognitive')proactive_intelligence_sync($pdo,$u,$cognitiveFeed);
     $proactiveBriefing=$proactiveReady?proactive_briefing($pdo,$u,3):$proactiveBriefing;
     if(function_exists('research_agent_story_sync'))research_agent_story_sync($pdo,$config,$u,8);
-    if(function_exists('research_agent_story_list'))$agentStories=research_agent_story_list($pdo,$u,12);
+    if(function_exists('research_agent_story_list'))$agentStories=research_agent_story_list($pdo,$u,40);
+    if(function_exists('research_agent_story_groups'))$agentStoryGroups=research_agent_story_groups($pdo,$u,40);
+    $requestedStoryPublic=trim((string)($_GET['story']??''));
+    if($requestedStoryPublic!==''&&function_exists('research_agent_story_access'))$requestedStory=research_agent_story_access($pdo,$u,$requestedStoryPublic);
     if(function_exists('research_agent_story_llm_available'))$agentStoriesLlm=research_agent_story_llm_available($pdo,$config);
     $proactiveAgentKey=trim((string)($_GET['proactive_agent']??''));
     $proactiveAgentHandoff=$proactiveReady&&$proactiveAgentKey!==''?proactive_agent_handoff($pdo,$u,$proactiveAgentKey):null;
@@ -186,7 +189,7 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"><link rel="stylesheet" href="/assets/css/home-team-chat.css?v=75.1"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout<?=$chatTeams?' hasTeamChatRail':''?>">
 <?php if($requestedResearchAgent):?>
-<div class="researchAgentCanvasTopActions researchAgentCanvasUnified" data-research-canvas-controls>
+<div class="researchAgentCanvasTopActions researchAgentCanvasUnified" data-research-canvas-controls hidden>
   <?=research_agent_shell_render($requestedResearchAgent,$homeResearchAgents,'chat',['workspace_controls'=>true,'close'=>true])?>
 </div>
 <?php endif?>
@@ -210,23 +213,34 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
   </div>
 </section>
 <?php elseif($homePrimaryAgent):?>
-<section class="homeAgentStories" aria-label="Research Agent Stories" data-agent-stories>
+<section class="homeAgentStories" aria-label="Research Agent Stories" data-agent-stories data-open-story="<?=h((string)($requestedStory['public_id']??''))?>">
   <div class="homeAgentStoriesRail">
-    <?php if(!$agentStories):?>
+    <?php if(!$agentStoryGroups):?>
       <a class="homeAgentStoryCard emptyStory" href="<?=h($homeAgentUrl)?>">
         <span class="homeAgentStoryAvatar"><?php if(!empty($homePrimaryAgent['profile_image_url'])):?><img src="<?=h((string)$homePrimaryAgent['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$homePrimaryAgent['name'],0,1)))?><?php endif?></span>
         <strong><?=h((string)$homePrimaryAgent['name'])?></strong>
       </a>
     <?php endif?>
-    <?php foreach($agentStories as $story):?>
-      <article class="homeAgentStoryCard <?=$story['viewed_at']?'isViewed':'isNew'?>" data-story-id="<?=h((string)$story['public_id'])?>">
-        <a class="homeAgentStoryMain" href="<?=h((string)($story['story_url']??'/home.php'))?>" data-story-view aria-label="<?=h((string)$story['agent_name'])?> Story">
-          <span class="homeAgentStoryAvatar"><?php if(!empty($story['profile_image_url'])):?><img src="<?=h((string)$story['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$story['agent_name'],0,1)))?><?php endif?></span>
-          <strong><?=h((string)$story['agent_name'])?></strong>
-        </a>
+    <?php foreach($agentStoryGroups as $group):$firstStory=$group['stories'][0]??null;if(!$firstStory)continue;?>
+      <article class="homeAgentStoryCard <?=$group['unread_count']>0?'isNew':'isViewed'?>" data-story-agent="<?=h((string)$group['agent_public_id'])?>">
+        <button type="button" class="homeAgentStoryMain" data-story-open="<?=h((string)$firstStory['public_id'])?>" aria-label="<?=h((string)$group['agent_name'])?> Stories">
+          <span class="homeAgentStoryAvatar"><?php if(!empty($group['profile_image_url'])):?><img src="<?=h((string)$group['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$group['agent_name'],0,1)))?><?php endif?></span>
+          <strong><?=h((string)$group['agent_name'])?></strong>
+        </button>
       </article>
     <?php endforeach?>
   </div>
+  <dialog class="homeStoryViewer" data-story-viewer>
+    <div class="homeStoryViewerShell">
+      <div class="homeStoryProgress" data-story-progress></div>
+      <header><span class="homeStoryViewerAvatar" data-story-avatar></span><div><strong data-story-agent-name></strong><small data-story-meta></small></div><button type="button" data-story-close aria-label="Close Story">×</button></header>
+      <button type="button" class="homeStoryNav homeStoryPrev" data-story-prev aria-label="Previous Story"></button>
+      <article class="homeStoryContent"><h2 data-story-title></h2><p data-story-body></p></article>
+      <button type="button" class="homeStoryNav homeStoryNext" data-story-next aria-label="Next Story"></button>
+      <footer><a class="button secondary" data-story-source target="_blank" rel="noopener">Open source</a><a class="button" data-story-agent-action>Open Research Agent</a><button type="button" class="secondary" data-story-dismiss>Dismiss</button></footer>
+    </div>
+  </dialog>
+  <script type="application/json" data-story-payload><?=json_encode($agentStoryGroups,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?></script>
 </section>
 <?php endif?>
 <div class="homeFeedModeBar" data-cognitive-feed data-csrf="<?=h(csrf_token())?>">
