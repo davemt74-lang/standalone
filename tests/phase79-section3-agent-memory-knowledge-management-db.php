@@ -16,6 +16,8 @@ p79s3(!empty($agent['public_id'])&&!empty($agent['project_public_id']),'Personal
 $project=project_access($pdo,(int)$owner['id'],(string)$agent['project_public_id']);p79s3((bool)$project,'Owner resolves Agent project.');
 
 $type='document';$object=$pub('doc');
+$pdo->prepare("INSERT INTO research_retrieval_documents(project_id,object_type,object_public_id,title,source_status,content_hash,metadata_json) VALUES(?,?,?,?,'ready',?,?)")
+  ->execute([(int)$project['id'],$type,$object,'Memory fixture document',hash('sha256','memory-fixture'),'{}']);
 $control=research_memory_upsert($pdo,$owner,(string)$agent['project_public_id'],$type,$object,'include','The corrected answer is 42.');
 p79s3(($control['retrieval_state']??'')==='include','Explicit include state persists.');
 p79s3(trim((string)($control['correction_text']??''))==='The corrected answer is 42.','User correction persists.');
@@ -45,10 +47,13 @@ $teamPublic=$pub('team');$pdo->prepare('INSERT INTO teams(public_id,owner_user_i
 $pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'owner'),(?,?,'researcher')")->execute([$teamId,$owner['id'],$teamId,$member['id']]);
 $teamAgent=research_agent_create($pdo,$owner,['name'=>'Team Memory Agent','description'=>'Team memory test','cadence'=>'manual','timezone_name'=>'UTC','team_id'=>$teamPublic]);
 p79s3((bool)research_agent_access($pdo,$member,(string)$teamAgent['public_id']),'Authorized Team researcher can resolve Agent Memory scope.');
-research_memory_upsert($pdo,$member,(string)$teamAgent['project_public_id'],'claim',$pub('claim'),'exclude','');
+$teamProject=project_access($pdo,(int)$owner['id'],(string)$teamAgent['project_public_id']);$teamClaim=$pub('claim');
+$pdo->prepare("INSERT INTO research_retrieval_documents(project_id,object_type,object_public_id,title,source_status,content_hash,metadata_json) VALUES(?,?,?,?,'ready',?,?)")
+  ->execute([(int)$teamProject['id'],'claim',$teamClaim,'Team claim',hash('sha256','team-claim'),'{}']);
+research_memory_upsert($pdo,$member,(string)$teamAgent['project_public_id'],'claim',$teamClaim,'exclude','');
 $pdo->prepare('DELETE FROM team_members WHERE team_id=? AND user_id=?')->execute([$teamId,$member['id']]);
 p79s3(research_agent_access($pdo,$member,(string)$teamAgent['public_id'])===null,'Team revocation immediately removes Agent access.');
-$denied=false;try{research_memory_upsert($pdo,$member,(string)$teamAgent['project_public_id'],'claim',$pub('claim2'),'exclude','');}catch(RuntimeException $e){$denied=true;}
+$denied=false;try{research_memory_upsert($pdo,$member,(string)$teamAgent['project_public_id'],'claim',$teamClaim,'include','');}catch(RuntimeException $e){$denied=true;}
 p79s3($denied,'Revoked Team member cannot manage Agent Memory.');
 
 echo "Phase 79 Section 3 Agent Memory / Knowledge Management database journey passed.\n";
