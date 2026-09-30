@@ -3,6 +3,7 @@ declare(strict_types=1);
 $root=dirname(__DIR__);$fail=[];
 $read=function(string $p)use($root,&$fail): string{$f=$root.'/'.$p;if(!is_file($f)){$fail[]='Missing '.$p;return '';}return (string)file_get_contents($f);};
 $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&!str_contains($c,$n))$fail[]=$m;};
+$avoid=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&str_contains($c,$n))$fail[]=$m;};
 
 $need('home.php','hasTeamChatRail','Home must mark the layout when Team Chat is available.');
 $need('home.php','/assets/css/home-team-chat.css?v=74.9','Home must load the Team Chat visibility override after app.css.');
