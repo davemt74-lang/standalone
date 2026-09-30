@@ -436,14 +436,3 @@ function research_agent_story_apply_ai_output(PDO $pdo,string $publicId,string $
 function research_agent_story_mark_failed(PDO $pdo,string $publicId): void {
     $pdo->prepare("UPDATE research_agent_stories SET generation_status='failed',updated_at=NOW() WHERE public_id=? AND generation_status='queued'")->execute([$publicId]);
 }
-function research_agent_story_activity(PDO $pdo,array $viewer,int $limit=20): array {
-    $out=[];foreach(research_agent_story_list($pdo,$viewer,$limit,true) as $s){
-        $out[]=[
-          'key'=>'agent_story:'.$s['public_id'],'type'=>'research_agent_story','created_at'=>$s['published_at'],
-          'title'=>$s['agent_name'].' posted a Story','body'=>$s['body'],
-          'href'=>(string)($s['story_url']??'/home.php'),
-          'object'=>['type'=>'research_agent','public_id'=>$s['agent_public_id'],'label'=>$s['agent_name']],
-          'context'=>[['type'=>'project','public_id'=>$s['project_public_id'],'label'=>$s['agent_name'].' Research']]
-        ];
-    }return $out;
-}
