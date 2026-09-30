@@ -42,10 +42,11 @@ $need('app/shell.php','appShellSectionTitle">Research Agents','User sidebar must
 $need('app/shell.php','data-research-agent-add','Research Agents section must expose a + create button.');
 $need('app/shell.php','New Research Agent','Sidebar + control must open the New Research Agent modal.');
 $need('assets/js/research-agent-shell.js','/api/research-agents.php?action=create','New Research Agent modal must create an explicit Research Agent through the API.');
-$need('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile must explicitly opt out of the universal shell before user resolution.');
+$need('profile.php',"\$GLOBALS['annotated_shell_mode']='header_only';",'Profile must activate the universal header-only shell before user resolution.');
+$avoid('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile must not disable the universal header.');
 $avoid('profile.php','<header class="topbar"','Profile must not render the legacy public header.');
-$avoid('profile.php','appShellContent','Profile must not render universal shell content markup.');
-$need('assets/css/app.css','/* Standalone profile v1.0','Profile must have dedicated standalone responsive styling.');
+$avoid('profile.php','appShellSidebar','Profile source must not render a universal sidebar.');
+$need('profile.php','profile-v2.css?v=79.1','Profile must load the dedicated Profile V2 responsive styling.');
 $avoid('annotation.php','<header class="topbar">','Annotation detail pages must not render a second legacy header inside the shared app shell.');
 $need('app/shell.php','/home.php?agent=','Research Agent sidebar items must deep-link to existing Agent chats.');
 $need('app/shell.php','app_shell_research_project_rows','Sidebar Research Projects must come from permission-scoped project records.');
