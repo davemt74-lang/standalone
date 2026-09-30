@@ -146,10 +146,12 @@ function research_agent_story_intelligence_hash(array $agent,string $storyType,s
 }
 function research_agent_story_intelligence_parent(PDO $pdo,array $agent,string $storyType,array $object,string $intelligenceHash): ?array {
     if(!research_agent_story_intelligence_ready($pdo))return null;
-    $sql="SELECT * FROM research_agent_stories WHERE agent_id=? AND status='published' AND created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY)
-      AND (intelligence_hash=? OR (story_type=? AND COALESCE(object_type,'')=? AND COALESCE(object_public_id,'')=?))
-      ORDER BY published_at DESC,id DESC LIMIT 1";
-    $q=$pdo->prepare($sql);$q->execute([(int)$agent['id'],$intelligenceHash,$storyType,(string)($object['type']??''),(string)($object['public_id']??'')]);$row=$q->fetch()?:null;return $row?:null;
+    $objectType=(string)($object['type']??'');$objectPublic=(string)($object['public_id']??'');
+    $sql="SELECT * FROM research_agent_stories WHERE agent_id=? AND status='published' AND created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) AND (intelligence_hash=?";
+    $params=[(int)$agent['id'],$intelligenceHash];
+    if($objectType!==''&&$objectPublic!==''){$sql.=" OR (story_type=? AND object_type=? AND object_public_id=?)";array_push($params,$storyType,$objectType,$objectPublic);}
+    $sql.=") ORDER BY published_at DESC,id DESC LIMIT 1";
+    $q=$pdo->prepare($sql);$q->execute($params);$row=$q->fetch()?:null;return $row?:null;
 }
 function research_agent_story_why_it_matters(array $item,string $storyType): string {
     $why=trim((string)($item['why']??''));if($why!=='')return mb_substr($why,0,1000);
@@ -207,9 +209,11 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
                     'group_key'=>'research_agent_story:'.(string)$agent['public_id'],
                     'context'=>['agent_public_id'=>(string)$agent['public_id'],'conversation_public_id'=>(string)$agent['conversation_public_id'],'story_public_id'=>(string)$story['public_id']]
                 ]);
-                research_agent_story_notify_social($pdo,$viewer,$agent,$story);
             }
-            if($status==='published')research_agent_story_queue_enhancement($pdo,$config,$viewer,(string)$story['public_id']);
+            if($status==='published'){
+                research_agent_story_notify_social($pdo,$viewer,$agent,$story);
+                research_agent_story_queue_enhancement($pdo,$config,$viewer,(string)$story['public_id']);
+            }
         }
     }
     return $story;
