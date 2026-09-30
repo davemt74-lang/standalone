@@ -32,6 +32,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
               'min_priority'=>(string)($_POST['min_priority']??'medium'),
               'daily_story_cap'=>(int)($_POST['daily_story_cap']??3),
               'quiet_hours_enabled'=>isset($_POST['quiet_hours_enabled']),
+              'timezone_name'=>(string)($_POST['story_timezone_name']??($u['timezone_name']??'UTC')),
               'quiet_start'=>(string)($_POST['quiet_start']??''),
               'quiet_end'=>(string)($_POST['quiet_end']??''),
               'trigger_evidence'=>isset($_POST['trigger_evidence']),
@@ -118,7 +119,7 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
         <div class="researchAgentEditSplit">
           <label>Publishing mode<select name="publish_mode"><option value="draft_only" <?=$storyPolicy['publish_mode']==='draft_only'?'selected':''?>>Draft only</option><option value="approval" <?=$storyPolicy['publish_mode']==='approval'?'selected':''?>>Require approval</option><option value="auto_publish" <?=$storyPolicy['publish_mode']==='auto_publish'?'selected':''?>>Auto-publish</option></select></label>
           <label>Minimum importance<select name="min_priority"><option value="low" <?=$storyPolicy['min_priority']==='low'?'selected':''?>>Low</option><option value="medium" <?=$storyPolicy['min_priority']==='medium'?'selected':''?>>Medium</option><option value="high" <?=$storyPolicy['min_priority']==='high'?'selected':''?>>High</option></select></label>
-          <label>Daily Story cap<input type="number" min="1" max="20" name="daily_story_cap" value="<?=h((string)$storyPolicy['daily_story_cap'])?>"></label>
+          <label>Daily Story cap<input type="number" min="1" max="20" name="daily_story_cap" value="<?=h((string)$storyPolicy['daily_story_cap'])?>"></label><label>Story timezone<input name="story_timezone_name" value="<?=h((string)($storyPolicy['timezone_name']??$timezone))?>"></label>
         </div>
         <div class="researchAgentStoryTriggers">
           <strong>Trigger on</strong>
