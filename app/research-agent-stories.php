@@ -89,6 +89,7 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
                     'group_key'=>'research_agent_story:'.(string)$agent['public_id'],
                     'context'=>['agent_public_id'=>(string)$agent['public_id'],'conversation_public_id'=>(string)$agent['conversation_public_id'],'story_public_id'=>(string)$story['public_id']]
                 ]);
+                research_agent_story_notify_social($pdo,$viewer,$agent,$story);
             }
             research_agent_story_queue_enhancement($pdo,$config,$viewer,(string)$story['public_id']);
         }
@@ -105,38 +106,77 @@ function research_agent_story_sync(PDO $pdo,array $config,array $viewer,int $lim
     }
     return ['ready'=>true,'created'=>$created];
 }
+function research_agent_story_social_visibility_sql(): string {
+    return "(
+      ra.owner_user_id=:viewer_owner
+      OR EXISTS(SELECT 1 FROM team_members tmx WHERE tmx.team_id=ra.team_id AND tmx.user_id=:viewer_team)
+      OR (
+        ra.team_id IS NULL
+        AND ra.visibility='public'
+        AND EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_user_id=:viewer_follow AND ff.followed_user_id=ra.owner_user_id)
+      )
+      OR (
+        ra.team_id IS NULL
+        AND ra.visibility='friends'
+        AND EXISTS(SELECT 1 FROM follows ff1 WHERE ff1.follower_user_id=:viewer_friend1 AND ff1.followed_user_id=ra.owner_user_id)
+        AND EXISTS(SELECT 1 FROM follows ff2 WHERE ff2.follower_user_id=ra.owner_user_id AND ff2.followed_user_id=:viewer_friend2)
+      )
+    )
+    AND NOT EXISTS(
+      SELECT 1 FROM blocks b
+      WHERE (b.blocker_user_id=:viewer_block1 AND b.blocked_user_id=ra.owner_user_id)
+         OR (b.blocker_user_id=ra.owner_user_id AND b.blocked_user_id=:viewer_block2)
+    )";
+}
+function research_agent_story_social_params(array $viewer): array {
+    $id=(int)$viewer['id'];
+    return [':viewer_owner'=>$id,':viewer_team'=>$id,':viewer_follow'=>$id,':viewer_friend1'=>$id,':viewer_friend2'=>$id,':viewer_block1'=>$id,':viewer_block2'=>$id];
+}
+function research_agent_story_notify_social(PDO $pdo,array $viewer,array $agent,array $story): int {
+    $visibility=(string)($agent['visibility']??'private');if(!in_array($visibility,['public','friends'],true))return 0;
+    $owner=(int)$agent['owner_user_id'];if($owner<1)return 0;
+    $sql="SELECT u.id FROM users u JOIN follows f ON f.follower_user_id=u.id AND f.followed_user_id=? WHERE u.status='active'
+      AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=u.id AND b.blocked_user_id=?) OR (b.blocker_user_id=? AND b.blocked_user_id=u.id))";
+    if($visibility==='friends')$sql.=" AND EXISTS(SELECT 1 FROM follows f2 WHERE f2.follower_user_id=? AND f2.followed_user_id=u.id)";
+    $q=$pdo->prepare($sql);$params=[$owner,$owner,$owner];if($visibility==='friends')$params[]=$owner;$q->execute($params);
+    $sent=0;foreach($q->fetchAll(PDO::FETCH_COLUMN) as $uid){
+        $uid=(int)$uid;if($uid===$owner)continue;
+        if(notification_create($pdo,$uid,$owner,'research_agent_story','research_agent_story',(string)$story['public_id'],(string)$agent['name'].': '.mb_substr((string)$story['body'],0,320),[
+          'category'=>'research','dedupe_key'=>'research-agent-story:'.$story['public_id'].':'.$uid,
+          'group_key'=>'research-agent-story:'.$agent['public_id'],
+          'context'=>['agent_public_id'=>(string)$agent['public_id'],'conversation_public_id'=>(string)$agent['conversation_public_id'],'story_public_id'=>(string)$story['public_id']]
+        ]))$sent++;
+    }return $sent;
+}
 function research_agent_story_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!research_agent_stories_ready($pdo))return null;
-    $q=$pdo->prepare("SELECT s.*,ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url,ra.conversation_id,c.public_id conversation_public_id,
+    $sql="SELECT s.*,ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url,ra.visibility,ra.owner_user_id,ra.conversation_id,c.public_id conversation_public_id,
       rp.public_id project_public_id,t.public_id team_public_id,t.name team_name,st.viewed_at,st.dismissed_at
       FROM research_agent_stories s
       JOIN research_agents ra ON ra.id=s.agent_id
       JOIN research_projects rp ON rp.id=ra.project_id
       JOIN conversations c ON c.id=ra.conversation_id
       LEFT JOIN teams t ON t.id=ra.team_id
-      LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=?
-      WHERE s.public_id=? AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))
-      LIMIT 1");
-    $q->execute([(int)$viewer['id'],(int)$viewer['id'],$publicId,(int)$viewer['id'],(int)$viewer['id']]);
+      LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
+      WHERE s.public_id=:story_public AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
+    $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_state']=(int)$viewer['id'];$params[':story_public']=$publicId;$q->execute($params);
     return $q->fetch()?:null;
 }
 function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $includeDismissed=false): array {
     if(!research_agent_stories_ready($pdo))return [];
     $limit=max(1,min(60,$limit));$dismiss=$includeDismissed?'':' AND st.dismissed_at IS NULL';
-    $q=$pdo->prepare("SELECT s.*,ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url,c.public_id conversation_public_id,
-      rp.public_id project_public_id,t.public_id team_public_id,t.name team_name,st.viewed_at,st.dismissed_at
+    $sql="SELECT s.*,ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url,ra.visibility,ra.owner_user_id,c.public_id conversation_public_id,
+      rp.public_id project_public_id,t.public_id team_public_id,t.name team_name,st.viewed_at,st.dismissed_at,
+      CASE WHEN ra.owner_user_id=:viewer_owner_rank OR EXISTS(SELECT 1 FROM team_members tr WHERE tr.team_id=ra.team_id AND tr.user_id=:viewer_team_rank) THEN 0 ELSE 1 END social_rank
       FROM research_agent_stories s
       JOIN research_agents ra ON ra.id=s.agent_id
       JOIN research_projects rp ON rp.id=ra.project_id
       JOIN conversations c ON c.id=ra.conversation_id
       LEFT JOIN teams t ON t.id=ra.team_id
-      LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
-      LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=?
-      WHERE ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW())
-        AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))".$dismiss."
-      ORDER BY (st.viewed_at IS NULL) DESC,s.priority='high' DESC,s.published_at DESC,s.id DESC LIMIT ".$limit);
-    $q->execute([(int)$viewer['id'],(int)$viewer['id'],(int)$viewer['id'],(int)$viewer['id']]);
+      LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
+      WHERE ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW()) AND ".research_agent_story_social_visibility_sql().$dismiss."
+      ORDER BY social_rank ASC,(st.viewed_at IS NULL) DESC,s.priority='high' DESC,s.published_at DESC,s.id DESC LIMIT ".$limit;
+    $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$q->execute($params);
     return $q->fetchAll()?:[];
 }
 function research_agent_story_state(PDO $pdo,array $viewer,string $publicId,string $action): bool {
