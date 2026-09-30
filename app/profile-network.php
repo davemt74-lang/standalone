@@ -127,19 +127,40 @@ function profile_network_add_to_agent(PDO $pdo,array $config,array $viewer,strin
 }
 
 
-function profile_network_toggle_follow(PDO $pdo,array $viewer,string $targetPublicId): array {
+function profile_network_relationship(PDO $pdo,array $viewer,int $targetUserId): array {
+    $viewerId=(int)($viewer['id']??0);if($viewerId<1||$targetUserId<1||$viewerId===$targetUserId)return ['following'=>false,'follows_you'=>false,'friends'=>false,'blocked'=>false];
+    $blocked=function_exists('is_blocked')&&is_blocked($pdo,$viewerId,$targetUserId);
+    $q=$pdo->prepare("SELECT
+      EXISTS(SELECT 1 FROM follows WHERE follower_user_id=? AND followed_user_id=?) following,
+      EXISTS(SELECT 1 FROM follows WHERE follower_user_id=? AND followed_user_id=?) follows_you");
+    $q->execute([$viewerId,$targetUserId,$targetUserId,$viewerId]);$r=$q->fetch()?:[];
+    $following=!$blocked&&!empty($r['following']);$followsYou=!$blocked&&!empty($r['follows_you']);
+    return ['following'=>$following,'follows_you'=>$followsYou,'friends'=>$following&&$followsYou,'blocked'=>$blocked];
+}
+function profile_network_set_follow(PDO $pdo,array $viewer,string $targetPublicId,bool $desired): array {
     $targetPublicId=trim($targetPublicId);if($targetPublicId==='')throw new InvalidArgumentException('User is required.');
     $q=$pdo->prepare("SELECT id,public_id,display_name FROM users WHERE public_id=? AND status='active' LIMIT 1");$q->execute([$targetPublicId]);$target=$q->fetch();
     if(!$target||(int)$target['id']===(int)$viewer['id'])throw new InvalidArgumentException('User is unavailable.');
-    if(function_exists('is_blocked')&&is_blocked($pdo,(int)$viewer['id'],(int)$target['id']))throw new RuntimeException('This connection is unavailable.');
-    $q=$pdo->prepare('SELECT 1 FROM follows WHERE follower_user_id=? AND followed_user_id=? LIMIT 1');$q->execute([(int)$viewer['id'],(int)$target['id']]);
-    if($q->fetchColumn()){
-        $pdo->prepare('DELETE FROM follows WHERE follower_user_id=? AND followed_user_id=?')->execute([(int)$viewer['id'],(int)$target['id']]);
-        $following=false;
+    $viewerId=(int)$viewer['id'];$targetId=(int)$target['id'];
+    if(function_exists('is_blocked')&&is_blocked($pdo,$viewerId,$targetId))throw new RuntimeException('This connection is unavailable.');
+    $before=profile_network_relationship($pdo,$viewer,$targetId);
+    if($desired){
+        $pdo->prepare('INSERT IGNORE INTO follows(follower_user_id,followed_user_id) VALUES(?,?)')->execute([$viewerId,$targetId]);
     }else{
-        $pdo->prepare('INSERT INTO follows(follower_user_id,followed_user_id) VALUES(?,?)')->execute([(int)$viewer['id'],(int)$target['id']]);
-        $following=true;
-        if(function_exists('notify_user'))notify_user($pdo,(int)$target['id'],(int)$viewer['id'],'new_follower','user',(string)$viewer['public_id'],(string)$viewer['display_name'].' followed you.',['dedupe_key'=>'follow:'.$viewer['id'].':'.$target['id'],'group_key'=>'follows','context'=>['actor_public_id'=>$viewer['public_id']]]);
+        $pdo->prepare('DELETE FROM follows WHERE follower_user_id=? AND followed_user_id=?')->execute([$viewerId,$targetId]);
     }
-    return ['following'=>$following];
+    $state=profile_network_relationship($pdo,$viewer,$targetId);
+    if($desired&&!$before['following']&&$state['following']&&function_exists('notify_user')){
+        notify_user($pdo,$targetId,$viewerId,'new_follower','user',(string)$viewer['public_id'],(string)$viewer['display_name'].' followed you.',['dedupe_key'=>'follow:'.$viewerId.':'.$targetId,'group_key'=>'follows','context'=>['actor_public_id'=>$viewer['public_id']]]);
+    }
+    $q=$pdo->prepare('SELECT COUNT(*) FROM follows WHERE followed_user_id=?');$q->execute([$targetId]);$state['follower_count']=(int)$q->fetchColumn();
+    $q=$pdo->prepare('SELECT COUNT(*) FROM follows WHERE follower_user_id=?');$q->execute([$targetId]);$state['following_count']=(int)$q->fetchColumn();
+    return $state;
+}
+function profile_network_toggle_follow(PDO $pdo,array $viewer,string $targetPublicId): array {
+    $targetPublicId=trim($targetPublicId);if($targetPublicId==='')throw new InvalidArgumentException('User is required.');
+    $q=$pdo->prepare("SELECT id FROM users WHERE public_id=? AND status='active' LIMIT 1");$q->execute([$targetPublicId]);$targetId=(int)($q->fetchColumn()?:0);
+    if($targetId<1||$targetId===(int)$viewer['id'])throw new InvalidArgumentException('User is unavailable.');
+    $current=profile_network_relationship($pdo,$viewer,$targetId);
+    return profile_network_set_follow($pdo,$viewer,$targetPublicId,!$current['following']);
 }
