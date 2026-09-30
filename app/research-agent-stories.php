@@ -5,6 +5,14 @@ function research_agent_stories_ready(PDO $pdo): bool {
     try{return installer_table_exists($pdo,'research_agent_stories')&&installer_table_exists($pdo,'research_agent_story_states');}
     catch(Throwable $e){return false;}
 }
+function research_agent_story_authoring_ready(PDO $pdo): bool {
+    if(!research_agent_stories_ready($pdo))return false;
+    try{$db=installer_database_name($pdo);$q=$pdo->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema=? AND table_name='research_agent_stories' AND column_name='status' LIMIT 1");$q->execute([$db]);return (bool)$q->fetchColumn();}
+    catch(Throwable $e){return false;}
+}
+function research_agent_story_published_filter(PDO $pdo,string $alias='s'): string {
+    return research_agent_story_authoring_ready($pdo)?' AND '.$alias.".status='published'":'';
+}
 function research_agent_story_agent_for_refs(PDO $pdo,array $viewer,array $refs): ?array {
     foreach($refs as $ref){
         $type=(string)($ref['type']??'');$public=trim((string)($ref['public_id']??''));
@@ -67,7 +75,7 @@ function research_agent_story_queue_enhancement(PDO $pdo,array $config,array $vi
     return true;
 }
 function research_agent_story_publish_from_item(PDO $pdo,array $config,array $viewer,array $item): ?array {
-    if(!research_agent_stories_ready($pdo))return null;
+    if(!research_agent_story_authoring_ready($pdo))return null;
     $refs=is_array($item['refs']??null)?$item['refs']:proactive_observation_refs($item);
     $agent=research_agent_story_agent_for_refs($pdo,$viewer,$refs);if(!$agent)return null;
     $observationKey=(string)($item['key']??'');if(!preg_match('/^[a-f0-9]{64}$/',$observationKey))$observationKey=hash('sha256',json_encode([$agent['public_id'],$item['type']??'',$item['title']??'',$refs],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
@@ -98,7 +106,7 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
 }
 
 function research_agent_story_create_manual(PDO $pdo,array $viewer,string $agentPublic,array $input): array {
-    if(!research_agent_stories_ready($pdo))throw new RuntimeException('Research Agent Stories require the latest database upgrade.');
+    if(!research_agent_story_authoring_ready($pdo))throw new RuntimeException('Story authoring requires the latest database upgrade.');
     $agent=research_agent_access($pdo,$viewer,$agentPublic);if(!$agent)throw new RuntimeException('Research Agent not found.');
     $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);
     if(!$canEdit)throw new RuntimeException('You do not have permission to publish Stories for this Research Agent.');
@@ -134,7 +142,7 @@ function research_agent_story_access_draft(PDO $pdo,array $viewer,string $public
     return $row;
 }
 function research_agent_story_drafts(PDO $pdo,array $viewer,string $agentPublic,int $limit=30): array {
-    $agent=research_agent_access($pdo,$viewer,$agentPublic);if(!$agent||!research_agent_stories_ready($pdo))return [];$limit=max(1,min(100,$limit));
+    $agent=research_agent_access($pdo,$viewer,$agentPublic);if(!$agent||!research_agent_story_authoring_ready($pdo))return [];$limit=max(1,min(100,$limit));
     $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);if(!$canEdit)return [];
     $q=$pdo->prepare("SELECT * FROM research_agent_stories WHERE agent_id=? AND status='draft' ORDER BY updated_at DESC,id DESC LIMIT ".$limit);
     $q->execute([(int)$agent['id']]);return $q->fetchAll()?:[];
@@ -202,7 +210,7 @@ function research_agent_story_access(PDO $pdo,array $viewer,string $publicId): ?
       JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
-      WHERE s.public_id=:story_public AND s.status='published' AND ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW()) AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
+      WHERE s.public_id=:story_public AND ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW())".research_agent_story_published_filter($pdo,'s')." AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
     $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$params[':story_public']=$publicId;$q->execute($params);
     $row=$q->fetch()?:null;if(!$row)return null;$row['story_url']='/home.php?story='.rawurlencode((string)$row['public_id']);return $row;
 }
@@ -219,7 +227,7 @@ function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $in
       JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
-      WHERE ra.status<>'archived' AND s.status='published' AND (s.expires_at IS NULL OR s.expires_at>NOW()) AND ".research_agent_story_social_visibility_sql().$dismiss."
+      WHERE ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW())".research_agent_story_published_filter($pdo,'s')." AND ".research_agent_story_social_visibility_sql().$dismiss."
       ORDER BY social_rank ASC,(st.viewed_at IS NULL) DESC,s.priority='high' DESC,s.published_at DESC,s.id DESC LIMIT ".$limit;
     $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$q->execute($params);
     $rows=$q->fetchAll()?:[];foreach($rows as &$row)$row['story_url']='/home.php?story='.rawurlencode((string)$row['public_id']);unset($row);return $rows;
