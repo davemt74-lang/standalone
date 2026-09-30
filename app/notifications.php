@@ -151,7 +151,7 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
     if($type==='cognitive_alert'){$url=(string)($context['primary_url']??'');return ($url!==''&&str_starts_with($url,'/')&&!str_starts_with($url,'//'))?$url:'/home.php?view=cognitive';}
     if($type==='research_agent_story'){
         $story=function_exists('research_agent_story_access')?research_agent_story_access($pdo,$viewer,$public):null;if(!$story)return null;
-        return '/home.php?agent='.rawurlencode((string)$story['conversation_public_id']).'&story='.rawurlencode($public);
+        return (string)($story['story_url']??'/home.php');
     }
     if($type==='customer_success_account')return ($viewer['role']??'')==='admin'&&function_exists('admin_access_has_capability')&&admin_access_has_capability($pdo,$viewer,'admin.customer_success.view')?'/admin/customer-success-account.php?id='.rawurlencode($public):null;
     if($type==='support_case')return ($viewer['role']??'')==='admin'&&function_exists('admin_access_has_capability')&&admin_access_has_capability($pdo,$viewer,'admin.support.view')?'/admin/support-case.php?id='.rawurlencode($public):null;
