@@ -1,0 +1,17 @@
+/* Phase 74 Section 4 — Universal Search + Command Palette */
+.appHeaderSearch{cursor:text}.appHeaderSearch input{cursor:pointer}
+dialog.commandPalette{width:min(760px,calc(100vw - 28px));max-height:min(78dvh,760px);margin:10vh auto auto;padding:0;border:1px solid #d9dee3;border-radius:16px;background:#fff;box-shadow:0 28px 90px rgba(17,24,39,.28);overflow:hidden}
+dialog.commandPalette::backdrop{background:rgba(20,25,30,.36);backdrop-filter:blur(2px)}
+.commandPaletteHead{display:grid;grid-template-columns:28px minmax(0,1fr) 36px;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid #e7eaed}
+.commandPaletteHead input{width:100%;border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;font-size:1rem!important;padding:8px 0!important;color:#20252a!important}
+.commandPaletteClose{appearance:none;border:0;background:transparent;font-size:1.25rem;color:#6b737b}
+.commandPaletteResults{max-height:calc(min(78dvh,760px) - 70px);overflow:auto;padding:8px}
+.commandPaletteGroup{padding:6px}.commandPaletteGroup h3{margin:3px 8px 7px;color:#8a9198;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase}
+.commandPaletteGroup>div{display:grid;gap:3px}
+.commandPaletteRow{appearance:none;width:100%;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px 10px;border:0;border-radius:9px;background:#fff;color:#2d3338;text-decoration:none;text-align:left}
+.commandPaletteRow:hover,.commandPaletteRow.active{background:#f2f4f5}
+.commandPaletteIcon{width:30px;height:30px;display:grid;place-items:center;border:1px solid #e0e4e7;border-radius:8px;background:#fafbfb;color:#5e666e}
+.commandPaletteRow>span:nth-child(2){min-width:0;display:grid;gap:2px}.commandPaletteRow strong{font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.commandPaletteRow small,.commandPaletteRow em{font-size:.61rem;color:#7b838b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:normal}.commandPaletteRow kbd{font-size:.56rem;color:#959ca3;background:transparent}
+.commandPaletteEmpty{padding:34px 22px;text-align:center;color:#7b838b;font-size:.72rem}
+.commandPaletteHint{padding:9px 16px;border-top:1px solid #eceff1;color:#8a9198;font-size:.58rem;display:flex;justify-content:space-between}
+@media(max-width:640px){dialog.commandPalette{width:calc(100vw - 12px);max-height:calc(100dvh - 20px);margin:10px auto}.commandPaletteResults{max-height:calc(100dvh - 126px)}.commandPaletteHint{display:none}}
