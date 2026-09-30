@@ -339,7 +339,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
         $aside.=app_shell_research_agents($pdo,$user,$path).app_shell_research_projects($pdo,$user,$path);
     }
     $aside.='</aside>';
-    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$palette=$adminMode?'':app_shell_command_palette();$objectDrawer=$adminMode?'':app_shell_object_detail_drawer();$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'.$palette.$objectDrawer; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
+    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$palette=$adminMode?'':app_shell_command_palette();$objectDrawer=$adminMode?'':app_shell_object_detail_drawer();$isAdminDashboard=$adminMode&&($path==='/admin/'||$path==='/admin/index.php');$headerSearch=$isAdminDashboard?'':app_shell_search();$header='<header class="appShellHeader'.($adminMode?' appShellHeaderAdmin':'').'">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.$headerSearch.'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'.$palette.$objectDrawer; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
     $footer='';
     return [$aside,$header,$footer];
 }
