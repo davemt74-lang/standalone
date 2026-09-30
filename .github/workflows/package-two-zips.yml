@@ -2,6 +2,9 @@ name: Annotated Two-Package Build
 
 on:
   workflow_call:
+  push:
+    branches:
+      - 'chatgpt/package-hotfix-214'
 
 permissions:
   contents: read
@@ -11,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 55184ebae9dee57ad553e432adc4b48b3d8224f7
 
       - name: Build complete Chrome extension ZIP
         shell: bash
@@ -39,7 +44,7 @@ jobs:
           mkdir -p package-website/downloads package-website/extension
           cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
           cp extension/manifest.json package-website/extension/manifest.json
-          GITHUB_SHA="$GITHUB_SHA" php package-website/bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
+          GITHUB_SHA="55184ebae9dee57ad553e432adc4b48b3d8224f7" php package-website/bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
           (cd package-website && zip -qr ../Annotated-Website.zip .)
           unzip -t Annotated-Website.zip
           test -f package-website/index.php
@@ -529,7 +534,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "validated_commit=$GITHUB_SHA"
+            echo "validated_commit=55184ebae9dee57ad553e432adc4b48b3d8224f7"
             echo "workflow_run_id=$GITHUB_RUN_ID"
             echo "workflow_run_attempt=$GITHUB_RUN_ATTEMPT"
             php -r '$m=json_decode(file_get_contents("package-website/RELEASE-MANIFEST.json"),true,512,JSON_THROW_ON_ERROR); echo "release=".($m["release"]??"").PHP_EOL."release_version=".($m["version"]??"").PHP_EOL."release_phase=".($m["phase"]??"").PHP_EOL."release_channel=".($m["channel"]??"").PHP_EOL."latest_migration=".($m["latest_migration"]??"").PHP_EOL."package_fingerprint=".($m["package_fingerprint"]??"").PHP_EOL;'
