@@ -34,9 +34,9 @@ function profile_network_enrich_person(PDO $pdo,array $person,?array $viewer=nul
       (SELECT COUNT(*) FROM follows f WHERE f.followed_user_id=?) follower_count");
     $q->execute([$id,$id,$id]);$person=array_merge($person,$q->fetch()?:[]);
     $person['topics']=profile_network_public_topics($pdo,$id,5);
-    $viewerId=(int)($viewer['id']??0);$person['following']=false;$person['mutual_count']=0;
+    $viewerId=(int)($viewer['id']??0);$person['following']=false;$person['follows_you']=false;$person['friends']=false;$person['mutual_count']=0;
     if($viewerId&&$viewerId!==$id){
-        $q=$pdo->prepare('SELECT 1 FROM follows WHERE follower_user_id=? AND followed_user_id=? LIMIT 1');$q->execute([$viewerId,$id]);$person['following']=(bool)$q->fetchColumn();
+        $relationship=profile_network_relationship($pdo,$viewer,$id);$person['following']=$relationship['following'];$person['follows_you']=$relationship['follows_you'];$person['friends']=$relationship['friends'];
         $q=$pdo->prepare("SELECT COUNT(*) FROM follows mine JOIN follows theirs ON theirs.followed_user_id=mine.followed_user_id WHERE mine.follower_user_id=? AND theirs.follower_user_id=?");$q->execute([$viewerId,$id]);$person['mutual_count']=(int)$q->fetchColumn();
     }
     unset($person['id']);return $person;
