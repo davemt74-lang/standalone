@@ -13,6 +13,50 @@ function research_agent_story_authoring_ready(PDO $pdo): bool {
 function research_agent_story_published_filter(PDO $pdo,string $alias='s'): string {
     return research_agent_story_authoring_ready($pdo)?' AND '.$alias.".status='published'":'';
 }
+
+function research_agent_story_policy_ready(PDO $pdo): bool {
+    try{return installer_table_exists($pdo,'research_agent_story_policies');}catch(Throwable $e){return false;}
+}
+function research_agent_story_policy_defaults(): array {
+    return ['publish_mode'=>'approval','min_priority'=>'medium','daily_story_cap'=>3,'quiet_hours_enabled'=>0,'quiet_start'=>null,'quiet_end'=>null,
+      'trigger_evidence'=>1,'trigger_risk'=>1,'trigger_question'=>1,'trigger_decision'=>1,'trigger_task'=>1,'trigger_update'=>1];
+}
+function research_agent_story_policy(PDO $pdo,array $agent): array {
+    $defaults=research_agent_story_policy_defaults();if(!research_agent_story_policy_ready($pdo))return $defaults;
+    $q=$pdo->prepare('SELECT * FROM research_agent_story_policies WHERE agent_id=? LIMIT 1');$q->execute([(int)$agent['id']]);$row=$q->fetch()?:[];
+    return array_merge($defaults,$row);
+}
+function research_agent_story_policy_update(PDO $pdo,array $viewer,string $agentPublic,array $input): array {
+    $agent=research_agent_access($pdo,$viewer,$agentPublic);if(!$agent)throw new RuntimeException('Research Agent not found.');
+    $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);if(!$canEdit)throw new RuntimeException('You do not have permission to edit this Research Agent.');
+    if(!research_agent_story_policy_ready($pdo))throw new RuntimeException('Story publishing policy requires the latest database upgrade.');
+    $mode=(string)($input['publish_mode']??'approval');if(!in_array($mode,['draft_only','approval','auto_publish'],true))$mode='approval';
+    $min=(string)($input['min_priority']??'medium');if(!in_array($min,['low','medium','high'],true))$min='medium';
+    $cap=max(1,min(20,(int)($input['daily_story_cap']??3)));$quiet=!empty($input['quiet_hours_enabled'])?1:0;
+    $start=trim((string)($input['quiet_start']??''));$end=trim((string)($input['quiet_end']??''));if(!$quiet){$start='';$end='';}
+    foreach([$start,$end] as $t)if($t!==''&&!preg_match('/^(?:[01]d|2[0-3]):[0-5]d$/',$t))throw new InvalidArgumentException('Quiet hours must use HH:MM.');
+    $triggers=[];foreach(['evidence','risk','question','decision','task','update'] as $type)$triggers[$type]=!empty($input['trigger_'.$type])?1:0;
+    $sql="INSERT INTO research_agent_story_policies(agent_id,publish_mode,min_priority,daily_story_cap,quiet_hours_enabled,quiet_start,quiet_end,trigger_evidence,trigger_risk,trigger_question,trigger_decision,trigger_task,trigger_update,updated_by_user_id)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ON DUPLICATE KEY UPDATE publish_mode=VALUES(publish_mode),min_priority=VALUES(min_priority),daily_story_cap=VALUES(daily_story_cap),quiet_hours_enabled=VALUES(quiet_hours_enabled),quiet_start=VALUES(quiet_start),quiet_end=VALUES(quiet_end),trigger_evidence=VALUES(trigger_evidence),trigger_risk=VALUES(trigger_risk),trigger_question=VALUES(trigger_question),trigger_decision=VALUES(trigger_decision),trigger_task=VALUES(trigger_task),trigger_update=VALUES(trigger_update),updated_by_user_id=VALUES(updated_by_user_id)";
+    $pdo->prepare($sql)->execute([(int)$agent['id'],$mode,$min,$cap,$quiet,$start!==''?$start:null,$end!==''?$end:null,$triggers['evidence'],$triggers['risk'],$triggers['question'],$triggers['decision'],$triggers['task'],$triggers['update'],(int)$viewer['id']]);
+    return research_agent_story_policy($pdo,$agent);
+}
+function research_agent_story_priority_rank(string $priority): int {return ['low'=>1,'medium'=>2,'high'=>3][$priority]??2;}
+function research_agent_story_policy_quiet(array $policy,?DateTimeImmutable $now=null): bool {
+    if(empty($policy['quiet_hours_enabled'])||empty($policy['quiet_start'])||empty($policy['quiet_end']))return false;
+    $now=$now??new DateTimeImmutable('now');$time=$now->format('H:i');$start=substr((string)$policy['quiet_start'],0,5);$end=substr((string)$policy['quiet_end'],0,5);
+    return $start<$end?($time>=$start&&$time<$end):($time>=$start||$time<$end);
+}
+function research_agent_story_policy_decision(PDO $pdo,array $agent,string $storyType,string $priority): array {
+    $policy=research_agent_story_policy($pdo,$agent);$triggerKey='trigger_'.$storyType;if(!array_key_exists($triggerKey,$policy))$triggerKey='trigger_update';
+    if(empty($policy[$triggerKey]))return ['allow'=>false,'status'=>'suppressed','reason'=>'trigger_disabled','policy'=>$policy];
+    if(research_agent_story_priority_rank($priority)<research_agent_story_priority_rank((string)$policy['min_priority']))return ['allow'=>false,'status'=>'suppressed','reason'=>'below_threshold','policy'=>$policy];
+    if(research_agent_story_policy_quiet($policy))return ['allow'=>true,'status'=>'draft','reason'=>'quiet_hours','policy'=>$policy];
+    $q=$pdo->prepare("SELECT COUNT(*) FROM research_agent_stories WHERE agent_id=? AND status='published' AND published_at>=CURDATE()");$q->execute([(int)$agent['id']]);$today=(int)$q->fetchColumn();
+    if($today>=(int)$policy['daily_story_cap'])return ['allow'=>true,'status'=>'draft','reason'=>'daily_cap','policy'=>$policy];
+    return ['allow'=>true,'status'=>$policy['publish_mode']==='auto_publish'?'published':'draft','reason'=>(string)$policy['publish_mode'],'policy'=>$policy];
+}
 function research_agent_story_agent_for_refs(PDO $pdo,array $viewer,array $refs): ?array {
     foreach($refs as $ref){
         $type=(string)($ref['type']??'');$public=trim((string)($ref['public_id']??''));
@@ -82,16 +126,17 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
     $title=mb_substr(trim((string)($item['title']??'Research update')),0,240);if($title==='')$title='Research update';
     $body=research_agent_story_deterministic_body($item);$priority=(string)($item['priority']??'medium');if(!in_array($priority,['low','medium','high'],true))$priority='medium';
     $storyType=research_agent_story_type($item);$primary=trim((string)($item['primary_url']??proactive_primary_url($item)));$object=research_agent_story_object_from_refs($refs);
+    $decision=research_agent_story_policy_decision($pdo,$agent,$storyType,$priority);if(empty($decision['allow']))return null;$status=(string)$decision['status'];
     $public=ulid_like();
-    $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,expires_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,DATE_ADD(NOW(),INTERVAL 7 DAY))");
-    $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id']]);
+    $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,status,published_at,expires_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
+    $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id'],$status,$status]);
     if($q->rowCount()===0){
         $q=$pdo->prepare("SELECT * FROM research_agent_stories WHERE agent_id=? AND observation_key=? LIMIT 1");$q->execute([(int)$agent['id'],$observationKey]);$story=$q->fetch()?:null;
     }else{
         $q=$pdo->prepare("SELECT * FROM research_agent_stories WHERE public_id=? LIMIT 1");$q->execute([$public]);$story=$q->fetch()?:null;
         if($story){
-            if($priority==='high'){
+            if($status==='published'&&$priority==='high'){
                 notification_create($pdo,(int)$viewer['id'],null,'research_agent_story','research_agent_story',(string)$story['public_id'],$title.': '.$body,[
                     'allow_self'=>true,'category'=>'research','dedupe_key'=>'research_agent_story:'.$observationKey,
                     'group_key'=>'research_agent_story:'.(string)$agent['public_id'],
@@ -99,7 +144,7 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
                 ]);
                 research_agent_story_notify_social($pdo,$viewer,$agent,$story);
             }
-            research_agent_story_queue_enhancement($pdo,$config,$viewer,(string)$story['public_id']);
+            if($status==='published')research_agent_story_queue_enhancement($pdo,$config,$viewer,(string)$story['public_id']);
         }
     }
     return $story;
