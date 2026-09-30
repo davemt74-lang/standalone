@@ -63,6 +63,7 @@ require_once __DIR__ . '/admin-security-compliance.php';
 require_once __DIR__ . '/admin-platform-governance.php';
 require_once __DIR__ . '/admin-agent-context.php';
 require_once __DIR__ . '/admin-ui.php';
+require_once __DIR__ . '/research-object-navigation.php';
 require_once __DIR__ . '/shell.php';
 require_once __DIR__ . '/access.php';
 require_once __DIR__ . '/object-handoff.php';

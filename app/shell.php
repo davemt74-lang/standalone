@@ -206,6 +206,17 @@ function app_shell_search(): string {
     return '<form class="appHeaderSearch" action="/search.php" method="get"><span aria-hidden="true">⌕</span><input name="q" aria-label="Search Annotated" placeholder="Search people, sources, annotations, research"></form>';
 }
 function app_shell_create_launcher(PDO $pdo,array $user): string {
+    $context=function_exists('research_object_context_from_request')?research_object_context_from_request($pdo,$user):[];
+    $contextType=(string)($context['type']??'');$contextId=(string)($context['public_id']??'');
+    $shortcutHtml='';
+    if(function_exists('research_object_shortcuts')){
+        try{
+            foreach(research_object_shortcuts($pdo,$user,6) as $shortcut){
+                $pin=!empty($shortcut['pinned_at'])?'<span aria-label="Pinned" title="Pinned">★</span>':'';
+                $shortcutHtml.='<a class="appCreateShortcut" href="'.app_shell_h((string)$shortcut['url']).'"><span><strong>'.app_shell_h((string)$shortcut['title']).'</strong><small>'.app_shell_h(ucwords(str_replace('_',' ',(string)$shortcut['object_type']))).'</small></span>'.$pin.'</a>';
+            }
+        }catch(Throwable $e){}
+    }
     $agents=app_shell_research_agent_rows($pdo,$user,60);
     $agentOptions='';$currentAgent='';
     $requested=trim((string)($_GET['agent']??''));
@@ -259,7 +270,19 @@ function app_shell_create_launcher(PDO $pdo,array $user): string {
     $panels.=$panel('team','Team','<label>Team name<input name="name" maxlength="190" required placeholder="Research Team"></label>','Create Team');
     $panels.=$panel('source','Add Source','<label>URL<input type="url" name="url" required placeholder="https://example.com/article"></label><label>Title<input name="title" maxlength="500" placeholder="Optional source title"></label>','Add Source');
     return '<button type="button" class="appHeaderCreate" data-create-launcher-open aria-label="Create" title="Create">+</button>'
-      .'<dialog class="appCreateDialog" data-create-launcher data-csrf="'.app_shell_h(csrf_token()).'"><section class="appCreateMenu" data-create-menu><header><div><span class="eyebrow">CREATE</span><h2>What do you want to create?</h2><p>Start something new without leaving your current workspace.</p></div><button type="button" class="appCreateClose" data-create-close aria-label="Close">×</button></header><div class="appCreateGrid">'.$cards.'</div></section>'.$panels.'</dialog>';
+      .'<dialog class="appCreateDialog" data-create-launcher data-csrf="'.app_shell_h(csrf_token()).'" data-context-type="'.app_shell_h($contextType).'" data-context-id="'.app_shell_h($contextId).'"><section class="appCreateMenu" data-create-menu><header><div><span class="eyebrow">CREATE</span><h2>What do you want to create?</h2><p>Start something new without leaving your current workspace.</p></div><button type="button" class="appCreateClose" data-create-close aria-label="Close">×</button></header><div class="appCreateGrid">'.$cards.'</div>'.($shortcutHtml!==''?'<section class="appCreateShortcuts" data-create-shortcuts><div class="eyebrow">RECENT &amp; PINNED</div><div>'.$shortcutHtml.'</div></section>':'').'</section>'.$panels.'</dialog>';
+}
+function app_shell_object_context_bar(PDO $pdo,array $user): string {
+    if(!function_exists('research_object_context_from_request')||!function_exists('research_object_descriptor'))return '';
+    try{
+        $context=research_object_context_from_request($pdo,$user);if(!$context)return '';
+        $d=research_object_descriptor($pdo,$user,$context);if(!$d)return '';
+        if(function_exists('research_object_recent_touch'))research_object_recent_touch($pdo,$user,(string)$d['type'],(string)$d['public_id'],(string)$d['title'],(string)$d['url']);
+        $pinned=false;
+        if(function_exists('research_object_shortcuts'))foreach(research_object_shortcuts($pdo,$user,20) as $s)if((string)$s['object_type']===(string)$d['type']&&(string)$s['object_public_id']===(string)$d['public_id']){$pinned=!empty($s['pinned_at']);break;}
+        $meta=array_values(array_filter([(string)($d['status']??''),(string)($d['agent_name']??''),(string)($d['team_name']??'')],fn($v)=>trim($v)!==''));
+        return '<section class="appObjectContextBar" data-object-context-bar data-object-type="'.app_shell_h((string)$d['type']).'" data-object-id="'.app_shell_h((string)$d['public_id']).'"><div><span class="eyebrow">'.app_shell_h((string)$d['type_label']).'</span><strong>'.app_shell_h((string)$d['title']).'</strong>'.($meta?'<small>'.app_shell_h(implode(' · ',$meta)).'</small>':'').'</div><nav><button type="button" data-object-pin aria-pressed="'.($pinned?'true':'false').'">'.($pinned?'★ Pinned':'☆ Pin').'</button><a href="'.app_shell_h((string)$d['url']).'">Open</a></nav></section>';
+    }catch(Throwable $e){return '';}
 }
 function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode,int $unread=0): string {
     $links=$adminMode?app_shell_admin_nav($path):app_shell_user_nav($pdo,$user,$path,$unread);
@@ -286,7 +309,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
         $aside.=app_shell_research_agents($pdo,$user,$path).app_shell_research_projects($pdo,$user,$path);
     }
     $aside.='</aside>';
-    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>';
+    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
     $footer='<footer class="appShellFooter"><span>Annotated · Research the web in context.</span><nav><a href="/explore.php">Explore</a><a href="/teams.php">Teams</a><a href="/chrome-extension.php">Chrome Extension</a><a href="/settings.php">Privacy & Settings</a></nav></footer>';
     return [$aside,$header,$footer];
 }
@@ -294,6 +317,7 @@ function app_shell_transform(string $html): string {
     $state=$GLOBALS['annotated_shell']??null;
     if(!$state||!is_string($html)||stripos($html,'<html')===false||stripos($html,'<body')===false)return $html;
     if(str_contains($html,'data-annotated-shell="1"'))return $html;
+    if(!str_contains($html,'/assets/css/create-launcher.css'))$html=(string)preg_replace('#</head>#i','<link rel="stylesheet" href="/assets/css/create-launcher.css?v=74.3"></head>',$html,1);
     $pdo=$state['pdo']??null;$user=$state['user']??null;
     if(!$pdo instanceof PDO||!is_array($user))return $html;
 
@@ -302,7 +326,7 @@ function app_shell_transform(string $html): string {
 
     [$aside,$header,$footer]=app_shell_markup($pdo,$user);
     $mode=(string)($state['mode']??'full');$headerOnly=$mode==='header_only';
-    $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1" data-chat-presence-csrf="'.app_shell_h(csrf_token()).'">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.'<div class="appShellContent">';
+    $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1" data-chat-presence-csrf="'.app_shell_h(csrf_token()).'">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.($headerOnly?'':$objectBar).'<div class="appShellContent">';
     $presenceScript=(function_exists('conversation_presence_ready')&&conversation_presence_ready($pdo))?'<script src="/assets/js/chat-presence.js?v=12.0"></script>':'';
     $researchAgentScript=($headerOnly?'':'<script src="/assets/js/research-agent-shell.js?v=47.0"></script>').'<script src="/assets/js/create-launcher.js?v=1.0"></script>';
     $close='</div>'.$footer.'</div></div>'.$presenceScript.$researchAgentScript;

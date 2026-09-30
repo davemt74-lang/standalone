@@ -1,0 +1,36 @@
+/* Home Team Chat rail — overrides the later single-column focus rule only when chat is available. */
+@media(min-width:901px){
+  .homeWorkspaceLayout.hasTeamChatRail{
+    grid-template-columns:minmax(0,820px) minmax(300px,330px)!important;
+    max-width:1190px!important;
+    gap:22px!important;
+    justify-content:center!important;
+    align-items:start!important;
+  }
+  .homeWorkspaceLayout.hasTeamChatRail>#homeFeedCanvas,
+  .homeWorkspaceLayout.hasTeamChatRail>.homeAgentCanvas{
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+  .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
+    display:block!important;
+    grid-column:2!important;
+    grid-row:1!important;
+    min-width:0!important;
+    position:sticky!important;
+    top:78px!important;
+    align-self:start!important;
+  }
+  .homeFeedPage.agentChatMode .homeWorkspaceLayout.hasTeamChatRail{
+    grid-template-columns:minmax(0,1fr) minmax(300px,330px)!important;
+    max-width:1260px!important;
+    gap:22px!important;
+  }
+  .homeFeedPage.agentChatMode .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
+    display:block!important;
+  }
+}
+@media(max-width:900px){
+  .homeWorkspaceLayout.hasTeamChatRail{grid-template-columns:minmax(0,1fr)!important}
+  .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{grid-column:1!important}
+}
