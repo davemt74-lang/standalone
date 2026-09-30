@@ -84,6 +84,48 @@ function research_agent_profile_list(PDO $pdo,int $ownerUserId,?array $viewer,in
     return $rows;
 }
 
+
+function research_agent_discover_public(PDO $pdo,?array $viewer,string $term='',int $limit=24): array {
+    if(!research_agent_ready($pdo))return [];
+    $limit=max(1,min(60,$limit));$term=trim($term);$viewerId=(int)($viewer['id']??0);
+    $where=["ra.status<>'archived'","ra.visibility='public'","u.status='active'","COALESCE(up.profile_visibility,'public')='public'","COALESCE(up.search_visibility,1)=1"];
+    $params=[];
+    if($viewerId>0){
+        $where[]='u.id<>?';$params[]=$viewerId;
+        $where[]="NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=$viewerId AND b.blocked_user_id=u.id) OR (b.blocker_user_id=u.id AND b.blocked_user_id=$viewerId))";
+    }
+    if($term!==''){
+        $where[]='(ra.name LIKE ? OR ra.description LIKE ? OR u.display_name LIKE ? OR u.username LIKE ?)';
+        $like='%'.$term.'%';array_push($params,$like,$like,$like,$like);
+    }
+    $sql="SELECT ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.updated_at,
+      u.public_id owner_public_id,u.username owner_username,u.display_name owner_display_name,u.profile_image_url owner_profile_image_url,
+      (SELECT COUNT(*) FROM research_agent_stories ras WHERE ras.agent_id=ra.id AND ras.status='published' AND ras.dismissed_at IS NULL) published_story_count
+      FROM research_agents ra
+      JOIN users u ON u.id=ra.owner_user_id
+      LEFT JOIN user_preferences up ON up.user_id=u.id
+      WHERE ".implode(' AND ',$where)."
+      ORDER BY published_story_count DESC,ra.updated_at DESC,ra.id DESC LIMIT ".$limit;
+    $q=$pdo->prepare($sql);$q->execute($params);$rows=$q->fetchAll()?:[];
+    $storyMeta=[];
+    if($viewer&&function_exists('research_agent_story_list')){
+        foreach(research_agent_story_list($pdo,$viewer,80) as $story){
+            $agent=(string)($story['agent_public_id']??'');if($agent==='')continue;
+            if(!isset($storyMeta[$agent]))$storyMeta[$agent]=['accessible_story_count'=>0,'latest_story_url'=>(string)($story['story_url']??'')];
+            $storyMeta[$agent]['accessible_story_count']++;
+        }
+    }
+    foreach($rows as &$row){
+        $meta=$storyMeta[(string)$row['public_id']]??['accessible_story_count'=>0,'latest_story_url'=>null];
+        $row=array_merge($row,$meta);
+        if($viewer&&function_exists('profile_network_relationship')){
+            $qOwner=$pdo->prepare('SELECT id FROM users WHERE public_id=? LIMIT 1');$qOwner->execute([(string)$row['owner_public_id']]);$ownerId=(int)($qOwner->fetchColumn()?:0);
+            $row['owner_relationship']=$ownerId?profile_network_relationship($pdo,$viewer,$ownerId):['following'=>false,'follows_you'=>false,'friends'=>false,'blocked'=>false];
+        }else $row['owner_relationship']=['following'=>false,'follows_you'=>false,'friends'=>false,'blocked'=>false];
+    }
+    unset($row);return $rows;
+}
+
 function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
     if(!research_agent_ready($pdo))return [];
     $limit=max(1,min(50,$limit));
