@@ -4547,3 +4547,13 @@ body.storyViewerOpen{overflow:hidden!important}
 .researchHomeEditAgent{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 @media(max-width:1050px){.researchAgentEditGrid{grid-template-columns:1fr}.researchAgentEditObjects{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.researchAgentEditCanvas{padding:18px}.researchAgentEditHero{display:block}.researchAgentEditHeroActions{margin-top:14px}.researchAgentEditObjects{grid-template-columns:1fr}.researchAgentEditSplit{grid-template-columns:1fr}}
+
+
+/* Phase 78.2 — Proactive Story Triggers & Publishing Policy */
+.researchAgentStoryPolicyForm{display:grid;gap:12px;margin-bottom:18px}
+.researchAgentStoryTriggers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px;border:1px solid #ecece7;border-radius:12px;background:#fafaf7}
+.researchAgentStoryTriggers>strong{grid-column:1/-1;font-size:.74rem}
+.researchAgentStoryQuiet{display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;align-items:end}
+.researchAgentEditCheck{display:flex!important;grid-auto-flow:column;grid-template-columns:auto 1fr!important;align-items:center;justify-content:flex-start;gap:7px!important;margin-top:0!important;font-weight:700!important}
+.researchAgentEditCheck input{width:auto!important}
+@media(max-width:700px){.researchAgentStoryTriggers{grid-template-columns:1fr}.researchAgentStoryQuiet{grid-template-columns:1fr}}
