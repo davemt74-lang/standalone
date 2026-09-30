@@ -27,7 +27,9 @@ function profile_showcase_people(PDO $pdo,int $profileUserId,string $type,?array
       FROM follows f $join LEFT JOIN user_preferences p ON p.user_id=u.id
       WHERE $where AND u.status='active' AND COALESCE(p.profile_visibility,'public')='public'".$block."
       ORDER BY f.created_at DESC LIMIT ".$limit;
-    $q=$pdo->prepare($sql);$q->execute([$profileUserId]);return $q->fetchAll()?:[];
+    $q=$pdo->prepare($sql);$q->execute([$profileUserId]);$rows=$q->fetchAll()?:[];
+    if($viewer&&function_exists('profile_network_enrich_person'))foreach($rows as &$row)$row=profile_network_enrich_person($pdo,$row,$viewer);unset($row);
+    return $rows;
 }
 function profile_showcase_object_owned_public(PDO $pdo,int $userId,string $type,string $publicId): bool {
     if($type==='annotation'){$q=$pdo->prepare("SELECT 1 FROM annotations WHERE public_id=? AND user_id=? AND visibility='public' AND status='published' LIMIT 1");}
