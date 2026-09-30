@@ -14,6 +14,11 @@ try{
         $viewer=require_api_user($pdo);if(!conversation_presence_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Annotated database upgrade is required for Chat Status.']],503);
         json_response(['ok'=>true,'data'=>conversation_status_get($pdo,(int)$viewer['id'])]);
     }
+    if($action==='status-update'){
+        $viewer=require_api_mutation_auth($pdo);if(!conversation_presence_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Annotated database upgrade is required for Chat Status.']],503);
+        rate_limit_api_or_429($pdo,'conversation-status','user:'.$viewer['id'],180,3600);
+        json_response(['ok'=>true,'data'=>conversation_status_update($pdo,$viewer,(string)($input['status_mode']??'auto'),(string)($input['custom_status']??''))]);
+    }
     if($action==='heartbeat'){
         $viewer=require_api_mutation_auth($pdo);if(!conversation_presence_ready($pdo))json_response(['ok'=>false,'error'=>['code'=>'UPGRADE_REQUIRED','message'=>'Annotated database upgrade is required for Chat Presence.']],503);
         rate_limit_api_or_429($pdo,'conversation-heartbeat','user:'.$viewer['id'],1200,3600);
