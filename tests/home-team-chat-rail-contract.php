@@ -5,7 +5,7 @@ $read=function(string $p)use($root,&$fail): string{$f=$root.'/'.$p;if(!is_file($
 $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&!str_contains($c,$n))$fail[]=$m;};
 
 $need('home.php','hasTeamChatRail','Home must mark the layout when Team Chat is available.');
-$need('home.php','/assets/css/home-team-chat.css?v=74.4','Home must load the Team Chat visibility override after app.css.');
+$need('home.php','/assets/css/home-team-chat.css?v=74.5','Home must load the Team Chat visibility override after app.css.');
 $need('home.php','data-team-chat-rail','Home must render the canonical Team Chat rail.');
 $need('home.php','/assets/js/team-chat.js?v=36.0','Home must load the Team Chat client when Team conversations exist.');
 $need('assets/css/home-team-chat.css','.homeWorkspaceLayout.hasTeamChatRail','Team Chat CSS must keep a dedicated desktop rail state.');
@@ -16,7 +16,14 @@ $need('assets/css/home-team-chat.css','transform:translateX(320px)!important','D
 $need('assets/css/home-team-chat.css','body.teamChatDesktopOpen','Desktop Team Chat must expose an explicit open state.');
 $need('assets/js/team-chat.js',"miniRail?.addEventListener('click'","Clicking the collapsed Team Chat rail must open the chat panel.");
 $need('assets/js/team-chat.js','renderMiniMembers','Collapsed Team Chat rail must render member avatars and presence.');
-$need('assets/css/home-team-chat.css','@media(max-width:900px)','Team Chat rail must preserve mobile behavior.');
+$need('assets/css/home-team-chat.css','top:68px!important','Desktop Team Chat rail must begin directly below the universal header.');
+$need('assets/css/home-team-chat.css','bottom:0!important','Desktop Team Chat rail must extend to the bottom of the viewport.');
+$need('home.php','data-team-chat-status-toggle','Desktop rail must expose a bottom chat-status/settings control.');
+$need('home.php','data-team-chat-status-mode','Desktop rail must include the existing online status choices.');
+$need('api/conversations.php',"action==='status-update'",'Chat status choices must update through the canonical conversation status runtime.');
+$need('assets/js/team-chat.js',"request('status-update'",'Rail status choices must call the canonical status API.');
+$need('assets/css/home-team-chat.css','.teamChatMiniRail{display:none!important}','Mobile must not render a persistent Team Chat rail.');
+$need('assets/css/home-team-chat.css','@media(max-width:900px)','Team Chat must retain mobile drawer behavior.');
 $need('assets/js/team-chat.js',"mobileOpen?.addEventListener('click'","Team Chat mobile opener must remain wired.");
 $need('assets/js/team-chat.js',"mobileClose?.addEventListener('click'","Team Chat mobile close control must remain wired.");
 $need('app/conversations.php','function conversation_team_list','Team Chat must continue to use canonical Team conversation discovery.');
