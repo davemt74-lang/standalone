@@ -46,6 +46,10 @@ jobs:
           test -f package-website/install.php
           test -f package-website/upgrade.php
           test -f package-website/database/schema.sql
+          test -f package-website/database/migrations/20260930_106_research_agent_stories.sql
+          test -f package-website/app/research-agent-stories.php
+          test -f package-website/api/research-agent-stories.php
+          test -f package-website/assets/js/research-agent-stories.js
           test -f package-website/database/migrations/20260922_046_model_improvement_campaigns.sql
           test -f package-website/database/migrations/20260922_047_research_agents.sql
           test -f package-website/database/migrations/20260923_048_research_agent_workspace_core.sql

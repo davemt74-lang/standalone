@@ -206,7 +206,7 @@ document.querySelector('#copyProfile')?.addEventListener('click',async e=>{try{a
 <?php if($viewer&&!$owner):?>
 <script>
 const csrf=<?=json_encode(csrf_token())?>;
-document.querySelector('#follow')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;try{const r=await fetch('/api/extension.php?action=follow',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({user_id:<?=json_encode($p['public_id'])?>})});const j=await r.json();if(j.ok){const following=!!j.data.following;e.currentTarget.textContent=following?'Following':'Follow';e.currentTarget.setAttribute('aria-pressed',following?'true':'false');}}finally{e.currentTarget.disabled=false;}});
+document.querySelector('#follow')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;try{const r=await fetch('/api/profile-follow.php',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({user_id:<?=json_encode($p['public_id'])?>})});const j=await r.json().catch(()=>({ok:false,error:{message:'Follow request failed.'}}));if(!r.ok||j.ok===false)throw new Error(j.error?.message||'Follow request failed.');const following=!!j.data.following;e.currentTarget.textContent=following?'Following':'Follow';e.currentTarget.setAttribute('aria-pressed',following?'true':'false');}catch(err){alert(err?.message||'Unable to update follow state.');}finally{e.currentTarget.disabled=false;}});
 </script>
 <?php endif?>
 <?=annotation_ui_scripts($viewer)?>

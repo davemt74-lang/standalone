@@ -126,8 +126,10 @@ function app_shell_research_agent_dialog(PDO $pdo,array $user): string {
       .'<p class="researchAgentCreateIntro">Create a dedicated research workspace and Agent. Add annotations as evidence, then let the Agent continue researching and monitoring that workspace.</p>'
       .'<div class="researchAgentCreateError" data-research-agent-error hidden></div>'
       .'<label>Name<input name="name" maxlength="190" required placeholder="e.g. Van Halen coverage monitor"></label>'
+      .'<label>Profile image URL<input name="profile_image_url" maxlength="500" placeholder="https://…"></label>'
       .'<label>Research objective<textarea name="description" rows="4" maxlength="4000" placeholder="What should this Agent research, watch, compare, or follow?"></textarea></label>'
       .'<label>Workspace<select name="team_id">'.$options.'</select></label>'
+      .'<label>Visibility<select name="visibility"><option value="private">Private</option><option value="friends">Friends only</option><option value="public">Public</option></select></label>'
       .'<label>Monitoring<select name="cadence"><option value="daily">Daily</option><option value="hourly">Hourly</option><option value="weekly">Weekly</option><option value="manual">Manual only</option></select></label>'
       .'<input type="hidden" name="timezone_name" value="UTC" data-research-agent-timezone>'
       .'<footer><button type="button" class="button secondary" data-research-agent-close>Cancel</button><button type="submit">Create Research Agent</button></footer>'
@@ -146,7 +148,9 @@ function app_shell_research_agents(PDO $pdo,array $user,string $path): string {
         $cadence=trim((string)($row['monitoring_cadence']??'manual'));
         $meta=$last!==''?$last:(ucfirst($cadence).' monitoring');
         $active=$path==='/home.php'&&$current===$conversation;
-        $items.='<a class="appShellAgentLink'.($active?' active':'').'" href="/home.php?agent='.rawurlencode($conversation).'"><span class="appShellAgentIcon" aria-hidden="true">✦</span><span class="appShellAgentCopy"><strong>'.app_shell_h($title).'</strong><small>'.app_shell_h($meta).'</small></span></a>';
+        $avatar=trim((string)($row['profile_image_url']??''));$initial=mb_strtoupper(mb_substr($title,0,1));
+        $icon=$avatar!==''?'<span class="appShellAgentIcon hasImage"><img src="'.app_shell_h($avatar).'" alt=""></span>':'<span class="appShellAgentIcon" aria-hidden="true">'.app_shell_h($initial?:'R').'</span>';
+        $items.='<a class="appShellAgentLink'.($active?' active':'').'" href="/home.php?agent='.rawurlencode($conversation).'">'.$icon.'<span class="appShellAgentCopy"><strong>'.app_shell_h($title).'</strong><small>'.app_shell_h($meta).'</small></span></a>';
     }
     if($items==='')$items='<div class="appShellAgentEmpty">No research agents yet.</div>';
     $head='<div class="appShellSectionHeader"><div class="appShellSectionTitle">Research Agents</div><button type="button" class="appShellSectionAdd" data-research-agent-add aria-label="Add Research Agent" title="New Research Agent">+</button></div>';

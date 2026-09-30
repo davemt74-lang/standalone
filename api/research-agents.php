@@ -16,6 +16,13 @@ try{
         $agent=research_agent_create($pdo,$viewer,is_array($input)?$input:[]);
         json_response(['ok'=>true,'data'=>['agent'=>$agent]],201);
     }
+    if($action==='update_profile'){
+        $viewer=require_api_mutation_auth($pdo);
+        rate_limit_api_or_429($pdo,'research-agent-profile','user:'.$viewer['id'],60,3600);
+        $public=trim((string)($input['public_id']??''));if($public==='')throw new InvalidArgumentException('Research Agent is required.');
+        $agent=research_agent_update_profile($pdo,$viewer,$public,is_array($input)?$input:[]);
+        json_response(['ok'=>true,'data'=>['agent'=>$agent]]);
+    }
     json_response(['ok'=>false,'error'=>['code'=>'UNKNOWN_ACTION']],404);
 }catch(InvalidArgumentException $e){
     json_response(['ok'=>false,'error'=>['code'=>'INVALID_INPUT','message'=>$e->getMessage()]],422);

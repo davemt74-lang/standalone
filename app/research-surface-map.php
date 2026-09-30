@@ -126,7 +126,7 @@ function research_engine_surface_map(): array {
         'app/living-research.php'=>'knowledge.changes','app/proactive-intelligence.php'=>'knowledge.changes',
         'app/research-action-plan-cognition.php'=>'research.follow_through','app/research-action-plan-outcomes.php'=>'research.follow_through',
         'app/research-action-plan-variance.php'=>'research.follow_through','app/research-action-plans.php'=>'research.follow_through',
-        'app/research-agent-shell-ui.php'=>'agent','app/research-home-ui.php'=>'research.home','app/research-agent-knowledge-ui.php'=>'knowledge','app/research-agent-research-ui.php'=>'research','app/research-agent-reports-ui.php'=>'reports','app/research-portfolios-ui.php'=>'portfolios','app/research-legacy-compat.php'=>'compatibility','app/research-agent-workspace-ui.php'=>'workspace','app/research-agent-workspace.php'=>'workspace','app/research-agents.php'=>'agent',
+        'app/research-agent-shell-ui.php'=>'agent','app/research-agent-stories.php'=>'attention','app/research-home-ui.php'=>'research.home','app/research-agent-knowledge-ui.php'=>'knowledge','app/research-agent-research-ui.php'=>'research','app/research-agent-reports-ui.php'=>'reports','app/research-portfolios-ui.php'=>'portfolios','app/research-legacy-compat.php'=>'compatibility','app/research-agent-workspace-ui.php'=>'workspace','app/research-agent-workspace.php'=>'workspace','app/research-agents.php'=>'agent',
         'app/research-automation.php'=>'research.recurring','app/research-autonomy.php'=>'research','app/research-decisions.php'=>'research.decisions',
         'app/research-entities.php'=>'knowledge.insights','app/research-evidence-packs.php'=>'knowledge.insights',
         'app/research-intelligence-decision-rollups.php'=>'portfolios','app/research-intelligence-delivery.php'=>'reports',
@@ -152,7 +152,7 @@ function research_engine_surface_map(): array {
 function research_api_surface_map(): array {
     $domains=[
         'api/cognitive-feed.php'=>'attention','api/cross-research.php'=>'knowledge.insights','api/living-research.php'=>'knowledge.changes',
-        'api/proactive-intelligence.php'=>'knowledge.changes','api/research-action-plans.php'=>'research.follow_through',
+        'api/proactive-intelligence.php'=>'knowledge.changes','api/research-agent-stories.php'=>'attention','api/research-action-plans.php'=>'research.follow_through',
         'api/research-agents.php'=>'agent','api/research-automations.php'=>'research.recurring','api/research-autonomy.php'=>'research',
         'api/research-decisions.php'=>'research.decisions','api/research-evidence-packs.php'=>'knowledge.insights',
         'api/research-intelligence-delivery.php'=>'reports','api/research-intelligence-portfolios.php'=>'portfolios',

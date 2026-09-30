@@ -38,7 +38,27 @@
     if(empty)empty.hidden=cards.length!==0;
   };
 
-  root.addEventListener('click',event=>{
+  root.addEventListener('click',async event=>{
+    const profile=event.target.closest('[data-agent-profile-edit]');
+    if(profile){
+      event.preventDefault();event.stopPropagation();
+      const publicId=String(profile.dataset.agentId||'');if(!publicId)return;
+      const currentName=String(profile.dataset.agentName||'Research Agent');
+      const currentDescription=String(profile.dataset.agentDescription||'');
+      const currentImage=String(profile.dataset.agentImage||'');
+      const currentVisibility=String(profile.dataset.agentVisibility||'private');
+      const name=prompt('Research Agent name',currentName);if(name===null)return;
+      const profileImage=prompt('Profile image URL (leave blank to remove)',currentImage);if(profileImage===null)return;
+      const visibilityInput=prompt('Visibility: private, friends, or public',currentVisibility);if(visibilityInput===null)return;
+      const visibility=String(visibilityInput).trim().toLowerCase();if(!['private','friends','public'].includes(visibility)){alert('Visibility must be private, friends, or public.');return;}
+      profile.disabled=true;
+      try{
+        const res=await fetch('/api/research-agents.php?action=update_profile',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':String(root.dataset.csrf||'')},body:JSON.stringify({public_id:publicId,name,description:currentDescription,profile_image_url:profileImage,visibility})});
+        const json=await res.json().catch(()=>({ok:false,error:{message:'Profile update failed.'}}));if(!res.ok||json.ok===false)throw new Error(json.error?.message||'Profile update failed.');
+        location.reload();
+      }catch(err){alert(err?.message||'Profile update failed.');profile.disabled=false;}
+      return;
+    }
     const button=event.target.closest('[data-research-favorite]');
     if(!button)return;
     const card=button.closest('[data-research-agent-card]');
