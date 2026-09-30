@@ -4252,19 +4252,20 @@
 
 
 /* Research Agent Stories V1 */
-.homeAgentStories{margin:0 0 14px;padding:0}
-.homeAgentStoriesHead{display:flex;align-items:end;justify-content:space-between;gap:14px;margin:0 2px 8px}.homeAgentStoriesHead strong{display:block;margin-top:2px;font-size:.82rem}.homeAgentStoriesHead small{color:#888;font-size:.6rem}
-.homeAgentStoriesRail{display:flex;gap:10px;overflow-x:auto;padding:2px 1px 6px;scrollbar-width:thin;scroll-snap-type:x proximity}
-.homeAgentStoryCard{position:relative;flex:0 0 250px;min-height:118px;border:1px solid #deded8;border-radius:14px;background:#fff;overflow:hidden;scroll-snap-align:start}.homeAgentStoryCard.isNew{border-color:#b9bdc1;box-shadow:0 4px 18px rgba(0,0,0,.05)}.homeAgentStoryCard.isViewed{opacity:.82}
-.homeAgentStoryMain{height:100%;display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px;padding:13px 28px 13px 13px;color:inherit;text-decoration:none}
-.homeAgentStoryAvatar{width:44px;height:44px;display:grid;place-items:center;border:2px solid #202428;border-radius:50%;background:#f0f1f2;font-size:.9rem;font-weight:900;overflow:hidden}.homeAgentStoryAvatar img{width:100%;height:100%;object-fit:cover}
-.homeAgentStoryCopy{min-width:0;display:grid;align-content:start;gap:3px}.homeAgentStoryCopy small{font-size:.52rem;color:#8b9299;letter-spacing:.05em}.homeAgentStoryCopy strong{font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.homeAgentStoryCopy em{font-size:.66rem;line-height:1.42;color:#555d65;font-style:normal;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-.homeAgentStoryCard>button{position:absolute;right:6px;top:6px;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:#92989e}.homeAgentStoryCard>button:hover{background:#f0f1f2;color:#333}
-.homeAgentStoryCard.emptyStory{display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px;padding:13px;color:inherit;text-decoration:none}.homeAgentStoryCard.emptyStory>span:last-child{display:grid;gap:3px}.homeAgentStoryCard.emptyStory em{font-size:.66rem;color:#777;font-style:normal}.homeAgentStoryCard.emptyStory small{font-size:.58rem;color:#999}
+.homeAgentStories{margin:0 0 14px;padding:0;min-width:0}
+.homeAgentStoriesRail{display:flex;align-items:flex-start;gap:14px;overflow-x:auto;overflow-y:hidden;padding:4px 2px 10px;scrollbar-width:thin;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.homeAgentStoryCard{flex:0 0 76px;min-width:76px;margin:0;border:0;background:transparent;scroll-snap-align:start}
+.homeAgentStoryMain,.homeAgentStoryCard.emptyStory{display:grid;justify-items:center;gap:6px;width:76px;padding:0;color:inherit;text-align:center;text-decoration:none}
+.homeAgentStoryAvatar{width:64px;height:64px;display:grid;place-items:center;box-sizing:border-box;border:2px solid #202428;border-radius:50%;background:#f0f1f2;font-size:1rem;font-weight:900;overflow:hidden;box-shadow:0 0 0 2px #fff}
+.homeAgentStoryAvatar img{width:100%;height:100%;object-fit:cover}
+.homeAgentStoryCard.isViewed .homeAgentStoryAvatar{border-color:#c7cbd0}
+.homeAgentStoryCard.isViewed{opacity:.72}
+.homeAgentStoryCard strong{display:block;width:76px;overflow:hidden;color:#30353a;font-size:.62rem;font-weight:700;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}
+.homeAgentStoryCard.emptyStory{opacity:.72}
 .appShellAgentIcon.hasImage{overflow:hidden}.appShellAgentIcon.hasImage img{width:100%;height:100%;object-fit:cover}
 .researchHomeAgentIcon.hasImage{overflow:hidden}.researchHomeAgentIcon.hasImage img{width:100%;height:100%;object-fit:cover}
 .researchAgentUnifiedAvatar{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;overflow:hidden;background:#eceeea;font-size:.7rem;font-weight:900}.researchAgentUnifiedAvatar img{width:100%;height:100%;object-fit:cover}
-@media(max-width:620px){.homeAgentStoriesHead small{display:none}.homeAgentStoryCard{flex-basis:220px}}
+@media(max-width:620px){.homeAgentStoriesRail{gap:12px}.homeAgentStoryCard,.homeAgentStoryMain,.homeAgentStoryCard.emptyStory{width:72px;min-width:72px;flex-basis:72px}.homeAgentStoryCard strong{width:72px}.homeAgentStoryAvatar{width:60px;height:60px}}
 
 
 /* Live landing refresh — full canvas, no boxed panel shell. */
