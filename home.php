@@ -221,9 +221,9 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
     <?php endif?>
     <?php foreach($agentStories as $story):?>
       <article class="homeAgentStoryCard <?=$story['viewed_at']?'isViewed':'isNew'?>" data-story-id="<?=h((string)$story['public_id'])?>">
-        <a class="homeAgentStoryMain" href="/home.php?agent=<?=h(rawurlencode((string)$story['conversation_public_id']))?>&story=<?=h(rawurlencode((string)$story['public_id']))?>" data-story-view>
+        <a class="homeAgentStoryMain" href="<?=h((string)($story['story_url']??'/home.php'))?>" data-story-view>
           <span class="homeAgentStoryAvatar"><?php if(!empty($story['profile_image_url'])):?><img src="<?=h((string)$story['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$story['agent_name'],0,1)))?><?php endif?></span>
-          <span class="homeAgentStoryCopy"><small><?=h(strtoupper((string)$story['story_type']))?><?=($story['generation_quality']??'')==='llm'?' · AI ENHANCED':''?></small><strong><?=h((string)$story['agent_name'])?></strong><em><?=h(mb_substr((string)$story['body'],0,220))?></em></span>
+          <span class="homeAgentStoryCopy"><small><?=h(strtoupper((string)$story['story_type']))?><?=($story['generation_quality']??'')==='llm'?' · AI ENHANCED':''?><?=(int)($story['social_rank']??0)===1?' · FOLLOWING':''?></small><strong><?=h((string)$story['agent_name'])?></strong><em><?=h(mb_substr((string)$story['body'],0,220))?></em></span>
         </a>
         <button type="button" data-story-dismiss aria-label="Dismiss Story">×</button>
       </article>
