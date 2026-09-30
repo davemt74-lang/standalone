@@ -14,7 +14,7 @@ $need('app/research-agents.php',"ra.visibility='public'\n          ORDER BY",'Si
 $need('app/research-agents.php',"((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?))",'Internal Research Agent access must remain owner/team-only.');
 $need('app/research-agent-stories.php','return research_agent_social_visibility_sql(true);','Stories must reuse canonical Agent visibility with follower delivery for public Agents.');
 $need('app/research-agent-stories.php','return research_agent_social_visibility_params($viewer);','Stories must reuse canonical Agent visibility parameters.');
-$need('profile.php','research_agent_profile_list($pdo,(int)$p[\'id\'],$viewer,30)','Profiles must use canonical permission-filtered Research Agent listing.');
+$need('profile.php','research_agent_profile_list($pdo,(int)$p[\'id\'],null,30)','Main profiles must use the canonical public-only Research Agent listing.');
 $need('profile.php','profileAgentShowcaseGrid','Profile Research tab must render visible Research Agents.');
 $avoid('profile.php','SELECT ra.','Profile UI must not duplicate Research Agent visibility SQL.');
 
