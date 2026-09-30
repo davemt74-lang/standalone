@@ -4520,3 +4520,30 @@ body.storyViewerOpen{overflow:hidden!important}
 .publicAgentDiscoveryCard>p,.exploreAgentCard>p{margin:15px 0 0;color:#666;font-size:.8rem;line-height:1.5}.publicAgentDiscoveryCard>footer,.exploreAgentCard>footer{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:16px;color:#85857f;font-size:.68rem}
 .exploreAgentStrip{grid-template-columns:repeat(6,minmax(0,1fr))}.exploreAgentCard{min-height:185px}
 @media(max-width:1100px){.exploreAgentStrip{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:900px){.publicAgentDiscoveryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.publicAgentDiscoveryGrid,.exploreAgentStrip{grid-template-columns:1fr}}
+
+
+/* Phase 78.1 — Research Agent Edit & Story Authoring Foundation */
+.researchAgentEditCanvas{max-width:1500px;margin:0 auto;padding:28px}
+.researchAgentEditHero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:20px}
+.researchAgentEditHero h1{margin:6px 0 8px;font-size:clamp(2.2rem,5vw,4rem);line-height:.95;letter-spacing:-.05em}
+.researchAgentEditHero p{max-width:760px;color:#666;line-height:1.55}
+.researchAgentEditHeroActions{display:flex;gap:8px;flex-wrap:wrap}
+.researchAgentEditNotice{margin:0 0 16px;padding:12px 14px;border-radius:12px;font-weight:700}
+.researchAgentEditNotice.success{background:#eef7ef;border:1px solid #cfe5d1}.researchAgentEditNotice.error{background:#fff1f1;border:1px solid #efcaca}
+.researchAgentEditGrid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);gap:16px}
+.researchAgentEditGrid>.card,.researchAgentEditObjects>.card{padding:20px;border:1px solid #e2e2dc;border-radius:18px;background:#fff}
+.researchAgentEditGrid label{display:grid;gap:6px;margin-top:12px;font-size:.74rem;font-weight:760;color:#555}
+.researchAgentEditGrid input,.researchAgentEditGrid textarea,.researchAgentEditGrid select{width:100%;padding:10px 11px;border:1px solid #d8d8d2;border-radius:10px;background:#fff;font:inherit;color:#222}
+.researchAgentEditProfileRow{display:grid;grid-template-columns:72px minmax(0,1fr);gap:14px;align-items:end}
+.researchAgentEditAvatar{width:72px;height:72px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#111;color:#fff;font-size:1.5rem;font-weight:900}
+.researchAgentEditAvatar img{width:100%;height:100%;object-fit:cover}
+.researchAgentEditSplit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.researchAgentEditSubhead{margin-top:24px;padding-top:18px;border-top:1px solid #ecece7}
+.researchAgentEditStoryActions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.researchAgentEditDrafts{margin-top:20px;padding-top:16px;border-top:1px solid #ecece7}.researchAgentEditDrafts>article{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:10px 0;border-top:1px solid #f0f0ec}.researchAgentEditDrafts strong,.researchAgentEditDrafts small{display:block}.researchAgentEditDrafts small{margin-top:2px;color:#888}
+.researchAgentEditObjects{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}
+.researchAgentEditObjects .card>p{color:#6a6a64;line-height:1.5}.researchAgentEditObjects footer{margin-top:14px}.researchAgentEditObjects footer a{font-weight:780;text-decoration:none}
+.researchAgentEditObjectRow{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-top:1px solid #ededE8;color:inherit;text-decoration:none}.researchAgentEditObjectRow strong,.researchAgentEditObjectRow small{display:block}.researchAgentEditObjectRow small{margin-top:2px;color:#888;font-size:.68rem}
+.researchHomeEditAgent{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+@media(max-width:1050px){.researchAgentEditGrid{grid-template-columns:1fr}.researchAgentEditObjects{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.researchAgentEditCanvas{padding:18px}.researchAgentEditHero{display:block}.researchAgentEditHeroActions{margin-top:14px}.researchAgentEditObjects{grid-template-columns:1fr}.researchAgentEditSplit{grid-template-columns:1fr}}
