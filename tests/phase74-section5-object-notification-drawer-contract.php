@@ -25,6 +25,7 @@ $need('assets/js/shell-drawers.js','/api/activity.php?limit=60','Activity tab mu
 $need('assets/js/shell-drawers.js','/api/object-detail.php?type=','Object drawer must use the permission-aware detail API.');
 $need('assets/js/shell-drawers.js',"searchParams.set('drawer_type'","Object drawer must preserve deep-link state.");
 $need('assets/js/shell-drawers.js','data-object-detail-type','Search/notification/activity results must be routable to the drawer.');
+$need('assets/js/shell-drawers.js','document.body.appendChild(node)','Drawers and backdrops must portal outside the sticky header stacking context.');
 $need('assets/css/shell-drawers.css','position:fixed','Slideouts must be fixed viewport surfaces.');
 $need('assets/css/shell-drawers.css','height:100dvh','Slideouts must own the visible viewport.');
 $need('assets/css/shell-drawers.css','overflow-x:clip!important','Authenticated shell must suppress document-level horizontal overflow from off-canvas drawers.');
