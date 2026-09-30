@@ -424,7 +424,7 @@
     }catch(err){
       if(settingsFeedback)settingsFeedback.textContent=err.message||'Unable to update chat status.';
     }finally{if(submit)submit.disabled=false;}
-  }));
+  });
   mobileOpen?.addEventListener('click',()=>setRailOpen(true));
   mobileClose?.addEventListener('click',()=>setRailOpen(false));
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!settingsModal?.open)setRailOpen(false);});
