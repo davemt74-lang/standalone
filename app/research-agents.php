@@ -99,8 +99,8 @@ function research_agent_discover_public(PDO $pdo,?array $viewer,string $term='',
         $like='%'.$term.'%';array_push($params,$like,$like,$like,$like);
     }
     $sql="SELECT ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.updated_at,
-      u.public_id owner_public_id,u.username owner_username,u.display_name owner_display_name,u.profile_image_url owner_profile_image_url,
-      (SELECT COUNT(*) FROM research_agent_stories ras WHERE ras.agent_id=ra.id AND ras.status='published' AND ras.dismissed_at IS NULL) published_story_count
+      ra.owner_user_id,u.public_id owner_public_id,u.username owner_username,u.display_name owner_display_name,u.profile_image_url owner_profile_image_url,
+      (SELECT COUNT(*) FROM research_agent_stories ras WHERE ras.agent_id=ra.id AND (ras.expires_at IS NULL OR ras.expires_at>NOW())) published_story_count
       FROM research_agents ra
       JOIN users u ON u.id=ra.owner_user_id
       LEFT JOIN user_preferences up ON up.user_id=u.id
@@ -119,7 +119,7 @@ function research_agent_discover_public(PDO $pdo,?array $viewer,string $term='',
         $meta=$storyMeta[(string)$row['public_id']]??['accessible_story_count'=>0,'latest_story_url'=>null];
         $row=array_merge($row,$meta);
         if($viewer&&function_exists('profile_network_relationship')){
-            $qOwner=$pdo->prepare('SELECT id FROM users WHERE public_id=? LIMIT 1');$qOwner->execute([(string)$row['owner_public_id']]);$ownerId=(int)($qOwner->fetchColumn()?:0);
+            $ownerId=(int)($row['owner_user_id']??0);
             $row['owner_relationship']=$ownerId?profile_network_relationship($pdo,$viewer,$ownerId):['following'=>false,'follows_you'=>false,'friends'=>false,'blocked'=>false];
         }else $row['owner_relationship']=['following'=>false,'follows_you'=>false,'friends'=>false,'blocked'=>false];
     }
