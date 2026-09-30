@@ -25,7 +25,7 @@ $need('app/research-publishing.php','profile_network_notify_followers_report','P
 
 $need('profile.php','network_add_research','Public profile evidence must support explicit Add to Research Agent.');
 $need('profile.php','network_research_this','Public profile evidence must support explicit Research this handoff.');
-$need('profile.php',"\$researchAgents=\$viewer&&!\$viewAsPublic",'View as public must hide the owner-only Research handoff controls.');
+$need('profile.php',"\$viewerAgents=\$viewer&&!\$viewAsPublic",'View as public must hide the owner-only Research handoff controls.');
 $need('collection.php','is_blocked($pdo','Public collections must enforce the same block boundary as profiles/search.');
 foreach(['og:title','og:description','canonical'] as $needle)$need('collection.php',$needle,'Public collection rich-preview contract missing: '.$needle);
 
@@ -34,7 +34,8 @@ $need('database/migrations/20260923_061_profile_public_identity_showcase.sql','p
 
 $css=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');
 if(!hash_equals(hash('sha256',$css),hash('sha256',$ext)))$fail[]='Website and extension shared CSS must remain byte-identical.';
-foreach(['.peopleDiscoveryPage','.profilePeopleDiscoveryGrid','.profileDiscoveryCard','.profileResearchHandoff','.homeNetworkObject'] as $needle)if(!str_contains($css,$needle))$fail[]='Profile Phase 3 style missing: '.$needle;
+foreach(['.peopleDiscoveryPage','.profilePeopleDiscoveryGrid','.profileDiscoveryCard','.homeNetworkObject'] as $needle)if(!str_contains($css,$needle))$fail[]='Profile Phase 3 shared style missing: '.$needle;
+$social=(string)file_get_contents($root.'/assets/css/profile-social.css');if(!str_contains($social,'.annotatedProfileResearchAction'))$fail[]='Rewritten profile Research handoff style missing.';
 
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}
 echo "Profile Phase 3 static contract passed.\n";
