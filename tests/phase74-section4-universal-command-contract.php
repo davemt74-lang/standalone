@@ -17,7 +17,7 @@ $need('app/universal-command.php','research_program_list','Programs must use can
 $need('app/universal-command.php','conversation_team_list','Team Chat results must use canonical conversation access.');
 $need('app/universal-command.php','function universal_command_agent_resolve','Agent Brain must be able to resolve natural search through the same canonical layer.');
 $need('api/universal-command.php','current_user($pdo)','Universal command API must require an authenticated viewer.');
-$need('api/universal-command.php',"rate_limit_api_or_429($pdo,'universal-command'","Universal command API must be rate limited.");
+$need('api/universal-command.php',"rate_limit_api_or_429(\$pdo,'universal-command'","Universal command API must be rate limited.");
 $need('app/shell.php','data-command-palette-open','Authenticated header search must launch the command palette.');
 $need('app/shell.php','data-command-palette','Shell must render one global command palette.');
 $need('app/shell.php','/assets/js/command-palette.js?v=74.4','Shell must load command palette behavior.');
