@@ -1,0 +1,10 @@
+name: Package merged Team Chat rail
+on:
+  push:
+    branches:
+      - chatgpt/package-7756e798
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
