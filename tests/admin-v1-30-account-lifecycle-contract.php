@@ -10,7 +10,7 @@ $need('app/ai-usage.php','entitlement_source','Canonical AI metering must use ef
 $need('app/functions.php','subscription_user_account($pdo,(int)$user','Legacy Free/Pro compatibility must honor canonical personal-account lifecycle state.');
 $need('admin/account.php',"admin_ui_sidebar('accounts')",'Account detail must remain inside shared Admin navigation.');
 $need('app/bootstrap.php',"/account-admin.php",'Account admin runtime must load before AI usage.');
-$need('app/admin-ui.php','Admin V1.30','Shared admin shell must identify V1.30.');
+$need('app/admin-ui.php',"'accounts'=>[",'Shared admin shell must preserve Accounts & Billing navigation.');
 $need('tests/ci/run-full-regression.sh','tests/admin-v1-30-account-lifecycle-db.php','Full regression must execute Admin V1.30 DB journey.');
 $need('.github/workflows/full-regression.yml','admin-v1-30-upgrade-from-063.php','Phase gate must rehearse migration 064.');
 $need('.github/workflows/package-two-zips.yml','admin/account.php','Production package must include account detail administration.');
