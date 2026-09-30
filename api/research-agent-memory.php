@@ -15,8 +15,9 @@ try{
     $projectPublic=(string)$agent['project_public_id'];
 
     if($action==='list'){
-        $items=research_memory_catalog($pdo,$viewer,$projectPublic,(int)($input['limit']??120));
-        json_response(['ok'=>true,'data'=>['items'=>$items,'summary'=>research_memory_summary($pdo,$viewer,$projectPublic)]]);
+        $limit=max(1,min(100,(int)($input['limit']??50)));$offset=max(0,(int)($input['offset']??0));$query=(string)($input['q']??'');
+        $items=research_memory_catalog($pdo,$viewer,$projectPublic,$limit,$offset,$query);
+        json_response(['ok'=>true,'data'=>['items'=>$items,'total'=>research_memory_catalog_count($pdo,$viewer,$projectPublic,$query),'summary'=>research_memory_summary($pdo,$viewer,$projectPublic)]]);
     }
 
     $type=trim((string)($input['object_type']??''));
