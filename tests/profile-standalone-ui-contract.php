@@ -24,6 +24,9 @@ foreach(['profilePrimaryAction','copyProfile','annotation_ui_card','annotation_u
 foreach(['.profileV2Page','.profileHeroBackdrop','.profileAvatar','.profileStatsBar','.profileTabs','.profileStoryGrid','@media(max-width:640px)'] as $required){
     if(!str_contains($v2,$required))$fail[]='Profile V2 responsive style missing: '.$required;
 }
+foreach(['.appShellHeaderOnly .appShellHeader','.appShellHeaderOnly .appHeaderBrandMobile','.appShellHeaderOnly .appShellContent','grid-template-columns:auto minmax(260px,640px) auto'] as $required){
+    if(!str_contains($v2,$required))$fail[]='Profile header-only shell hotfix missing: '.$required;
+}
 if(!hash_equals(hash('sha256',$css),hash('sha256',$ext)))$fail[]='Website and extension shared CSS must remain byte-identical.';
 
 if($fail){fwrite(STDERR,implode("\n",$fail)."\n");exit(1);}
