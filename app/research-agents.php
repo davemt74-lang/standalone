@@ -75,7 +75,13 @@ function research_agent_profile_list(PDO $pdo,int $ownerUserId,?array $viewer,in
       WHERE ra.owner_user_id=:profile_owner AND ra.status<>'archived' AND ".research_agent_social_visibility_sql(false)."
       ORDER BY ra.updated_at DESC,ra.id DESC LIMIT ".$limit;
     $q=$pdo->prepare($sql);$params=research_agent_social_visibility_params($viewer);$params[':profile_owner']=$ownerUserId;$q->execute($params);
-    return $q->fetchAll()?:[];
+    $rows=$q->fetchAll()?:[];
+    if(function_exists('research_agent_story_list')){
+        $stories=research_agent_story_list($pdo,$viewer,60);$storyMeta=[];
+        foreach($stories as $story){$agent=(string)($story['agent_public_id']??'');if($agent==='')continue;if(!isset($storyMeta[$agent]))$storyMeta[$agent]=['story_count'=>0,'latest_story_public_id'=>(string)$story['public_id'],'latest_story_url'=>(string)($story['story_url']??'')];$storyMeta[$agent]['story_count']++;}
+        foreach($rows as &$row){$meta=$storyMeta[(string)$row['public_id']]??['story_count'=>0,'latest_story_public_id'=>null,'latest_story_url'=>null];$row=array_merge($row,$meta);}unset($row);
+    }
+    return $rows;
 }
 
 function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {

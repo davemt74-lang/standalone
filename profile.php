@@ -135,6 +135,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
             </div>
 
             <div class="profileActions">
+                <?php if($viewer&&!$owner&& !empty($p['friends'])):?><span class="profileRelationshipBadge">Friends</span><?php elseif($viewer&&!$owner&& !empty($p['follows_you'])):?><span class="profileRelationshipBadge">Follows you</span><?php endif?>
                 <?php if($viewer&&!$owner):?><button id="follow" class="profilePrimaryAction" type="button" aria-pressed="<?=$p['following']?'true':'false'?>"><?=$p['following']?'Following':'Follow'?></button>
                 <?php elseif($ownerControls):?><a class="profilePrimaryAction" href="/settings.php#profile-showcase">Edit profile</a><a class="profileSecondaryAction" href="<?=h(profile_path((string)$p['username']))?>?view=public">View as public</a>
                 <?php elseif(!$viewer):?><a class="profilePrimaryAction" href="/login.php">Log in to follow</a><?php endif?>
@@ -183,8 +184,11 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
     <section class="profileContent profileWideContent">
       <?php if($profileResearchAgents):?><header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH AGENTS</span><h2>Research Agents</h2></div><span class="profileActivityCount"><?=h((string)$agentCount)?> visible</span></header><div class="profileShowcaseGrid profileAgentShowcaseGrid">
         <?php foreach($profileResearchAgents as $agent):?><article class="profileShowcaseCard profileAgentCard">
-          <div class="profileDiscoveryIdentity"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><span><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?></span><?php endif?><div><strong><?=h((string)$agent['name'])?></strong><small><?=h(ucfirst((string)$agent['visibility']))?> Research Agent</small></div></div>
-          <?php if(!empty($agent['description'])):?><p><?=h(mb_substr((string)$agent['description'],0,260))?></p><?php endif?>
+          <a class="profileAgentCardLink" href="/research-agent-public.php?agent=<?=rawurlencode((string)$agent['public_id'])?>">
+            <div class="profileDiscoveryIdentity"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><span><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?></span><?php endif?><div><strong><?=h((string)$agent['name'])?></strong><small><?=h(ucfirst((string)$agent['visibility']))?> Research Agent<?php if(!empty($agent['story_count'])):?> · <?=h((string)$agent['story_count'])?> active Stor<?=((int)$agent['story_count']===1?'y':'ies')?><?php endif?></small></div></div>
+            <?php if(!empty($agent['description'])):?><p><?=h(mb_substr((string)$agent['description'],0,260))?></p><?php endif?>
+            <span class="profileAgentCardAction">View Agent <span aria-hidden="true">→</span></span>
+          </a>
         </article><?php endforeach?>
       </div><?php endif?>
       <header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH</span><h2>Published Research</h2></div><span class="profileActivityCount"><?=h((string)$reportCount)?> public</span></header><div class="profileShowcaseGrid">
