@@ -3993,3 +3993,129 @@
 .appCreateForm footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid #eceff2}
 @media(max-width:760px){.appCreateGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.appCreateFields{grid-template-columns:1fr}.appCreateFields>label:has(textarea),.appCreateFields>label:has(input[type="url"]){grid-column:auto}}
 @media(max-width:520px){.appCreateMenu,.appCreateForm{padding:16px}.appCreateGrid{grid-template-columns:1fr}.appCreateChoice{min-height:auto}.appCreateDialog{width:calc(100vw - 16px);max-height:90vh}}
+
+
+/* Admin shell + dashboard refresh — Sep 2026 */
+.adminSidebar{
+  background:#f7f7f5!important;
+  color:#171717!important;
+  border-right:1px solid #e2e2dd!important;
+}
+.adminSidebarHead{border-bottom-color:#e2e2dd!important}
+.adminSidebarBrand{color:#171717!important}
+.adminSidebarBrand span{color:#6f6f69!important}
+.adminSidebarSite{color:#666!important}
+.adminSidebarSite:hover{color:#111!important}
+.adminNavGroup{border-bottom-color:#e7e7e2!important}
+.adminNavGroup summary{color:#777771!important}
+.adminNavLink{color:#42423f!important}
+.adminNavLink:hover{background:#ededE9!important;color:#111!important}
+.adminNavLink.active{background:#fff!important;color:#111!important;border:1px solid #deded8!important}
+.adminSidebarFoot{
+  border-top:1px solid #e2e2dd!important;
+  justify-content:flex-start!important;
+  color:#666!important;
+}
+.adminSidebarFoot a{color:#444!important}
+
+.adminSidebar~main.panel{
+  margin:0 0 0 268px!important;
+  max-width:none!important;
+  min-height:100vh!important;
+  border:0!important;
+  border-radius:0!important;
+  background:#f7f7f5!important;
+  padding:26px clamp(24px,3vw,48px) 72px!important;
+}
+.adminDashboardPage{width:auto!important}
+.adminDashboardHeader{
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:22px;
+  margin:0 0 22px;
+  padding:0 0 18px;
+  border-bottom:1px solid #e2e2dd;
+}
+.adminDashboardHeader h1{
+  margin:0!important;
+  font-size:1.55rem!important;
+  line-height:1!important;
+  letter-spacing:-.025em!important;
+}
+.adminDashboardSearch{
+  width:min(680px,62vw);
+  display:grid;
+  grid-template-columns:22px minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:8px;
+  padding:6px 8px 6px 12px;
+  border:1px solid #d9d9d3;
+  border-radius:12px;
+  background:#fff;
+}
+.adminDashboardSearch>span{color:#898983;font-size:1.15rem}
+.adminDashboardSearch input{
+  width:100%;
+  min-width:0;
+  min-height:36px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  outline:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  font-size:.84rem!important;
+}
+.adminDashboardSearch button{
+  min-height:34px!important;
+  padding:.5rem .8rem!important;
+  border-radius:8px!important;
+}
+.adminDashboardSearch a{
+  padding:7px 8px;
+  color:#666;
+  font-size:.72rem;
+  text-decoration:none;
+}
+.adminSearchResults{margin-bottom:16px!important}
+.adminDashboardMetrics{
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:10px!important;
+  margin:0 0 18px!important;
+}
+.adminDashboardMetrics .adminMetric{
+  min-height:96px!important;
+  padding:15px 16px!important;
+  border-radius:12px!important;
+}
+.adminDashboardMetrics .adminMetric strong{font-size:1.65rem!important}
+.adminDashboardMetrics .adminMetric span{font-size:.72rem!important}
+.adminDashboardPage>.card,
+.adminDashboardPage>section.card{
+  width:100%!important;
+  max-width:none!important;
+}
+.adminDashboardGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.adminWorkspaceGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.adminWorkspaceCard{padding:18px!important}
+.adminWorkspaceCard h3{font-size:1rem!important}
+.adminWorkspaceCard p{font-size:.82rem!important}
+@media(max-width:1400px){
+  .adminDashboardMetrics{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  .adminWorkspaceGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:980px){
+  .adminDashboardHeader{align-items:stretch;flex-direction:column}
+  .adminDashboardSearch{width:100%}
+  .adminDashboardMetrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:860px){
+  .adminSidebar~main.panel{margin:0!important;padding:22px 16px 56px!important}
+}
+@media(max-width:620px){
+  .adminDashboardMetrics,.adminWorkspaceGrid,.adminDashboardGrid{grid-template-columns:1fr!important}
+  .adminDashboardSearch{grid-template-columns:20px minmax(0,1fr) auto}
+  .adminDashboardSearch a{grid-column:2/-1;justify-self:end}
+}
