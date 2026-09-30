@@ -71,6 +71,7 @@ function research_route_surface_map(): array {
         'research-action-plans.php'=>['classification'=>'MERGE_UI','target'=>'agent.research.follow_through','reason'=>'Keep Phase 72 logic; present Action Plans as Decision follow-through.'],
         'research-agent-knowledge.php'=>['classification'=>'MERGE_UI','target'=>'agent.knowledge','reason'=>'Primary foundation for the unified Agent Knowledge tab.'],
         'research-agent-public.php'=>['classification'=>'HIDE','target'=>'agent.chat','reason'=>'Public/social Research Agent identity remains a deep-link profile surface; private workspace controls stay in the canonical Agent shell.'],
+        'research-agent-edit.php'=>['classification'=>'MERGE_UI','target'=>'agent.settings','reason'=>'Canonical Research Agent control center for identity, visibility, monitoring, Stories, and linked Research objects.'],
         'research-agent-research.php'=>['classification'=>'MERGE_UI','target'=>'agent.research','reason'=>'Canonical unified Agent Research tab packages Missions, Tasks, Decisions, Follow-through, and Recurring work.'],
         'research-audit-export.php'=>['classification'=>'HIDE','target'=>'agent.knowledge.insights','reason'=>'Export action remains available from provenance/audit inspectors.'],
         'research-audit-receipt.php'=>['classification'=>'HIDE','target'=>'agent.knowledge.insights','reason'=>'Audit receipt remains a deep-link inspector.'],
