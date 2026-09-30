@@ -5,6 +5,8 @@
   const menu=dialog.querySelector('[data-create-menu]');
   const panels=[...dialog.querySelectorAll('[data-create-panel]')];
   const csrf=String(dialog.dataset.csrf||'');
+  const contextType=String(dialog.dataset.contextType||'');
+  const contextId=String(dialog.dataset.contextId||'');
   let active='';
 
   const showMenu=()=>{
@@ -24,6 +26,7 @@
       if(key.endsWith('[]')){const k=key.slice(0,-2);(out[k]??=[]).push(value);continue;}
       out[key]=value;
     }
+    if(contextType&&contextId){out.context_type=contextType;out.context_id=contextId;}
     if(active==='mission'){
       out.success_criteria=String(out.criteria_lines||'').split(/\r?\n/).map(v=>v.trim()).filter(Boolean).map(label=>({label}));
       delete out.criteria_lines;
@@ -40,6 +43,20 @@
     if(e.target.closest('[data-create-close]'))close();
   });
   dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
+
+  const objectBar=document.querySelector('[data-object-context-bar]');
+  objectBar?.querySelector('[data-object-pin]')?.addEventListener('click',async e=>{
+    const button=e.currentTarget,type=String(objectBar.dataset.objectType||''),publicId=String(objectBar.dataset.objectId||'');
+    if(!type||!publicId)return;
+    const pinned=button.getAttribute('aria-pressed')!=='true';button.disabled=true;
+    try{
+      const res=await fetch('/api/object-navigation.php?action=pin',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({type,public_id:publicId,pinned})});
+      const json=await res.json().catch(()=>({ok:false,error:{message:'Pin request failed.'}}));
+      if(!res.ok||json.ok===false)throw new Error(json.error?.message||'Unable to update pin.');
+      button.setAttribute('aria-pressed',pinned?'true':'false');button.textContent=pinned?'★ Pinned':'☆ Pin';
+    }catch(err){alert(err?.message||'Unable to update pin.');}
+    finally{button.disabled=false;}
+  });
 
   for(const form of panels){
     form.addEventListener('submit',async e=>{
