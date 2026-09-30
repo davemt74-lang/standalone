@@ -112,15 +112,33 @@ function research_agent_story_social_visibility_sql(): string {
 function research_agent_story_social_params(array $viewer): array {
     return research_agent_social_visibility_params($viewer);
 }
-function research_agent_story_notify_social(PDO $pdo,array $viewer,array $agent,array $story): int {
-    $visibility=(string)($agent['visibility']??'private');if(!in_array($visibility,['public','friends'],true))return 0;
-    $owner=(int)$agent['owner_user_id'];if($owner<1)return 0;
+function research_agent_story_social_recipients(PDO $pdo,array $agent): array {
+    $visibility=(string)($agent['visibility']??'private');if(!in_array($visibility,['public','friends'],true))return [];
+    $owner=(int)($agent['owner_user_id']??0);if($owner<1)return [];
     $sql="SELECT u.id FROM users u JOIN follows f ON f.follower_user_id=u.id AND f.followed_user_id=? WHERE u.status='active'
       AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_user_id=u.id AND b.blocked_user_id=?) OR (b.blocker_user_id=? AND b.blocked_user_id=u.id))";
     if($visibility==='friends')$sql.=" AND EXISTS(SELECT 1 FROM follows f2 WHERE f2.follower_user_id=? AND f2.followed_user_id=u.id)";
     $q=$pdo->prepare($sql);$params=[$owner,$owner,$owner];if($visibility==='friends')$params[]=$owner;$q->execute($params);
-    $sent=0;foreach($q->fetchAll(PDO::FETCH_COLUMN) as $uid){
-        $uid=(int)$uid;if($uid===$owner)continue;
+    return array_values(array_filter(array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN)),static fn($id)=>$id>0&&$id!==$owner));
+}
+function research_agent_story_reconcile_social_delivery(PDO $pdo,array $viewer,int $ownerUserId): array {
+    $viewerId=(int)($viewer['id']??0);if($viewerId<1||$ownerUserId<1)return ['archived'=>0,'visible_story_count'=>0];
+    $q=$pdo->prepare("SELECT n.public_id,n.object_public_id FROM notifications n
+      JOIN research_agent_stories s ON s.public_id=n.object_public_id
+      JOIN research_agents ra ON ra.id=s.agent_id
+      WHERE n.user_id=? AND n.object_type='research_agent_story' AND n.archived_at IS NULL AND ra.owner_user_id=?");
+    $q->execute([$viewerId,$ownerUserId]);$archived=0;
+    foreach($q->fetchAll() as $row){
+        if(research_agent_story_access($pdo,$viewer,(string)$row['object_public_id']))continue;
+        $u=$pdo->prepare('UPDATE notifications SET archived_at=COALESCE(archived_at,NOW()) WHERE user_id=? AND public_id=? AND archived_at IS NULL');
+        $u->execute([$viewerId,(string)$row['public_id']]);$archived+=$u->rowCount();
+    }
+    $count=0;foreach(research_agent_story_list($pdo,$viewer,60) as $story)if((int)($story['owner_user_id']??0)===$ownerUserId)$count++;
+    return ['archived'=>$archived,'visible_story_count'=>$count];
+}
+function research_agent_story_notify_social(PDO $pdo,array $viewer,array $agent,array $story): int {
+    $owner=(int)($agent['owner_user_id']??0);if($owner<1)return 0;$sent=0;
+    foreach(research_agent_story_social_recipients($pdo,$agent) as $uid){
         if(notification_create($pdo,$uid,$owner,'research_agent_story','research_agent_story',(string)$story['public_id'],(string)$agent['name'].': '.mb_substr((string)$story['body'],0,320),[
           'category'=>'research','dedupe_key'=>'research-agent-story:'.$story['public_id'].':'.$uid,
           'group_key'=>'research-agent-story:'.$agent['public_id'],
