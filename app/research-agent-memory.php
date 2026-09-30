@@ -31,6 +31,14 @@ function research_memory_object_exists(PDO $pdo,int $projectId,string $type,stri
     return (bool)$q->fetchColumn();
 }
 
+function research_memory_controls_map(PDO $pdo,int $projectId): array {
+    if(!research_memory_ready($pdo))return [];
+    $q=$pdo->prepare('SELECT * FROM research_memory_controls WHERE project_id=?');
+    $q->execute([$projectId]);$out=[];
+    foreach($q->fetchAll()?:[] as $row)$out[(string)$row['object_type'].':'.(string)$row['object_public_id']]=$row;
+    return $out;
+}
+
 function research_memory_control_row(PDO $pdo,int $projectId,string $type,string $publicId): ?array {
     if(!research_memory_ready($pdo))return null;
     $q=$pdo->prepare('SELECT * FROM research_memory_controls WHERE project_id=? AND object_type=? AND object_public_id=? LIMIT 1');
@@ -105,11 +113,12 @@ function research_memory_upsert(PDO $pdo,array $viewer,string $projectPublic,str
     return research_memory_control_row($pdo,(int)$project['id'],$objectType,$objectPublic)??[];
 }
 
-function research_memory_apply_result(PDO $pdo,array $viewer,array $project,array $result): ?array {
+function research_memory_apply_result(PDO $pdo,array $viewer,array $project,array $result,?array $controlMap=null): ?array {
     if(!research_memory_ready($pdo))return $result;
     $type=(string)($result['object_type']??'');$id=(string)($result['public_id']??$result['object_public_id']??'');
     if($type===''||$id==='')return $result;
-    $control=research_memory_control_row($pdo,(int)$project['id'],$type,$id);
+    $key=$type.':'.$id;
+    $control=$controlMap!==null?($controlMap[$key]??null):research_memory_control_row($pdo,(int)$project['id'],$type,$id);
     $metadata=(array)($result['metadata']??[]);
     $result['memory']=[
       'retrieval_state'=>(string)($control['retrieval_state']??'inherit'),
