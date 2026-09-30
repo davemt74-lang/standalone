@@ -263,21 +263,13 @@
 }
 
 
-/* Hard-constrain the active chat so only message history scrolls. */
+/* Constrain Team Chat without collapsing the message pane. */
 .teamChatRail{
   overflow:hidden!important;
 }
 .teamChatHeader,
 .teamChatTabs,
-.teamChatFooter{
-  flex:0 0 auto!important;
-}
-.teamChatTabPanel[data-team-chat-panel="chat"]:not([hidden]){
-  flex:1 1 0!important;
-  height:0!important;
-  min-height:0!important;
-  overflow:hidden!important;
-}
+.teamChatFooter,
 .teamChatTeamPicker,
 .teamChatStatus,
 .teamChatHistoryBar,
@@ -285,20 +277,16 @@
 .teamChatComposer{
   flex:0 0 auto!important;
 }
-.teamChatMessages{
-  flex:1 1 0!important;
-  height:0!important;
+.teamChatTabPanel[data-team-chat-panel="chat"]:not([hidden]){
+  flex:1 1 auto!important;
   min-height:0!important;
+  overflow:hidden!important;
+}
+.teamChatMessages{
+  flex:1 1 auto!important;
+  min-height:96px!important;
   max-height:none!important;
   overflow-y:auto!important;
   overflow-x:hidden!important;
   -webkit-overflow-scrolling:touch;
-}
-@media(max-width:900px){
-  .teamChatTabPanel[data-team-chat-panel="chat"]:not([hidden]){
-    height:0!important;
-  }
-  .teamChatMessages{
-    height:0!important;
-  }
 }
