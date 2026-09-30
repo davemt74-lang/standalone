@@ -12,12 +12,14 @@ $need('app/research-agent-memory.php','function research_memory_upsert','Agent M
 $need('app/research-agent-memory.php','function research_memory_object_exists','Memory controls must validate objects against the selected Agent Project.');
 $need('app/research-agent-memory.php','function research_memory_catalog_count','Memory management must support scalable paged catalogs.');
 $need('app/research-agent-memory.php','function research_memory_apply_result','Agent Memory must enforce controls in retrieval.');
+$need('app/research-agent-memory.php','function research_memory_controls_map','Agent retrieval must load memory controls in one project-scoped query rather than one query per result.');
 $need('app/research-agent-memory.php','function research_memory_record_usage','Agent Memory must record downstream Agent use.');
 $need('app/research-agent-memory.php','research_memory_privacy_state','Memory management must expose effective privacy state.');
 $need('app/research-agent-memory.php','research_memory_source_kind','Memory management must expose provenance/source category.');
 $need('app/research-retrieval.php',"if(function_exists('research_memory_apply_result'))",'Canonical retrieval must enforce Agent Memory controls.');
 $need('app/research-retrieval.php',"mc.correction_text LIKE ?",'User corrections must be immediately searchable.');
 $need('app/agent-chat.php',"research_memory_record_usage",'Agent Chat must record actual retrieved memory usage.');
+$need('app/agent-chat.php','never attribute the correction to the source','Agent Chat must keep user corrections distinct from source evidence.');
 $need('api/research-agent-memory.php',"action==='update'",'Agent Memory API must support governed updates.');
 $need('api/research-agent-memory.php',"action==='history'",'Agent Memory API must expose audit history.');
 $need('research-agent-knowledge.php','AGENT MEMORY','Canonical Knowledge Library must expose Agent Memory management.');
