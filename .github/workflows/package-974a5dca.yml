@@ -1,0 +1,10 @@
+name: Package merged shell and Team Chat tabs
+on:
+  push:
+    branches:
+      - chatgpt/package-974a5dca
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
