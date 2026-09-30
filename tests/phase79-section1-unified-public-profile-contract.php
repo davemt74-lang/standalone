@@ -19,7 +19,7 @@ $must=[
   "'collections'=>'Collections'",
   "'about'=>'About'",
   'profile_cover_image_url',
-  'profile-v2.css?v=79.2',
+  'profile-v2.css?v=79.3',
   "research_agent_profile_list(\$pdo,(int)\$p['id'],null,30)"
 ];
 foreach($must as $needle)if(!str_contains((string)$profile,$needle))$fail[]='profile missing '.$needle;

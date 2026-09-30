@@ -18,11 +18,14 @@ foreach(['appShellSidebar','<header class="topbar"','class="panel profilePage"']
 foreach(['profileStandaloneBody','profileStandalonePage','profileV2Page','profileHero','profileHeroBackdrop','profileStatsBar','profileTabs','profileContent','profileFeed','profileGuestHeader'] as $required){
     if(!str_contains($profile,$required))$fail[]='Profile redesign markup missing: '.$required;
 }
-foreach(['profilePrimaryAction','copyProfile','annotation_ui_card','annotation_ui_scripts','profile-v2.css?v=79.2'] as $required){
+foreach(['profilePrimaryAction','copyProfile','annotation_ui_card','annotation_ui_scripts','profile-v2.css?v=79.3'] as $required){
     if(!str_contains($profile,$required))$fail[]='Profile behavior/content contract missing: '.$required;
 }
 foreach(['.profileV2Page','.profileHeroBackdrop','.profileAvatar','.profileStatsBar','.profileTabs','.profileStoryGrid','@media(max-width:640px)'] as $required){
     if(!str_contains($v2,$required))$fail[]='Profile V2 responsive style missing: '.$required;
+}
+foreach(['.appShellHeaderOnly .appShellHeader','.appShellHeaderOnly .appHeaderBrandMobile','.appShellHeaderOnly .appShellContent','grid-template-columns:auto minmax(260px,640px) auto'] as $required){
+    if(!str_contains($v2,$required))$fail[]='Profile header-only shell hotfix missing: '.$required;
 }
 if(!hash_equals(hash('sha256',$css),hash('sha256',$ext)))$fail[]='Website and extension shared CSS must remain byte-identical.';
 

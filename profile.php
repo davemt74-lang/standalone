@@ -143,7 +143,7 @@ $renderStoryCard=function(array $story,string $returnTab='stories')use($p): stri
 <meta property="og:url" content="<?=h($canonical)?>">
 <?php endif?>
 <link rel="stylesheet" href="/assets/css/app.css?v=profile-300">
-<link rel="stylesheet" href="/assets/css/profile-v2.css?v=79.2">
+<link rel="stylesheet" href="/assets/css/profile-v2.css?v=79.3">
 </head>
 <body class="profileStandaloneBody profileV2Body">
 <main class="profileStandalonePage profileV2Page">

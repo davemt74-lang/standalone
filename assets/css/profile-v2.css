@@ -48,3 +48,26 @@
 .profileAboutCard{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}.profileAboutCard>div{padding:18px;border-bottom:1px solid #edf1f5}.profileAboutCard>div:nth-child(odd){border-right:1px solid #edf1f5}.profileAboutCard>div span{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px}.profileAboutCard>div p{margin:0;color:#334155;line-height:1.5}
 @media(max-width:900px){.profilePinnedGrid{grid-template-columns:1fr 1fr}}
 @media(max-width:640px){.profileStoryRail{gap:12px;margin-right:-16px;padding-right:16px}.profileStoryRailItem{flex-basis:78px}.profileStoryRing{width:62px;height:62px}.profilePinnedGrid{grid-template-columns:1fr}.profileEditMediaGrid,.profileAboutCard{grid-template-columns:1fr}.profileAboutCard>div:nth-child(odd){border-right:0}.profileEditForm>footer{align-items:stretch;flex-direction:column}.profileEditForm>footer>div{display:grid;grid-template-columns:1fr 1fr}.profileStoryCard footer{flex-direction:column;gap:8px}}
+
+/* Phase 79 profile shell hotfix — header-only desktop integrity */
+.profileV2Body .appShellHeaderOnly .appShellHeader{grid-template-columns:auto minmax(260px,640px) auto;justify-content:stretch;gap:24px;padding-left:28px;padding-right:28px}
+.profileV2Body .appShellHeaderOnly .appHeaderBrandMobile{display:block;min-width:max-content}
+.profileV2Body .appShellHeaderOnly .appHeaderBrandMobile .appShellBrand{padding:0}
+.profileV2Body .appShellHeaderOnly .appHeaderSearch{width:100%;max-width:640px;justify-self:center}
+.profileV2Body .appShellHeaderOnly .appHeaderActions{justify-self:end}
+.profileV2Body .appShellHeaderOnly .appShellContent{width:100%;max-width:none;min-width:0;overflow-x:hidden;padding:0!important}
+.profileV2Body .profileV2Page{width:100%!important;max-width:none!important;margin:0!important;padding-top:0!important;overflow-x:clip}
+.profileV2Body .profileHero{width:100%;max-width:none;border-left:0;border-right:0;border-radius:0;box-shadow:none}
+.profileV2Body .profileHeroBackdrop{width:100%;max-width:none}
+.profileV2Body .profileTabs{width:100%;box-sizing:border-box}
+@media(max-width:980px){
+  .profileV2Body .appShellHeaderOnly .appShellHeader{grid-template-columns:auto auto minmax(0,1fr) auto;gap:10px;padding-left:16px;padding-right:16px}
+  .profileV2Body .appShellHeaderOnly .appHeaderBrandMobile{display:block}
+  .profileV2Body .appShellHeaderOnly .appHeaderBrandMobile .appShellBrand>span:last-child{display:inline}
+  .profileV2Body .appShellHeaderOnly .appHeaderSearch{min-width:0}
+}
+@media(max-width:640px){
+  .profileV2Body .appShellHeaderOnly .appShellHeader{grid-template-columns:auto auto 1fr}
+  .profileV2Body .appShellHeaderOnly .appHeaderSearch{display:none}
+  .profileV2Body .appShellHeaderOnly .appHeaderBrandMobile .appShellBrand>span:last-child{display:none}
+}
