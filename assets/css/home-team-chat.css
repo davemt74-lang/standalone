@@ -170,3 +170,64 @@
   .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{grid-column:1!important}
   .teamChatSettingsModal{width:calc(100vw - 16px)!important;max-height:90vh!important}
 }
+
+
+/* Team Chat sidebar tabs */
+.teamChatTabs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+  padding:8px 10px 0;
+  border-bottom:1px solid #e6e8ea;
+  background:#fff;
+}
+.teamChatTabs button{
+  appearance:none!important;
+  min-height:38px!important;
+  margin:0!important;
+  padding:8px 10px!important;
+  border:0!important;
+  border-bottom:2px solid transparent!important;
+  border-radius:0!important;
+  background:transparent!important;
+  color:#737a80!important;
+  box-shadow:none!important;
+  font-size:.72rem!important;
+  font-weight:800!important;
+}
+.teamChatTabs button.active{
+  border-bottom-color:#111!important;
+  color:#111!important;
+}
+.teamChatTabPanel{
+  min-height:0;
+  flex:1 1 auto;
+}
+.teamChatTabPanel[hidden]{display:none!important}
+.teamChatTabPanel[data-team-chat-panel="chat"]{
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+.teamChatTabPanel[data-team-chat-panel="members"]{
+  overflow:auto;
+  padding:14px 12px 16px;
+}
+.teamChatMembersHeading{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.teamChatMembersHeading strong{font-size:.8rem}
+.teamChatMembersHeading span{color:#777;font-size:.66rem}
+.teamChatTabPanel[data-team-chat-panel="members"] .teamChatMembers{
+  max-height:none!important;
+  overflow:visible!important;
+  padding:0!important;
+  border:0!important;
+}
+
+/* Team Chat flex shell for tabbed UI */
+.teamChatRail{display:flex!important;flex-direction:column!important;min-height:0!important}

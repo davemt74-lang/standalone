@@ -8,6 +8,8 @@
   const input=rail.querySelector('#teamChatInput');
   const memberCount=rail.querySelector('#teamChatMemberCount');
   const members=rail.querySelector('#teamChatMembers');
+  const tabButtons=[...rail.querySelectorAll('[data-team-chat-tab]')];
+  const tabPanels=[...rail.querySelectorAll('[data-team-chat-panel]')];
   const unread=rail.querySelector('#teamChatUnread');
   const openTeam=rail.querySelector('#teamChatOpenTeam');
   const reply=rail.querySelector('#teamChatReply');
@@ -38,6 +40,19 @@
   const popupOrder=[];
   const POPUP_KEY='annotated.teamChatPopups';
 
+  function setTeamChatTab(tab){
+    const target=tab==='members'?'members':'chat';
+    tabButtons.forEach(button=>{
+      const active=button.dataset.teamChatTab===target;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-selected',active?'true':'false');
+    });
+    tabPanels.forEach(panel=>{
+      const active=panel.dataset.teamChatPanel===target;
+      panel.classList.toggle('active',active);
+      panel.hidden=!active;
+    });
+  }
   function currentOption(){return select?.selectedOptions?.[0]||null;}
   function absoluteProfile(username){return '/'+encodeURIComponent(String(username||''));}
   function formatTime(value){
@@ -393,6 +408,7 @@
   select?.addEventListener('change',()=>{setRailReply('','');railNextBefore=null;railHistoryExpanded=false;syncTeamMeta();const option=currentOption();document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{team_public_id:option?.dataset.team||'',surface:'team'}}));loadRailMessages();});
   loadEarlier?.addEventListener('click',loadEarlierMessages);
   popoutCurrent?.addEventListener('click',()=>openPopup(select.value));
+  tabButtons.forEach(button=>button.addEventListener('click',()=>setTeamChatTab(button.dataset.teamChatTab||'chat')));
   function setRailOpen(open){
     if(matchMedia('(max-width: 900px)').matches){
       document.body.classList.toggle('teamChatMobileOpen',!!open);
@@ -432,7 +448,7 @@
   document.addEventListener('annotated:team-chat-share-complete',e=>{const conversation=String(e.detail?.conversation||'');if(!conversation)return;openPopup(conversation);refreshConversationList();if(select?.value===conversation)loadRailMessages({quiet:true});});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
 
-  syncTeamMeta();loadRailMessages();restorePopups();
+  setTeamChatTab('chat');syncTeamMeta();loadRailMessages();restorePopups();
   pollTimer=setInterval(()=>{if(document.hidden)return;loadRailMessages({quiet:true});refreshConversationList();for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});},8000);
   window.addEventListener('beforeunload',()=>clearInterval(pollTimer),{once:true});
 })();

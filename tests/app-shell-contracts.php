@@ -25,7 +25,7 @@ $need('assets/css/app.css','/* Shared header stacking integrity */','Shared head
 $need('assets/css/app.css','z-index:400','Shared header must render above Home sticky controls and menus.');
 $need('assets/css/app.css','isolation:isolate','Shared header stacking context must be isolated.');
 $need('assets/css/app.css','box-shadow:inset 2px 0 0 #111','Active sidebar navigation must use the sharper inset indicator.');
-$need('app/shell.php','appShellFooter','Every authenticated product page must inherit the shared footer.');
+$avoid('app/shell.php','<footer class="appShellFooter">','Authenticated product pages must not render the public footer.');
 $need('app/shell.php','$isAdmin','Admin navigation must be role-gated.');
 $need('app/shell.php','app_shell_admin_nav','Admin pages must use the dedicated permission-aware admin navigation.');
 $avoid('app/shell.php',"app_shell_link('/ai.php','Ask Annotated'",'User sidebar must not include Ask Annotated.');
