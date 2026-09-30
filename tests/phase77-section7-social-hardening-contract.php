@@ -6,18 +6,18 @@ $need=function(string $file,string $needle,string $message)use(&$fail,$root){$pa
 foreach([
   'tests/phase77-section1-follow-reliability-contract.php',
   'tests/phase77-section2-agent-visibility-contract.php',
-  'tests/phase77-section3-social-story-delivery-contract.php',
+  'tests/phase77-section3-story-delivery-contract.php',
   'tests/phase77-section4-profile-agent-social-ux-contract.php',
   'tests/phase77-section5-follow-lists-social-graph-contract.php',
   'tests/phase77-section6-public-agent-discovery-contract.php'
 ] as $file)if(!is_file($root.'/'.$file))$fail[]='Missing prior Phase 77 contract: '.$file;
 
-$need('app/research-agents.php',"function_exists('research_agent_stories_ready')&&research_agent_stories_ready($pdo)",'Public Agent discovery must tolerate pre-Stories upgrade states.');
+$need('app/research-agents.php',"function_exists('research_agent_stories_ready')&&research_agent_stories_ready(\$pdo)",'Public Agent discovery must tolerate pre-Stories upgrade states.');
 $need('app/research-agents.php','0 published_story_count','Public Agent discovery must provide a safe Story-count fallback.');
 $need('app/research-agent-stories.php',"ra.status<>'archived'",'Exact Story access must reject archived Research Agents.');
 $need('app/research-agent-stories.php','(s.expires_at IS NULL OR s.expires_at>NOW())','Exact Story access must reject expired Stories.');
 $need('app/research-agent-stories.php',"JOIN users u ON u.id=ra.owner_user_id AND u.status='active'",'Story reads must reject inactive Agent owners.');
-$need('app/notifications.php',"if($type==='research_agent_story')return function_exists('research_agent_story_access')",'Notification access must route through exact Story access.');
+$need('app/notifications.php',"if(\$type==='research_agent_story')return function_exists('research_agent_story_access')",'Notification access must route through exact Story access.');
 $need('api/profile-follow.php','profile_network_set_follow','Follow API must retain canonical idempotent relationship mutation.');
 $need('profile-connections.php','data-connection-follow','Follow-list interaction must remain available.');
 $need('people.php','PUBLIC RESEARCH AGENTS','Public Research Agent discovery must remain exposed.');
