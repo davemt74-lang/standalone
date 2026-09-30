@@ -161,7 +161,7 @@ function research_agent_story_access(PDO $pdo,array $viewer,string $publicId): ?
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
       WHERE s.public_id=:story_public AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
     $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$params[':story_public']=$publicId;$q->execute($params);
-    $row=$q->fetch()?:null;if(!$row)return null;$row['story_url']=(int)($row['social_rank']??1)===0?'/home.php?agent='.rawurlencode((string)$row['conversation_public_id']).'&story='.rawurlencode((string)$row['public_id']):'/profile.php?u='.rawurlencode((string)$row['owner_username']).'&tab=research';return $row;
+    $row=$q->fetch()?:null;if(!$row)return null;$row['story_url']='/home.php?story='.rawurlencode((string)$row['public_id']);return $row;
 }
 function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $includeDismissed=false): array {
     if(!research_agent_stories_ready($pdo))return [];
@@ -179,7 +179,18 @@ function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $in
       WHERE ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW()) AND ".research_agent_story_social_visibility_sql().$dismiss."
       ORDER BY social_rank ASC,(st.viewed_at IS NULL) DESC,s.priority='high' DESC,s.published_at DESC,s.id DESC LIMIT ".$limit;
     $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$q->execute($params);
-    $rows=$q->fetchAll()?:[];foreach($rows as &$row)$row['story_url']=(int)($row['social_rank']??1)===0?'/home.php?agent='.rawurlencode((string)$row['conversation_public_id']).'&story='.rawurlencode((string)$row['public_id']):'/profile.php?u='.rawurlencode((string)$row['owner_username']).'&tab=research';unset($row);return $rows;
+    $rows=$q->fetchAll()?:[];foreach($rows as &$row)$row['story_url']='/home.php?story='.rawurlencode((string)$row['public_id']);unset($row);return $rows;
+}
+function research_agent_story_groups(PDO $pdo,array $viewer,int $limit=40): array {
+    $rows=research_agent_story_list($pdo,$viewer,$limit);$groups=[];
+    foreach($rows as $story){$key=(string)$story['agent_public_id'];if(!isset($groups[$key]))$groups[$key]=[
+      'agent_public_id'=>$key,'agent_name'=>(string)$story['agent_name'],'profile_image_url'=>(string)($story['profile_image_url']??''),
+      'conversation_public_id'=>(string)($story['conversation_public_id']??''),'owner_username'=>(string)($story['owner_username']??''),
+      'social_rank'=>(int)($story['social_rank']??1),'stories'=>[],'unread_count'=>0,'latest_at'=>(string)$story['published_at']
+    ];
+    $groups[$key]['stories'][]=$story;if(empty($story['viewed_at']))$groups[$key]['unread_count']++;
+    }
+    return array_values($groups);
 }
 function research_agent_story_state(PDO $pdo,array $viewer,string $publicId,string $action): bool {
     $story=research_agent_story_access($pdo,$viewer,$publicId);if(!$story)return false;
