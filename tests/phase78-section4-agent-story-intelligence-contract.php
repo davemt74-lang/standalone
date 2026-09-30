@@ -11,7 +11,7 @@ $need('app/research-agent-stories.php','function research_agent_story_intelligen
 $need('app/research-agent-stories.php','function research_agent_story_intelligence_parent','78.4 must resolve related prior Stories.');
 $need('app/research-agent-stories.php','function research_agent_story_intelligence_decision','78.4 must route proactive Stories through an intelligence decision.');
 $need('app/research-agent-stories.php',"'reason'=>'duplicate'",'78.4 must suppress exact duplicates.');
-$need('app/research-agent-stories.php',"'reason'=>$parent?'follow_up':'new'",'78.4 must distinguish follow-up Stories from new Stories.');
+$need('app/research-agent-stories.php',"'reason'=>\$parent?'follow_up':'new'",'78.4 must distinguish follow-up Stories from new Stories.');
 $need('app/research-agent-stories.php','function research_agent_story_why_it_matters','78.4 must explain why a Story matters.');
 $need('home.php','data-story-why','Home Story viewer must expose why-this-matters context.');
 $need('home.php','data-story-follow-up','Home Story viewer must expose follow-up state.');
