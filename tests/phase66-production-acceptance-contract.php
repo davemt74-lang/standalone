@@ -58,7 +58,7 @@ foreach([
 
 $need('research-workspace-file.php','research_agent_workspace_object','Private file streaming must re-check object access.');
 $need('research-workspace-file.php','stream_private_file','Private evidence must use governed streaming.');
-foreach(['data-research-initial-workspace','workspace=desktop','workspace=library','homeContinueResearch'] as $needle)if(!str_contains($home,$needle))$fail[]='Home continuation acceptance hook missing '.$needle;
+foreach(['data-research-initial-workspace','workspace=desktop','workspace=library','homeAgentStories'] as $needle)if(!str_contains($home,$needle))$fail[]='Home continuation acceptance hook missing '.$needle;
 
 $need('tests/ci/run-full-regression.sh','tests/phase66-production-acceptance-db.php','Full regression must execute Phase 66 production acceptance.');
 $need('.github/workflows/full-regression.yml','php tests/phase66-production-acceptance-db.php','MySQL 8 must execute Phase 66 production acceptance.');
