@@ -235,7 +235,7 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
       <div class="homeStoryProgress" data-story-progress></div>
       <header><span class="homeStoryViewerAvatar" data-story-avatar></span><div><strong data-story-agent-name></strong><small data-story-meta></small></div><button type="button" data-story-close aria-label="Close Story">×</button></header>
       <button type="button" class="homeStoryNav homeStoryPrev" data-story-prev aria-label="Previous Story"></button>
-      <article class="homeStoryContent"><h2 data-story-title></h2><p data-story-body></p></article>
+      <article class="homeStoryContent"><span class="homeStoryFollowUp" data-story-follow-up hidden>Follow-up</span><h2 data-story-title></h2><p data-story-body></p><aside class="homeStoryWhy" data-story-why hidden><strong>Why this matters</strong><p></p></aside></article>
       <button type="button" class="homeStoryNav homeStoryNext" data-story-next aria-label="Next Story"></button>
       <footer><a class="button secondary" data-story-source target="_blank" rel="noopener">Open source</a><a class="button" data-story-agent-action>Open Research Agent</a><button type="button" class="secondary" data-story-dismiss>Dismiss</button></footer>
     </div>
