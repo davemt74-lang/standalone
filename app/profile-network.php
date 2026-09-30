@@ -125,3 +125,21 @@ function profile_network_add_to_agent(PDO $pdo,array $config,array $viewer,strin
     $bookmark=research_agent_workspace_create_bookmark($pdo,$viewer,$project,['url'=>$url,'title'=>(string)$r['title'],'description'=>'Published Research by '.$r['display_name'].' · version '.(int)$r['version_number']]);
     return ['type'=>'research_report','agent_public_id'=>$agentPublic,'project_public_id'=>$project['public_id'],'bookmark_public_id'=>$bookmark['public_id']??null];
 }
+
+
+function profile_network_toggle_follow(PDO $pdo,array $viewer,string $targetPublicId): array {
+    $targetPublicId=trim($targetPublicId);if($targetPublicId==='')throw new InvalidArgumentException('User is required.');
+    $q=$pdo->prepare("SELECT id,public_id,display_name FROM users WHERE public_id=? AND status='active' LIMIT 1");$q->execute([$targetPublicId]);$target=$q->fetch();
+    if(!$target||(int)$target['id']===(int)$viewer['id'])throw new InvalidArgumentException('User is unavailable.');
+    if(function_exists('is_blocked')&&is_blocked($pdo,(int)$viewer['id'],(int)$target['id']))throw new RuntimeException('This connection is unavailable.');
+    $q=$pdo->prepare('SELECT 1 FROM follows WHERE follower_user_id=? AND followed_user_id=? LIMIT 1');$q->execute([(int)$viewer['id'],(int)$target['id']]);
+    if($q->fetchColumn()){
+        $pdo->prepare('DELETE FROM follows WHERE follower_user_id=? AND followed_user_id=?')->execute([(int)$viewer['id'],(int)$target['id']]);
+        $following=false;
+    }else{
+        $pdo->prepare('INSERT INTO follows(follower_user_id,followed_user_id) VALUES(?,?)')->execute([(int)$viewer['id'],(int)$target['id']]);
+        $following=true;
+        if(function_exists('notify_user'))notify_user($pdo,(int)$target['id'],(int)$viewer['id'],'new_follower','user',(string)$viewer['public_id'],(string)$viewer['display_name'].' followed you.',['dedupe_key'=>'follow:'.$viewer['id'].':'.$target['id'],'group_key'=>'follows','context'=>['actor_public_id'=>$viewer['public_id']]]);
+    }
+    return ['following'=>$following];
+}
