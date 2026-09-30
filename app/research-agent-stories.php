@@ -111,21 +111,20 @@ function research_agent_story_social_visibility_sql(): string {
       ra.owner_user_id=:viewer_owner
       OR EXISTS(SELECT 1 FROM team_members tmx WHERE tmx.team_id=ra.team_id AND tmx.user_id=:viewer_team)
       OR (
-        ra.team_id IS NULL
-        AND ra.visibility='public'
-        AND EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_user_id=:viewer_follow AND ff.followed_user_id=ra.owner_user_id)
+        (
+          (ra.visibility='public' AND EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_user_id=:viewer_follow AND ff.followed_user_id=ra.owner_user_id))
+          OR (
+            ra.visibility='friends'
+            AND EXISTS(SELECT 1 FROM follows ff1 WHERE ff1.follower_user_id=:viewer_friend1 AND ff1.followed_user_id=ra.owner_user_id)
+            AND EXISTS(SELECT 1 FROM follows ff2 WHERE ff2.follower_user_id=ra.owner_user_id AND ff2.followed_user_id=:viewer_friend2)
+          )
+        )
+        AND NOT EXISTS(
+          SELECT 1 FROM blocks b
+          WHERE (b.blocker_user_id=:viewer_block1 AND b.blocked_user_id=ra.owner_user_id)
+             OR (b.blocker_user_id=ra.owner_user_id AND b.blocked_user_id=:viewer_block2)
+        )
       )
-      OR (
-        ra.team_id IS NULL
-        AND ra.visibility='friends'
-        AND EXISTS(SELECT 1 FROM follows ff1 WHERE ff1.follower_user_id=:viewer_friend1 AND ff1.followed_user_id=ra.owner_user_id)
-        AND EXISTS(SELECT 1 FROM follows ff2 WHERE ff2.follower_user_id=ra.owner_user_id AND ff2.followed_user_id=:viewer_friend2)
-      )
-    )
-    AND NOT EXISTS(
-      SELECT 1 FROM blocks b
-      WHERE (b.blocker_user_id=:viewer_block1 AND b.blocked_user_id=ra.owner_user_id)
-         OR (b.blocker_user_id=ra.owner_user_id AND b.blocked_user_id=:viewer_block2)
     )";
 }
 function research_agent_story_social_params(array $viewer): array {
