@@ -21,7 +21,8 @@ $need('research-agent-edit.php','name="min_priority"','Agent Edit must expose mi
 $need('research-agent-edit.php','name="daily_story_cap"','Agent Edit must expose daily Story cap.');
 $need('research-agent-edit.php','name="quiet_hours_enabled"','Agent Edit must expose quiet hours.');
 $need('research-agent-edit.php','name="story_timezone_name"','Agent Edit must expose Story policy timezone.');
-foreach(['trigger_evidence','trigger_risk','trigger_question','trigger_decision','trigger_task','trigger_update'] as $trigger)$need('research-agent-edit.php','name="'.$trigger.'"','Agent Edit missing Story trigger '.$trigger.'.');
+$need('research-agent-edit.php','name="trigger_<?=h($key)?>"','Agent Edit must render Story trigger controls from the canonical trigger map.');
+foreach(['evidence','risk','question','decision','task','update'] as $trigger)$need('research-agent-edit.php',"'".$trigger."'=>'",'Agent Edit missing Story trigger key '.$trigger.'.');
 $need('assets/css/app.css','/* Phase 78.2 — Proactive Story Triggers & Publishing Policy */','Phase 78.2 must include responsive Story policy styling.');
 if(is_file($root.'/assets/css/app.css')&&is_file($root.'/extension/landing-app.css')&&file_get_contents($root.'/assets/css/app.css')!==file_get_contents($root.'/extension/landing-app.css'))$fail[]='Website and extension landing CSS must remain byte-for-byte synchronized.';
 
