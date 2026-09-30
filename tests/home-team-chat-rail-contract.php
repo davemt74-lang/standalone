@@ -14,7 +14,7 @@ $need('home.php','data-team-chat-mini-rail','Home must render the 50px collapsed
 $need('assets/css/home-team-chat.css','width:50px!important','Collapsed Team Chat rail must be 50px wide.');
 $need('assets/css/home-team-chat.css','transform:translateX(100%)!important','Full Team Chat sidebar must remain fully off-canvas while the independent rail is closed.');
 $need('assets/css/home-team-chat.css','body.teamChatDesktopOpen','Desktop Team Chat must expose an explicit open state.');
-$need('assets/js/team-chat.js',"miniRail?.addEventListener('click'","Clicking the collapsed Team Chat rail must open the chat panel.");
+$need('assets/js/team-chat.js',"miniOpen?.addEventListener('click'","Clicking the collapsed Team Chat rail must open the chat panel.");
 $need('assets/js/team-chat.js','renderMiniMembers','Collapsed Team Chat rail must render member avatars and presence.');
 $need('assets/css/home-team-chat.css','top:68px!important','Desktop Team Chat rail must begin directly below the universal header.');
 $need('assets/css/home-team-chat.css','bottom:0!important','Desktop Team Chat rail must extend to the bottom of the viewport.');
