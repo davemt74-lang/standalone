@@ -19,8 +19,16 @@
   const mobileClose=rail.querySelector('[data-team-chat-close]');
   const totalUnread=document.querySelector('[data-team-chat-total-unread]');
   const miniRail=document.querySelector('[data-team-chat-mini-rail]');
+  const miniOpen=document.querySelector('[data-team-chat-mini-open]');
   const miniMembers=document.querySelector('#teamChatMiniMembers');
   const miniUnread=document.querySelector('[data-team-chat-mini-unread]');
+  const settingsOpeners=[...document.querySelectorAll('[data-team-chat-settings-open]')];
+  const settingsModal=document.querySelector('[data-team-chat-settings-modal]');
+  const settingsForm=settingsModal?.querySelector('[data-team-chat-settings-form]');
+  const settingsClosers=[...(settingsModal?.querySelectorAll('[data-team-chat-settings-close]')||[])];
+  const settingsFeedback=settingsModal?.querySelector('[data-team-chat-settings-feedback]');
+  const settingsCurrentLabel=settingsModal?.querySelector('[data-team-chat-current-label]');
+  const settingsEffective=settingsModal?.querySelector('[data-team-chat-effective-status]');
   const csrf=rail.dataset.csrf||'';
 
   let railParentMessage='',railParentLabel='',railSequence=0,railNextBefore=null,railHistoryExpanded=false;
@@ -348,10 +356,23 @@
   }
 
   function updateSelfStatus(data){
-    if(!selfStatus||!data)return;
-    const dot=selfStatus.querySelector('.chatPresenceDot'),label=selfStatus.querySelector('span');
-    if(dot){dot.className='chatPresenceDot status-'+statusClass(data.effective_status);}
-    if(label)label.textContent=data.custom_status||({auto:'Automatic',available:'Available',away:'Away',busy:'Busy',invisible:'Invisible'})[data.status_mode]||statusLabel(data.effective_status);
+    if(!data)return;
+    const modeLabel=({auto:'Automatic',available:'Available',away:'Away',busy:'Busy',invisible:'Invisible'})[data.status_mode]||statusLabel(data.effective_status);
+    if(selfStatus){
+      const dot=selfStatus.querySelector('.chatPresenceDot'),label=selfStatus.querySelector('span');
+      if(dot)dot.className='chatPresenceDot status-'+statusClass(data.effective_status);
+      if(label)label.textContent=data.custom_status||modeLabel;
+    }
+    if(settingsModal){
+      const currentDot=settingsModal.querySelector('.teamChatSettingsCurrent .chatPresenceDot');
+      if(currentDot)currentDot.className='chatPresenceDot status-'+statusClass(data.effective_status);
+      if(settingsCurrentLabel)settingsCurrentLabel.textContent=data.custom_status||modeLabel;
+      if(settingsEffective)settingsEffective.textContent=data.effective_status||'offline';
+      const radio=settingsModal.querySelector('input[name="status_mode"][value="'+CSS.escape(String(data.status_mode||'auto'))+'"]');
+      if(radio)radio.checked=true;
+      const custom=settingsModal.querySelector('input[name="custom_status"]');
+      if(custom)custom.value=String(data.custom_status||'');
+    }
   }
 
   composer?.addEventListener('submit',async e=>{
@@ -377,13 +398,36 @@
       document.body.classList.toggle('teamChatMobileOpen',!!open);
     }else{
       document.body.classList.toggle('teamChatDesktopOpen',!!open);
-      miniRail?.setAttribute('aria-expanded',open?'true':'false');
+      miniOpen?.setAttribute('aria-expanded',open?'true':'false');
     }
   }
-  miniRail?.addEventListener('click',()=>setRailOpen(true));
+  miniOpen?.addEventListener('click',()=>setRailOpen(true));
+  settingsOpeners.forEach(button=>button.addEventListener('click',()=>{
+    if(!settingsModal)return;
+    if(typeof settingsModal.showModal==='function')settingsModal.showModal();else settingsModal.setAttribute('open','');
+    settingsFeedback.textContent='';
+  }));
+  settingsClosers.forEach(button=>button.addEventListener('click',()=>settingsModal?.close?.()));
+  settingsModal?.addEventListener('click',e=>{if(e.target===settingsModal)settingsModal.close();});
+  settingsForm?.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const submit=settingsForm.querySelector('button[type="submit"]');if(submit)submit.disabled=true;
+    if(settingsFeedback)settingsFeedback.textContent='Saving…';
+    const formData=new FormData(settingsForm);
+    try{
+      const data=await request('status-update',{method:'POST',data:{status_mode:String(formData.get('status_mode')||'auto'),custom_status:String(formData.get('custom_status')||'')}});
+      updateSelfStatus(data);
+      document.dispatchEvent(new CustomEvent('annotated:chat-presence',{detail:data}));
+      if(settingsFeedback)settingsFeedback.textContent='Saved';
+      loadRailMessages({quiet:true});
+      setTimeout(()=>settingsModal?.close?.(),250);
+    }catch(err){
+      if(settingsFeedback)settingsFeedback.textContent=err.message||'Unable to update chat status.';
+    }finally{if(submit)submit.disabled=false;}
+  });
   mobileOpen?.addEventListener('click',()=>setRailOpen(true));
   mobileClose?.addEventListener('click',()=>setRailOpen(false));
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')setRailOpen(false);});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!settingsModal?.open)setRailOpen(false);});
   document.addEventListener('annotated:chat-presence',e=>updateSelfStatus(e.detail||{}));
   document.addEventListener('annotated:team-chat-share-complete',e=>{const conversation=String(e.detail?.conversation||'');if(!conversation)return;openPopup(conversation);refreshConversationList();if(select?.value===conversation)loadRailMessages({quiet:true});});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
