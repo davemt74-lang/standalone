@@ -70,5 +70,9 @@ $need('.github/workflows/package-two-zips.yml','package-website/downloads/Annota
 $need('live.php','if($sourcePublic','Live navigation must have a directory rather than require a source ID.');
 $need('ai.php','catch(PDOException $e)','Ask Annotated must tolerate pre-upgrade project ordering during migration recovery.');
 
+$need('assets/css/app.css','body>.appShell.appShellHeaderOnly{','Header-only shell must have a higher-specificity root override.');
+$need('assets/css/app.css','grid-template-columns:minmax(0,1fr)!important','Header-only shell must override the later two-column sharp shell grid.');
+$need('assets/css/app.css','body>.appShell.appShellHeaderOnly>.appShellStage','Header-only stage must occupy the single full-width grid column.');
+
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}
 echo "Universal app shell and social product contracts passed.\n";
