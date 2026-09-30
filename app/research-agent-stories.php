@@ -119,6 +119,13 @@ function research_agent_story_queue_enhancement(PDO $pdo,array $config,array $vi
     return true;
 }
 
+function research_agent_story_intelligence_ready(PDO $pdo): bool {
+    if(!research_agent_story_authoring_ready($pdo))return false;
+    try{
+        $db=installer_database_name($pdo);$q=$pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=? AND table_name='research_agent_stories' AND column_name IN ('intelligence_hash','parent_story_id','why_it_matters')");
+        $q->execute([$db]);return (int)$q->fetchColumn()===3;
+    }catch(Throwable $e){return false;}
+}
 function research_agent_story_intelligence_hash(array $agent,string $storyType,string $title,array $object,string $body): string {
     $identity=[
       'agent'=>(string)($agent['public_id']??''),
@@ -131,7 +138,7 @@ function research_agent_story_intelligence_hash(array $agent,string $storyType,s
     return hash('sha256',json_encode($identity,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
 }
 function research_agent_story_intelligence_parent(PDO $pdo,array $agent,string $storyType,array $object,string $intelligenceHash): ?array {
-    if(!research_agent_story_authoring_ready($pdo))return null;
+    if(!research_agent_story_intelligence_ready($pdo))return null;
     $sql="SELECT * FROM research_agent_stories WHERE agent_id=? AND status='published' AND created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY)
       AND (intelligence_hash=? OR (story_type=? AND COALESCE(object_type,'')=? AND COALESCE(object_public_id,'')=?))
       ORDER BY published_at DESC,id DESC LIMIT 1";
@@ -152,6 +159,7 @@ function research_agent_story_why_it_matters(array $item,string $storyType): str
 }
 function research_agent_story_intelligence_decision(PDO $pdo,array $agent,string $storyType,string $title,array $object,string $body,array $item): array {
     $hash=research_agent_story_intelligence_hash($agent,$storyType,$title,$object,$body);
+    if(!research_agent_story_intelligence_ready($pdo))return ['allow'=>true,'reason'=>'legacy','hash'=>$hash,'parent'=>null,'why'=>research_agent_story_why_it_matters($item,$storyType)];
     $parent=research_agent_story_intelligence_parent($pdo,$agent,$storyType,$object,$hash);
     $exact=$parent&&hash_equals((string)($parent['intelligence_hash']??''),$hash);
     if($exact)return ['allow'=>false,'reason'=>'duplicate','hash'=>$hash,'parent'=>$parent,'why'=>research_agent_story_why_it_matters($item,$storyType)];
@@ -168,9 +176,15 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
     $intelligence=research_agent_story_intelligence_decision($pdo,$agent,$storyType,$title,$object,$body,$item);if(empty($intelligence['allow']))return null;
     $decision=research_agent_story_policy_decision($pdo,$agent,$storyType,$priority);if(empty($decision['allow']))return null;$status=(string)$decision['status'];
     $public=ulid_like();$parentId=(int)($intelligence['parent']['id']??0);
-    $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,intelligence_hash,parent_story_id,why_it_matters,status,published_at,expires_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
-    $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id'],(string)$intelligence['hash'],$parentId>0?$parentId:null,(string)$intelligence['why'],$status,$status]);
+    if(research_agent_story_intelligence_ready($pdo)){
+        $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,intelligence_hash,parent_story_id,why_it_matters,status,published_at,expires_at)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
+        $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id'],(string)$intelligence['hash'],$parentId>0?$parentId:null,(string)$intelligence['why'],$status,$status]);
+    }else{
+        $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,status,published_at,expires_at)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
+        $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id'],$status,$status]);
+    }
     if($q->rowCount()===0){
         $q=$pdo->prepare("SELECT * FROM research_agent_stories WHERE agent_id=? AND observation_key=? LIMIT 1");$q->execute([(int)$agent['id'],$observationKey]);$story=$q->fetch()?:null;
     }else{
