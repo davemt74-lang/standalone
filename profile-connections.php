@@ -23,7 +23,7 @@ $count=$type==='following'?(int)$p['following_count']:(int)$p['followers'];
 <meta name="robots" content="noindex,follow">
 <link rel="stylesheet" href="/assets/css/app.css?v=profile-200">
 </head>
-<body class="profileStandaloneBody">
+<body class="profileStandaloneBody"<?=$viewer?' data-profile-follow-root data-csrf="'.h(csrf_token()).'"':''?>>
 <main class="profileStandalonePage profileConnectionsPage">
     <header class="profileConnectionsHeader">
         <a class="profileBackLink" href="<?=h(profile_path((string)$p['username']))?>">← <?=h($p['display_name'])?></a>
@@ -33,15 +33,19 @@ $count=$type==='following'?(int)$p['following_count']:(int)$p['followers'];
     <section class="profilePeopleList">
         <?php if(!$people):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">○</div><h3>No visible profiles here</h3><p>Private, blocked, or unavailable accounts are not exposed in public connection lists.</p></div><?php endif?>
         <?php foreach($people as $person):?>
-        <a class="profilePersonCard" href="<?=h(profile_path((string)$person['username']))?>">
+        <div class="profilePersonNetworkRow" data-profile-network-person>
+          <a class="profilePersonCard" href="<?=h(profile_path((string)$person['username']))?>">
             <?php if(!empty($person['profile_image_url'])):?><img src="<?=h((string)$person['profile_image_url'])?>" alt="">
             <?php else:?><span class="profilePersonFallback"><?=h(mb_strtoupper(mb_substr((string)$person['display_name'],0,1)))?></span><?php endif?>
-            <span class="profilePersonCopy"><strong><?=h((string)$person['display_name'])?></strong><small>@<?=h((string)$person['username'])?></small><?php if(!empty($person['bio'])):?><em><?=h(public_discovery_meta_description((string)$person['bio'],140))?></em><?php endif?></span>
+            <span class="profilePersonCopy"><strong><?=h((string)$person['display_name'])?></strong><small>@<?=h((string)$person['username'])?><?php if(!empty($person['friends'])):?> · <span data-profile-relationship>Friends</span><?php elseif(!empty($person['follows_you'])):?> · <span data-profile-relationship>Follows you</span><?php else:?><span data-profile-relationship></span><?php endif?></small><?php if(!empty($person['bio'])):?><em><?=h(public_discovery_meta_description((string)$person['bio'],140))?></em><?php endif?></span>
             <span class="profilePersonArrow" aria-hidden="true">→</span>
-        </a>
+          </a>
+          <?php if($viewer&&(string)$viewer['public_id']!==(string)$person['public_id']):?><button type="button" class="profilePinButton profileNetworkFollow" data-profile-follow="<?=h((string)$person['public_id'])?>" aria-pressed="<?=!empty($person['following'])?'true':'false'?>"><?=!empty($person['following'])?'Following':(!empty($person['follows_you'])?'Follow back':'Follow')?></button><?php endif?>
+        </div>
         <?php endforeach?>
     </section>
     <footer class="profileStandaloneFooter"><a href="<?=$viewer?'/home.php':'/'?>">Annotated</a><a href="<?=h(profile_path((string)$p['username']))?>">Profile</a></footer>
 </main>
+<?php if($viewer):?><script src="/assets/js/profile-follow.js?v=77.4"></script><?php endif?>
 </body>
 </html>
