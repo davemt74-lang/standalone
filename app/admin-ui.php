@@ -87,7 +87,7 @@ function admin_ui_sidebar(string $active='dashboard'): string {
         $out.='</div></details>';
     }
     $roleLabel=$profile!==null?' · '.h((string)($profile['role_name']??$profile['role_key']??'')):'';
-    $out.='</nav><div class="adminSidebarFoot"><span>Admin V2.90 · Proactive Admin Intelligence · Admin V2.80 · Contextual Admin Agent · Admin V2.70 · Admin Agent · Admin V2.61 · Final Admin Hardening · Admin V2.60 · Admin V2.50 · Admin V2.40 · Admin V2.30 · Admin V2.20 · Admin V2.10 · Admin V2.0 · Admin V1.30 · V1.40 · V1.50 · V1.60 · V1.70 · V1.80 · V1.90'.$roleLabel.'</span><a href="/logout.php">Sign out</a></div></aside>';
+    $out.='</nav><div class="adminSidebarFoot"><a href="/logout.php">Sign out</a></div></aside>';
     if($viewer&&($viewer['role']??'')==='admin')$out.=admin_ui_agent_copilot($pdo,$viewer,$active);
     return $out;
 }
