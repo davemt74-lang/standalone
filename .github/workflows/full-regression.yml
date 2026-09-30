@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   full-regression:
-    if: contains(github.event.pull_request.title, '[phase-gate]')
+    if: contains(github.event.pull_request.title, '[release-gate]')
     runs-on: ubuntu-latest
     services:
       mariadb:
@@ -230,7 +230,7 @@ jobs:
         run: php tests/ci/phase79-section3-upgrade-from-113.php
 
   mysql8-fresh-install:
-    if: contains(github.event.pull_request.title, '[phase-gate]')
+    if: contains(github.event.pull_request.title, '[release-gate]')
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -704,6 +704,6 @@ jobs:
         run: php tests/ci/phase73-final-supported-upgrades.php
 
   package:
-    if: contains(github.event.pull_request.title, '[phase-gate]')
+    if: contains(github.event.pull_request.title, '[release-gate]')
     needs: [full-regression, mysql8-fresh-install]
     uses: ./.github/workflows/package-two-zips.yml
