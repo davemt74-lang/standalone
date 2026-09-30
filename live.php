@@ -9,14 +9,50 @@ if($sourcePublic===''){
     $sources=$q->fetchAll();
     $rooms=live_rooms_for_user($pdo,$u);
     header('Cache-Control: private, no-store');header('Vary: Cookie');
-    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Live · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body>
-    <main class="panel">
-      <div class="pageTitle"><span class="eyebrow">LIVE</span><h1>Discuss the web while it happens.</h1><p>Open a public source room, then switch into a Team or Research room when that source belongs to one of your private workspaces.</p></div>
-      <div class="sectionHeadWeb"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>Active source rooms</h2></div></div>
-      <div class="sourceGrid"><?php foreach($active as $s):?><a class="card sourceCard" href="/live.php?id=<?=h($s['public_id'])?>"><div class="meta"><?=h($s['domain'])?> · <?=h((string)$s['message_count'])?> messages</div><h3><?=h($s['title']?:$s['domain'])?></h3><p class="meta">Last activity <?=h((string)$s['last_activity'])?></p></a><?php endforeach?><?php if(!$active):?><div class="card empty">No public Live conversations yet. Start one from a source below.</div><?php endif?></div>
-      <div class="sectionHeadWeb"><div><span class="eyebrow">START A ROOM</span><h2>Recently annotated sources</h2></div></div>
-      <div class="sourceGrid"><?php foreach($sources as $s):?><a class="card sourceCard" href="/live.php?id=<?=h($s['public_id'])?>"><div class="meta"><?=h($s['domain'])?></div><h3><?=h($s['title']?:$s['domain'])?></h3><p>Open Live</p></a><?php endforeach?></div>
-      <div class="card"><h2>Your private Live access</h2><p><strong><?=h((string)count($rooms['teams']))?></strong> Teams · <strong><?=h((string)count($rooms['projects']))?></strong> Research projects</p><p class="meta">Private room choices appear automatically after you open a source.</p></div>
+    ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Live · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=76.1"></head><body>
+    <main class="liveLandingCanvas">
+      <section class="liveLandingHero">
+        <div><span class="eyebrow">LIVE</span><h1>Discuss the web while it happens.</h1><p>Open a public source room, then move into a Team or Research room when the source belongs to one of your private workspaces.</p></div>
+        <aside class="liveLandingAccess" aria-label="Your Live access">
+          <span class="eyebrow">YOUR ACCESS</span>
+          <div><strong><?=h((string)count($rooms['teams']))?></strong><span>Teams</span></div>
+          <div><strong><?=h((string)count($rooms['projects']))?></strong><span>Research spaces</span></div>
+        </aside>
+      </section>
+
+      <section class="liveLandingSection">
+        <header class="liveLandingSectionHead"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>Active source rooms</h2></div><p>Jump back into conversations already happening around the web.</p></header>
+        <div class="liveLandingGrid liveLandingGridActive">
+          <?php foreach($active as $s):?>
+            <a class="liveLandingRoom" href="/live.php?id=<?=h($s['public_id'])?>">
+              <span class="liveLandingRoomPulse" aria-hidden="true"></span>
+              <div class="liveLandingRoomMeta"><span><?=h($s['domain'])?></span><span><?=h((string)$s['message_count'])?> messages</span></div>
+              <h3><?=h($s['title']?:$s['domain'])?></h3>
+              <footer><span>Last activity <?=h((string)$s['last_activity'])?></span><strong>Open room →</strong></footer>
+            </a>
+          <?php endforeach?>
+          <?php if(!$active):?><div class="liveLandingEmpty"><strong>No public conversations yet.</strong><span>Start one from a recently annotated source below.</span></div><?php endif?>
+        </div>
+      </section>
+
+      <section class="liveLandingSection">
+        <header class="liveLandingSectionHead"><div><span class="eyebrow">START A ROOM</span><h2>Recently annotated sources</h2></div><p>Turn a source you or your network touched into a live discussion.</p></header>
+        <div class="liveLandingGrid">
+          <?php foreach($sources as $s):?>
+            <a class="liveLandingSource" href="/live.php?id=<?=h($s['public_id'])?>">
+              <span class="liveLandingSourceDomain"><?=h($s['domain'])?></span>
+              <h3><?=h($s['title']?:$s['domain'])?></h3>
+              <footer><span>Ready for discussion</span><strong>Open Live →</strong></footer>
+            </a>
+          <?php endforeach?>
+          <?php if(!$sources):?><div class="liveLandingEmpty"><strong>No recent sources yet.</strong><span>Annotate a source and it will be available here.</span></div><?php endif?>
+        </div>
+      </section>
+
+      <section class="liveLandingPrivate">
+        <div><span class="eyebrow">PRIVATE LIVE</span><h2>Take the conversation into your workspace.</h2><p>After opening a source, eligible Team and Research rooms appear automatically so the discussion can move from public discovery into private work.</p></div>
+        <div class="liveLandingPrivateStats"><span><strong><?=h((string)count($rooms['teams']))?></strong> Teams</span><span><strong><?=h((string)count($rooms['projects']))?></strong> Research projects</span></div>
+      </section>
     </main></body></html><?php exit;
 }
 $source=source_access($pdo,$sourcePublic,$u);if(!$source){http_response_code(404);exit('Source not found.');}
