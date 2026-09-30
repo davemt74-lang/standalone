@@ -414,7 +414,14 @@
     e.preventDefault();
     setTeamChatTab(button.dataset.teamChatTab||'chat');
   });
+  function syncTeamChatViewportBounds(){
+    const header=document.querySelector('.appShellHeader');
+    const rect=header?.getBoundingClientRect?.();
+    const top=Math.max(0,Math.round(rect?.bottom||0));
+    document.documentElement.style.setProperty('--team-chat-viewport-top',top+'px');
+  }
   function setRailOpen(open){
+    syncTeamChatViewportBounds();
     if(matchMedia('(max-width: 900px)').matches){
       document.body.classList.toggle('teamChatMobileOpen',!!open);
     }else{
@@ -460,9 +467,11 @@
     if(settingsModal?.contains(target))return;
     setRailOpen(false);
   });
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncTeamChatViewportBounds();loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
+  window.addEventListener('resize',syncTeamChatViewportBounds,{passive:true});
+  window.addEventListener('scroll',syncTeamChatViewportBounds,{passive:true});
 
-  setTeamChatTab('chat');syncTeamMeta();loadRailMessages();restorePopups();
+  syncTeamChatViewportBounds();setTeamChatTab('chat');syncTeamMeta();loadRailMessages();restorePopups();
   pollTimer=setInterval(()=>{if(document.hidden)return;loadRailMessages({quiet:true});refreshConversationList();for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});},8000);
   window.addEventListener('beforeunload',()=>clearInterval(pollTimer),{once:true});
 })();
