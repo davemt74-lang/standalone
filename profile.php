@@ -112,7 +112,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
 <?php endif?>
 <link rel="stylesheet" href="/assets/css/app.css?v=profile-300">
 </head>
-<body class="profileStandaloneBody">
+<body class="profileStandaloneBody" data-profile-follow-root data-csrf="<?=h(csrf_token())?>">
 <main class="profileStandalonePage">
     <?php if($viewAsPublic):?><div class="profileViewAsBanner"><span>You are viewing your profile as the public sees it.</span><a href="<?=h(profile_path((string)$p['username']))?>">Exit public view</a></div><?php endif?>
     <?php if(!empty($profileError)):?><div class="error profilePageNotice"><?=h($profileError)?></div><?php endif?>
@@ -135,7 +135,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
             </div>
 
             <div class="profileActions">
-                <?php if($viewer&&!$owner):?><button id="follow" class="profilePrimaryAction" type="button" aria-pressed="<?=$p['following']?'true':'false'?>"><?=$p['following']?'Following':'Follow'?></button>
+                <?php if($viewer&&!$owner):?><button id="follow" class="profilePrimaryAction" type="button" data-profile-follow="<?=h((string)$p['public_id'])?>" aria-pressed="<?=$p['following']?'true':'false'?>"><?=$p['following']?'Following':(!empty($p['follows_you'])?'Follow back':'Follow')?></button>
                 <?php elseif($ownerControls):?><a class="profilePrimaryAction" href="/settings.php#profile-showcase">Edit profile</a><a class="profileSecondaryAction" href="<?=h(profile_path((string)$p['username']))?>?view=public">View as public</a>
                 <?php elseif(!$viewer):?><a class="profilePrimaryAction" href="/login.php">Log in to follow</a><?php endif?>
                 <button class="profileIconAction" type="button" id="copyProfile" aria-label="Copy profile link" title="Copy profile link"><span aria-hidden="true">↗</span></button>
@@ -146,7 +146,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
         <div class="profileStatsBar" aria-label="Profile statistics">
             <a href="<?=h(profile_path((string)$p['username']))?>?tab=annotations"><strong><?=h((string)$annotationCount)?></strong><span>Annotations</span></a>
             <div><strong><?=h((string)$sourceCount)?></strong><span>Sources</span></div>
-            <a href="/profile-connections.php?u=<?=rawurlencode((string)$p['username'])?>&type=followers"><strong data-profile-follower-count><?=h((string)$followerCount)?></strong><span>Followers</span></a>
+            <a href="/profile-connections.php?u=<?=rawurlencode((string)$p['username'])?>&type=followers"><strong data-profile-follower-count data-profile-follower-count-user="<?=h((string)$p['public_id'])?>"><?=h((string)$followerCount)?></strong><span>Followers</span></a>
             <a href="/profile-connections.php?u=<?=rawurlencode((string)$p['username'])?>&type=following"><strong><?=h((string)$followingCount)?></strong><span>Following</span></a>
         </div>
     </section>
@@ -212,12 +212,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
 <script>
 document.querySelector('#copyProfile')?.addEventListener('click',async e=>{try{await navigator.clipboard.writeText(<?=json_encode($canonical)?>);const original=e.currentTarget.innerHTML;e.currentTarget.textContent='✓';e.currentTarget.setAttribute('aria-label','Profile link copied');setTimeout(()=>{e.currentTarget.innerHTML=original;e.currentTarget.setAttribute('aria-label','Copy profile link');},1400);}catch(_){}});
 </script>
-<?php if($viewer&&!$owner):?>
-<script>
-const csrf=<?=json_encode(csrf_token())?>;
-document.querySelector('#follow')?.addEventListener('click',async e=>{const button=e.currentTarget;if(button.disabled)return;const desired=button.getAttribute('aria-pressed')!=='true';button.disabled=true;button.setAttribute('aria-busy','true');try{const r=await fetch('/api/profile-follow.php',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({user_id:<?=json_encode($p['public_id'])?>,following:desired})});const j=await r.json().catch(()=>({ok:false,error:{message:'Follow request failed.'}}));if(!r.ok||j.ok===false)throw new Error(j.error?.message||'Follow request failed.');const following=!!j.data.following;button.textContent=following?'Following':'Follow';button.setAttribute('aria-pressed',following?'true':'false');const count=document.querySelector('[data-profile-follower-count]');if(count&&Number.isFinite(Number(j.data.follower_count)))count.textContent=String(j.data.follower_count);}catch(err){alert(err?.message||'Unable to update follow state.');}finally{button.disabled=false;button.removeAttribute('aria-busy');}});
-</script>
-<?php endif?>
+<?php if($viewer):?><script src="/assets/js/profile-follow.js?v=77.4"></script><?php endif?>
 <?=annotation_ui_scripts($viewer)?>
 </body>
 </html>
