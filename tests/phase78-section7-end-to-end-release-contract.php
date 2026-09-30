@@ -17,7 +17,7 @@ $need('app/research-agent-stories.php','function research_agent_story_activity',
 $need('app/research-agent-stories.php','function research_agent_story_review_manual','78.7 requires explicit Story approval/rejection.');
 $need('app/research-agent-stories.php','requires approval before publishing','78.7 must prevent approval bypass.');
 $need('app/research-agent-stories.php',"status='published'",'Public Story reads must remain published-only.');
-$need('app/notifications.php',"if($type==='research_agent_story')return function_exists('research_agent_story_access')",'Notification access must remain governed by Story visibility.');
+$need('app/notifications.php',"if(\$type==='research_agent_story')return function_exists('research_agent_story_access')",'Notification access must remain governed by Story visibility.');
 $need('research-agent-edit.php','Approve & publish','Agent Edit must retain explicit Story approval.');
 $need('research-agent-edit.php','name="scheduled_at"','Agent Edit must retain scheduling.');
 $need('home.php','data-story-why','Home Story viewer must retain Story intelligence context.');
