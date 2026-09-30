@@ -5,7 +5,7 @@ $read=function(string $p)use($root,&$fail): string{$f=$root.'/'.$p;if(!is_file($
 $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&!str_contains($c,$n))$fail[]=$m;};
 
 $need('home.php','hasTeamChatRail','Home must mark the layout when Team Chat is available.');
-$need('home.php','/assets/css/home-team-chat.css?v=74.8','Home must load the Team Chat visibility override after app.css.');
+$need('home.php','/assets/css/home-team-chat.css?v=74.9','Home must load the Team Chat visibility override after app.css.');
 $need('home.php','data-team-chat-rail','Home must render the canonical Team Chat rail.');
 $need('home.php','/assets/js/team-chat.js?v=36.2','Home must load the Team Chat client when Team conversations exist.');
 $need('assets/css/home-team-chat.css','.homeWorkspaceLayout.hasTeamChatRail','Team Chat CSS must keep a dedicated desktop rail state.');
@@ -28,10 +28,10 @@ $need('assets/js/team-chat.js','setTeamChatTab','Team Chat tabs must be wired by
 $need('assets/js/team-chat.js',"e.target.closest('[data-team-chat-tab]')",'Team Chat tab activation must use delegated click handling.');
 $need('assets/css/home-team-chat.css','/* Minimal Team Chat scrollbars */','Team Chat must use minimal site-styled scrollbars.');
 $need('assets/css/home-team-chat.css','overflow-y:auto!important','Chat messages must scroll vertically.');
-$need('assets/css/home-team-chat.css','/* Hard-constrain the active chat so only message history scrolls. */','Team Chat must hard-constrain the active chat panel.');
-$need('assets/css/home-team-chat.css','flex:1 1 0!important','Team Chat message history must consume only remaining vertical space.');
-$need('assets/css/home-team-chat.css','height:0!important','Team Chat message history must be height-constrained to force scrolling.');
-$need('assets/css/home-team-chat.css','overflow:hidden!important','Team Chat shell must prevent the drawer from expanding beyond the viewport.');
+$need('assets/css/home-team-chat.css','/* Constrain Team Chat without collapsing the message pane. */','Team Chat must constrain the active chat without collapsing it.');
+$need('assets/css/home-team-chat.css','min-height:96px!important','Team Chat message history must retain visible height.');
+$need('assets/css/home-team-chat.css','overflow-y:auto!important','Team Chat message history must scroll vertically.');
+$avoid('assets/css/home-team-chat.css','height:0!important','Team Chat message pane must never be collapsed to zero height.');
 $need('home.php','Automatic','Chat Settings modal must include Automatic status.');
 $need('home.php','Available','Chat Settings modal must include Available status.');
 $need('home.php','Away','Chat Settings modal must include Away status.');
