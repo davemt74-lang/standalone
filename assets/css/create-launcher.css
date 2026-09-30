@@ -1,0 +1,100 @@
+/* Global Create launcher — isolated from page-level button/form styling. */
+dialog.appCreateDialog{
+  width:min(780px,calc(100vw - 32px))!important;
+  max-width:780px!important;
+  max-height:min(86vh,820px)!important;
+  margin:auto!important;
+  padding:0!important;
+  border:1px solid #d7dce1!important;
+  border-radius:18px!important;
+  background:#fff!important;
+  color:#262b30!important;
+  box-shadow:0 28px 90px rgba(17,24,39,.24)!important;
+  overflow:auto!important;
+}
+dialog.appCreateDialog::backdrop{background:rgba(20,25,30,.38);backdrop-filter:blur(2px)}
+dialog.appCreateDialog .appCreateMenu,
+dialog.appCreateDialog form.appCreateForm{display:block!important;padding:24px!important;background:#fff!important;color:#262b30!important}
+dialog.appCreateDialog .appCreateMenu[hidden],
+dialog.appCreateDialog form.appCreateForm[hidden]{display:none!important}
+dialog.appCreateDialog .appCreateMenu>header,
+dialog.appCreateDialog form.appCreateForm>header{display:grid!important;grid-template-columns:minmax(0,1fr) 36px!important;gap:18px!important;align-items:start!important;margin:0 0 20px!important;padding:0!important;border:0!important;background:transparent!important}
+dialog.appCreateDialog form.appCreateForm>header{grid-template-columns:36px minmax(0,1fr) 36px!important}
+dialog.appCreateDialog .appCreateMenu h2,
+dialog.appCreateDialog form.appCreateForm h2{margin:4px 0 0!important;color:#20252a!important;font-size:1.45rem!important;line-height:1.15!important;letter-spacing:-.03em!important}
+dialog.appCreateDialog .appCreateMenu header p{margin:8px 0 0!important;color:#6f7780!important;font-size:.78rem!important;line-height:1.5!important}
+dialog.appCreateDialog .appCreateClose,
+dialog.appCreateDialog .appCreateBack{
+  appearance:none!important;width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;
+  margin:0!important;padding:0!important;border:1px solid #d9dee3!important;border-radius:50%!important;
+  background:#fff!important;color:#4a5158!important;box-shadow:none!important;font-size:.9rem!important;font-weight:700!important;
+  line-height:1!important;display:grid!important;place-items:center!important
+}
+dialog.appCreateDialog .appCreateClose:hover,
+dialog.appCreateDialog .appCreateBack:hover{background:#f4f5f6!important;color:#22272b!important;border-color:#c8ced4!important}
+dialog.appCreateDialog .appCreateGrid{
+  width:100%!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:11px!important
+}
+dialog.appCreateDialog button.appCreateChoice{
+  appearance:none!important;width:100%!important;min-width:0!important;min-height:112px!important;margin:0!important;padding:15px!important;
+  display:grid!important;grid-template-columns:38px minmax(0,1fr) 18px!important;gap:11px!important;align-items:start!important;
+  border:1px solid #dce1e5!important;border-radius:12px!important;background:#fff!important;color:#3d444b!important;
+  box-shadow:none!important;text-align:left!important;text-transform:none!important;letter-spacing:0!important;white-space:normal!important
+}
+dialog.appCreateDialog button.appCreateChoice:hover{background:#f7f8f9!important;border-color:#c5cbd1!important;transform:translateY(-1px)!important}
+dialog.appCreateDialog .appCreateChoiceIcon{
+  width:36px!important;height:36px!important;display:grid!important;place-items:center!important;border:1px solid #d8dde2!important;
+  border-radius:9px!important;background:#f6f7f8!important;color:#4d555d!important;font-size:.8rem!important;font-weight:800!important
+}
+dialog.appCreateDialog .appCreateChoice>span:nth-child(2){min-width:0!important;display:grid!important;gap:5px!important}
+dialog.appCreateDialog .appCreateChoice strong{display:block!important;color:#353b41!important;font-size:.78rem!important;font-weight:800!important;line-height:1.25!important}
+dialog.appCreateDialog .appCreateChoice small{display:block!important;color:#717981!important;font-size:.64rem!important;font-weight:500!important;line-height:1.4!important}
+dialog.appCreateDialog .appCreateChoice i{align-self:center!important;color:#9299a0!important;font-size:.9rem!important;font-style:normal!important}
+dialog.appCreateDialog .appCreateError{margin:0 0 16px!important;padding:10px 12px!important;border:1px solid #f0caca!important;border-radius:9px!important;background:#fff5f5!important;color:#8b1e1e!important;font-size:.72rem!important}
+dialog.appCreateDialog .appCreateFields{
+  width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:15px 14px!important;
+  align-items:start!important
+}
+dialog.appCreateDialog .appCreateFields>label{
+  min-width:0!important;margin:0!important;padding:0!important;display:flex!important;flex-direction:column!important;gap:7px!important;
+  color:#454c53!important;font-size:.7rem!important;font-weight:750!important;line-height:1.3!important
+}
+dialog.appCreateDialog .appCreateFields>label.appCreateFieldFull{grid-column:1/-1!important}
+dialog.appCreateDialog .appCreateFields input,
+dialog.appCreateDialog .appCreateFields textarea,
+dialog.appCreateDialog .appCreateFields select{
+  box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;
+  padding:10px 11px!important;border:1px solid #cfd5da!important;border-radius:9px!important;background:#fff!important;color:#22272b!important;
+  box-shadow:none!important;font:inherit!important;font-size:.76rem!important;line-height:1.4!important
+}
+dialog.appCreateDialog .appCreateFields input,
+dialog.appCreateDialog .appCreateFields select{min-height:42px!important}
+dialog.appCreateDialog .appCreateFields textarea{min-height:96px!important;resize:vertical!important}
+dialog.appCreateDialog .appCreateFields input:focus,
+dialog.appCreateDialog .appCreateFields textarea:focus,
+dialog.appCreateDialog .appCreateFields select:focus{outline:2px solid #b7bdc3!important;outline-offset:1px!important;border-color:#9da5ad!important}
+dialog.appCreateDialog .appCreateFields label small{color:#808890!important;font-size:.6rem!important;font-weight:600!important}
+dialog.appCreateDialog form.appCreateForm>footer{
+  width:100%!important;margin:20px 0 0!important;padding:16px 0 0!important;border-top:1px solid #e9ecef!important;
+  display:flex!important;justify-content:flex-end!important;gap:9px!important;background:transparent!important
+}
+dialog.appCreateDialog form.appCreateForm>footer button{
+  appearance:none!important;width:auto!important;min-height:40px!important;margin:0!important;padding:9px 15px!important;
+  border:1px solid #23282d!important;border-radius:9px!important;background:#252a2f!important;color:#fff!important;box-shadow:none!important;font-size:.72rem!important;font-weight:800!important
+}
+dialog.appCreateDialog form.appCreateForm>footer button.secondary,
+dialog.appCreateDialog form.appCreateForm>footer button[data-create-back]{border-color:#d6dbe0!important;background:#fff!important;color:#4a5158!important}
+dialog.appCreateDialog form.appCreateForm>footer button:hover{filter:none!important;background:#171b1f!important}
+dialog.appCreateDialog form.appCreateForm>footer button.secondary:hover,
+dialog.appCreateDialog form.appCreateForm>footer button[data-create-back]:hover{background:#f4f5f6!important}
+@media(max-width:760px){
+  dialog.appCreateDialog .appCreateGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  dialog.appCreateDialog .appCreateFields{grid-template-columns:1fr!important}
+  dialog.appCreateDialog .appCreateFields>label.appCreateFieldFull{grid-column:auto!important}
+}
+@media(max-width:520px){
+  dialog.appCreateDialog{width:calc(100vw - 16px)!important;max-height:92vh!important;border-radius:14px!important}
+  dialog.appCreateDialog .appCreateMenu,dialog.appCreateDialog form.appCreateForm{padding:17px!important}
+  dialog.appCreateDialog .appCreateGrid{grid-template-columns:1fr!important}
+  dialog.appCreateDialog button.appCreateChoice{min-height:auto!important}
+}
