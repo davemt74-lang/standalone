@@ -1,0 +1,10 @@
+name: Package Team Chat scroll hardfix
+on:
+  push:
+    branches:
+      - chatgpt/package-9e41aa39
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
