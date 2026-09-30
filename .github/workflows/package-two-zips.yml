@@ -46,6 +46,14 @@ jobs:
           test -f package-website/install.php
           test -f package-website/upgrade.php
           test -f package-website/database/schema.sql
+          test -f package-website/database/migrations/20260930_114_agent_memory_knowledge_management.sql
+          test -f package-website/app/research-agent-memory.php
+          test -f package-website/api/research-agent-memory.php
+          test -f package-website/assets/js/research-agent-memory.js
+          test -f package-website/tests/phase79-section3-agent-memory-knowledge-management-contract.php
+          test -f package-website/tests/phase79-section3-agent-memory-knowledge-management-db.php
+          test -f package-website/tests/ci/phase79-section3-upgrade-from-113.php
+          test -f package-website/docs/phase-79-section-3-agent-memory-knowledge-management.md
           test -f package-website/database/migrations/20260930_106_research_agent_stories.sql
           test -f package-website/app/research-agent-stories.php
           test -f package-website/api/research-agent-stories.php

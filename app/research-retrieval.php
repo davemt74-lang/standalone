@@ -541,6 +541,24 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
         }
     }
 
+    if($query!==''&&function_exists('research_memory_ready')&&research_memory_ready($pdo)){
+        try{
+            $likeCorrection='%'.$query.'%';$correctionWhere=$where;
+            $correctionWhere[]="mc.retrieval_state<>'exclude'";
+            $correctionWhere[]='mc.correction_text IS NOT NULL';
+            $correctionWhere[]='mc.correction_text LIKE ?';
+            $correctionParams=array_merge($params,[$likeCorrection]);
+            $mq=$pdo->prepare("SELECT d.*,c.id chunk_id,c.chunk_index,c.locator_type,c.locator_label,c.locator_json,c.heading,c.content,6 lexical_score,c.embedding_json
+              FROM research_memory_controls mc
+              JOIN research_retrieval_documents d ON d.project_id=mc.project_id AND d.object_type=mc.object_type AND d.object_public_id=mc.object_public_id
+              LEFT JOIN research_retrieval_chunks c ON c.id=(SELECT c2.id FROM research_retrieval_chunks c2 WHERE c2.document_id=d.id ORDER BY c2.chunk_index LIMIT 1)
+              WHERE ".implode(' AND ',$correctionWhere)."
+              ORDER BY mc.updated_at DESC LIMIT ".($limit*3));
+            $mq->execute($correctionParams);
+            foreach($mq->fetchAll()?:[] as $row)$rows[]=$row;
+        }catch(Throwable $e){}
+    }
+
     $queryVector=null;$semanticRows=[];
     if($query!==''&&research_retrieval_embed_command($config)!==''){
         try{
@@ -561,6 +579,7 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
         foreach($semanticRows as $row){$key=(string)($row['chunk_id']??'');if($key!==''&&isset($seenChunks[$key]))continue;$rows[]=$row;if($key!=='')$seenChunks[$key]=true;}
     }
 
+    $memoryControlMap=(function_exists('research_memory_controls_map')&&research_memory_ready($pdo))?research_memory_controls_map($pdo,$projectId):null;
     $best=[];foreach($rows as $row){
         if(!research_retrieval_result_allowed($pdo,$viewer,$row))continue;
         $metadata=json_decode((string)($row['metadata_json']??''),true)?:[];
@@ -577,6 +596,10 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
           'snippet'=>research_retrieval_snippet((string)($row['content']??''),$query),'href'=>research_retrieval_href($row),
           'citation'=>['type'=>(string)$row['object_type'],'id'=>(string)$row['object_public_id'],'locator'=>$locator?:null,'label'=>(string)$row['title'].($locator!==''?' · '.$locator:'')]
         ];
+        if(function_exists('research_memory_apply_result')){
+            $result=research_memory_apply_result($pdo,$viewer,$project,$result,$memoryControlMap);
+            if($result===null)continue;
+        }
         $best[$key]=$result;
     }
     $results=array_values($best);usort($results,function($a,$b)use($query){if($query==='')return strcmp((string)$b['updated_at'],(string)$a['updated_at']);return ($b['score']<=>$a['score'])?:strcmp((string)$b['updated_at'],(string)$a['updated_at']);});$results=array_slice($results,0,$limit);

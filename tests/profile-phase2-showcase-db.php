@@ -21,18 +21,23 @@ $makeAnnotation=function(string $label)use($pdo,$owner,$pub): array{
     $pdo->prepare("INSERT INTO captures(public_id,source_id,source_version_id,user_id,capture_type,selected_text) VALUES(?,?,?,?,'text',?)")->execute([$pub('cap'),$sid,$sv,(int)$owner['id'],$text]);$cap=(int)$pdo->lastInsertId();
     $aid=$pub('ann');$pdo->prepare("INSERT INTO annotations(public_id,user_id,source_id,source_version_id,capture_id,text_commentary,visibility,status,published_at) VALUES(?,?,?,?,?,?,'public','published',NOW())")->execute([$aid,(int)$owner['id'],$sid,$sv,$cap,'Comment '.$label]);return ['public_id'=>$aid,'source_id'=>$sid];
 };
-$a1=$makeAnnotation('One');$a2=$makeAnnotation('Two');
+$a1=$makeAnnotation('One');$a2=$makeAnnotation('Two');$a3=$makeAnnotation('Three');$a4=$makeAnnotation('Four');$a5=$makeAnnotation('Five');
 
 $pdo->prepare("INSERT INTO collections(public_id,owner_user_id,title,description,visibility) VALUES(?,?,?,?, 'public')")->execute([$pub('col'),(int)$owner['id'],'Public Collection','Profile showcase collection']);$collectionPublic=$pdo->prepare('SELECT public_id FROM collections WHERE owner_user_id=? ORDER BY id DESC LIMIT 1');$collectionPublic->execute([(int)$owner['id']]);$collectionId=(string)$collectionPublic->fetchColumn();$q=$pdo->prepare('SELECT id FROM collections WHERE public_id=?');$q->execute([$collectionId]);$cid=(int)$q->fetchColumn();$q=$pdo->prepare('SELECT id FROM annotations WHERE public_id=?');$q->execute([$a1['public_id']]);$aid=(int)$q->fetchColumn();$pdo->prepare('INSERT INTO collection_items(collection_id,annotation_id,added_by_user_id) VALUES(?,?,?)')->execute([$cid,$aid,(int)$owner['id']]);
 
 $projectPublic=$pub('project');$pdo->prepare('INSERT INTO research_projects(public_id,owner_user_id,title,description) VALUES(?,?,?,?)')->execute([$projectPublic,(int)$owner['id'],'Profile Research','Published profile research']);$projectId=(int)$pdo->lastInsertId();
 $reportPublic=$pub('report');$pdo->prepare("INSERT INTO research_reports(public_id,project_id,created_by_user_id,title,summary,visibility,status,published_at) VALUES(?,?,?,?,?,'public','published',NOW())")->execute([$reportPublic,$projectId,(int)$owner['id'],'Public Research Report','Immutable public research result']);$reportId=(int)$pdo->lastInsertId();$snapshot=json_encode(['project'=>['title'=>'Public Research Report','summary'=>'Immutable public research result'],'findings'=>[],'claims'=>[],'sources'=>[]],JSON_UNESCAPED_SLASHES);$pdo->prepare("INSERT INTO research_report_versions(public_id,report_id,version_number,published_by_user_id,visibility,title,summary,snapshot_json,snapshot_hash) VALUES(?,?,1,?,'public',?,?,?,?)")->execute([$pub('rv'),$reportId,(int)$owner['id'],'Public Research Report','Immutable public research result',$snapshot,hash('sha256',$snapshot)]);$versionId=(int)$pdo->lastInsertId();$pdo->prepare('UPDATE research_reports SET current_version_id=? WHERE id=?')->execute([$versionId,$reportId]);
 
-profile_showcase_pin_set($pdo,$owner,'annotation',$a1['public_id'],true);profile_showcase_pin_set($pdo,$owner,'research_report',$reportPublic,true);profile_showcase_pin_set($pdo,$owner,'collection',$collectionId,true);
-$q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===3,'Profile Phase 2 enforces three durable public showcase pins.');
-pp2throws(fn()=>profile_showcase_pin_set($pdo,$owner,'annotation',$a2['public_id'],true),'Profile Phase 2 rejects a fourth live public pin.');
+profile_showcase_pin_set($pdo,$owner,'annotation',$a1['public_id'],true);
+profile_showcase_pin_set($pdo,$owner,'annotation',$a2['public_id'],true);
+profile_showcase_pin_set($pdo,$owner,'annotation',$a3['public_id'],true);
+profile_showcase_pin_set($pdo,$owner,'annotation',$a4['public_id'],true);
+profile_showcase_pin_set($pdo,$owner,'research_report',$reportPublic,true);
+profile_showcase_pin_set($pdo,$owner,'collection',$collectionId,true);
+$q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===6,'Profile showcase enforces six durable public showcase pins.');
+pp2throws(fn()=>profile_showcase_pin_set($pdo,$owner,'annotation',$a5['public_id'],true),'Profile showcase rejects a seventh live public pin.');
 
-$pdo->prepare("UPDATE collections SET visibility='private' WHERE public_id=?")->execute([$collectionId]);profile_showcase_pin_set($pdo,$owner,'annotation',$a2['public_id'],true);$q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===3,'Profile Phase 2 prunes stale/private pins before applying the three-item limit.');
+$pdo->prepare("UPDATE collections SET visibility='private' WHERE public_id=?")->execute([$collectionId]);profile_showcase_pin_set($pdo,$owner,'annotation',$a5['public_id'],true);$q=$pdo->prepare('SELECT COUNT(*) FROM profile_pins WHERE user_id=?');$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===6,'Profile showcase prunes stale/private pins before applying the six-item limit.');
 $q=$pdo->prepare("SELECT COUNT(*) FROM profile_pins WHERE user_id=? AND object_type='collection'");$q->execute([(int)$owner['id']]);pp2((int)$q->fetchColumn()===0,'A collection removed from public visibility can no longer remain pinned.');
 
 $pdo->prepare('INSERT INTO follows(follower_user_id,followed_user_id) VALUES(?,?),(?,?)')->execute([(int)$publicPerson['id'],(int)$owner['id'],(int)$privatePerson['id'],(int)$owner['id']]);
@@ -41,7 +46,7 @@ $people=profile_showcase_people($pdo,(int)$owner['id'],'followers',null,100);pp2
 $collections=profile_showcase_public_collections($pdo,(int)$owner['id'],20);pp2(count($collections)===0,'Collections tab resolves only currently public collections.');
 $pdo->prepare("UPDATE collections SET visibility='public' WHERE public_id=?")->execute([$collectionId]);$collections=profile_showcase_public_collections($pdo,(int)$owner['id'],20);pp2(count($collections)===1&&(int)$collections[0]['item_count']===1,'Collections tab reuses the existing public collection and public-annotation visibility model.');
 
-$profile=public_discovery_profile($pdo,(string)$owner['username'],null);pp2($profile!==null&&count($profile['reports'])===1&&count($profile['annotations'])===2,'Profile presentation reuses existing public annotation and immutable public Research discovery.');
-$activity=profile_showcase_activity($profile,$collections);pp2(count($activity)>=4&&in_array('research_report',array_column($activity,'type'),true)&&in_array('collection',array_column($activity,'type'),true),'Activity composes existing public object types without copying their records.');
+$profile=public_discovery_profile($pdo,(string)$owner['username'],null);pp2($profile!==null&&count($profile['reports'])===1&&count($profile['annotations'])===5,'Profile presentation reuses existing public annotation and immutable public Research discovery.');
+$activity=profile_showcase_activity($profile,$collections);pp2(count($activity)>=7&&in_array('research_report',array_column($activity,'type'),true)&&in_array('collection',array_column($activity,'type'),true),'Activity composes existing public object types without copying their records.');
 
 echo "Profile Phase 2 database journey passed.\n";
