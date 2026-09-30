@@ -4,9 +4,9 @@ $root=dirname(__DIR__);$fail=[];
 $need=function(string $path,string $needle,string $message)use($root,&$fail){$c=(string)@file_get_contents($root.'/'.$path);if($c===''||!str_contains($c,$needle))$fail[]=$message;};
 $avoid=function(string $path,string $needle,string $message)use($root,&$fail){$c=(string)@file_get_contents($root.'/'.$path);if($c!==''&&str_contains($c,$needle))$fail[]=$message;};
 
-$need('database/migrations/20261001_114_agent_memory_knowledge_management.sql','CREATE TABLE IF NOT EXISTS research_memory_controls','Section 3 must persist per-object Agent Memory controls.');
-$need('database/migrations/20261001_114_agent_memory_knowledge_management.sql','CREATE TABLE IF NOT EXISTS research_memory_events','Section 3 must keep append-only memory change history.');
-$need('database/migrations/20261001_114_agent_memory_knowledge_management.sql','CREATE TABLE IF NOT EXISTS research_memory_usage','Section 3 must keep Agent retrieval usage history.');
+$need('database/migrations/20260930_114_agent_memory_knowledge_management.sql','CREATE TABLE IF NOT EXISTS research_memory_controls','Section 3 must persist per-object Agent Memory controls.');
+$need('database/migrations/20260930_114_agent_memory_knowledge_management.sql','CREATE TABLE IF NOT EXISTS research_memory_events','Section 3 must keep append-only memory change history.');
+$need('database/migrations/20260930_114_agent_memory_knowledge_management.sql','CREATE TABLE IF NOT EXISTS research_memory_usage','Section 3 must keep Agent retrieval usage history.');
 $need('app/bootstrap.php',"require_once __DIR__ . '/research-agent-memory.php';",'Agent Memory governance service must load globally.');
 $need('app/research-agent-memory.php','function research_memory_upsert','Agent Memory must expose governed updates.');
 $need('app/research-agent-memory.php','function research_memory_object_exists','Memory controls must validate objects against the selected Agent Project.');
