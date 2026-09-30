@@ -6,7 +6,7 @@ $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p
 $avoid=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&str_contains($c,$n))$fail[]=$m;};
 
 $need('app/shell.php','$isAdminDashboard','Admin shell must identify the Dashboard separately.');
-$need('app/shell.php',"$headerSearch=$isAdminDashboard?'':app_shell_search();",'Dashboard must suppress the universal header search.');
+$need('app/shell.php',"\$headerSearch=\$isAdminDashboard?'':app_shell_search();",'Dashboard must suppress the universal header search.');
 $need('app/shell.php','appShellHeaderAdmin','Admin pages must expose a dedicated header geometry hook.');
 $need('assets/css/app.css','/* Admin shell geometry hardening — center every admin workspace in the canvas. */','Admin shell geometry hardening must exist.');
 $need('assets/css/app.css','width:calc(100% - 268px)!important','Admin content width must exclude the fixed sidebar.');
