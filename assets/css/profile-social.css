@@ -1,0 +1,177 @@
+/* Annotated Social Profile — isolated page system */
+.annotatedProfileBody{margin:0;background:#f5f7fa;color:#111827;overflow-x:hidden}
+.annotatedProfilePage{width:100%;min-height:100vh;padding:0 0 72px;overflow-x:clip}
+
+.annotatedProfileGuestHeader{height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(18px,4vw,56px);background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:60}
+.annotatedProfileGuestBrand{display:flex;align-items:center;gap:10px;color:#111827;text-decoration:none;font-size:18px}
+.annotatedProfileGuestBrand>span{width:34px;height:34px;border:2px solid #111827;border-radius:9px;display:grid;place-items:center;font-weight:900}
+.annotatedProfileGuestHeader nav{display:flex;align-items:center;gap:18px}
+.annotatedProfileGuestHeader nav a{color:#475569;text-decoration:none;font-weight:700}
+.annotatedProfileGuestCta{padding:9px 14px;border-radius:999px;background:#111827;color:#fff!important}
+
+.annotatedProfileNotice,.annotatedProfileAlert{max-width:1180px;margin:16px auto 0;padding:12px 16px;border-radius:12px}
+.annotatedProfileNotice{display:flex;align-items:center;justify-content:space-between;gap:18px;background:#fff;border:1px solid #e2e8f0;color:#475569}
+.annotatedProfileNotice a{font-weight:800;text-decoration:none}
+.annotatedProfileAlert.error{background:#fff1f2;border:1px solid #fecdd3;color:#9f1239}
+.annotatedProfileAlert.success{background:#ecfdf5;border:1px solid #bbf7d0;color:#166534}
+
+.annotatedProfileHero{background:#fff;border-bottom:1px solid #e5e7eb}
+.annotatedProfileCover{width:100%;height:clamp(240px,31vw,420px);background:linear-gradient(135deg,#1f2937 0%,#475569 52%,#cbd5e1 100%);background-size:cover;background-position:center;position:relative}
+.annotatedProfileCover:after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.03),rgba(15,23,42,.18))}
+.annotatedProfileHeroContent{max-width:1180px;margin:-78px auto 0;padding:0 28px 28px;display:flex;align-items:flex-end;justify-content:space-between;gap:28px;position:relative;z-index:2}
+.annotatedProfileIdentity{display:flex;align-items:flex-end;gap:24px;min-width:0}
+.annotatedProfileAvatarFrame{flex:0 0 auto;padding:5px;border-radius:50%;background:#fff;box-shadow:0 10px 30px rgba(15,23,42,.18)}
+.annotatedProfileAvatar{width:154px;height:154px;border-radius:50%;object-fit:cover;display:grid;place-items:center}
+.annotatedProfileAvatarFallback{background:#e2e8f0;color:#334155;font-size:52px;font-weight:900}
+.annotatedProfileIdentityCopy{min-width:0;padding-bottom:7px}
+.annotatedProfileIdentityCopy h1{margin:0;font-size:clamp(34px,4vw,50px);line-height:1;letter-spacing:-.04em;color:#0f172a}
+.annotatedProfileHandle{margin-top:7px;color:#64748b;font-size:14px;font-weight:800}
+.annotatedProfileBio{max-width:680px;margin:12px 0 0;color:#475569;font-size:16px;line-height:1.58}
+.annotatedProfileWebsite{display:inline-block;margin-top:10px;color:#334155;text-decoration:none;font-weight:750;overflow-wrap:anywhere}
+.annotatedProfileWebsite:hover{text-decoration:underline}
+
+.annotatedProfileActions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding-bottom:8px}
+.annotatedProfilePrimary,.annotatedProfileSecondary,.annotatedProfileIconButton{min-height:42px;border-radius:12px;font:inherit;font-weight:800;cursor:pointer}
+.annotatedProfilePrimary{display:inline-flex;align-items:center;justify-content:center;padding:0 18px;border:1px solid #111827;background:#111827;color:#fff;text-decoration:none}
+.annotatedProfilePrimary:hover{background:#1f2937;color:#fff}
+.annotatedProfilePrimary[aria-pressed=true]{background:#fff;color:#111827}
+.annotatedProfileSecondary{display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #cbd5e1;background:#fff;color:#334155;text-decoration:none}
+.annotatedProfileSecondary:hover{background:#f8fafc}
+.annotatedProfileIconButton{width:42px;height:42px;border:1px solid #cbd5e1;background:#fff;color:#334155}
+.annotatedProfileRelationship{padding:8px 10px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:800}
+
+.annotatedProfileStats{max-width:1180px;margin:0 auto;padding:0 28px;display:flex;align-items:stretch;overflow-x:auto}
+.annotatedProfileStats a{min-width:110px;padding:17px 18px;color:#475569;text-decoration:none;border-radius:12px 12px 0 0}
+.annotatedProfileStats a:hover{background:#f8fafc}
+.annotatedProfileStats strong,.annotatedProfileStats span{display:block}
+.annotatedProfileStats strong{font-size:21px;color:#111827}
+.annotatedProfileStats span{margin-top:2px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:800}
+
+.annotatedProfileTabs{position:sticky;top:68px;z-index:24;display:flex;gap:2px;overflow-x:auto;width:100%;padding:0 max(16px,calc((100vw - 1180px)/2 + 28px));box-sizing:border-box;background:rgba(255,255,255,.97);backdrop-filter:blur(14px);border-bottom:1px solid #e5e7eb}
+.annotatedProfileTabs a{display:flex;align-items:center;gap:7px;padding:15px 16px;color:#64748b;text-decoration:none;font-weight:800;white-space:nowrap;border-bottom:3px solid transparent}
+.annotatedProfileTabs a:hover{color:#111827}
+.annotatedProfileTabs a.active{color:#111827;border-bottom-color:#111827}
+.annotatedProfileTabs a span{padding:2px 7px;border-radius:999px;background:#f1f5f9;font-size:11px}
+
+.annotatedProfileCanvas{max-width:1180px;margin:0 auto;padding:34px 28px 0}
+.annotatedProfileSection{margin-bottom:38px}
+.annotatedProfileSectionHeader{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:18px}
+.annotatedProfileSectionHeader>div>span{display:block;margin-bottom:5px;color:#94a3b8;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.annotatedProfileSectionHeader h2{margin:0;font-size:28px;letter-spacing:-.03em}
+.annotatedProfileSectionHeader small{color:#94a3b8;font-weight:700}
+
+.annotatedProfileGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.annotatedProfileFeed{display:grid;gap:18px;max-width:860px}
+.annotatedProfileCard,.annotatedProfileStory,.annotatedProfileEmpty,.annotatedProfileAbout,.annotatedProfileAnnotationWrap{background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.045)}
+.annotatedProfileCard{min-height:220px;display:flex;flex-direction:column;padding:20px}
+.annotatedProfileCardTop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.annotatedProfileCardTop>span,.annotatedProfileType{color:#94a3b8;font-size:10px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.annotatedProfileCard h3{margin:18px 0 8px;font-size:21px;line-height:1.2}
+.annotatedProfileCard h3 a{color:#111827;text-decoration:none}
+.annotatedProfileCard h3 a:hover{text-decoration:underline}
+.annotatedProfileCard p{margin:0;color:#475569;line-height:1.55}
+.annotatedProfileCard footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;padding-top:18px;color:#94a3b8;font-size:12px}
+
+.annotatedProfilePin{margin:0}
+.annotatedProfilePin button{padding:6px 9px;border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#475569;font-size:11px;font-weight:800;cursor:pointer}
+.annotatedProfilePin button:hover{background:#111827;color:#fff;border-color:#111827}
+
+.annotatedProfileResearchAction{margin-top:16px}
+.annotatedProfileResearchAction summary{cursor:pointer;color:#475569;font-size:12px;font-weight:800}
+.annotatedProfileResearchAction form{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;margin-top:8px}
+.annotatedProfileResearchAction select,.annotatedProfileResearchAction button{min-height:36px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font:inherit}
+.annotatedProfileResearchAction button{padding:0 10px;font-weight:800;cursor:pointer}
+
+.annotatedProfileAgentLink{display:flex;flex:1;flex-direction:column;color:inherit;text-decoration:none}
+.annotatedProfileAgentIdentity{display:flex;align-items:center;gap:12px;margin-top:14px}
+.annotatedProfileAgentIdentity>img,.annotatedProfileAgentIdentity>span{width:58px;height:58px;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:#111827;color:#fff;font-weight:900}
+.annotatedProfileAgentIdentity>div{display:flex;flex-direction:column;min-width:0}
+.annotatedProfileAgentIdentity small{margin-top:3px;color:#94a3b8}
+.annotatedProfileAgentCard p{margin-top:14px}
+.annotatedProfileOpenLink{margin-top:auto;padding-top:18px;color:#334155}
+
+.annotatedProfileStoryRail{display:flex;gap:18px;overflow-x:auto;padding:2px 2px 24px}
+.annotatedProfileStoryRail>a{flex:0 0 92px;display:flex;flex-direction:column;align-items:center;gap:6px;color:#334155;text-decoration:none;text-align:center}
+.annotatedProfileStoryRail strong{max-width:88px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.annotatedProfileStoryRail small{font-size:11px;color:#94a3b8}
+.annotatedProfileStoryRing{width:72px;height:72px;padding:3px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#111827,#64748b,#cbd5e1);color:#fff;font-size:22px;font-weight:900}
+.annotatedProfileStoryRing img{width:100%;height:100%;object-fit:cover;border-radius:50%;border:3px solid #fff}
+.annotatedProfileStoryGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.annotatedProfileStory{padding:22px;scroll-margin-top:132px}
+.annotatedProfileStory>header{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.annotatedProfileStoryAvatar{width:44px;height:44px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#e2e8f0;font-weight:900}
+.annotatedProfileStoryAvatar img{width:100%;height:100%;object-fit:cover}
+.annotatedProfileStory>header>div:last-child{display:flex;flex-direction:column}
+.annotatedProfileStory header small{color:#94a3b8}
+.annotatedProfileStory h3{margin:8px 0;font-size:22px}
+.annotatedProfileStory>p{margin:0;color:#475569;line-height:1.58}
+.annotatedProfileStory aside{margin-top:16px;padding:14px;border-radius:13px;background:#f8fafc}
+.annotatedProfileStory aside p{margin:5px 0 0;color:#475569}
+.annotatedProfileStory footer{margin-top:18px}
+.annotatedProfileStory footer a{text-decoration:none;font-weight:800}
+
+.annotatedProfileAnnotationWrap{position:relative;overflow:visible;padding:4px}
+.annotatedProfileAnnotationWrap>.annotatedProfilePin{position:absolute;right:12px;top:12px;z-index:150}
+.annotatedProfileAnnotationWrap>.annotatedProfileResearchAction{position:relative;z-index:5;margin:8px 14px 12px}
+
+.annotatedProfileEmpty{grid-column:1/-1;padding:44px 28px;text-align:center}
+.annotatedProfileEmpty h3{margin:0;font-size:18px}
+.annotatedProfileEmpty p{max-width:520px;margin:7px auto 0;color:#64748b;line-height:1.5}
+
+.annotatedProfileAbout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:hidden}
+.annotatedProfileAbout>div{padding:20px;border-bottom:1px solid #edf2f7}
+.annotatedProfileAbout>div:nth-child(odd){border-right:1px solid #edf2f7}
+.annotatedProfileAbout>div>span{display:block;margin-bottom:6px;color:#94a3b8;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.annotatedProfileAbout p{margin:0;color:#334155;line-height:1.55}
+
+.annotatedProfileEditDialog{width:min(680px,calc(100vw - 28px));max-height:90vh;border:0;border-radius:22px;padding:0;box-shadow:0 28px 80px rgba(15,23,42,.3)}
+.annotatedProfileEditDialog::backdrop{background:rgba(15,23,42,.55);backdrop-filter:blur(3px)}
+.annotatedProfileEditForm{display:grid;gap:16px;padding:24px;background:#fff}
+.annotatedProfileEditForm>header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.annotatedProfileEditForm>header span{display:block;color:#94a3b8;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.annotatedProfileEditForm>header h2{margin:2px 0 0;font-size:27px}
+.annotatedProfileEditForm>header button{width:38px;height:38px;border:0;border-radius:10px;background:#f1f5f9;font-size:22px;cursor:pointer}
+.annotatedProfileEditForm label{display:grid;gap:7px;color:#334155;font-weight:800}
+.annotatedProfileEditForm input,.annotatedProfileEditForm textarea{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;font:inherit}
+.annotatedProfileEditForm textarea{resize:vertical}
+.annotatedProfileEditMedia{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.annotatedProfileEditMedia label{padding:14px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc}
+.annotatedProfileEditMedia small{font-weight:600;color:#64748b}
+.annotatedProfileEditForm>footer{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.annotatedProfileEditForm>footer>div{display:flex;gap:10px}
+.annotatedProfileEditForm>footer>a{color:#64748b;text-decoration:none;font-weight:800}
+
+@media(max-width:960px){
+  .annotatedProfileHeroContent{align-items:flex-start;flex-direction:column;margin-top:-64px}
+  .annotatedProfileActions{width:100%;justify-content:flex-start}
+  .annotatedProfileGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:720px){
+  .annotatedProfileCover{height:220px}
+  .annotatedProfileHeroContent{padding:0 18px 22px;gap:18px}
+  .annotatedProfileIdentity{align-items:flex-start;flex-direction:column;gap:12px}
+  .annotatedProfileAvatar{width:118px;height:118px}
+  .annotatedProfileAvatarFallback{font-size:40px}
+  .annotatedProfileIdentityCopy h1{font-size:34px}
+  .annotatedProfileStats{padding:0 12px}
+  .annotatedProfileStats a{min-width:94px;padding:14px 12px}
+  .annotatedProfileTabs{padding:0 8px;top:68px}
+  .annotatedProfileTabs a{padding:13px 12px}
+  .annotatedProfileCanvas{padding:24px 16px 0}
+  .annotatedProfileGrid,.annotatedProfileStoryGrid{grid-template-columns:1fr}
+  .annotatedProfileAbout{grid-template-columns:1fr}
+  .annotatedProfileAbout>div:nth-child(odd){border-right:0}
+  .annotatedProfileEditMedia{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .annotatedProfileGuestHeader{padding:0 16px}
+  .annotatedProfileGuestHeader nav>a:first-child{display:none}
+  .annotatedProfileCover{height:190px}
+  .annotatedProfileActions .annotatedProfilePrimary,.annotatedProfileActions .annotatedProfileSecondary{flex:1 1 auto}
+  .annotatedProfileResearchAction form{grid-template-columns:1fr}
+  .annotatedProfileStoryRail{gap:12px;margin-right:-16px;padding-right:16px}
+  .annotatedProfileStoryRail>a{flex-basis:78px}
+  .annotatedProfileStoryRing{width:62px;height:62px}
+  .annotatedProfileEditForm>footer{align-items:stretch;flex-direction:column}
+  .annotatedProfileEditForm>footer>div{display:grid;grid-template-columns:1fr 1fr}
+}
