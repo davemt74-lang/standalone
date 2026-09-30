@@ -18,6 +18,9 @@
   const mobileOpen=document.querySelector('[data-team-chat-open]');
   const mobileClose=rail.querySelector('[data-team-chat-close]');
   const totalUnread=document.querySelector('[data-team-chat-total-unread]');
+  const miniRail=document.querySelector('[data-team-chat-mini-rail]');
+  const miniMembers=document.querySelector('#teamChatMiniMembers');
+  const miniUnread=document.querySelector('[data-team-chat-mini-unread]');
   const csrf=rail.dataset.csrf||'';
 
   let railParentMessage='',railParentLabel='',railSequence=0,railNextBefore=null,railHistoryExpanded=false;
@@ -65,6 +68,22 @@
     return json.data||{};
   }
 
+  function renderMiniMembers(rows=[]){
+    if(!miniMembers)return;
+    miniMembers.replaceChildren();
+    const rank={online:0,away:1,busy:2,offline:3};
+    const sorted=[...rows].sort((a,b)=>{
+      const sa=rank[statusClass(a.effective_status)]??3,sb=rank[statusClass(b.effective_status)]??3;
+      if(sa!==sb)return sa-sb;
+      return String(a.display_name||a.username||'').localeCompare(String(b.display_name||b.username||''));
+    }).slice(0,8);
+    for(const row of sorted){
+      const person=document.createElement('span');person.className='teamChatMiniPerson';
+      person.title=(row.display_name||row.username||'Team member')+' · '+(row.custom_status||statusLabel(statusClass(row.effective_status)));
+      person.appendChild(avatar(row,'30'));miniMembers.appendChild(person);
+    }
+  }
+
   function renderTeamMembers(rows=[]){
     if(!members)return;
     members.replaceChildren();
@@ -77,6 +96,7 @@
       if(sa!==sb)return sa-sb;
       return String(a.display_name||a.username||'').localeCompare(String(b.display_name||b.username||''));
     });
+    renderMiniMembers(sorted);
     for(const row of sorted){
       const link=document.createElement('a');link.className='teamChatMember';link.href=absoluteProfile(row.username);
       link.appendChild(avatar(row,'30'));
@@ -160,6 +180,7 @@
   function updateTotalUnread(){
     const total=[...(select?.options||[])].reduce((sum,o)=>sum+(Number(o.dataset.unread)||0),0);
     if(totalUnread)totalUnread.textContent=total?'('+total+')':'';
+    if(miniUnread){miniUnread.hidden=!total;miniUnread.textContent=total>99?'99+':String(total||'');}
   }
 
   function setRailReply(publicId,label){
@@ -351,9 +372,18 @@
   select?.addEventListener('change',()=>{setRailReply('','');railNextBefore=null;railHistoryExpanded=false;syncTeamMeta();const option=currentOption();document.dispatchEvent(new CustomEvent('annotated:workspace-context',{detail:{team_public_id:option?.dataset.team||'',surface:'team'}}));loadRailMessages();});
   loadEarlier?.addEventListener('click',loadEarlierMessages);
   popoutCurrent?.addEventListener('click',()=>openPopup(select.value));
-  mobileOpen?.addEventListener('click',()=>document.body.classList.add('teamChatMobileOpen'));
-  mobileClose?.addEventListener('click',()=>document.body.classList.remove('teamChatMobileOpen'));
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('teamChatMobileOpen');});
+  function setRailOpen(open){
+    if(matchMedia('(max-width: 900px)').matches){
+      document.body.classList.toggle('teamChatMobileOpen',!!open);
+    }else{
+      document.body.classList.toggle('teamChatDesktopOpen',!!open);
+      miniRail?.setAttribute('aria-expanded',open?'true':'false');
+    }
+  }
+  miniRail?.addEventListener('click',()=>setRailOpen(true));
+  mobileOpen?.addEventListener('click',()=>setRailOpen(true));
+  mobileClose?.addEventListener('click',()=>setRailOpen(false));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')setRailOpen(false);});
   document.addEventListener('annotated:chat-presence',e=>updateSelfStatus(e.detail||{}));
   document.addEventListener('annotated:team-chat-share-complete',e=>{const conversation=String(e.detail?.conversation||'');if(!conversation)return;openPopup(conversation);refreshConversationList();if(select?.value===conversation)loadRailMessages({quiet:true});});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){loadRailMessages({quiet:true});for(const popup of popups.values())if(!popup.minimized)loadPopupMessages(popup,{quiet:true});}});
