@@ -24,6 +24,13 @@ function research_memory_project_access(PDO $pdo,array $viewer,string $projectPu
     return $project;
 }
 
+function research_memory_object_exists(PDO $pdo,int $projectId,string $type,string $publicId): bool {
+    if(!research_retrieval_ready($pdo))return false;
+    $q=$pdo->prepare('SELECT 1 FROM research_retrieval_documents WHERE project_id=? AND object_type=? AND object_public_id=? LIMIT 1');
+    $q->execute([$projectId,trim($type),trim($publicId)]);
+    return (bool)$q->fetchColumn();
+}
+
 function research_memory_control_row(PDO $pdo,int $projectId,string $type,string $publicId): ?array {
     if(!research_memory_ready($pdo))return null;
     $q=$pdo->prepare('SELECT * FROM research_memory_controls WHERE project_id=? AND object_type=? AND object_public_id=? LIMIT 1');
@@ -61,6 +68,7 @@ function research_memory_upsert(PDO $pdo,array $viewer,string $projectPublic,str
     if(!project_can_write($project))throw new RuntimeException('You do not have permission to manage this Agent memory.');
     $objectType=trim($objectType);$objectPublic=trim($objectPublic);
     if($objectType===''||$objectPublic==='')throw new InvalidArgumentException('Knowledge object is required.');
+    if(!research_memory_object_exists($pdo,(int)$project['id'],$objectType,$objectPublic))throw new RuntimeException('Knowledge object is unavailable in this Research Agent.');
     $retrievalState=strtolower(trim($retrievalState));if(!in_array($retrievalState,['inherit','include','exclude'],true))throw new InvalidArgumentException('Invalid retrieval state.');
     $correctionText=mb_substr(trim($correctionText),0,12000);
     $before=research_memory_control_row($pdo,(int)$project['id'],$objectType,$objectPublic);
@@ -148,9 +156,11 @@ function research_memory_history(PDO $pdo,array $viewer,string $projectPublic,st
     $out=[];foreach($q->fetchAll()?:[] as $r){$r['before']=json_decode((string)($r['before_json']??''),true);$r['after']=json_decode((string)($r['after_json']??''),true);unset($r['before_json'],$r['after_json']);$out[]=$r;}return $out;
 }
 
-function research_memory_catalog(PDO $pdo,array $viewer,string $projectPublic,int $limit=120): array {
-    $project=research_memory_project_access($pdo,$viewer,$projectPublic);$limit=max(1,min(250,$limit));
+function research_memory_catalog(PDO $pdo,array $viewer,string $projectPublic,int $limit=80,int $offset=0,string $query=''): array {
+    $project=research_memory_project_access($pdo,$viewer,$projectPublic);$limit=max(1,min(100,$limit));$offset=max(0,$offset);
     if(!research_retrieval_ready($pdo))return [];
+    $query=mb_substr(trim($query),0,190);$params=[(int)$project['id'],(int)$project['id']];$where='d.project_id=?';
+    if($query!==''){$like='%'.$query.'%';$where.=" AND (d.title LIKE ? OR d.object_type LIKE ? OR d.object_public_id LIKE ?)";array_push($params,$like,$like,$like);}
     $q=$pdo->prepare("SELECT d.object_type,d.object_public_id,d.title,d.source_status,d.source_updated_at,d.metadata_json,d.updated_at,
       c.retrieval_state,c.correction_text,c.corrected_at,
       COALESCE(u.usage_count,0) usage_count,u.last_used_at
@@ -160,8 +170,8 @@ function research_memory_catalog(PDO $pdo,array $viewer,string $projectPublic,in
         SELECT project_id,object_type,object_public_id,COUNT(*) usage_count,MAX(created_at) last_used_at
         FROM research_memory_usage WHERE project_id=? GROUP BY project_id,object_type,object_public_id
       ) u ON u.project_id=d.project_id AND u.object_type=d.object_type AND u.object_public_id=d.object_public_id
-      WHERE d.project_id=? ORDER BY COALESCE(u.last_used_at,d.source_updated_at,d.updated_at) DESC,d.id DESC LIMIT ".$limit);
-    $q->execute([(int)$project['id'],(int)$project['id']]);$out=[];
+      WHERE ".$where." ORDER BY COALESCE(u.last_used_at,d.source_updated_at,d.updated_at) DESC,d.id DESC LIMIT ".$limit." OFFSET ".$offset);
+    $q->execute($params);$out=[];
     foreach($q->fetchAll()?:[] as $r){
         $metadata=json_decode((string)($r['metadata_json']??''),true)?:[];
         $out[]=[
@@ -176,14 +186,25 @@ function research_memory_catalog(PDO $pdo,array $viewer,string $projectPublic,in
     return $out;
 }
 
+function research_memory_catalog_count(PDO $pdo,array $viewer,string $projectPublic,string $query=''): int {
+    $project=research_memory_project_access($pdo,$viewer,$projectPublic);$query=mb_substr(trim($query),0,190);
+    $sql='SELECT COUNT(*) FROM research_retrieval_documents d WHERE d.project_id=?';$params=[(int)$project['id']];
+    if($query!==''){$like='%'.$query.'%';$sql.=" AND (d.title LIKE ? OR d.object_type LIKE ? OR d.object_public_id LIKE ?)";array_push($params,$like,$like,$like);}
+    $q=$pdo->prepare($sql);$q->execute($params);return (int)$q->fetchColumn();
+}
+
 function research_memory_summary(PDO $pdo,array $viewer,string $projectPublic): array {
-    $items=research_memory_catalog($pdo,$viewer,$projectPublic,250);
-    $summary=['total'=>count($items),'excluded'=>0,'corrected'=>0,'used'=>0,'private'=>0,'team'=>0,'public'=>0];
-    foreach($items as $item){
-        if($item['retrieval_state']==='exclude')$summary['excluded']++;
-        if(trim((string)$item['correction_text'])!=='')$summary['corrected']++;
-        if((int)$item['usage_count']>0)$summary['used']++;
-        if(isset($summary[$item['privacy_state']]))$summary[$item['privacy_state']]++;
-    }
-    return $summary;
+    $project=research_memory_project_access($pdo,$viewer,$projectPublic);
+    if(!research_memory_ready($pdo)||!research_retrieval_ready($pdo))return ['total'=>0,'excluded'=>0,'corrected'=>0,'used'=>0];
+    $q=$pdo->prepare("SELECT COUNT(*) total,
+      COALESCE(SUM(CASE WHEN c.retrieval_state='exclude' THEN 1 ELSE 0 END),0) excluded,
+      COALESCE(SUM(CASE WHEN c.correction_text IS NOT NULL AND c.correction_text<>'' THEN 1 ELSE 0 END),0) corrected,
+      COALESCE(SUM(CASE WHEN u.object_public_id IS NOT NULL THEN 1 ELSE 0 END),0) used
+      FROM research_retrieval_documents d
+      LEFT JOIN research_memory_controls c ON c.project_id=d.project_id AND c.object_type=d.object_type AND c.object_public_id=d.object_public_id
+      LEFT JOIN (SELECT project_id,object_type,object_public_id FROM research_memory_usage WHERE project_id=? GROUP BY project_id,object_type,object_public_id) u
+        ON u.project_id=d.project_id AND u.object_type=d.object_type AND u.object_public_id=d.object_public_id
+      WHERE d.project_id=?");
+    $q->execute([(int)$project['id'],(int)$project['id']]);$r=$q->fetch()?:[];
+    return ['total'=>(int)($r['total']??0),'excluded'=>(int)($r['excluded']??0),'corrected'=>(int)($r['corrected']??0),'used'=>(int)($r['used']??0)];
 }
