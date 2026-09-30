@@ -4557,3 +4557,21 @@ body.storyViewerOpen{overflow:hidden!important}
 .researchAgentEditCheck{display:flex!important;grid-auto-flow:column;grid-template-columns:auto 1fr!important;align-items:center;justify-content:flex-start;gap:7px!important;margin-top:0!important;font-weight:700!important}
 .researchAgentEditCheck input{width:auto!important}
 @media(max-width:700px){.researchAgentStoryTriggers{grid-template-columns:1fr}.researchAgentStoryQuiet{grid-template-columns:1fr}}
+
+
+/* Phase 78.3 — Story Composer, Editing & Scheduling */
+.researchAgentStoryDraftEditor{border-top:1px solid #ecece7;padding:10px 0}
+.researchAgentStoryDraftEditor>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;cursor:pointer;list-style:none}
+.researchAgentStoryDraftEditor>summary::-webkit-details-marker{display:none}.researchAgentStoryDraftEditor>summary strong,.researchAgentStoryDraftEditor>summary small{display:block}.researchAgentStoryDraftEditor>summary small{margin-top:2px;color:#85857f}
+.researchAgentStoryDraftEditor[open]>summary{margin-bottom:12px}.researchAgentStoryDraftEditor form{display:grid;gap:10px}
+
+
+/* Phase 78.4 — Agent Story Intelligence */
+.homeStoryFollowUp{display:inline-flex;margin-bottom:10px;padding:4px 8px;border-radius:999px;background:#f1f1ed;font-size:.66rem;font-weight:850;letter-spacing:.05em;text-transform:uppercase}
+.homeStoryWhy{margin-top:18px;padding:14px 16px;border:1px solid #e5e5df;border-radius:14px;background:#fafaf7}
+.homeStoryWhy strong{display:block;margin-bottom:4px;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase}.homeStoryWhy p{margin:0!important;color:#555;line-height:1.5}
+
+
+/* Phase 78.6 — Story Approval & Operational Lifecycle */
+.researchAgentStoryReviewForm{display:grid;gap:10px;margin-top:12px;padding:12px;border:1px solid #e5e5df;border-radius:12px;background:#fafaf7}
+.researchAgentStoryReviewForm textarea{width:100%;padding:9px 10px;border:1px solid #d8d8d2;border-radius:10px;background:#fff;font:inherit}

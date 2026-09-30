@@ -118,6 +118,62 @@ function research_agent_story_queue_enhancement(PDO $pdo,array $config,array $vi
     ai_queue_job($pdo,(int)$viewer['id'],'research_agent_story',(int)$llm['model_id'],'research_agent_story',$storyPublicId,[],4);
     return true;
 }
+
+function research_agent_story_review_ready(PDO $pdo): bool {
+    if(!research_agent_story_authoring_ready($pdo))return false;
+    try{
+        $db=installer_database_name($pdo);$q=$pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=? AND table_name='research_agent_stories' AND column_name IN ('origin','approval_state','reviewed_by_user_id','reviewed_at','review_note')");
+        $q->execute([$db]);return (int)$q->fetchColumn()===5;
+    }catch(Throwable $e){return false;}
+}
+function research_agent_story_intelligence_ready(PDO $pdo): bool {
+    if(!research_agent_story_authoring_ready($pdo))return false;
+    try{
+        $db=installer_database_name($pdo);$q=$pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=? AND table_name='research_agent_stories' AND column_name IN ('intelligence_hash','parent_story_id','why_it_matters')");
+        $q->execute([$db]);return (int)$q->fetchColumn()===3;
+    }catch(Throwable $e){return false;}
+}
+function research_agent_story_intelligence_hash(array $agent,string $storyType,string $title,array $object,string $body): string {
+    $identity=[
+      'agent'=>(string)($agent['public_id']??''),
+      'type'=>$storyType,
+      'object_type'=>(string)($object['type']??''),
+      'object_public_id'=>(string)($object['public_id']??''),
+      'title'=>mb_strtolower(trim($title)),
+      'body'=>mb_strtolower(trim(mb_substr($body,0,500)))
+    ];
+    return hash('sha256',json_encode($identity,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+}
+function research_agent_story_intelligence_parent(PDO $pdo,array $agent,string $storyType,array $object,string $intelligenceHash): ?array {
+    if(!research_agent_story_intelligence_ready($pdo))return null;
+    $objectType=(string)($object['type']??'');$objectPublic=(string)($object['public_id']??'');
+    $sql="SELECT * FROM research_agent_stories WHERE agent_id=? AND status='published' AND created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) AND (intelligence_hash=?";
+    $params=[(int)$agent['id'],$intelligenceHash];
+    if($objectType!==''&&$objectPublic!==''){$sql.=" OR (story_type=? AND object_type=? AND object_public_id=?)";array_push($params,$storyType,$objectType,$objectPublic);}
+    $sql.=") ORDER BY published_at DESC,id DESC LIMIT 1";
+    $q=$pdo->prepare($sql);$q->execute($params);$row=$q->fetch()?:null;return $row?:null;
+}
+function research_agent_story_why_it_matters(array $item,string $storyType): string {
+    $why=trim((string)($item['why']??''));if($why!=='')return mb_substr($why,0,1000);
+    $body=trim((string)($item['body']??''));$prefix=match($storyType){
+      'risk'=>'This may change the risk picture or require review.',
+      'evidence'=>'This adds material evidence to the current research.',
+      'decision'=>'This may affect an active or prior decision.',
+      'question'=>'This exposes an unresolved research question.',
+      'task'=>'This may change the next research action or milestone.',
+      'briefing'=>'This may materially change the current briefing.',
+      default=>'This may materially change the current research picture.'
+    };
+    return mb_substr($prefix.($body!==''?' '.mb_substr($body,0,700):''),0,1000);
+}
+function research_agent_story_intelligence_decision(PDO $pdo,array $agent,string $storyType,string $title,array $object,string $body,array $item): array {
+    $hash=research_agent_story_intelligence_hash($agent,$storyType,$title,$object,$body);
+    if(!research_agent_story_intelligence_ready($pdo))return ['allow'=>true,'reason'=>'legacy','hash'=>$hash,'parent'=>null,'why'=>research_agent_story_why_it_matters($item,$storyType)];
+    $parent=research_agent_story_intelligence_parent($pdo,$agent,$storyType,$object,$hash);
+    $exact=$parent&&hash_equals((string)($parent['intelligence_hash']??''),$hash);
+    if($exact)return ['allow'=>false,'reason'=>'duplicate','hash'=>$hash,'parent'=>$parent,'why'=>research_agent_story_why_it_matters($item,$storyType)];
+    return ['allow'=>true,'reason'=>$parent?'follow_up':'new','hash'=>$hash,'parent'=>$parent,'why'=>research_agent_story_why_it_matters($item,$storyType)];
+}
 function research_agent_story_publish_from_item(PDO $pdo,array $config,array $viewer,array $item): ?array {
     if(!research_agent_story_authoring_ready($pdo))return null;
     $refs=is_array($item['refs']??null)?$item['refs']:proactive_observation_refs($item);
@@ -126,14 +182,25 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
     $title=mb_substr(trim((string)($item['title']??'Research update')),0,240);if($title==='')$title='Research update';
     $body=research_agent_story_deterministic_body($item);$priority=(string)($item['priority']??'medium');if(!in_array($priority,['low','medium','high'],true))$priority='medium';
     $storyType=research_agent_story_type($item);$primary=trim((string)($item['primary_url']??proactive_primary_url($item)));$object=research_agent_story_object_from_refs($refs);
+    $intelligence=research_agent_story_intelligence_decision($pdo,$agent,$storyType,$title,$object,$body,$item);if(empty($intelligence['allow']))return null;
     $decision=research_agent_story_policy_decision($pdo,$agent,$storyType,$priority);if(empty($decision['allow']))return null;$status=(string)$decision['status'];
-    $public=ulid_like();
-    $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,status,published_at,expires_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
-    $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id'],$status,$status]);
+    $public=ulid_like();$parentId=(int)($intelligence['parent']['id']??0);
+    if(research_agent_story_intelligence_ready($pdo)){
+        $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,intelligence_hash,parent_story_id,why_it_matters,status,published_at,expires_at)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
+        $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id'],(string)$intelligence['hash'],$parentId>0?$parentId:null,(string)$intelligence['why'],$status,$status]);
+    }else{
+        $q=$pdo->prepare("INSERT IGNORE INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,object_type,object_public_id,status,published_at,expires_at)
+          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CASE WHEN ?='published' THEN NOW() ELSE NOW() END,DATE_ADD(NOW(),INTERVAL 7 DAY))");
+        $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$object['type'],$object['public_id'],$status,$status]);
+    }
     if($q->rowCount()===0){
         $q=$pdo->prepare("SELECT * FROM research_agent_stories WHERE agent_id=? AND observation_key=? LIMIT 1");$q->execute([(int)$agent['id'],$observationKey]);$story=$q->fetch()?:null;
     }else{
+        if(research_agent_story_review_ready($pdo)){
+            $approval=((string)$decision['reason']==='approval'&&$status==='draft')?'pending':'not_required';
+            $pdo->prepare("UPDATE research_agent_stories SET origin='proactive',approval_state=? WHERE public_id=?")->execute([$approval,$public]);
+        }
         $q=$pdo->prepare("SELECT * FROM research_agent_stories WHERE public_id=? LIMIT 1");$q->execute([$public]);$story=$q->fetch()?:null;
         if($story){
             if($status==='published'&&$priority==='high'){
@@ -142,9 +209,11 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
                     'group_key'=>'research_agent_story:'.(string)$agent['public_id'],
                     'context'=>['agent_public_id'=>(string)$agent['public_id'],'conversation_public_id'=>(string)$agent['conversation_public_id'],'story_public_id'=>(string)$story['public_id']]
                 ]);
-                research_agent_story_notify_social($pdo,$viewer,$agent,$story);
             }
-            if($status==='published')research_agent_story_queue_enhancement($pdo,$config,$viewer,(string)$story['public_id']);
+            if($status==='published'){
+                research_agent_story_notify_social($pdo,$viewer,$agent,$story);
+                research_agent_story_queue_enhancement($pdo,$config,$viewer,(string)$story['public_id']);
+            }
         }
     }
     return $story;
@@ -165,12 +234,15 @@ function research_agent_story_create_manual(PDO $pdo,array $viewer,string $agent
     $q=$pdo->prepare("INSERT INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,generation_quality,generation_status,status,published_at,expires_at)
       VALUES(?,?,?,?,?,?,?,?,?,'deterministic','ready',?,NOW(),DATE_ADD(NOW(),INTERVAL 7 DAY))");
     $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$status]);
+    if(research_agent_story_review_ready($pdo))$pdo->prepare("UPDATE research_agent_stories SET origin='manual',approval_state='not_required' WHERE public_id=?")->execute([$public]);
     $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE public_id=? LIMIT 1');$q->execute([$public]);$story=$q->fetch()?:[];
     if($status==='published')research_agent_story_notify_social($pdo,$viewer,$agent,$story);
     return $story;
 }
 function research_agent_story_publish_manual(PDO $pdo,array $viewer,string $storyPublic): array {
     $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
+    if(research_agent_story_review_ready($pdo)&&(string)($story['origin']??'manual')==='proactive'&&(string)($story['approval_state']??'not_required')==='pending')throw new RuntimeException('This proactive Story requires approval before publishing.');
+    if(research_agent_story_review_ready($pdo)&&(string)($story['approval_state']??'not_required')==='rejected')throw new RuntimeException('Rejected Stories must be edited and resubmitted before publishing.');
     $agent=research_agent_access($pdo,$viewer,(string)$story['agent_public_id']);if(!$agent)throw new RuntimeException('Research Agent not found.');
     $pdo->prepare("UPDATE research_agent_stories SET status='published',published_at=NOW(),updated_at=NOW() WHERE id=? AND status='draft'")->execute([(int)$story['id']]);
     $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE id=? LIMIT 1');$q->execute([(int)$story['id']]);$fresh=$q->fetch()?:$story;
@@ -186,6 +258,45 @@ function research_agent_story_access_draft(PDO $pdo,array $viewer,string $public
     if((int)$row['owner_user_id']!==(int)$viewer['id']&&!in_array((string)($row['team_role']??''),['owner','admin'],true))return null;
     return $row;
 }
+
+function research_agent_story_update_manual(PDO $pdo,array $viewer,string $storyPublic,array $input): array {
+    $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
+    $title=mb_substr(trim((string)($input['title']??$story['title'])),0,240);if($title==='')throw new InvalidArgumentException('Story title is required.');
+    $body=mb_substr(trim((string)($input['body']??$story['body'])),0,1800);if($body==='')throw new InvalidArgumentException('Story body is required.');
+    $type=(string)($input['story_type']??$story['story_type']);if(!in_array($type,['update','evidence','risk','question','decision','task','briefing'],true))$type='update';
+    $priority=(string)($input['priority']??$story['priority']);if(!in_array($priority,['low','medium','high'],true))$priority='medium';
+    $primary=mb_substr(trim((string)($input['primary_url']??$story['primary_url']??'')),0,500);if($primary!==''&&!preg_match('#^https?://#i',$primary))throw new InvalidArgumentException('Story source URL must be HTTP or HTTPS.');
+    $scheduled=trim((string)($input['scheduled_at']??''));$scheduledSql=null;if($scheduled!==''){$dt=DateTimeImmutable::createFromFormat('Y-m-d\TH:i',$scheduled);if(!$dt)throw new InvalidArgumentException('Invalid Story schedule.');$scheduledSql=$dt->format('Y-m-d H:i:s');}
+    $pdo->prepare("UPDATE research_agent_stories SET title=?,body=?,source_body=?,story_type=?,priority=?,primary_url=?,scheduled_at=?,edited_by_user_id=?,updated_at=NOW() WHERE id=? AND status='draft'")
+      ->execute([$title,$body,$body,$type,$priority,$primary!==''?$primary:null,$scheduledSql,(int)$viewer['id'],(int)$story['id']]);
+    if(research_agent_story_review_ready($pdo)&&(string)($story['origin']??'manual')==='proactive'&&(string)($story['approval_state']??'')==='rejected')
+        $pdo->prepare("UPDATE research_agent_stories SET approval_state='pending',reviewed_by_user_id=NULL,reviewed_at=NULL,review_note=NULL WHERE id=?")->execute([(int)$story['id']]);
+    $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE id=? LIMIT 1');$q->execute([(int)$story['id']]);return $q->fetch()?:$story;
+}
+function research_agent_story_review_manual(PDO $pdo,array $viewer,string $storyPublic,string $decision,string $note=''): array {
+    if(!research_agent_story_review_ready($pdo))throw new RuntimeException('Story approval requires the latest database upgrade.');
+    $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
+    if((string)($story['origin']??'manual')!=='proactive')throw new RuntimeException('Only proactive Stories use approval review.');
+    if((string)($story['approval_state']??'not_required')!=='pending')throw new RuntimeException('Story is not pending approval.');
+    $decision=strtolower(trim($decision));if(!in_array($decision,['approve','reject'],true))throw new InvalidArgumentException('Invalid Story review decision.');
+    $note=mb_substr(trim($note),0,1000);$state=$decision==='approve'?'approved':'rejected';
+    $pdo->prepare("UPDATE research_agent_stories SET approval_state=?,reviewed_by_user_id=?,reviewed_at=NOW(),review_note=?,updated_at=NOW() WHERE id=?")
+      ->execute([$state,(int)$viewer['id'],$note!==''?$note:null,(int)$story['id']]);
+    if($decision==='approve')return research_agent_story_publish_manual($pdo,$viewer,$storyPublic);
+    $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE id=? LIMIT 1');$q->execute([(int)$story['id']]);return $q->fetch()?:$story;
+}
+
+function research_agent_story_archive_manual(PDO $pdo,array $viewer,string $storyPublic): bool {
+    $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
+    $q=$pdo->prepare("UPDATE research_agent_stories SET status='archived',archived_at=NOW(),edited_by_user_id=?,updated_at=NOW() WHERE id=?");
+    $q->execute([(int)$viewer['id'],(int)$story['id']]);return $q->rowCount()===1;
+}
+function research_agent_story_publish_due(PDO $pdo,array $viewer,int $limit=30): int {
+    if(!research_agent_story_authoring_ready($pdo))return 0;$limit=max(1,min(100,$limit));$q=$pdo->prepare("SELECT public_id FROM research_agent_stories s JOIN research_agents ra ON ra.id=s.agent_id WHERE ra.owner_user_id=? AND s.status='draft' AND s.scheduled_at IS NOT NULL AND s.scheduled_at<=NOW() ORDER BY s.scheduled_at ASC LIMIT ".$limit);
+    $q->execute([(int)$viewer['id']]);$count=0;foreach($q->fetchAll(PDO::FETCH_COLUMN) as $public){try{research_agent_story_publish_manual($pdo,$viewer,(string)$public);$count++;}catch(Throwable $e){}}
+    return $count;
+}
+
 function research_agent_story_drafts(PDO $pdo,array $viewer,string $agentPublic,int $limit=30): array {
     $agent=research_agent_access($pdo,$viewer,$agentPublic);if(!$agent||!research_agent_story_authoring_ready($pdo))return [];$limit=max(1,min(100,$limit));
     $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);if(!$canEdit)return [];
@@ -195,6 +306,7 @@ function research_agent_story_drafts(PDO $pdo,array $viewer,string $agentPublic,
 
 function research_agent_story_sync(PDO $pdo,array $config,array $viewer,int $limit=8): array {
     if(!research_agent_stories_ready($pdo)||!function_exists('proactive_briefing'))return ['ready'=>false,'created'=>0];
+    if(function_exists('research_agent_story_publish_due'))research_agent_story_publish_due($pdo,$viewer,30);
     $brief=proactive_briefing($pdo,$viewer,max(3,min(8,$limit)));$created=0;
     foreach((array)($brief['items']??[]) as $item){
         $before=(int)$pdo->query('SELECT ROW_COUNT()')->fetchColumn();
@@ -288,6 +400,26 @@ function research_agent_story_groups(PDO $pdo,array $viewer,int $limit=40): arra
     }
     return array_values($groups);
 }
+
+function research_agent_story_activity(PDO $pdo,array $viewer,int $limit=20): array {
+    if(!research_agent_stories_ready($pdo))return [];$limit=max(1,min(60,$limit));$rows=research_agent_story_list($pdo,$viewer,$limit,true);$out=[];
+    foreach($rows as $story){
+        $created=(string)($story['published_at']??$story['created_at']??'');$public=(string)($story['public_id']??'');if($public==='')continue;
+        $own=(int)($story['owner_user_id']??0)===(int)$viewer['id'];$agentName=(string)($story['agent_name']??'Research Agent');
+        $title=$own?$agentName.' published a Story':$agentName.' published a Story you can view';
+        $body=trim((string)($story['body']??''));$why=trim((string)($story['why_it_matters']??''));if($why!=='')$body=$body.' Why it matters: '.$why;
+        $out[]=[
+          'key'=>hash('sha256','research_agent_story|'.$public.'|'.$created),
+          'type'=>'research_agent_story_published','surface'=>'agent','created_at'=>$created,
+          'title'=>$title,'body'=>mb_substr($body,0,320),'href'=>(string)($story['story_url']??('/home.php?story='.rawurlencode($public))),
+          'actor'=>null,'object'=>['type'=>'research_agent_story','public_id'=>$public],
+          'context'=>[['type'=>'research','public_id'=>(string)($story['project_public_id']??'')],['type'=>'research_agent_story','public_id'=>$public]],
+          'meta'=>array_filter(['agent'=>$agentName,'story_type'=>(string)($story['story_type']??''),'priority'=>(string)($story['priority']??''),'follow_up'=>!empty($story['parent_story_id'])?'yes':null])
+        ];
+    }
+    return $out;
+}
+
 function research_agent_story_state(PDO $pdo,array $viewer,string $publicId,string $action): bool {
     $story=research_agent_story_access($pdo,$viewer,$publicId);if(!$story)return false;
     if($action==='view')$sql="INSERT INTO research_agent_story_states(story_id,user_id,viewed_at) VALUES(?,?,NOW()) ON DUPLICATE KEY UPDATE viewed_at=COALESCE(viewed_at,NOW()),updated_at=NOW()";
@@ -303,15 +435,4 @@ function research_agent_story_apply_ai_output(PDO $pdo,string $publicId,string $
 }
 function research_agent_story_mark_failed(PDO $pdo,string $publicId): void {
     $pdo->prepare("UPDATE research_agent_stories SET generation_status='failed',updated_at=NOW() WHERE public_id=? AND generation_status='queued'")->execute([$publicId]);
-}
-function research_agent_story_activity(PDO $pdo,array $viewer,int $limit=20): array {
-    $out=[];foreach(research_agent_story_list($pdo,$viewer,$limit,true) as $s){
-        $out[]=[
-          'key'=>'agent_story:'.$s['public_id'],'type'=>'research_agent_story','created_at'=>$s['published_at'],
-          'title'=>$s['agent_name'].' posted a Story','body'=>$s['body'],
-          'href'=>(string)($s['story_url']??'/home.php'),
-          'object'=>['type'=>'research_agent','public_id'=>$s['agent_public_id'],'label'=>$s['agent_name']],
-          'context'=>[['type'=>'project','public_id'=>$s['project_public_id'],'label'=>$s['agent_name'].' Research']]
-        ];
-    }return $out;
 }
