@@ -12,10 +12,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$op=(string)($_POST['op']??'');
     try{
         if($op==='save_agent'){
+            $image=isset($_POST['remove_profile_photo'])?'':(string)($_POST['profile_image_url']??($ctx['agent']['profile_image_url']??''));
+            if(isset($_FILES['agent_profile_photo'])&&(int)($_FILES['agent_profile_photo']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE)$image=profile_image_upload($_FILES['agent_profile_photo'],(int)$u['id']);
             $ctx=research_agent_update_settings($pdo,$u,$agentId,[
               'name'=>(string)($_POST['name']??''),
               'description'=>(string)($_POST['description']??''),
-              'profile_image_url'=>(string)($_POST['profile_image_url']??''),
+              'profile_image_url'=>$image,
               'visibility'=>(string)($_POST['visibility']??'private'),
               'status'=>(string)($_POST['status']??'active'),
               'cadence'=>(string)($_POST['cadence']??'daily'),
@@ -68,12 +70,12 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
   <?php if($success!==''):?><div class="researchAgentEditNotice success"><?=h($success)?></div><?php endif?>
 
   <section class="researchAgentEditGrid">
-    <form method="post" class="card researchAgentEditIdentity">
+    <form method="post" enctype="multipart/form-data" class="card researchAgentEditIdentity">
       <input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent_id" value="<?=h($agentId)?>"><input type="hidden" name="op" value="save_agent">
       <header><span class="eyebrow">IDENTITY & ACCESS</span><h2>Agent settings</h2></header>
       <div class="researchAgentEditProfileRow">
         <div class="researchAgentEditAvatar"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?><?php endif?></div>
-        <label>Profile image URL<input name="profile_image_url" value="<?=h((string)($agent['profile_image_url']??''))?>" placeholder="/uploads/... or https://..."></label>
+        <div><label>Upload profile photo<input type="file" name="agent_profile_photo" accept="image/jpeg,image/png,image/webp"></label><label>Or image URL<input name="profile_image_url" value="<?=h((string)($agent['profile_image_url']??''))?>" placeholder="/uploads/... or https://..."></label><?php if(!empty($agent['profile_image_url'])):?><label class="researchAgentEditCheck"><input type="checkbox" name="remove_profile_photo" value="1"> Remove current photo</label><?php endif?></div>
       </div>
       <label>Name<input name="name" required maxlength="190" value="<?=h((string)$agent['name'])?>"></label>
       <label>Description<textarea name="description" rows="5" maxlength="4000"><?=h((string)($agent['description']??''))?></textarea></label>
