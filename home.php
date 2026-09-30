@@ -407,7 +407,7 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
   <header class="teamChatHeader"><div><span class="eyebrow">TEAM CHAT</span><h3>Messages</h3></div><div class="teamChatHeaderActions"><button type="button" class="teamChatPopoutCurrent" data-team-chat-popout aria-label="Pop out current team chat" title="Pop out chat">↗</button><button type="button" class="teamChatClose" data-team-chat-close aria-label="Close team chat">×</button></div></header>
   <nav class="teamChatTabs" role="tablist" aria-label="Team Chat views">
     <button type="button" role="tab" aria-selected="true" aria-controls="team-chat-tab-chat" data-team-chat-tab="chat" class="active">Chat</button>
-    <button type="button" role="tab" aria-selected="false" aria-controls="team-chat-tab-members" data-team-chat-tab="members">Members <span id="teamChatMemberCount"></span></button>
+    <button type="button" role="tab" aria-selected="false" aria-controls="team-chat-tab-members" data-team-chat-tab="members">Members</button>
   </nav>
   <section class="teamChatTabPanel active" id="team-chat-tab-chat" role="tabpanel" data-team-chat-panel="chat">
     <div class="teamChatTeamPicker"><select id="teamChatConversation" aria-label="Choose team"><?php foreach($chatTeams as $chat):?><option value="<?=h($chat['public_id'])?>" data-team="<?=h($chat['team_public_id'])?>" data-members="<?=h((string)$chat['member_count'])?>" data-unread="<?=h((string)$chat['unread_count'])?>" <?=$preferredTeam!==''&&$preferredTeam===$chat['team_public_id']?'selected':''?>><?=h($chat['team_name'])?><?=$chat['unread_count']?' · '.$chat['unread_count'].' new':''?></option><?php endforeach?></select><a id="teamChatOpenTeam" href="/team.php?id=<?=h($chatTeams[0]['team_public_id'])?>">Team</a></div>
@@ -418,7 +418,7 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
     <form class="teamChatComposer" id="teamChatComposer"><textarea id="teamChatInput" rows="1" maxlength="5000" placeholder="Message your team…" aria-label="Message your team"></textarea><button type="submit" aria-label="Send message">↑</button></form>
   </section>
   <section class="teamChatTabPanel" id="team-chat-tab-members" role="tabpanel" data-team-chat-panel="members" hidden>
-    <div class="teamChatMembersHeading"><strong>Team members</strong><span>Live availability</span></div>
+    <div class="teamChatMembersHeading"><strong>Team members</strong><span id="teamChatMemberCount">Live availability</span></div>
     <section class="teamChatMembers" id="teamChatMembers" aria-label="Team members"><div class="teamChatMembersLoading">Loading team members…</div></section>
   </section>
   <footer class="teamChatFooter"><span class="teamChatSelfStatus" data-team-chat-self-status><i class="chatPresenceDot status-<?=h((string)$chatStatus['effective_status'])?>"></i><span><?=h((string)($chatStatus['custom_status']?:ucfirst((string)$chatStatus['status_mode'])))?></span></span><button type="button" class="teamChatSettingsButton" data-team-chat-settings-open aria-haspopup="dialog" aria-controls="team-chat-settings-modal" aria-label="Chat settings" title="Chat settings">⚙</button></footer>
