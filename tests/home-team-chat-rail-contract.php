@@ -7,7 +7,7 @@ $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p
 $need('home.php','hasTeamChatRail','Home must mark the layout when Team Chat is available.');
 $need('home.php','/assets/css/home-team-chat.css?v=74.4','Home must load the Team Chat visibility override after app.css.');
 $need('home.php','data-team-chat-rail','Home must render the canonical Team Chat rail.');
-$need('home.php','/assets/js/team-chat.js?v=36.1','Home must load the Team Chat client when Team conversations exist.');
+$need('home.php','/assets/js/team-chat.js?v=36.0','Home must load the Team Chat client when Team conversations exist.');
 $need('assets/css/home-team-chat.css','.homeWorkspaceLayout.hasTeamChatRail','Team Chat CSS must keep a dedicated desktop rail state.');
 $need('assets/css/home-team-chat.css','>.homeRightRail.teamChatRightRail','Team Chat CSS must explicitly restore the rail hidden by single-column Home styles.');
 $need('home.php','data-team-chat-mini-rail','Home must render the 50px collapsed Team Chat rail.');
