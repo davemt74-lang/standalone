@@ -129,6 +129,7 @@ function app_shell_research_agent_dialog(PDO $pdo,array $user): string {
       .'<label>Profile image URL<input name="profile_image_url" maxlength="500" placeholder="https://…"></label>'
       .'<label>Research objective<textarea name="description" rows="4" maxlength="4000" placeholder="What should this Agent research, watch, compare, or follow?"></textarea></label>'
       .'<label>Workspace<select name="team_id">'.$options.'</select></label>'
+      .'<label>Visibility<select name="visibility"><option value="private">Private</option><option value="friends">Friends only</option><option value="public">Public</option></select></label>'
       .'<label>Monitoring<select name="cadence"><option value="daily">Daily</option><option value="hourly">Hourly</option><option value="weekly">Weekly</option><option value="manual">Manual only</option></select></label>'
       .'<input type="hidden" name="timezone_name" value="UTC" data-research-agent-timezone>'
       .'<footer><button type="button" class="button secondary" data-research-agent-close>Cancel</button><button type="submit">Create Research Agent</button></footer>'
