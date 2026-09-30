@@ -6,9 +6,9 @@ $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p
 $avoid=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&str_contains($c,$n))$fail[]=$m;};
 
 $need('home.php','hasTeamChatRail','Home must mark the layout when Team Chat is available.');
-$need('home.php','/assets/css/home-team-chat.css?v=74.9','Home must load the Team Chat visibility override after app.css.');
+$need('home.php','/assets/css/home-team-chat.css?v=75.0','Home must load the Team Chat visibility override after app.css.');
 $need('home.php','data-team-chat-rail','Home must render the canonical Team Chat rail.');
-$need('home.php','/assets/js/team-chat.js?v=36.2','Home must load the Team Chat client when Team conversations exist.');
+$need('home.php','/assets/js/team-chat.js?v=36.3','Home must load the Team Chat client when Team conversations exist.');
 $need('assets/css/home-team-chat.css','.homeWorkspaceLayout.hasTeamChatRail','Team Chat CSS must keep a dedicated desktop rail state.');
 $need('assets/css/home-team-chat.css','>.homeRightRail.teamChatRightRail','Team Chat CSS must explicitly restore the rail hidden by single-column Home styles.');
 $need('home.php','data-team-chat-mini-rail','Home must render the 50px collapsed Team Chat rail.');
@@ -17,7 +17,7 @@ $need('assets/css/home-team-chat.css','transform:translateX(100%)!important','Fu
 $need('assets/css/home-team-chat.css','body.teamChatDesktopOpen','Desktop Team Chat must expose an explicit open state.');
 $need('assets/js/team-chat.js',"miniOpen?.addEventListener('click'","Clicking the collapsed Team Chat rail must open the chat panel.");
 $need('assets/js/team-chat.js','renderMiniMembers','Collapsed Team Chat rail must render member avatars and presence.');
-$need('assets/css/home-team-chat.css','top:68px!important','Desktop Team Chat rail must begin directly below the universal header.');
+$need('assets/css/home-team-chat.css','top:var(--team-chat-viewport-top,58px)!important','Desktop Team Chat must use the measured visible header bottom.');
 $need('assets/css/home-team-chat.css','bottom:0!important','Desktop Team Chat rail must extend to the bottom of the viewport.');
 $need('home.php','data-team-chat-settings-open','Rail and full chat must expose the shared Chat Settings modal trigger.');
 $need('home.php','data-team-chat-settings-modal','Home must embed the canonical Chat Settings modal.');
