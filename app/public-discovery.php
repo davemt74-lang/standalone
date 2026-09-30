@@ -50,7 +50,9 @@ function public_discovery_source(PDO $pdo,string $publicId,?array $viewer): ?arr
     return $source;
 }
 function public_discovery_profile(PDO $pdo,string $username,?array $viewer): ?array {
-    $q=$pdo->prepare("SELECT u.id,u.public_id,u.username,u.display_name,u.bio,u.website_url,u.profile_image_url,u.created_at,COALESCE(p.profile_visibility,'public') profile_visibility,COALESCE(p.search_visibility,1) search_visibility FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.username=? AND u.status='active' LIMIT 1");$q->execute([$username]);$p=$q->fetch();if(!$p)return null;
+    try{$q=$pdo->prepare("SELECT u.id,u.public_id,u.username,u.display_name,u.bio,u.website_url,u.profile_image_url,u.profile_cover_image_url,u.created_at,COALESCE(p.profile_visibility,'public') profile_visibility,COALESCE(p.search_visibility,1) search_visibility FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.username=? AND u.status='active' LIMIT 1");$q->execute([$username]);$p=$q->fetch();}
+    catch(PDOException $e){$q=$pdo->prepare("SELECT u.id,u.public_id,u.username,u.display_name,u.bio,u.website_url,u.profile_image_url,NULL profile_cover_image_url,u.created_at,COALESCE(p.profile_visibility,'public') profile_visibility,COALESCE(p.search_visibility,1) search_visibility FROM users u LEFT JOIN user_preferences p ON p.user_id=u.id WHERE u.username=? AND u.status='active' LIMIT 1");$q->execute([$username]);$p=$q->fetch();}
+    if(!$p)return null;
     $owner=$viewer&&(int)$viewer['id']===(int)$p['id'];if($p['profile_visibility']!=='public'&&!$owner)return null;if($viewer&&!$owner&&is_blocked($pdo,(int)$viewer['id'],(int)$p['id']))return null;
     $uid=(int)($viewer['id']??0);$p['following']=false;$p['follows_you']=false;$p['friends']=false;
     if($uid&&$uid!==(int)$p['id']&&function_exists('profile_network_relationship')){$relationship=profile_network_relationship($pdo,$viewer,(int)$p['id']);$p['following']=$relationship['following'];$p['follows_you']=$relationship['follows_you'];$p['friends']=$relationship['friends'];}

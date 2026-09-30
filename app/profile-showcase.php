@@ -77,3 +77,20 @@ function profile_showcase_activity(array $profile,array $collections): array {
     foreach($collections as $c)$rows[]=['type'=>'collection','at'=>(string)($c['recent_item_at']?:$c['updated_at']?:$c['created_at']),'item'=>$c];
     usort($rows,static fn($a,$b)=>strcmp((string)$b['at'],(string)$a['at']));return array_slice($rows,0,50);
 }
+
+function profile_showcase_public_agent_stories(PDO $pdo,int $userId,int $limit=40): array {
+    if($userId<1||!function_exists('research_agent_stories_ready')||!research_agent_stories_ready($pdo))return [];
+    $limit=max(1,min(80,$limit));
+    try{
+        $published=function_exists('research_agent_story_published_filter')?research_agent_story_published_filter($pdo,'s'):" AND s.status='published' ";
+        $sql="SELECT s.public_id,s.title,s.body,s.story_type,s.priority,s.published_at,s.expires_at,s.why_it_matters,
+          ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url agent_profile_image_url
+          FROM research_agent_stories s
+          JOIN research_agents ra ON ra.id=s.agent_id
+          JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
+          WHERE ra.owner_user_id=? AND ra.status<>'archived' AND ra.visibility='public'
+            AND (s.expires_at IS NULL OR s.expires_at>NOW())".$published."
+          ORDER BY s.published_at DESC,s.id DESC LIMIT ".$limit;
+        $q=$pdo->prepare($sql);$q->execute([$userId]);return $q->fetchAll()?:[];
+    }catch(Throwable $e){return [];}
+}

@@ -47,6 +47,28 @@ function profile_image_delete_local(?string $url): void {
     if(is_file($path))@unlink($path);
 }
 
+function profile_cover_upload(array $file,int $userId): string {
+    $error=(int)($file['error']??UPLOAD_ERR_NO_FILE);
+    if($error===UPLOAD_ERR_NO_FILE)return '';
+    if($error!==UPLOAD_ERR_OK)throw new RuntimeException('Profile cover upload failed.');
+    $size=(int)($file['size']??0);
+    if($size<=0||$size>10*1024*1024)throw new RuntimeException('Profile cover must be 10 MB or smaller.');
+    $tmp=(string)($file['tmp_name']??'');
+    if($tmp===''||!is_uploaded_file($tmp))throw new RuntimeException('Invalid profile cover upload.');
+    $finfo=new finfo(FILEINFO_MIME_TYPE);$mime=(string)$finfo->file($tmp);
+    $ext=match($mime){'image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp',default=>''};
+    if($ext==='')throw new RuntimeException('Profile cover must be JPG, PNG, or WebP.');
+    $info=@getimagesize($tmp);
+    if(!$info||empty($info[0])||empty($info[1]))throw new RuntimeException('Profile cover is not a valid image.');
+    if((int)$info[0]>12000||(int)$info[1]>12000||((int)$info[0]*(int)$info[1])>36_000_000)throw new RuntimeException('Profile cover dimensions are too large.');
+    $root=dirname(__DIR__).'/uploads/profiles';
+    if(!is_dir($root)&&!mkdir($root,0775,true)&&!is_dir($root))throw new RuntimeException('Unable to create profile upload directory.');
+    $name='cover-'.$userId.'-'.bin2hex(random_bytes(12)).'.'.$ext;$dest=$root.'/'.$name;
+    if(!move_uploaded_file($tmp,$dest))throw new RuntimeException('Unable to save profile cover.');
+    @chmod($dest,0644);
+    return '/uploads/profiles/'.$name;
+}
+
 function storage_path_to_absolute(array $config,string $stored): ?string {
     if(str_starts_with($stored,'private://')){
         $rel=substr($stored,10);if($rel===''||str_contains($rel,'..'))return null;

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-$GLOBALS['annotated_shell_disabled']=true;
+$GLOBALS['annotated_shell_mode']='header_only';
 require __DIR__.'/app/bootstrap.php';
 require_once __DIR__.'/app/public-discovery.php';
 require_once __DIR__.'/app/annotation-ui.php';
@@ -47,35 +47,29 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }catch(Throwable $e){$profileError=$e->getMessage();}
 }
 
-$researchAgents=$viewer&&!$viewAsPublic?research_agent_list($pdo,$viewer,50):[];
-$profileResearchAgents=function_exists('research_agent_profile_list')?research_agent_profile_list($pdo,(int)$p['id'],$viewer,30):[];
-$collections=!empty($prefs['profile_show_collections'])||$ownerControls?profile_showcase_public_collections($pdo,(int)$p['id'],30):[];
-$showResearch=!empty($prefs['profile_show_research'])||$ownerControls;
-$showCollections=!empty($prefs['profile_show_collections'])||$ownerControls;
-$showAbout=!empty($prefs['profile_show_about'])||$ownerControls;
-$activityProfile=$p;if(!$showResearch)$activityProfile['reports']=[];
-$activity=profile_showcase_activity($activityProfile,$showCollections?$collections:[]);
-$pins=profile_showcase_pins($pdo,$p,$viewer);
-if(!$showResearch)$pins=array_values(array_filter($pins,static fn($pin)=>$pin['type']!=='research_report'));
-if(!$showCollections)$pins=array_values(array_filter($pins,static fn($pin)=>$pin['type']!=='collection'));
+$researchAgents=[];$profileResearchAgents=[];$profileStories=[];$collections=[];$activity=[];$pins=[];
+try{$researchAgents=$viewer&&!$viewAsPublic?research_agent_list($pdo,$viewer,50):[];}catch(Throwable $e){}
+try{$profileResearchAgents=function_exists('research_agent_profile_list')?research_agent_profile_list($pdo,(int)$p['id'],null,30):[];}catch(Throwable $e){}
+try{$profileStories=function_exists('profile_showcase_public_agent_stories')?profile_showcase_public_agent_stories($pdo,(int)$p['id'],50):[];}catch(Throwable $e){}
+try{$collections=profile_showcase_public_collections($pdo,(int)$p['id'],30);}catch(Throwable $e){}
+$showResearch=true;$showCollections=true;$showAbout=true;
+try{$activity=profile_showcase_activity($p,$collections);}catch(Throwable $e){$activity=[];}
+try{$pins=profile_showcase_pins($pdo,$p,$viewer);}catch(Throwable $e){$pins=[];}
 $pinMap=[];foreach($pins as $pin)$pinMap[$pin['type'].'|'.$pin['public_id']]=true;
 
-$tabs=['activity'=>'Activity','annotations'=>'Annotations'];
-if($showResearch)$tabs['research']='Research';
-if($showCollections)$tabs['collections']='Collections';
-if($showAbout)$tabs['about']='About';
+$tabs=['activity'=>'Activity','stories'=>'Stories','agents'=>'Research Agents','research'=>'Research','annotations'=>'Annotations','collections'=>'Collections','about'=>'About'];
 $tab=(string)($_GET['tab']??'activity');if(!isset($tabs[$tab]))$tab='activity';
 
 $isPublic=$p['profile_visibility']==='public';
 $desc=public_discovery_meta_description((string)($p['bio']?:$p['display_name'].' on Annotated'));
 $canonical=public_discovery_absolute_url($config,profile_path((string)$p['username']));
-$initial=mb_strtoupper(mb_substr((string)$p['display_name'],0,1));
+$initial=mb_strtoupper(mb_substr((string)$p['display_name'],0,1));$coverImage=trim((string)($p['profile_cover_image_url']??''));
 $annotationCount=(int)$p['annotation_count'];
 $sourceCount=(int)$p['source_count'];
 $followerCount=(int)$p['followers'];
 $followingCount=(int)$p['following_count'];
-$reportCount=$showResearch?count((array)$p['reports']):0;$agentCount=$showResearch?count($profileResearchAgents):0;
-$collectionCount=$showCollections?count($collections):0;
+$reportCount=count((array)$p['reports']);$agentCount=count($profileResearchAgents);$storyCount=count($profileStories);
+$collectionCount=count($collections);
 
 $renderPinControl=function(string $type,string $publicId,string $returnTab)use($ownerControls,$pinMap): string{
     if(!$ownerControls)return '';
@@ -111,15 +105,17 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
 <meta property="og:url" content="<?=h($canonical)?>">
 <?php endif?>
 <link rel="stylesheet" href="/assets/css/app.css?v=profile-300">
+<link rel="stylesheet" href="/assets/css/profile-v2.css?v=79.1">
 </head>
-<body class="profileStandaloneBody">
-<main class="profileStandalonePage">
+<body class="profileStandaloneBody profileV2Body">
+<main class="profileStandalonePage profileV2Page">
+    <?php if(!$viewer):?><header class="profileGuestHeader"><a class="profileGuestBrand" href="/"><span>A</span><strong>Annotated</strong></a><nav><a href="/explore.php">Explore</a><a href="/login.php">Sign in</a><a class="button" href="/register.php">Get Annotated</a></nav></header><?php endif?>
     <?php if($viewAsPublic):?><div class="profileViewAsBanner"><span>You are viewing your profile as the public sees it.</span><a href="<?=h(profile_path((string)$p['username']))?>">Exit public view</a></div><?php endif?>
     <?php if(!empty($profileError)):?><div class="error profilePageNotice"><?=h($profileError)?></div><?php endif?>
     <?php if(isset($_GET['profile_updated'])):?><div class="success profilePageNotice">Profile showcase updated.</div><?php endif?><?php if(isset($_GET['research_added'])):?><div class="success profilePageNotice">Added to your Research Agent with the original public object preserved as provenance.</div><?php endif?>
 
     <section class="profileHero" aria-labelledby="profileName">
-        <div class="profileHeroBackdrop" aria-hidden="true"></div>
+        <div class="profileHeroBackdrop<?=$coverImage!==''?' hasCover':''?>" aria-hidden="true"<?php if($coverImage!==''):?> style="background-image:url('<?=h($coverImage)?>')"<?php endif?>></div>
         <div class="profileHeroInner">
             <div class="profileIdentity">
                 <div class="profileAvatarWrap">
@@ -137,7 +133,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
             <div class="profileActions">
                 <?php if($viewer&&!$owner&& !empty($p['friends'])):?><span class="profileRelationshipBadge">Friends</span><?php elseif($viewer&&!$owner&& !empty($p['follows_you'])):?><span class="profileRelationshipBadge">Follows you</span><?php endif?>
                 <?php if($viewer&&!$owner):?><button id="follow" class="profilePrimaryAction" type="button" aria-pressed="<?=$p['following']?'true':'false'?>"><?=$p['following']?'Following':'Follow'?></button>
-                <?php elseif($ownerControls):?><a class="profilePrimaryAction" href="/settings.php#profile-showcase">Edit profile</a><a class="profileSecondaryAction" href="<?=h(profile_path((string)$p['username']))?>?view=public">View as public</a>
+                <?php elseif($ownerControls):?><a class="profilePrimaryAction" href="/settings.php">Edit profile</a><a class="profileSecondaryAction" href="<?=h(profile_path((string)$p['username']))?>?view=public">View as public</a>
                 <?php elseif(!$viewer):?><a class="profilePrimaryAction" href="/login.php">Log in to follow</a><?php endif?>
                 <button class="profileIconAction" type="button" id="copyProfile" aria-label="Copy profile link" title="Copy profile link"><span aria-hidden="true">↗</span></button>
                 <?php if(!$owner&&$isPublic):?><details class="profileMoreMenu"><summary class="profileIconAction" aria-label="More profile actions" title="More">•••</summary><div class="profileMoreMenuPanel"><a href="/report.php?type=user&id=<?=h($p['public_id'])?>">Report profile</a></div></details><?php endif?>
@@ -145,15 +141,16 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
         </div>
 
         <div class="profileStatsBar" aria-label="Profile statistics">
+            <a href="<?=h(profile_path((string)$p['username']))?>?tab=research"><strong><?=h((string)$reportCount)?></strong><span>Research</span></a>
             <a href="<?=h(profile_path((string)$p['username']))?>?tab=annotations"><strong><?=h((string)$annotationCount)?></strong><span>Annotations</span></a>
-            <div><strong><?=h((string)$sourceCount)?></strong><span>Sources</span></div>
+            <a href="<?=h(profile_path((string)$p['username']))?>?tab=agents"><strong><?=h((string)$agentCount)?></strong><span>Agents</span></a>
             <a href="/profile-connections.php?u=<?=rawurlencode((string)$p['username'])?>&type=followers"><strong data-profile-follower-count><?=h((string)$followerCount)?></strong><span>Followers</span></a>
             <a href="/profile-connections.php?u=<?=rawurlencode((string)$p['username'])?>&type=following"><strong><?=h((string)$followingCount)?></strong><span>Following</span></a>
         </div>
     </section>
 
     <nav class="profileTabs" aria-label="Profile sections">
-        <?php foreach($tabs as $key=>$label):?><a class="<?=$tab===$key?'active':''?>" href="<?=h(profile_path((string)$p['username']))?>?tab=<?=h($key)?>" <?=$tab===$key?'aria-current="page"':''?>><?=h($label)?><?php if($key==='annotations'):?><span><?=h((string)$annotationCount)?></span><?php elseif($key==='research'):?><span><?=h((string)$reportCount)?></span><?php elseif($key==='collections'):?><span><?=h((string)$collectionCount)?></span><?php endif?></a><?php endforeach?>
+        <?php foreach($tabs as $key=>$label):?><a class="<?=$tab===$key?'active':''?>" href="<?=h(profile_path((string)$p['username']))?>?tab=<?=h($key)?>" <?=$tab===$key?'aria-current="page"':''?>><?=h($label)?><?php if($key==='stories'):?><span><?=h((string)$storyCount)?></span><?php elseif($key==='agents'):?><span><?=h((string)$agentCount)?></span><?php elseif($key==='annotations'):?><span><?=h((string)$annotationCount)?></span><?php elseif($key==='research'):?><span><?=h((string)$reportCount)?></span><?php elseif($key==='collections'):?><span><?=h((string)$collectionCount)?></span><?php endif?></a><?php endforeach?>
     </nav>
 
     <?php if($tab==='activity'):?>
@@ -175,6 +172,16 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
             <?php endforeach?>
         </div>
     </section>
+    <?php elseif($tab==='stories'):?>
+    <section class="profileContent profileWideContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">STORIES</span><h2>Research Agent Stories</h2></div><span class="profileActivityCount"><?=h((string)$storyCount)?> public</span></header>
+      <div class="profileStoryGrid"><?php if(!$profileStories):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">◌</div><h3>No public Stories yet</h3><p>Public Research Agent Stories will appear here.</p></div><?php endif?>
+      <?php foreach($profileStories as $story):?><article class="profileStoryCard"><header><span class="profileStoryAgentAvatar"><?php if(!empty($story['agent_profile_image_url'])):?><img src="<?=h((string)$story['agent_profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$story['agent_name'],0,1)))?><?php endif?></span><div><strong><?=h((string)$story['agent_name'])?></strong><small><?=h((string)$story['published_at'])?></small></div></header><span class="profileObjectType"><?=h(strtoupper(str_replace('_',' ',(string)($story['story_type']??'story'))))?></span><h3><?=h((string)($story['title']?:'Research update'))?></h3><p><?=nl2br(h((string)$story['body']))?></p><?php if(!empty($story['why_it_matters'])):?><aside><strong>Why this matters</strong><p><?=h((string)$story['why_it_matters'])?></p></aside><?php endif?><footer><a href="/research-agent-public.php?agent=<?=rawurlencode((string)$story['agent_public_id'])?>">View Research Agent →</a></footer></article><?php endforeach?></div>
+    </section>
+    <?php elseif($tab==='agents'):?>
+    <section class="profileContent profileWideContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH AGENTS</span><h2>Public Research Agents</h2></div><span class="profileActivityCount"><?=h((string)$agentCount)?> public</span></header>
+      <div class="profileShowcaseGrid profileAgentShowcaseGrid"><?php if(!$profileResearchAgents):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">✦</div><h3>No public Research Agents</h3><p>Only Research Agents explicitly set to Public appear on this profile.</p></div><?php endif?>
+      <?php foreach($profileResearchAgents as $agent):?><article class="profileShowcaseCard profileAgentCard"><a class="profileAgentCardLink" href="/research-agent-public.php?agent=<?=rawurlencode((string)$agent['public_id'])?>"><div class="profileDiscoveryIdentity"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><span><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?></span><?php endif?><div><strong><?=h((string)$agent['name'])?></strong><small>Public Research Agent</small></div></div><?php if(!empty($agent['description'])):?><p><?=h(mb_substr((string)$agent['description'],0,260))?></p><?php endif?><span class="profileAgentCardAction">View Agent <span aria-hidden="true">→</span></span></a></article><?php endforeach?></div>
+    </section>
     <?php elseif($tab==='annotations'):?>
     <section class="profileContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">ANNOTATIONS</span><h2>Public annotations</h2></div><span class="profileActivityCount"><?=h((string)count($p['annotations']))?> shown</span></header><div class="profileFeed">
         <?php if(!$p['annotations']):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">✎</div><h3>No public annotations yet</h3><p><?= $ownerControls?'Annotations you make public will appear here.':'This profile has not shared any public annotations yet.' ?></p></div><?php endif?>
@@ -182,15 +189,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
     </div></section>
     <?php elseif($tab==='research'&&$showResearch):?>
     <section class="profileContent profileWideContent">
-      <?php if($profileResearchAgents):?><header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH AGENTS</span><h2>Research Agents</h2></div><span class="profileActivityCount"><?=h((string)$agentCount)?> visible</span></header><div class="profileShowcaseGrid profileAgentShowcaseGrid">
-        <?php foreach($profileResearchAgents as $agent):?><article class="profileShowcaseCard profileAgentCard">
-          <a class="profileAgentCardLink" href="/research-agent-public.php?agent=<?=rawurlencode((string)$agent['public_id'])?>">
-            <div class="profileDiscoveryIdentity"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><span><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?></span><?php endif?><div><strong><?=h((string)$agent['name'])?></strong><small><?=h(ucfirst((string)$agent['visibility']))?> Research Agent<?php if(!empty($agent['story_count'])):?> · <?=h((string)$agent['story_count'])?> active Stor<?=((int)$agent['story_count']===1?'y':'ies')?><?php endif?></small></div></div>
-            <?php if(!empty($agent['description'])):?><p><?=h(mb_substr((string)$agent['description'],0,260))?></p><?php endif?>
-            <span class="profileAgentCardAction">View Agent <span aria-hidden="true">→</span></span>
-          </a>
-        </article><?php endforeach?>
-      </div><?php endif?>
+
       <header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH</span><h2>Published Research</h2></div><span class="profileActivityCount"><?=h((string)$reportCount)?> public</span></header><div class="profileShowcaseGrid">
         <?php if(!$p['reports']):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">⌁</div><h3>No published Research yet</h3><p><?= $ownerControls?'Public immutable Research Reports you publish will appear here.':'This profile has not published public Research yet.' ?></p></div><?php endif?>
         <?php foreach($p['reports'] as $r):?><?=$renderResearchCard($r,'research')?><?php endforeach?>

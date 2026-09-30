@@ -12,8 +12,9 @@ $need('app/profile-showcase.php','profile_showcase_public_collections','Profile 
 $need('app/profile-showcase.php','profile_showcase_people','Follower/following lists must resolve through profile visibility and block rules.');
 
 foreach(['profileTabs','Activity','Annotations','Research','Collections','About','View as public','profilePinnedSection','Pin to profile'] as $needle)$need('profile.php',$needle,'Profile Phase 2 UI missing: '.$needle);
-$need('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile Phase 2 must remain outside the universal shell.');
-$avoid('profile.php','<header class="topbar"','Profile Phase 2 must not restore the public/global header.');
+$need('profile.php',"\$GLOBALS['annotated_shell_mode']='header_only';",'Profile Phase 2 must use the universal header-only shell.');
+$avoid('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile Phase 2 must not disable the universal header.');
+$avoid('profile.php','<header class="topbar"','Profile Phase 2 must not restore the legacy topbar.');
 $need('profile-connections.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Follower/following lists must remain standalone.');
 $need('profile-connections.php','showing public profiles you can currently access','Connection lists must disclose their privacy-filtered boundary.');
 $need('settings.php','Public profile showcase','Settings must expose public profile display controls.');
@@ -22,7 +23,7 @@ $need('settings.php','profile_show_collections','Settings must persist collectio
 $need('settings.php','profile_show_about','Settings must persist About showcase visibility.');
 
 $profile=(string)file_get_contents($root.'/profile.php');
-foreach(['profileColumns','PUBLISHED RESEARCH SIDEBAR','appShellContent','appShellSidebar','appShellHeader'] as $needle)if(str_contains($profile,$needle))$fail[]='Profile Phase 2 must not restore legacy profile/sidebar shell: '.$needle;
+foreach(['profileColumns','PUBLISHED RESEARCH SIDEBAR','appShellSidebar'] as $needle)if(str_contains($profile,$needle))$fail[]='Profile Phase 2 must not restore legacy profile/sidebar shell: '.$needle;
 
 $css=(string)file_get_contents($root.'/assets/css/app.css');$ext=(string)file_get_contents($root.'/extension/landing-app.css');
 if(!hash_equals(hash('sha256',$css),hash('sha256',$ext)))$fail[]='Website and extension shared CSS must remain byte-identical.';

@@ -237,7 +237,8 @@ $avoid('profile.php','profileColumns','Profile page must not restore the old two
 $avoid('profile.php','profileColumns','Profile page must not restore the old Research/sidebar column layout.');
 $need('profile.php','profileResearchCard','Published Research may appear only through the new standalone profile showcase card surface.');
 $need('.htaccess','profile.php?u=$1','Clean single-segment username routes must resolve to public profiles.');
-$need('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile pages must opt out of the universal application shell.');
+$need('profile.php',"\$GLOBALS['annotated_shell_mode']='header_only';",'Profile pages must use the universal header-only application shell.');
+$avoid('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile pages must not disable the universal application header.');
 $avoid('profile.php','<header class="topbar"','Profile pages must not render the legacy lightweight public header.');
 $need('profile.php','profile_path((string)$p[\'username\'])','Profile canonical URLs must use /username.');
 $need('profile.php',"header('Location: '.profile_path(\$username),true,301)",'Legacy profile.php URLs must redirect permanently to /username.');
