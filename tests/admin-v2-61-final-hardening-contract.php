@@ -21,13 +21,12 @@ $web=$read('assets/css/app.css');
 $ext=$read('extension/landing-app.css');
 
 foreach([
-    'Admin V2.61 · Final Admin Hardening',
     'aria-current="page"',
 ] as $needle){
     if(!str_contains($ui,$needle))$fail[]='Shared Admin shell missing '.$needle;
 }
-if(!str_contains($index,'ADMIN V2.61 · ADMIN V2.60'))$fail[]='Command Center must identify V2.61 hardening.';
-if(!str_contains($index,'<h1>Admin control center</h1>'))$fail[]='Command Center must preserve the established dashboard heading contract.';
+if(!str_contains($index,'class="adminDashboardHeader"'))$fail[]='Command Center must render the compact Admin dashboard header.';
+if(!str_contains($index,'<h1>Dashboard</h1>'))$fail[]='Command Center must render the simplified dashboard heading.';
 
 $route="'/admin/platform-governance.php'=>['admin.platform.view','admin.platform.view']";
 if(!str_contains($access,$route))$fail[]='Platform Governance route must admit authorized viewers and defer POST mutation authority to operation-specific checks.';
