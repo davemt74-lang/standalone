@@ -186,6 +186,30 @@ function research_agent_story_access_draft(PDO $pdo,array $viewer,string $public
     if((int)$row['owner_user_id']!==(int)$viewer['id']&&!in_array((string)($row['team_role']??''),['owner','admin'],true))return null;
     return $row;
 }
+
+function research_agent_story_update_manual(PDO $pdo,array $viewer,string $storyPublic,array $input): array {
+    $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
+    $title=mb_substr(trim((string)($input['title']??$story['title'])),0,240);if($title==='')throw new InvalidArgumentException('Story title is required.');
+    $body=mb_substr(trim((string)($input['body']??$story['body'])),0,1800);if($body==='')throw new InvalidArgumentException('Story body is required.');
+    $type=(string)($input['story_type']??$story['story_type']);if(!in_array($type,['update','evidence','risk','question','decision','task','briefing'],true))$type='update';
+    $priority=(string)($input['priority']??$story['priority']);if(!in_array($priority,['low','medium','high'],true))$priority='medium';
+    $primary=mb_substr(trim((string)($input['primary_url']??$story['primary_url']??'')),0,500);if($primary!==''&&!preg_match('#^https?://#i',$primary))throw new InvalidArgumentException('Story source URL must be HTTP or HTTPS.');
+    $scheduled=trim((string)($input['scheduled_at']??''));$scheduledSql=null;if($scheduled!==''){$dt=DateTimeImmutable::createFromFormat('Y-m-d\TH:i',$scheduled);if(!$dt)throw new InvalidArgumentException('Invalid Story schedule.');$scheduledSql=$dt->format('Y-m-d H:i:s');}
+    $pdo->prepare("UPDATE research_agent_stories SET title=?,body=?,source_body=?,story_type=?,priority=?,primary_url=?,scheduled_at=?,edited_by_user_id=?,updated_at=NOW() WHERE id=? AND status='draft'")
+      ->execute([$title,$body,$body,$type,$priority,$primary!==''?$primary:null,$scheduledSql,(int)$viewer['id'],(int)$story['id']]);
+    $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE id=? LIMIT 1');$q->execute([(int)$story['id']]);return $q->fetch()?:$story;
+}
+function research_agent_story_archive_manual(PDO $pdo,array $viewer,string $storyPublic): bool {
+    $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
+    $q=$pdo->prepare("UPDATE research_agent_stories SET status='archived',archived_at=NOW(),edited_by_user_id=?,updated_at=NOW() WHERE id=?");
+    $q->execute([(int)$viewer['id'],(int)$story['id']]);return $q->rowCount()===1;
+}
+function research_agent_story_publish_due(PDO $pdo,array $viewer,int $limit=30): int {
+    if(!research_agent_story_authoring_ready($pdo))return 0;$limit=max(1,min(100,$limit));$q=$pdo->prepare("SELECT public_id FROM research_agent_stories s JOIN research_agents ra ON ra.id=s.agent_id WHERE ra.owner_user_id=? AND s.status='draft' AND s.scheduled_at IS NOT NULL AND s.scheduled_at<=NOW() ORDER BY s.scheduled_at ASC LIMIT ".$limit);
+    $q->execute([(int)$viewer['id']]);$count=0;foreach($q->fetchAll(PDO::FETCH_COLUMN) as $public){try{research_agent_story_publish_manual($pdo,$viewer,(string)$public);$count++;}catch(Throwable $e){}}
+    return $count;
+}
+
 function research_agent_story_drafts(PDO $pdo,array $viewer,string $agentPublic,int $limit=30): array {
     $agent=research_agent_access($pdo,$viewer,$agentPublic);if(!$agent||!research_agent_story_authoring_ready($pdo))return [];$limit=max(1,min(100,$limit));
     $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);if(!$canEdit)return [];
@@ -195,6 +219,7 @@ function research_agent_story_drafts(PDO $pdo,array $viewer,string $agentPublic,
 
 function research_agent_story_sync(PDO $pdo,array $config,array $viewer,int $limit=8): array {
     if(!research_agent_stories_ready($pdo)||!function_exists('proactive_briefing'))return ['ready'=>false,'created'=>0];
+    if(function_exists('research_agent_story_publish_due'))research_agent_story_publish_due($pdo,$viewer,30);
     $brief=proactive_briefing($pdo,$viewer,max(3,min(8,$limit)));$created=0;
     foreach((array)($brief['items']??[]) as $item){
         $before=(int)$pdo->query('SELECT ROW_COUNT()')->fetchColumn();
