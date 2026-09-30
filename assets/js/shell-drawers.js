@@ -5,6 +5,9 @@
   const objectDrawer=document.querySelector('[data-object-detail-drawer]');
   const objectBackdrop=document.querySelector('[data-object-detail-backdrop]');
   const objectBody=objectDrawer?.querySelector('[data-object-detail-body]');
+  // Drawers are emitted from the sticky header markup, whose backdrop-filter creates a containing/stacking context.
+  // Portal the fixed drawers and backdrops to <body> so the scrim covers the entire viewport, including the header.
+  [notificationBackdrop,notificationDrawer,objectBackdrop,objectDrawer].forEach(node=>{if(node&&node.parentElement!==document.body)document.body.appendChild(node);});
   const supported=new Set(['research_agent','portfolio','mission','task','program','decision','action_plan','report']);
   let objectData=null,objectTab='overview',activityLoaded=false;
 
