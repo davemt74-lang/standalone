@@ -46,7 +46,9 @@ $need('profile.php',"\$GLOBALS['annotated_shell_mode']='header_only';",'Profile 
 $avoid('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile must not disable the universal header.');
 $avoid('profile.php','<header class="topbar"','Profile must not render the legacy public header.');
 $avoid('profile.php','appShellSidebar','Profile source must not render a universal sidebar.');
-$need('profile.php','profile-v2.css?v=79.3','Profile must load the dedicated Profile V2 responsive styling.');
+$need('profile.php','profile-social.css?v=1.0','Profile must load the isolated social profile stylesheet.');
+$need('app/shell.php','appHeaderBrandHeaderOnly','Header-only shell must render first-class desktop branding.');
+$need('assets/css/app.css','.appShellHeaderOnlyBar','Shared shell CSS must own header-only geometry.');
 $avoid('annotation.php','<header class="topbar">','Annotation detail pages must not render a second legacy header inside the shared app shell.');
 $need('app/shell.php','/home.php?agent=','Research Agent sidebar items must deep-link to existing Agent chats.');
 $need('app/shell.php','app_shell_research_project_rows','Sidebar Research Projects must come from permission-scoped project records.');

@@ -4,18 +4,13 @@ $root=dirname(__DIR__);$fail=[];
 $app=(string)file_get_contents($root.'/assets/css/app.css');
 $ext=(string)file_get_contents($root.'/extension/landing-app.css');
 $profile=(string)file_get_contents($root.'/profile.php');
+$social=(string)file_get_contents($root.'/assets/css/profile-social.css');
 
 if(!hash_equals(hash('sha256',$app),hash('sha256',$ext)))$fail[]='Website and extension shared CSS must remain byte-identical.';
-foreach([
-  'body.profileStandaloneBody:not(.profileV2Body) .profileHero',
-  'body.profileStandaloneBody:not(.profileV2Body) .profileStandalonePage',
-  'body.profileStandaloneBody:not(.profileV2Body) .profileIdentity',
-  'body.profileStandaloneBody:not(.profileV2Body) .profileAvatar'
-] as $needle)if(!str_contains($app,$needle))$fail[]='Legacy profile CSS isolation missing '.$needle;
-
-if(str_contains($app,"\n.profileHero{position:relative;overflow:hidden;border:1px solid #deded8"))$fail[]='Unscoped legacy profile hero rule must not target Profile V2.';
-if(!str_contains($profile,'/assets/css/app.css?v=profile-301'))$fail[]='Profile shared CSS cache tag must advance after isolation.';
-if(!str_contains($profile,'profile-v2.css?v=79.3'))$fail[]='Profile V2 stylesheet must remain explicit.';
-
+if(is_file($root.'/assets/css/profile-v2.css'))$fail[]='Patched Profile V2 stylesheet must be removed after full rewrite.';
+foreach(['profileStandaloneBody','profileV2Body','profileV2Page','profileHero','profileTabs','profileContent'] as $old)if(str_contains($profile,$old))$fail[]='Rewritten profile must not reuse old layout class '.$old;
+foreach(['annotatedProfileBody','annotatedProfileHero','annotatedProfileTabs','annotatedProfileCanvas'] as $fresh)if(!str_contains($profile,$fresh))$fail[]='Fresh profile namespace missing '.$fresh;
+if(!str_contains($social,'.annotatedProfileBody'))$fail[]='Fresh profile stylesheet missing root namespace.';
+if(!str_contains($profile,'/assets/css/app.css?v=profile-social-1'))$fail[]='Profile shared CSS cache marker missing.';
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}
-echo "Profile V2 CSS isolation contract passed.\n";
+echo "Full profile rewrite isolation contract passed.\n";

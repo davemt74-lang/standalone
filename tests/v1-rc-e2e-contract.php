@@ -232,15 +232,15 @@ $need('app/annotation-ui.php','data-web-annotation-action="research"','Annotatio
 $need('assets/js/annotation-cards.js','annotated.highlightColor','Annotation highlight color must persist as a viewer display preference.');
 $need('assets/css/app.css','--annotation-highlight','Annotation quotes must use the configurable highlight color.');
 $need('app/public-discovery.php','COALESCE(at.edited_text,at.raw_text) transcript_text','Profile annotation cards must receive transcript text when available.');
-$need('profile.php','profileContent','Profile annotations must render in the dedicated single-column activity area.');
+$need('profile.php','annotatedProfileCanvas','Profile annotations must render in the dedicated public profile canvas.');
 $avoid('profile.php','profileColumns','Profile page must not restore the old two-column sidebar layout.');
 $avoid('profile.php','profileColumns','Profile page must not restore the old Research/sidebar column layout.');
-$need('profile.php','profileResearchCard','Published Research may appear only through the new standalone profile showcase card surface.');
+$need('profile.php','renderResearch','Published Research must render through the rewritten public profile card surface.');
 $need('.htaccess','profile.php?u=$1','Clean single-segment username routes must resolve to public profiles.');
 $need('profile.php',"\$GLOBALS['annotated_shell_mode']='header_only';",'Profile pages must use the universal header-only application shell.');
 $avoid('profile.php',"\$GLOBALS['annotated_shell_disabled']=true;",'Profile pages must not disable the universal application header.');
 $avoid('profile.php','<header class="topbar"','Profile pages must not render the legacy lightweight public header.');
-$need('profile.php','profile_path((string)$p[\'username\'])','Profile canonical URLs must use /username.');
+$need('profile.php','profile_path((string)$profile[\'username\'])','Profile canonical URLs must use /username.');
 $need('profile.php',"header('Location: '.profile_path(\$username),true,301)",'Legacy profile.php URLs must redirect permanently to /username.');
 $need('app/shell.php','profile_path($username)','The account dropdown must link to the clean profile URL.');
 $need('app/shell.php',"'header_only'",'The universal shell must support a header-only mode.');
