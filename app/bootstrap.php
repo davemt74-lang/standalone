@@ -74,6 +74,7 @@ require_once __DIR__ . '/live.php';
 require_once __DIR__ . '/conversations.php';
 require_once __DIR__ . '/moderation.php';
 require_once __DIR__ . '/search.php';
+require_once __DIR__ . '/universal-command.php';
 require_once __DIR__ . '/release.php';
 require_once __DIR__ . '/release-operations.php';
 require_once __DIR__ . '/rate-limit.php';
