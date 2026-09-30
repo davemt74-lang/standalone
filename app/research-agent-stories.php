@@ -149,22 +149,24 @@ function research_agent_story_notify_social(PDO $pdo,array $viewer,array $agent,
 }
 function research_agent_story_access(PDO $pdo,array $viewer,string $publicId): ?array {
     if(!research_agent_stories_ready($pdo))return null;
-    $sql="SELECT s.*,ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url,ra.visibility,ra.owner_user_id,ra.conversation_id,c.public_id conversation_public_id,
+    $sql="SELECT s.*,ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url,ra.visibility,ra.owner_user_id,ra.conversation_id,c.public_id conversation_public_id,u.username owner_username,u.display_name owner_display_name,
+      CASE WHEN ra.owner_user_id=:viewer_owner_rank OR EXISTS(SELECT 1 FROM team_members tr WHERE tr.team_id=ra.team_id AND tr.user_id=:viewer_team_rank) THEN 0 ELSE 1 END social_rank,
       rp.public_id project_public_id,t.public_id team_public_id,t.name team_name,st.viewed_at,st.dismissed_at
       FROM research_agent_stories s
       JOIN research_agents ra ON ra.id=s.agent_id
       JOIN research_projects rp ON rp.id=ra.project_id
       JOIN conversations c ON c.id=ra.conversation_id
+      JOIN users u ON u.id=ra.owner_user_id
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
       WHERE s.public_id=:story_public AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
-    $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_state']=(int)$viewer['id'];$params[':story_public']=$publicId;$q->execute($params);
-    return $q->fetch()?:null;
+    $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$params[':story_public']=$publicId;$q->execute($params);
+    $row=$q->fetch()?:null;if(!$row)return null;$row['story_url']=(int)($row['social_rank']??1)===0?'/home.php?agent='.rawurlencode((string)$row['conversation_public_id']).'&story='.rawurlencode((string)$row['public_id']):'/profile.php?u='.rawurlencode((string)$row['owner_username']).'&tab=research';return $row;
 }
 function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $includeDismissed=false): array {
     if(!research_agent_stories_ready($pdo))return [];
     $limit=max(1,min(60,$limit));$dismiss=$includeDismissed?'':' AND st.dismissed_at IS NULL';
-    $sql="SELECT s.*,ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url,ra.visibility,ra.owner_user_id,c.public_id conversation_public_id,
+    $sql="SELECT s.*,ra.public_id agent_public_id,ra.name agent_name,ra.profile_image_url,ra.visibility,ra.owner_user_id,c.public_id conversation_public_id,u.username owner_username,u.display_name owner_display_name,
       rp.public_id project_public_id,t.public_id team_public_id,t.name team_name,st.viewed_at,st.dismissed_at,
       CASE WHEN ra.owner_user_id=:viewer_owner_rank OR EXISTS(SELECT 1 FROM team_members tr WHERE tr.team_id=ra.team_id AND tr.user_id=:viewer_team_rank) THEN 0 ELSE 1 END social_rank
       FROM research_agent_stories s
@@ -176,7 +178,7 @@ function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $in
       WHERE ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW()) AND ".research_agent_story_social_visibility_sql().$dismiss."
       ORDER BY social_rank ASC,(st.viewed_at IS NULL) DESC,s.priority='high' DESC,s.published_at DESC,s.id DESC LIMIT ".$limit;
     $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$q->execute($params);
-    return $q->fetchAll()?:[];
+    $rows=$q->fetchAll()?:[];foreach($rows as &$row)$row['story_url']=(int)($row['social_rank']??1)===0?'/home.php?agent='.rawurlencode((string)$row['conversation_public_id']).'&story='.rawurlencode((string)$row['public_id']):'/profile.php?u='.rawurlencode((string)$row['owner_username']).'&tab=research';unset($row);return $rows;
 }
 function research_agent_story_state(PDO $pdo,array $viewer,string $publicId,string $action): bool {
     $story=research_agent_story_access($pdo,$viewer,$publicId);if(!$story)return false;
@@ -199,7 +201,7 @@ function research_agent_story_activity(PDO $pdo,array $viewer,int $limit=20): ar
         $out[]=[
           'key'=>'agent_story:'.$s['public_id'],'type'=>'research_agent_story','created_at'=>$s['published_at'],
           'title'=>$s['agent_name'].' posted a Story','body'=>$s['body'],
-          'href'=>'/home.php?agent='.rawurlencode((string)$s['conversation_public_id']).'&story='.rawurlencode((string)$s['public_id']),
+          'href'=>(string)($s['story_url']??'/home.php'),
           'object'=>['type'=>'research_agent','public_id'=>$s['agent_public_id'],'label'=>$s['agent_name']],
           'context'=>[['type'=>'project','public_id'=>$s['project_public_id'],'label'=>$s['agent_name'].' Research']]
         ];
