@@ -183,7 +183,7 @@ try{
 $homeAgentUrl=$homePrimaryAgent?'/home.php?agent='.rawurlencode((string)$homePrimaryAgent['conversation_public_id']):'/research.php';
 $homeDesktopUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=desktop':'/research.php';
 $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.php';
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=59.0"><link rel="stylesheet" href="/assets/css/home-team-chat.css?v=75.1"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Home · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=76.2"><link rel="stylesheet" href="/assets/css/home-team-chat.css?v=75.1"></head><body class="homeFeedPage" data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="home" data-workspace-team="<?=h($preferredTeamContext)?>" data-workspace-research="<?=h($workspaceResearchContext)?>" data-workspace-agent="<?=h($workspaceAgentContext)?>" data-research-agent-conversation="<?=h((string)($requestedResearchAgent['conversation_public_id']??''))?>" data-research-agent-project="<?=h((string)($requestedResearchAgent['project_public_id']??''))?>" data-research-agent-id="<?=h((string)($requestedResearchAgent['public_id']??''))?>" data-research-agent-name="<?=h((string)($requestedResearchAgent['name']??''))?>" data-research-agent-team="<?=h((string)($requestedResearchAgent['team_public_id']??''))?>">
 <main class="layout homeWorkspaceLayout<?=$chatTeams?' hasTeamChatRail':''?>">
 <?php if($requestedResearchAgent):?>
 <div class="researchAgentCanvasTopActions researchAgentCanvasUnified" data-research-canvas-controls>
@@ -211,21 +211,19 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
 </section>
 <?php elseif($homePrimaryAgent):?>
 <section class="homeAgentStories" aria-label="Research Agent Stories" data-agent-stories>
-  <header class="homeAgentStoriesHead"><div><span class="eyebrow">RESEARCH AGENT STORIES</span><strong>What your Agents want you to know</strong></div><small><?=!empty($agentStoriesLlm['available'])?'Research LLM enhanced':'System research stories'?></small></header>
   <div class="homeAgentStoriesRail">
     <?php if(!$agentStories):?>
       <a class="homeAgentStoryCard emptyStory" href="<?=h($homeAgentUrl)?>">
         <span class="homeAgentStoryAvatar"><?php if(!empty($homePrimaryAgent['profile_image_url'])):?><img src="<?=h((string)$homePrimaryAgent['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$homePrimaryAgent['name'],0,1)))?><?php endif?></span>
-        <span><strong><?=h((string)$homePrimaryAgent['name'])?></strong><em>No new Story right now.</em><small>Open Agent</small></span>
+        <strong><?=h((string)$homePrimaryAgent['name'])?></strong>
       </a>
     <?php endif?>
     <?php foreach($agentStories as $story):?>
       <article class="homeAgentStoryCard <?=$story['viewed_at']?'isViewed':'isNew'?>" data-story-id="<?=h((string)$story['public_id'])?>">
-        <a class="homeAgentStoryMain" href="<?=h((string)($story['story_url']??'/home.php'))?>" data-story-view>
+        <a class="homeAgentStoryMain" href="<?=h((string)($story['story_url']??'/home.php'))?>" data-story-view aria-label="<?=h((string)$story['agent_name'])?> Story">
           <span class="homeAgentStoryAvatar"><?php if(!empty($story['profile_image_url'])):?><img src="<?=h((string)$story['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$story['agent_name'],0,1)))?><?php endif?></span>
-          <span class="homeAgentStoryCopy"><small><?=h(strtoupper((string)$story['story_type']))?><?=($story['generation_quality']??'')==='llm'?' · AI ENHANCED':''?><?=(int)($story['social_rank']??0)===1?' · FOLLOWING':''?></small><strong><?=h((string)$story['agent_name'])?></strong><em><?=h(mb_substr((string)$story['body'],0,220))?></em></span>
+          <strong><?=h((string)$story['agent_name'])?></strong>
         </a>
-        <button type="button" data-story-dismiss aria-label="Dismiss Story">×</button>
       </article>
     <?php endforeach?>
   </div>
