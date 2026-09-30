@@ -98,3 +98,26 @@ dialog.appCreateDialog form.appCreateForm>footer button[data-create-back]:hover{
   dialog.appCreateDialog .appCreateGrid{grid-template-columns:1fr!important}
   dialog.appCreateDialog button.appCreateChoice{min-height:auto!important}
 }
+
+
+/* Phase 74 Section 3 — Unified object launch */
+.appObjectContextBar{
+  margin:12px 20px 0;padding:11px 14px;border:1px solid #dde2e6;border-radius:11px;background:#fff;
+  display:flex;align-items:center;justify-content:space-between;gap:16px
+}
+.appObjectContextBar>div{min-width:0;display:grid;gap:2px}
+.appObjectContextBar strong{font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appObjectContextBar small{color:#737b84;font-size:.62rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appObjectContextBar nav{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.appObjectContextBar nav button,.appObjectContextBar nav a{
+  appearance:none!important;padding:7px 10px!important;border:1px solid #d8dde2!important;border-radius:8px!important;background:#fff!important;
+  color:#41484f!important;text-decoration:none!important;font-size:.66rem!important;font-weight:750!important;box-shadow:none!important
+}
+.appObjectContextBar nav button:hover,.appObjectContextBar nav a:hover{background:#f5f6f7!important}
+.appCreateShortcuts{margin-top:20px;padding-top:16px;border-top:1px solid #eaedf0}
+.appCreateShortcuts>div:last-child{margin-top:8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.appCreateShortcut{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 11px;border:1px solid #e0e4e8;border-radius:9px;background:#fff;color:#343a40;text-decoration:none}
+.appCreateShortcut:hover{background:#f8f9fa}
+.appCreateShortcut>span:first-child{min-width:0;display:grid;gap:2px}.appCreateShortcut strong,.appCreateShortcut small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appCreateShortcut strong{font-size:.68rem}.appCreateShortcut small{color:#7b838b;font-size:.58rem}
+@media(max-width:720px){.appObjectContextBar{margin:10px 12px 0;align-items:flex-start;flex-direction:column}.appCreateShortcuts>div:last-child{grid-template-columns:1fr}}
