@@ -1,0 +1,10 @@
+name: Package merged admin refresh
+on:
+  push:
+    branches:
+      - chatgpt/package-199d8236
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
