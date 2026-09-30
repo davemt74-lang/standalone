@@ -107,29 +107,10 @@ function research_agent_story_sync(PDO $pdo,array $config,array $viewer,int $lim
     return ['ready'=>true,'created'=>$created];
 }
 function research_agent_story_social_visibility_sql(): string {
-    return "(
-      ra.owner_user_id=:viewer_owner
-      OR EXISTS(SELECT 1 FROM team_members tmx WHERE tmx.team_id=ra.team_id AND tmx.user_id=:viewer_team)
-      OR (
-        (
-          (ra.visibility='public' AND EXISTS(SELECT 1 FROM follows ff WHERE ff.follower_user_id=:viewer_follow AND ff.followed_user_id=ra.owner_user_id))
-          OR (
-            ra.visibility='friends'
-            AND EXISTS(SELECT 1 FROM follows ff1 WHERE ff1.follower_user_id=:viewer_friend1 AND ff1.followed_user_id=ra.owner_user_id)
-            AND EXISTS(SELECT 1 FROM follows ff2 WHERE ff2.follower_user_id=ra.owner_user_id AND ff2.followed_user_id=:viewer_friend2)
-          )
-        )
-        AND NOT EXISTS(
-          SELECT 1 FROM blocks b
-          WHERE (b.blocker_user_id=:viewer_block1 AND b.blocked_user_id=ra.owner_user_id)
-             OR (b.blocker_user_id=ra.owner_user_id AND b.blocked_user_id=:viewer_block2)
-        )
-      )
-    )";
+    return research_agent_social_visibility_sql(true);
 }
 function research_agent_story_social_params(array $viewer): array {
-    $id=(int)$viewer['id'];
-    return [':viewer_owner'=>$id,':viewer_team'=>$id,':viewer_follow'=>$id,':viewer_friend1'=>$id,':viewer_friend2'=>$id,':viewer_block1'=>$id,':viewer_block2'=>$id];
+    return research_agent_social_visibility_params($viewer);
 }
 function research_agent_story_notify_social(PDO $pdo,array $viewer,array $agent,array $story): int {
     $visibility=(string)($agent['visibility']??'private');if(!in_array($visibility,['public','friends'],true))return 0;

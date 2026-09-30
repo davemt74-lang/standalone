@@ -48,6 +48,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 
 $researchAgents=$viewer&&!$viewAsPublic?research_agent_list($pdo,$viewer,50):[];
+$profileResearchAgents=function_exists('research_agent_profile_list')?research_agent_profile_list($pdo,(int)$p['id'],$viewer,30):[];
 $collections=!empty($prefs['profile_show_collections'])||$ownerControls?profile_showcase_public_collections($pdo,(int)$p['id'],30):[];
 $showResearch=!empty($prefs['profile_show_research'])||$ownerControls;
 $showCollections=!empty($prefs['profile_show_collections'])||$ownerControls;
@@ -73,7 +74,7 @@ $annotationCount=(int)$p['annotation_count'];
 $sourceCount=(int)$p['source_count'];
 $followerCount=(int)$p['followers'];
 $followingCount=(int)$p['following_count'];
-$reportCount=$showResearch?count((array)$p['reports']):0;
+$reportCount=$showResearch?count((array)$p['reports']):0;$agentCount=$showResearch?count($profileResearchAgents):0;
 $collectionCount=$showCollections?count($collections):0;
 
 $renderPinControl=function(string $type,string $publicId,string $returnTab)use($ownerControls,$pinMap): string{
@@ -179,10 +180,18 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
         <?php foreach($p['annotations'] as $a):?><div class="profileActivityObject"><?=$renderPinControl('annotation',(string)$a['public_id'],'annotations')?><?=$renderNetworkAction('annotation',(string)$a['public_id'],'annotations')?><?=annotation_ui_card($a,$viewer,['show_author'=>false])?></div><?php endforeach?>
     </div></section>
     <?php elseif($tab==='research'&&$showResearch):?>
-    <section class="profileContent profileWideContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH</span><h2>Published Research</h2></div><span class="profileActivityCount"><?=h((string)$reportCount)?> public</span></header><div class="profileShowcaseGrid">
+    <section class="profileContent profileWideContent">
+      <?php if($profileResearchAgents):?><header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH AGENTS</span><h2>Research Agents</h2></div><span class="profileActivityCount"><?=h((string)$agentCount)?> visible</span></header><div class="profileShowcaseGrid profileAgentShowcaseGrid">
+        <?php foreach($profileResearchAgents as $agent):?><article class="profileShowcaseCard profileAgentCard">
+          <div class="profileDiscoveryIdentity"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><span><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?></span><?php endif?><div><strong><?=h((string)$agent['name'])?></strong><small><?=h(ucfirst((string)$agent['visibility']))?> Research Agent</small></div></div>
+          <?php if(!empty($agent['description'])):?><p><?=h(mb_substr((string)$agent['description'],0,260))?></p><?php endif?>
+        </article><?php endforeach?>
+      </div><?php endif?>
+      <header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH</span><h2>Published Research</h2></div><span class="profileActivityCount"><?=h((string)$reportCount)?> public</span></header><div class="profileShowcaseGrid">
         <?php if(!$p['reports']):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">⌁</div><h3>No published Research yet</h3><p><?= $ownerControls?'Public immutable Research Reports you publish will appear here.':'This profile has not published public Research yet.' ?></p></div><?php endif?>
         <?php foreach($p['reports'] as $r):?><?=$renderResearchCard($r,'research')?><?php endforeach?>
-    </div></section>
+      </div>
+    </section>
     <?php elseif($tab==='collections'&&$showCollections):?>
     <section class="profileContent profileWideContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">COLLECTIONS</span><h2>Public collections</h2></div><span class="profileActivityCount"><?=h((string)$collectionCount)?> public</span></header><div class="profileShowcaseGrid">
         <?php if(!$collections):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">▱</div><h3>No public collections yet</h3><p><?= $ownerControls?'Collections marked Public will appear here.':'This profile has not shared public collections yet.' ?></p></div><?php endif?>
