@@ -145,7 +145,7 @@ $renderCollectionCard=function(array $c,string $returnTab='collections')use($ren
         <div class="profileStatsBar" aria-label="Profile statistics">
             <a href="<?=h(profile_path((string)$p['username']))?>?tab=annotations"><strong><?=h((string)$annotationCount)?></strong><span>Annotations</span></a>
             <div><strong><?=h((string)$sourceCount)?></strong><span>Sources</span></div>
-            <a href="/profile-connections.php?u=<?=rawurlencode((string)$p['username'])?>&type=followers"><strong><?=h((string)$followerCount)?></strong><span>Followers</span></a>
+            <a href="/profile-connections.php?u=<?=rawurlencode((string)$p['username'])?>&type=followers"><strong data-profile-follower-count><?=h((string)$followerCount)?></strong><span>Followers</span></a>
             <a href="/profile-connections.php?u=<?=rawurlencode((string)$p['username'])?>&type=following"><strong><?=h((string)$followingCount)?></strong><span>Following</span></a>
         </div>
     </section>
@@ -206,7 +206,7 @@ document.querySelector('#copyProfile')?.addEventListener('click',async e=>{try{a
 <?php if($viewer&&!$owner):?>
 <script>
 const csrf=<?=json_encode(csrf_token())?>;
-document.querySelector('#follow')?.addEventListener('click',async e=>{e.currentTarget.disabled=true;try{const r=await fetch('/api/profile-follow.php',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({user_id:<?=json_encode($p['public_id'])?>})});const j=await r.json().catch(()=>({ok:false,error:{message:'Follow request failed.'}}));if(!r.ok||j.ok===false)throw new Error(j.error?.message||'Follow request failed.');const following=!!j.data.following;e.currentTarget.textContent=following?'Following':'Follow';e.currentTarget.setAttribute('aria-pressed',following?'true':'false');}catch(err){alert(err?.message||'Unable to update follow state.');}finally{e.currentTarget.disabled=false;}});
+document.querySelector('#follow')?.addEventListener('click',async e=>{const button=e.currentTarget;if(button.disabled)return;const desired=button.getAttribute('aria-pressed')!=='true';button.disabled=true;button.setAttribute('aria-busy','true');try{const r=await fetch('/api/profile-follow.php',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({user_id:<?=json_encode($p['public_id'])?>,following:desired})});const j=await r.json().catch(()=>({ok:false,error:{message:'Follow request failed.'}}));if(!r.ok||j.ok===false)throw new Error(j.error?.message||'Follow request failed.');const following=!!j.data.following;button.textContent=following?'Following':'Follow';button.setAttribute('aria-pressed',following?'true':'false');const count=document.querySelector('[data-profile-follower-count]');if(count&&Number.isFinite(Number(j.data.follower_count)))count.textContent=String(j.data.follower_count);}catch(err){alert(err?.message||'Unable to update follow state.');}finally{button.disabled=false;button.removeAttribute('aria-busy');}});
 </script>
 <?php endif?>
 <?=annotation_ui_scripts($viewer)?>
