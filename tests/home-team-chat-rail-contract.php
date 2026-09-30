@@ -5,7 +5,7 @@ $read=function(string $p)use($root,&$fail): string{$f=$root.'/'.$p;if(!is_file($
 $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&!str_contains($c,$n))$fail[]=$m;};
 
 $need('home.php','hasTeamChatRail','Home must mark the layout when Team Chat is available.');
-$need('home.php','/assets/css/home-team-chat.css?v=74.5','Home must load the Team Chat visibility override after app.css.');
+$need('home.php','/assets/css/home-team-chat.css?v=74.6','Home must load the Team Chat visibility override after app.css.');
 $need('home.php','data-team-chat-rail','Home must render the canonical Team Chat rail.');
 $need('home.php','/assets/js/team-chat.js?v=36.0','Home must load the Team Chat client when Team conversations exist.');
 $need('assets/css/home-team-chat.css','.homeWorkspaceLayout.hasTeamChatRail','Team Chat CSS must keep a dedicated desktop rail state.');
@@ -20,6 +20,11 @@ $need('assets/css/home-team-chat.css','top:68px!important','Desktop Team Chat ra
 $need('assets/css/home-team-chat.css','bottom:0!important','Desktop Team Chat rail must extend to the bottom of the viewport.');
 $need('home.php','data-team-chat-settings-open','Rail and full chat must expose the shared Chat Settings modal trigger.');
 $need('home.php','data-team-chat-settings-modal','Home must embed the canonical Chat Settings modal.');
+$need('home.php','data-team-chat-tab="chat"','Team Chat sidebar must expose a Chat tab.');
+$need('home.php','data-team-chat-tab="members"','Team Chat sidebar must expose a Members tab.');
+$need('home.php','data-team-chat-panel="chat"','Chat tab must own the active conversation UI.');
+$need('home.php','data-team-chat-panel="members"','Members tab must own the team roster UI.');
+$need('assets/js/team-chat.js','setTeamChatTab','Team Chat tabs must be wired by the client.');
 $need('home.php','Automatic','Chat Settings modal must include Automatic status.');
 $need('home.php','Available','Chat Settings modal must include Available status.');
 $need('home.php','Away','Chat Settings modal must include Away status.');
