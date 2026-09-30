@@ -9,6 +9,8 @@ $need('database/migrations/20261001_114_agent_memory_knowledge_management.sql','
 $need('database/migrations/20261001_114_agent_memory_knowledge_management.sql','CREATE TABLE IF NOT EXISTS research_memory_usage','Section 3 must keep Agent retrieval usage history.');
 $need('app/bootstrap.php',"require_once __DIR__ . '/research-agent-memory.php';",'Agent Memory governance service must load globally.');
 $need('app/research-agent-memory.php','function research_memory_upsert','Agent Memory must expose governed updates.');
+$need('app/research-agent-memory.php','function research_memory_object_exists','Memory controls must validate objects against the selected Agent Project.');
+$need('app/research-agent-memory.php','function research_memory_catalog_count','Memory management must support scalable paged catalogs.');
 $need('app/research-agent-memory.php','function research_memory_apply_result','Agent Memory must enforce controls in retrieval.');
 $need('app/research-agent-memory.php','function research_memory_record_usage','Agent Memory must record downstream Agent use.');
 $need('app/research-agent-memory.php','research_memory_privacy_state','Memory management must expose effective privacy state.');
@@ -22,6 +24,8 @@ $need('research-agent-knowledge.php','AGENT MEMORY','Canonical Knowledge Library
 $need('research-agent-knowledge.php','data-memory-state','Knowledge UI must expose retrieval eligibility controls.');
 $need('research-agent-knowledge.php','data-memory-correction','Knowledge UI must expose correction controls.');
 $need('research-agent-knowledge.php','Last used by Agent','Knowledge UI must expose usage history.');
+$need('research-agent-knowledge.php','memory_page','Knowledge UI must page large memory catalogs.');
+$need('research-agent-knowledge.php','memory_q','Knowledge UI must search large memory catalogs.');
 $need('assets/js/research-agent-memory.js','X-CSRF-Token','Agent Memory mutations must use CSRF-protected API calls.');
 $need('assets/css/app.css','/* Phase 79.3 — Agent Memory / Knowledge Management */','Agent Memory must have dedicated responsive UI styling.');
 $need('app/research-agent-knowledge-ui.php',"'library'=>",'Existing Library / Insights / Changes canonical model must remain intact.');
