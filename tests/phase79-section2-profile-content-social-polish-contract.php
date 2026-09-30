@@ -7,7 +7,7 @@ $css=(string)file_get_contents($root.'/assets/css/profile-v2.css');
 $migration=(string)file_get_contents($root.'/database/migrations/20260930_113_profile_content_social_polish.sql');
 
 foreach([
-  "profile-v2.css?v=79.2",
+  "profile-v2.css?v=79.3",
   "data-profile-edit-open",
   "data-profile-edit-dialog",
   "profile_update",
