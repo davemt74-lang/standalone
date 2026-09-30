@@ -5,9 +5,9 @@ $read=function(string $p)use($root,&$fail): string{$f=$root.'/'.$p;if(!is_file($
 $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&!str_contains($c,$n))$fail[]=$m;};
 
 $need('home.php','hasTeamChatRail','Home must mark the layout when Team Chat is available.');
-$need('home.php','/assets/css/home-team-chat.css?v=74.6','Home must load the Team Chat visibility override after app.css.');
+$need('home.php','/assets/css/home-team-chat.css?v=74.7','Home must load the Team Chat visibility override after app.css.');
 $need('home.php','data-team-chat-rail','Home must render the canonical Team Chat rail.');
-$need('home.php','/assets/js/team-chat.js?v=36.0','Home must load the Team Chat client when Team conversations exist.');
+$need('home.php','/assets/js/team-chat.js?v=36.2','Home must load the Team Chat client when Team conversations exist.');
 $need('assets/css/home-team-chat.css','.homeWorkspaceLayout.hasTeamChatRail','Team Chat CSS must keep a dedicated desktop rail state.');
 $need('assets/css/home-team-chat.css','>.homeRightRail.teamChatRightRail','Team Chat CSS must explicitly restore the rail hidden by single-column Home styles.');
 $need('home.php','data-team-chat-mini-rail','Home must render the 50px collapsed Team Chat rail.');
@@ -25,6 +25,9 @@ $need('home.php','data-team-chat-tab="members"','Team Chat sidebar must expose a
 $need('home.php','data-team-chat-panel="chat"','Chat tab must own the active conversation UI.');
 $need('home.php','data-team-chat-panel="members"','Members tab must own the team roster UI.');
 $need('assets/js/team-chat.js','setTeamChatTab','Team Chat tabs must be wired by the client.');
+$need('assets/js/team-chat.js',"e.target.closest('[data-team-chat-tab]')",'Team Chat tab activation must use delegated click handling.');
+$need('assets/css/home-team-chat.css','/* Minimal Team Chat scrollbars */','Team Chat must use minimal site-styled scrollbars.');
+$need('assets/css/home-team-chat.css','overflow-y:auto!important','Chat messages must scroll vertically.');
 $need('home.php','Automatic','Chat Settings modal must include Automatic status.');
 $need('home.php','Available','Chat Settings modal must include Available status.');
 $need('home.php','Away','Chat Settings modal must include Away status.');
