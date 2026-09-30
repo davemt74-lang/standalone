@@ -4617,3 +4617,11 @@ body>.appShell.appShellHeaderOnly{
   max-width:none;
   min-width:0;
 }
+
+/* Header-only shell root fix — override the later sharp shell two-column grid */
+body>.appShell.appShellHeaderOnly{
+  grid-template-columns:minmax(0,1fr)!important;
+}
+body>.appShell.appShellHeaderOnly>.appShellStage{
+  grid-column:1 / -1;
+}
