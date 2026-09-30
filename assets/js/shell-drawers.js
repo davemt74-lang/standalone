@@ -122,7 +122,7 @@
   document.addEventListener('click',e=>{
     const target=e.target.closest('[data-object-detail-type][data-object-detail-id]');
     if(!target)return;const type=String(target.dataset.objectDetailType||''),id=String(target.dataset.objectDetailId||'');
-    if(!supported.has(type)||!id)return;e.preventDefault();openObject(type,id);
+    if(!supported.has(type)||!id)return;e.preventDefault();const palette=document.querySelector('[data-command-palette]');if(palette?.open)palette.close();openObject(type,id);
   });
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(objectDrawer?.classList.contains('open'))closeObject();else if(notificationDrawer?.classList.contains('open'))closeNotifications();}});
   const u=new URL(location.href),initialType=u.searchParams.get('drawer_type'),initialId=u.searchParams.get('drawer_id');
