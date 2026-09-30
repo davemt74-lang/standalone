@@ -1,11 +1,10 @@
-/* Home Team Chat rail — overrides the later single-column focus rule only when chat is available. */
+/* Home Team Chat — collapsible fixed desktop rail + mobile drawer. */
 @media(min-width:901px){
   .homeWorkspaceLayout.hasTeamChatRail{
-    grid-template-columns:minmax(0,820px) minmax(300px,330px)!important;
-    max-width:1190px!important;
-    gap:22px!important;
+    grid-template-columns:minmax(0,820px)!important;
+    max-width:870px!important;
+    gap:0!important;
     justify-content:center!important;
-    align-items:start!important;
   }
   .homeWorkspaceLayout.hasTeamChatRail>#homeFeedCanvas,
   .homeWorkspaceLayout.hasTeamChatRail>.homeAgentCanvas{
@@ -14,23 +13,112 @@
   }
   .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
     display:block!important;
-    grid-column:2!important;
-    grid-row:1!important;
-    min-width:0!important;
-    position:sticky!important;
-    top:78px!important;
-    align-self:start!important;
+    position:fixed!important;
+    top:72px!important;
+    right:0!important;
+    bottom:18px!important;
+    width:370px!important;
+    max-height:none!important;
+    overflow:visible!important;
+    padding:0 0 0 0!important;
+    z-index:132!important;
+    transform:translateX(320px)!important;
+    transition:transform .2s ease!important;
+    pointer-events:none!important;
   }
+  body.teamChatDesktopOpen .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
+    transform:translateX(0)!important;
+  }
+  .homeWorkspaceLayout.hasTeamChatRail .teamChatRail{
+    width:320px!important;
+    height:calc(100vh - 96px)!important;
+    min-height:520px!important;
+    margin:0 50px 0 0!important;
+    pointer-events:auto!important;
+    border-radius:16px 0 0 16px!important;
+    box-shadow:0 14px 36px rgba(0,0,0,.12)!important;
+  }
+  .homeWorkspaceLayout.hasTeamChatRail .teamChatClose{
+    display:grid!important;
+    place-items:center!important;
+  }
+  .teamChatMiniRail{
+    position:absolute!important;
+    top:0!important;
+    right:0!important;
+    bottom:0!important;
+    width:50px!important;
+    margin:0!important;
+    padding:10px 7px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    gap:9px!important;
+    border:0!important;
+    border-left:1px solid #e1e4e7!important;
+    border-radius:12px 0 0 12px!important;
+    background:#fff!important;
+    color:#333!important;
+    box-shadow:0 10px 28px rgba(0,0,0,.08)!important;
+    pointer-events:auto!important;
+    overflow:hidden!important;
+  }
+  body.teamChatDesktopOpen .teamChatMiniRail{
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  .teamChatMiniRailLabel{
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    font-size:.58rem;
+    font-weight:850;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:#7b8187;
+    margin-bottom:2px;
+  }
+  .teamChatMiniMembers{
+    width:100%;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    overflow:hidden;
+  }
+  .teamChatMiniPerson{
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    flex:0 0 34px;
+  }
+  .teamChatMiniRail .teamChatAvatar{
+    --team-chat-avatar-size:30px!important;
+  }
+  .teamChatMiniUnread{
+    min-width:22px;
+    height:22px;
+    padding:0 5px;
+    margin-top:auto;
+    display:grid;
+    place-items:center;
+    border-radius:999px;
+    background:#111;
+    color:#fff;
+    font-size:.62rem;
+    font-weight:850;
+  }
+  .teamChatMiniUnread[hidden]{display:none!important}
   .homeFeedPage.agentChatMode .homeWorkspaceLayout.hasTeamChatRail{
-    grid-template-columns:minmax(0,1fr) minmax(300px,330px)!important;
-    max-width:1260px!important;
-    gap:22px!important;
-  }
-  .homeFeedPage.agentChatMode .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
-    display:block!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    max-width:none!important;
   }
 }
 @media(max-width:900px){
+  .teamChatMiniRail{display:none!important}
   .homeWorkspaceLayout.hasTeamChatRail{grid-template-columns:minmax(0,1fr)!important}
-  .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{grid-column:1!important}
+  .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
+    grid-column:1!important;
+  }
 }
