@@ -1,0 +1,10 @@
+name: Package Team Chat viewport fix
+on:
+  push:
+    branches:
+      - chatgpt/package-2060257c
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
