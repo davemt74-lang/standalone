@@ -203,7 +203,15 @@ function app_shell_admin_nav(string $path): string {
     return implode('',$links);
 }
 function app_shell_search(): string {
-    return '<form class="appHeaderSearch" action="/search.php" method="get"><span aria-hidden="true">⌕</span><input name="q" aria-label="Search Annotated" placeholder="Search people, sources, annotations, research"></form>';
+    return '<form class="appHeaderSearch" action="/search.php" method="get" data-command-palette-open><span aria-hidden="true">⌕</span><input name="q" aria-label="Search Annotated" autocomplete="off" readonly placeholder="Search Annotated or run a command"><kbd>⌘K</kbd></form>';
+}
+function app_shell_command_palette(): string {
+    return '<dialog class="commandPalette" data-command-palette aria-label="Search Annotated and run commands">'
+      .'<div class="commandPaletteHead"><span aria-hidden="true">⌕</span><input type="search" data-command-input autocomplete="off" placeholder="Search agents, missions, tasks, teams, sources…"><button type="button" class="commandPaletteClose" data-command-close aria-label="Close">×</button></div>'
+      .'<div class="commandPaletteResults" data-command-results role="listbox" aria-label="Search results"></div>'
+      .'<div class="commandPaletteEmpty" data-command-empty>Type to search everything, or choose an action.</div>'
+      .'<div class="commandPaletteHint"><span>↑ ↓ navigate · Enter open</span><span>Esc close · / search</span></div>'
+      .'</dialog>';
 }
 function app_shell_create_launcher(PDO $pdo,array $user): string {
     $context=function_exists('research_object_context_from_request')?research_object_context_from_request($pdo,$user):[];
@@ -309,7 +317,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
         $aside.=app_shell_research_agents($pdo,$user,$path).app_shell_research_projects($pdo,$user,$path);
     }
     $aside.='</aside>';
-    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
+    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$palette=$adminMode?'':app_shell_command_palette();$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'.$palette; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
     $footer='';
     return [$aside,$header,$footer];
 }
@@ -317,7 +325,7 @@ function app_shell_transform(string $html): string {
     $state=$GLOBALS['annotated_shell']??null;
     if(!$state||!is_string($html)||stripos($html,'<html')===false||stripos($html,'<body')===false)return $html;
     if(str_contains($html,'data-annotated-shell="1"'))return $html;
-    if(!str_contains($html,'/assets/css/create-launcher.css'))$html=(string)preg_replace('#</head>#i','<link rel="stylesheet" href="/assets/css/create-launcher.css?v=74.3"></head>',$html,1);
+    if(!str_contains($html,'/assets/css/create-launcher.css'))$html=(string)preg_replace('#</head>#i','<link rel="stylesheet" href="/assets/css/create-launcher.css?v=74.3"><link rel="stylesheet" href="/assets/css/command-palette.css?v=74.4"></head>',$html,1);
     $pdo=$state['pdo']??null;$user=$state['user']??null;
     if(!$pdo instanceof PDO||!is_array($user))return $html;
 
@@ -328,7 +336,7 @@ function app_shell_transform(string $html): string {
     $mode=(string)($state['mode']??'full');$headerOnly=$mode==='header_only';
     $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1" data-chat-presence-csrf="'.app_shell_h(csrf_token()).'">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.($headerOnly?'':$objectBar).'<div class="appShellContent">';
     $presenceScript=(function_exists('conversation_presence_ready')&&conversation_presence_ready($pdo))?'<script src="/assets/js/chat-presence.js?v=12.0"></script>':'';
-    $researchAgentScript=($headerOnly?'':'<script src="/assets/js/research-agent-shell.js?v=47.0"></script>').'<script src="/assets/js/create-launcher.js?v=1.0"></script>';
+    $researchAgentScript=($headerOnly?'':'<script src="/assets/js/research-agent-shell.js?v=47.0"></script>').'<script src="/assets/js/create-launcher.js?v=1.0"></script>'.($headerOnly?'':'<script src="/assets/js/command-palette.js?v=74.4"></script>');
     $close='</div>'.$footer.'</div></div>'.$presenceScript.$researchAgentScript;
 
     $html=(string)preg_replace('#<body([^>]*)>#i','<body$1>'.$open,$html,1);
