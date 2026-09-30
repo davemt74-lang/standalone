@@ -4662,3 +4662,8 @@ body>.appShell.appShellHeaderOnly>.appShellStage{
 .researchMemoryUnavailable,.researchMemoryEmpty,.researchMemoryHistoryEmpty{padding:14px;border:1px dashed #d6dbe0;border-radius:8px;background:#fafbfc;color:#747b84;font-size:.72rem}
 @media(max-width:900px){.researchMemoryItem>summary{grid-template-columns:70px minmax(0,1fr);gap:7px}.researchMemoryBadges,.researchMemoryUse{grid-column:2;justify-content:flex-start;text-align:left}.researchMemoryMeta{grid-template-columns:repeat(2,minmax(0,1fr))}.researchMemoryStats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.researchMemoryStats,.researchMemoryMeta{grid-template-columns:1fr}.researchMemoryItem>summary{grid-template-columns:1fr}.researchMemoryBadges,.researchMemoryUse{grid-column:auto}}
+
+.researchMemorySearch{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:8px;align-items:end;margin:4px 0 8px}
+.researchMemorySearch label{display:grid;gap:5px;color:#69717a;font-size:.62rem;font-weight:800}.researchMemorySearch input{width:100%;padding:9px 10px;border:1px solid #d8dde2;border-radius:8px;background:#fff;font:inherit;font-size:.76rem}
+.researchMemoryPagination{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:14px}.researchMemoryPagination span{color:#747b84;font-size:.68rem}
+@media(max-width:640px){.researchMemorySearch{grid-template-columns:1fr}.researchMemorySearch .button{width:100%}}
