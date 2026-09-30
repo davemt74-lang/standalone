@@ -4591,3 +4591,29 @@ body.storyViewerOpen{overflow:hidden!important}
   .appShellHeaderOnlyBar .appHeaderSearch{display:none}
   .appHeaderBrandHeaderOnly .appShellBrand>span:last-child{display:none}
 }
+
+/* Header-only shell width hardening — full viewport stage */
+body>.appShell.appShellHeaderOnly{
+  width:100%;
+  max-width:none;
+  min-width:0;
+  justify-self:stretch;
+  align-self:stretch;
+}
+.appShell.appShellHeaderOnly>.appShellStage{
+  width:100%;
+  max-width:none;
+  min-width:0;
+  flex:1 1 auto;
+}
+.appShell.appShellHeaderOnly .appShellContent{
+  width:100%;
+  max-width:none;
+  min-width:0;
+  flex:1 1 auto;
+}
+.appShell.appShellHeaderOnly .appShellHeader{
+  width:100%;
+  max-width:none;
+  min-width:0;
+}
