@@ -143,7 +143,7 @@ $renderStoryCard=function(array $story,string $returnTab='stories')use($p): stri
 <meta property="og:url" content="<?=h($canonical)?>">
 <?php endif?>
 <link rel="stylesheet" href="/assets/css/app.css?v=profile-300">
-<link rel="stylesheet" href="/assets/css/profile-v2.css?v=79.1">
+<link rel="stylesheet" href="/assets/css/profile-v2.css?v=79.2">
 </head>
 <body class="profileStandaloneBody profileV2Body">
 <main class="profileStandalonePage profileV2Page">
@@ -171,7 +171,7 @@ $renderStoryCard=function(array $story,string $returnTab='stories')use($p): stri
             <div class="profileActions">
                 <?php if($viewer&&!$owner&& !empty($p['friends'])):?><span class="profileRelationshipBadge">Friends</span><?php elseif($viewer&&!$owner&& !empty($p['follows_you'])):?><span class="profileRelationshipBadge">Follows you</span><?php endif?>
                 <?php if($viewer&&!$owner):?><button id="follow" class="profilePrimaryAction" type="button" aria-pressed="<?=$p['following']?'true':'false'?>"><?=$p['following']?'Following':'Follow'?></button>
-                <?php elseif($ownerControls):?><a class="profilePrimaryAction" href="/settings.php">Edit profile</a><a class="profileSecondaryAction" href="<?=h(profile_path((string)$p['username']))?>?view=public">View as public</a>
+                <?php elseif($ownerControls):?><button class="profilePrimaryAction" type="button" data-profile-edit-open>Edit profile</button><a class="profileSecondaryAction" href="<?=h(profile_path((string)$p['username']))?>?view=public">View as public</a>
                 <?php elseif(!$viewer):?><a class="profilePrimaryAction" href="/login.php">Log in to follow</a><?php endif?>
                 <button class="profileIconAction" type="button" id="copyProfile" aria-label="Copy profile link" title="Copy profile link"><span aria-hidden="true">↗</span></button>
                 <?php if(!$owner&&$isPublic):?><details class="profileMoreMenu"><summary class="profileIconAction" aria-label="More profile actions" title="More">•••</summary><div class="profileMoreMenuPanel"><a href="/report.php?type=user&id=<?=h($p['public_id'])?>">Report profile</a></div></details><?php endif?>
@@ -193,11 +193,11 @@ $renderStoryCard=function(array $story,string $returnTab='stories')use($p): stri
 
     <?php if($tab==='activity'):?>
     <section class="profileContent">
-        <?php if($pins):?><section class="profilePinnedSection"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">FEATURED</span><h2>Pinned</h2></div><span class="profileActivityCount"><?=count($pins)?> of 3</span></header><div class="profilePinnedGrid">
+        <?php if($pins):?><section class="profilePinnedSection"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">FEATURED</span><h2>Pinned</h2></div><span class="profileActivityCount"><?=count($pins)?> of 6</span></header><div class="profilePinnedGrid">
             <?php foreach($pins as $pin):?>
                 <?php if($pin['type']==='annotation'):?><div class="profilePinnedAnnotation"><?=$renderPinControl('annotation',(string)$pin['public_id'],'activity')?><?=annotation_ui_card($pin['item'],$viewer,['show_author'=>false])?></div>
                 <?php elseif($pin['type']==='research_report'):?><?=$renderResearchCard($pin['item'],'activity')?>
-                <?php elseif($pin['type']==='collection'):?><?=$renderCollectionCard($pin['item'],'activity')?><?php endif?>
+                <?php elseif($pin['type']==='collection'):?><?=$renderCollectionCard($pin['item'],'activity')?><?php elseif($pin['type']==='research_agent'):?><?=$renderAgentCard($pin['item'],'activity')?><?php endif?>
             <?php endforeach?>
         </div></section><?php endif?>
         <header class="profileContentHeader"><div><span class="profileSectionEyebrow">RECENT</span><h2>Activity</h2></div><span class="profileActivityCount"><?=h((string)count($activity))?> shown</span></header>
@@ -206,19 +206,20 @@ $renderStoryCard=function(array $story,string $returnTab='stories')use($p): stri
             <?php foreach($activity as $row):?>
                 <?php if($row['type']==='annotation'):?><div class="profileActivityObject"><?=$renderPinControl('annotation',(string)$row['item']['public_id'],'activity')?><?=$renderNetworkAction('annotation',(string)$row['item']['public_id'],'activity')?><?=annotation_ui_card($row['item'],$viewer,['show_author'=>false])?></div>
                 <?php elseif($row['type']==='research_report'):?><?=$renderResearchCard($row['item'],'activity')?>
-                <?php elseif($row['type']==='collection'):?><?=$renderCollectionCard($row['item'],'activity')?><?php endif?>
+                <?php elseif($row['type']==='collection'):?><?=$renderCollectionCard($row['item'],'activity')?><?php elseif($row['type']==='research_agent_story'):?><?=$renderStoryCard($row['item'],'activity')?><?php endif?>
             <?php endforeach?>
         </div>
     </section>
     <?php elseif($tab==='stories'):?>
     <section class="profileContent profileWideContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">STORIES</span><h2>Research Agent Stories</h2></div><span class="profileActivityCount"><?=h((string)$storyCount)?> public</span></header>
+      <?php if($storyGroups):?><div class="profileStoryRail" aria-label="Research Agents with active public Stories"><?php foreach($storyGroups as $group):?><a href="#story-<?=h((string)$group['stories'][0]['public_id'])?>" class="profileStoryRailItem"><span class="profileStoryRing"><?php if(!empty($group['profile_image_url'])):?><img src="<?=h((string)$group['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$group['agent_name'],0,1)))?><?php endif?></span><strong><?=h((string)$group['agent_name'])?></strong><small><?=h((string)count($group['stories']))?> active</small></a><?php endforeach?></div><?php endif?>
       <div class="profileStoryGrid"><?php if(!$profileStories):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">◌</div><h3>No public Stories yet</h3><p>Public Research Agent Stories will appear here.</p></div><?php endif?>
-      <?php foreach($profileStories as $story):?><article class="profileStoryCard"><header><span class="profileStoryAgentAvatar"><?php if(!empty($story['agent_profile_image_url'])):?><img src="<?=h((string)$story['agent_profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$story['agent_name'],0,1)))?><?php endif?></span><div><strong><?=h((string)$story['agent_name'])?></strong><small><?=h((string)$story['published_at'])?></small></div></header><span class="profileObjectType"><?=h(strtoupper(str_replace('_',' ',(string)($story['story_type']??'story'))))?></span><h3><?=h((string)($story['title']?:'Research update'))?></h3><p><?=nl2br(h((string)$story['body']))?></p><?php if(!empty($story['why_it_matters'])):?><aside><strong>Why this matters</strong><p><?=h((string)$story['why_it_matters'])?></p></aside><?php endif?><footer><a href="/research-agent-public.php?agent=<?=rawurlencode((string)$story['agent_public_id'])?>">View Research Agent →</a></footer></article><?php endforeach?></div>
+      <?php foreach($profileStories as $story):?><?=$renderStoryCard($story,'stories')?><?php endforeach?></div>
     </section>
     <?php elseif($tab==='agents'):?>
     <section class="profileContent profileWideContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">RESEARCH AGENTS</span><h2>Public Research Agents</h2></div><span class="profileActivityCount"><?=h((string)$agentCount)?> public</span></header>
       <div class="profileShowcaseGrid profileAgentShowcaseGrid"><?php if(!$profileResearchAgents):?><div class="profileEmptyState"><div class="profileEmptyIcon" aria-hidden="true">✦</div><h3>No public Research Agents</h3><p>Only Research Agents explicitly set to Public appear on this profile.</p></div><?php endif?>
-      <?php foreach($profileResearchAgents as $agent):?><article class="profileShowcaseCard profileAgentCard"><a class="profileAgentCardLink" href="/research-agent-public.php?agent=<?=rawurlencode((string)$agent['public_id'])?>"><div class="profileDiscoveryIdentity"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><span><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?></span><?php endif?><div><strong><?=h((string)$agent['name'])?></strong><small>Public Research Agent</small></div></div><?php if(!empty($agent['description'])):?><p><?=h(mb_substr((string)$agent['description'],0,260))?></p><?php endif?><span class="profileAgentCardAction">View Agent <span aria-hidden="true">→</span></span></a></article><?php endforeach?></div>
+      <?php foreach($profileResearchAgents as $agent):?><?=$renderAgentCard($agent,'agents')?><?php endforeach?></div>
     </section>
     <?php elseif($tab==='annotations'):?>
     <section class="profileContent"><header class="profileContentHeader"><div><span class="profileSectionEyebrow">ANNOTATIONS</span><h2>Public annotations</h2></div><span class="profileActivityCount"><?=h((string)count($p['annotations']))?> shown</span></header><div class="profileFeed">
@@ -243,14 +244,18 @@ $renderStoryCard=function(array $story,string $returnTab='stories')use($p): stri
         <?php if($p['bio']):?><div><span>Bio</span><p><?=nl2br(h($p['bio']))?></p></div><?php endif?>
         <?php if($p['website_url']):?><div><span>Website</span><p><a href="<?=h($p['website_url'])?>" rel="nofollow noopener" target="_blank"><?=h($p['website_url'])?></a></p></div><?php endif?>
         <div><span>Member since</span><p><?=h(date('F Y',strtotime((string)$p['created_at'])))?></p></div>
-        <div><span>Public work</span><p><?=h((string)$annotationCount)?> annotations<?= $showResearch?' · '.h((string)$reportCount).' Research reports':'' ?><?= $showCollections?' · '.h((string)$collectionCount).' collections':'' ?></p></div>
+        <div><span>Public work</span><p><?=h((string)$annotationCount)?> annotations · <?=h((string)$reportCount)?> Research reports · <?=h((string)$agentCount)?> Research Agents · <?=h((string)$storyCount)?> active Stories · <?=h((string)$collectionCount)?> collections</p></div>
+        <div><span>Network</span><p><?=h((string)$followerCount)?> followers · <?=h((string)$followingCount)?> following</p></div>
     </div></section>
     <?php endif?>
 
+    <?php if($ownerControls):?><dialog class="profileEditDialog" data-profile-edit-dialog><form method="post" enctype="multipart/form-data" class="profileEditForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="action" value="profile_update"><header><div><span class="profileSectionEyebrow">PROFILE</span><h2>Edit profile</h2></div><button type="button" data-profile-edit-close aria-label="Close">×</button></header><label>Display name<input name="display_name" maxlength="100" required value="<?=h((string)$p['display_name'])?>"></label><label>Bio<textarea name="bio" maxlength="2000" rows="5"><?=h((string)($p['bio']??''))?></textarea></label><label>Website<input name="website_url" type="url" maxlength="500" value="<?=h((string)($p['website_url']??''))?>"></label><div class="profileEditMediaGrid"><label>Profile photo<input type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp"><?php if(!empty($p['profile_image_url'])):?><span><input type="checkbox" name="remove_profile_photo" value="1"> Remove current photo</span><?php endif?></label><label>Cover image<input type="file" name="profile_cover" accept="image/jpeg,image/png,image/webp"><?php if(!empty($p['profile_cover_image_url'])):?><span><input type="checkbox" name="remove_profile_cover" value="1"> Remove current cover</span><?php endif?></label></div><footer><a href="/settings.php">More settings</a><div><button type="button" class="profileSecondaryAction" data-profile-edit-close>Cancel</button><button type="submit" class="profilePrimaryAction">Save profile</button></div></footer></form></dialog><?php endif?>
     <footer class="profileStandaloneFooter"><a href="<?=$viewer?'/home.php':'/'?>">Annotated</a><?php if($viewer):?><a href="/home.php">Home</a><?php else:?><a href="/explore.php">Explore</a><a href="/login.php">Log in</a><?php endif?></footer>
 </main>
 
 <script>
+document.querySelector('[data-profile-edit-open]')?.addEventListener('click',()=>document.querySelector('[data-profile-edit-dialog]')?.showModal());
+document.querySelectorAll('[data-profile-edit-close]').forEach(b=>b.addEventListener('click',()=>document.querySelector('[data-profile-edit-dialog]')?.close()));
 document.querySelector('#copyProfile')?.addEventListener('click',async e=>{try{await navigator.clipboard.writeText(<?=json_encode($canonical)?>);const original=e.currentTarget.innerHTML;e.currentTarget.textContent='✓';e.currentTarget.setAttribute('aria-label','Profile link copied');setTimeout(()=>{e.currentTarget.innerHTML=original;e.currentTarget.setAttribute('aria-label','Copy profile link');},1400);}catch(_){}});
 </script>
 <?php if($viewer&&!$owner):?>
