@@ -37,7 +37,7 @@ function universal_object_detail_files(PDO $pdo,array $viewer,array $row,int $li
     $projectId=(int)($row['project_id']??0);if($projectId<1)return [];
     $q=$pdo->prepare("SELECT rwo.public_id,rwo.object_type,rwo.title,rwo.updated_at
       FROM research_workspace_objects rwo
-      WHERE rwo.project_id=? AND rwo.archived_at IS NULL
+      WHERE rwo.project_id=? AND rwo.status='active'
       ORDER BY rwo.updated_at DESC,rwo.id DESC LIMIT ".max(1,min(60,$limit)));
     $q->execute([$projectId]);return $q->fetchAll()?:[];
 }
