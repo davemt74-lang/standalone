@@ -152,6 +152,60 @@ function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
     return $rows;
 }
 
+
+function research_agent_edit_context(PDO $pdo,array $viewer,string $publicId): array {
+    $agent=research_agent_access($pdo,$viewer,$publicId);if(!$agent)throw new RuntimeException('Research Agent not found.');
+    $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);
+    if(!$canEdit)throw new RuntimeException('You do not have permission to edit this Research Agent.');
+    $project=['public_id'=>(string)$agent['project_public_id'],'title'=>(string)$agent['project_title'],'description'=>(string)($agent['description']??''),'status'=>'active'];
+    $q=$pdo->prepare('SELECT public_id,title,description,status,updated_at FROM research_projects WHERE id=? LIMIT 1');$q->execute([(int)$agent['project_id']]);$project=$q->fetch()?:$project;
+    $automation=null;
+    if(!empty($agent['automation_id'])&&function_exists('research_automation_ready')&&research_automation_ready($pdo)){
+        $q=$pdo->prepare('SELECT public_id FROM research_automations WHERE id=? LIMIT 1');$q->execute([(int)$agent['automation_id']]);$ap=(string)($q->fetchColumn()?:'');
+        if($ap!==''&&function_exists('research_automation_access'))$automation=research_automation_access($pdo,$viewer,$ap);
+    }
+    $missions=function_exists('research_missions_ready')&&research_missions_ready($pdo)?research_mission_list($pdo,$viewer,$publicId,100):[];
+    $plans=function_exists('research_tasks_ready')&&research_tasks_ready($pdo)?research_task_plan_list($pdo,$viewer,$publicId,100):[];
+    $programs=function_exists('research_programs_ready')&&research_programs_ready($pdo)?research_program_list($pdo,$viewer,$publicId,100):[];
+    $watches=function_exists('research_monitor_ready')&&research_monitor_ready($pdo)?research_monitor_list($pdo,$viewer,$publicId,100):[];
+    $portfolios=[];
+    if(function_exists('research_intelligence_portfolios_ready')&&research_intelligence_portfolios_ready($pdo)){
+        foreach(research_intelligence_portfolio_list($pdo,$viewer,120,false) as $portfolio){
+            if(research_intelligence_portfolio_contains_project($pdo,$viewer,(string)$portfolio['public_id'],(int)$agent['project_id']))$portfolios[]=$portfolio;
+        }
+    }
+    return ['agent'=>$agent,'project'=>$project,'automation'=>$automation,'missions'=>$missions,'plans'=>$plans,'programs'=>$programs,'watches'=>$watches,'portfolios'=>$portfolios];
+}
+
+function research_agent_update_settings(PDO $pdo,array $viewer,string $publicId,array $input): array {
+    $agent=research_agent_update_profile($pdo,$viewer,$publicId,$input);
+    $status=strtolower(trim((string)($input['status']??$agent['status']??'active')));if(!in_array($status,['active','paused'],true))$status='active';
+    $cadence=strtolower(trim((string)($input['cadence']??$agent['monitoring_cadence']??'daily')));if(!in_array($cadence,['hourly','daily','weekly','manual'],true))$cadence='daily';
+    $pdo->prepare('UPDATE research_agents SET status=?,monitoring_cadence=?,updated_at=NOW() WHERE id=?')->execute([$status,$cadence,(int)$agent['id']]);
+    if(!empty($agent['automation_id'])&&function_exists('research_automation_ready')&&research_automation_ready($pdo)){
+        $q=$pdo->prepare('SELECT public_id FROM research_automations WHERE id=? LIMIT 1');$q->execute([(int)$agent['automation_id']]);$automationPublic=(string)($q->fetchColumn()?:'');
+        if($automationPublic!==''){
+            $current=research_automation_access($pdo,$viewer,$automationPublic);
+            if($current){
+                $automationInput=[
+                  'title'=>(string)($input['automation_title']??$current['title']),
+                  'workflow_type'=>(string)$current['workflow_type'],
+                  'trigger_type'=>(string)$current['trigger_type'],
+                  'project_id'=>(string)$current['project_public_id'],
+                  'cadence'=>$cadence,
+                  'timezone_name'=>(string)($input['timezone_name']??$current['timezone_name']),
+                  'run_time_local'=>(string)($input['run_time_local']??$current['run_time_local']),
+                  'weekday'=>(int)($input['weekday']??$current['weekday']??1),
+                  'prompt'=>(string)($input['automation_prompt']??$current['prompt']??'')
+                ];
+                research_automation_update($pdo,$viewer,$automationPublic,$automationInput);
+                research_automation_set_status($pdo,$viewer,$automationPublic,$status==='active'?'active':'paused');
+            }
+        }
+    }
+    return research_agent_edit_context($pdo,$viewer,$publicId);
+}
+
 function research_agent_chat_feed(PDO $pdo,array $viewer,string $agentPublicId,int $limit=6): array {
     $agent=research_agent_access($pdo,$viewer,$agentPublicId);if(!$agent)return [];
     $limit=max(1,min(20,$limit));
