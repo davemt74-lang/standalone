@@ -20,7 +20,7 @@ $need('api/universal-command.php','current_user($pdo)','Universal command API mu
 $need('api/universal-command.php',"rate_limit_api_or_429(\$pdo,'universal-command'","Universal command API must be rate limited.");
 $need('app/shell.php','data-command-palette-open','Authenticated header search must launch the command palette.');
 $need('app/shell.php','data-command-palette','Shell must render one global command palette.');
-$need('app/shell.php','/assets/js/command-palette.js?v=74.4','Shell must load command palette behavior.');
+$need('app/shell.php','/assets/js/command-palette.js?v=74.5','Shell must load command palette behavior.');
 $need('app/shell.php','/assets/css/command-palette.css?v=74.4','Shell must load command palette styles.');
 $need('assets/js/command-palette.js',"e.ctrlKey||e.metaKey","Palette must support Ctrl/Cmd keyboard access.");
 $need('assets/js/command-palette.js',"e.key==='ArrowDown'","Palette must support keyboard result navigation.");
