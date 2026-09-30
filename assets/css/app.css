@@ -4510,3 +4510,13 @@ body.storyViewerOpen{overflow:hidden!important}
 @media(max-width:620px){.profilePersonCard{grid-template-columns:minmax(0,1fr) auto}.profilePersonRelationship{grid-column:1/2;padding-left:66px;justify-content:flex-start}.profileConnectionFollowButton{grid-column:2;grid-row:1/3}.profilePersonIdentityLink{grid-template-columns:48px minmax(0,1fr)}.profilePersonIdentityLink img,.profilePersonIdentityLink .profilePersonFallback{width:48px;height:48px}}
 
 .profileDiscoveryRelationship{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}.profileDiscoveryRelationship span{padding:4px 7px;border-radius:999px;background:#f0f0ec;color:#60605b;font-size:.65rem;font-weight:760}
+
+
+/* Phase 77.6 — Social Discovery & Public Research Agent Discovery */
+.publicAgentDiscoveryGrid,.exploreAgentStrip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.publicAgentDiscoveryCard,.exploreAgentCard{display:flex;flex-direction:column;min-height:210px;padding:18px;border:1px solid #dfdfd9;border-radius:18px;background:#fff;color:inherit;text-decoration:none;box-shadow:0 7px 24px rgba(0,0,0,.025)}
+.publicAgentDiscoveryCard:hover,.exploreAgentCard:hover{border-color:#bdbdb7;transform:translateY(-2px)}
+.publicAgentDiscoveryIdentity{display:flex;gap:11px;align-items:center}.publicAgentDiscoveryIdentity img,.publicAgentDiscoveryIdentity>span{width:46px;height:46px;border-radius:50%;object-fit:cover}.publicAgentDiscoveryIdentity>span{display:grid;place-items:center;background:#111;color:#fff;font-weight:850}.publicAgentDiscoveryIdentity>div{display:grid;min-width:0}.publicAgentDiscoveryIdentity strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.publicAgentDiscoveryIdentity small{color:#85857f}
+.publicAgentDiscoveryCard>p,.exploreAgentCard>p{margin:15px 0 0;color:#666;font-size:.8rem;line-height:1.5}.publicAgentDiscoveryCard>footer,.exploreAgentCard>footer{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:16px;color:#85857f;font-size:.68rem}
+.exploreAgentStrip{grid-template-columns:repeat(6,minmax(0,1fr))}.exploreAgentCard{min-height:185px}
+@media(max-width:1100px){.exploreAgentStrip{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:900px){.publicAgentDiscoveryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.publicAgentDiscoveryGrid,.exploreAgentStrip{grid-template-columns:1fr}}
