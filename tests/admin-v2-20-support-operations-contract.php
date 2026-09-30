@@ -16,7 +16,7 @@ $need('app/admin-access.php',"'admin.support.view'",'V2.10 capability registry m
 $need('app/admin-access.php',"'admin.support.manage'",'V2.10 capability registry must expose Support manage permission.');
 $need('app/admin-access.php',"'/admin/support.php'=>['admin.support.view','admin.support.manage']", 'Support route must separate read and mutation authority.');
 $need('app/admin-ui.php',"'support'=>['label'=>'Support Operations'",'Shared Admin navigation must expose Support Operations.');
-$need('app/admin-ui.php','Admin V2.20','Shared Admin shell must identify V2.20.');
+$need('app/admin-ui.php',"'support'=>['label'=>'Support Operations'",'Shared Admin shell must preserve Support Operations navigation.');
 foreach(['ADMIN V2.20 · SUPPORT OPERATIONS','Support inbox & customer service workspace','SUPPORT INBOX','NEW CASE','CATEGORY VOLUME','WORKLOAD'] as $n)$need('admin/support.php',$n,'Support Inbox missing '.$n);
 foreach(['ADMIN V2.20 · SUPPORT CASE','CASE CONTROL','INTERNAL COLLABORATION','CUSTOMER COMMUNICATION LOG','DUPLICATE DETECTION','CUSTOMER 360','CASE + ACCOUNT TIMELINE'] as $n)$need('admin/support-case.php',$n,'Support Case workspace missing '.$n);
 $need('admin/account.php','ADMIN V2.20 · SUPPORT','Account 360 must surface Support history for authorized operators.');
