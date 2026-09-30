@@ -69,7 +69,7 @@ try{$profileResearchAgents=function_exists('research_agent_profile_list')?resear
 try{$profileStories=function_exists('profile_showcase_public_agent_stories')?profile_showcase_public_agent_stories($pdo,(int)$p['id'],50):[];}catch(Throwable $e){}
 try{$collections=profile_showcase_public_collections($pdo,(int)$p['id'],30);}catch(Throwable $e){}
 $showResearch=true;$showCollections=true;$showAbout=true;
-try{$activity=profile_showcase_activity($p,$collections);}catch(Throwable $e){$activity=[];}
+try{$activity=profile_showcase_activity($p,$collections,$profileStories);}catch(Throwable $e){$activity=[];}
 try{$pins=profile_showcase_pins($pdo,$p,$viewer);}catch(Throwable $e){$pins=[];}
 $pinMap=[];foreach($pins as $pin)$pinMap[$pin['type'].'|'.$pin['public_id']]=true;
 
@@ -86,6 +86,16 @@ $followerCount=(int)$p['followers'];
 $followingCount=(int)$p['following_count'];
 $reportCount=count((array)$p['reports']);$agentCount=count($profileResearchAgents);$storyCount=count($profileStories);
 $collectionCount=count($collections);
+$storyGroups=[];$agentStoryMeta=[];
+foreach($profileStories as $story){
+    $aid=(string)($story['agent_public_id']??'');if($aid==='')continue;
+    if(!isset($storyGroups[$aid]))$storyGroups[$aid]=['agent_public_id'=>$aid,'agent_name'=>(string)($story['agent_name']??'Research Agent'),'profile_image_url'=>(string)($story['agent_profile_image_url']??''),'stories'=>[],'latest_at'=>(string)($story['published_at']??'')];
+    $storyGroups[$aid]['stories'][]=$story;
+    if(!isset($agentStoryMeta[$aid]))$agentStoryMeta[$aid]=['story_count'=>0,'latest_at'=>(string)($story['published_at']??''),'latest_story_public_id'=>(string)($story['public_id']??'')];
+    $agentStoryMeta[$aid]['story_count']++;
+}
+$storyGroups=array_values($storyGroups);
+foreach($profileResearchAgents as &$agent){$meta=$agentStoryMeta[(string)$agent['public_id']]??['story_count'=>0,'latest_at'=>(string)($agent['updated_at']??''),'latest_story_public_id'=>null];$agent=array_merge($agent,$meta);}unset($agent);
 
 $renderPinControl=function(string $type,string $publicId,string $returnTab)use($ownerControls,$pinMap): string{
     if(!$ownerControls)return '';
