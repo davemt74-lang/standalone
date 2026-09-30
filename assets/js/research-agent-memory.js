@@ -42,7 +42,7 @@
         payload.correction_text=item.querySelector('[data-memory-correction]')?.value||'';
         await request('update',payload);
         if(status)status.textContent='Saved. Future Agent retrieval will use this setting.';
-        window.setTimeout(()=>{if(status)status.textContent='';},3500);
+        window.setTimeout(()=>window.location.reload(),500);
       }else{
         const panel=item.querySelector('[data-memory-history-panel]');if(!panel)return;
         history.disabled=true;panel.hidden=false;panel.innerHTML='<div class="researchMemoryHistoryEmpty">Loading history…</div>';
