@@ -20,7 +20,7 @@ $summary=$home['summary'];
 <link rel="stylesheet" href="/assets/css/app.css?v=75.1">
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research">
-<main class="researchHomeCanvas" data-research-home>
+<main class="researchHomeCanvas" data-research-home data-csrf="<?=h(csrf_token())?>">
   <header class="researchHomeHero">
     <div>
       <span class="eyebrow">RESEARCH</span>
