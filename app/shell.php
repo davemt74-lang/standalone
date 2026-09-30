@@ -351,7 +351,7 @@ function app_shell_transform(string $html): string {
     $state=$GLOBALS['annotated_shell']??null;
     if(!$state||!is_string($html)||stripos($html,'<html')===false||stripos($html,'<body')===false)return $html;
     if(str_contains($html,'data-annotated-shell="1"'))return $html;
-    if(!str_contains($html,'/assets/css/create-launcher.css'))$html=(string)preg_replace('#</head>#i','<link rel="stylesheet" href="/assets/css/create-launcher.css?v=74.3"><link rel="stylesheet" href="/assets/css/command-palette.css?v=74.4"><link rel="stylesheet" href="/assets/css/shell-drawers.css?v=74.5"></head>',$html,1);
+    if(!str_contains($html,'/assets/css/create-launcher.css'))$html=(string)preg_replace('#</head>#i','<link rel="stylesheet" href="/assets/css/create-launcher.css?v=74.3"><link rel="stylesheet" href="/assets/css/command-palette.css?v=74.4"><link rel="stylesheet" href="/assets/css/shell-drawers.css?v=74.6"></head>',$html,1);
     $pdo=$state['pdo']??null;$user=$state['user']??null;
     if(!$pdo instanceof PDO||!is_array($user))return $html;
 
