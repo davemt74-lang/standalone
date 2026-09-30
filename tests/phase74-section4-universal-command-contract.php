@@ -1,0 +1,32 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$read=function(string $p)use($root,&$fail): string{$f=$root.'/'.$p;if(!is_file($f)){$fail[]='Missing '.$p;return '';}return (string)file_get_contents($f);};
+$need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&!str_contains($c,$n))$fail[]=$m;};
+$avoid=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&str_contains($c,$n))$fail[]=$m;};
+
+$need('app/bootstrap.php',"'/universal-command.php'","Bootstrap must load universal command service.");
+$need('app/universal-command.php','function universal_command_search','Universal command search must have one canonical search adapter.');
+$need('app/universal-command.php','search_unified($pdo,$term,$viewer,[],false)','Palette must reuse canonical search instead of a parallel search index.');
+$need('app/universal-command.php','research_object_shortcuts','Recent and pinned must reuse the canonical shortcut ledger.');
+$need('app/universal-command.php','research_object_descriptor','Shortcut results must be revalidated through canonical object access.');
+$need('app/universal-command.php','research_agent_list','Research Agents must use canonical access-aware listing.');
+$need('app/universal-command.php','research_intelligence_portfolio_list','Portfolios must use canonical access-aware listing.');
+$need('app/universal-command.php','research_mission_list','Missions must use canonical access-aware listing.');
+$need('app/universal-command.php','research_program_list','Programs must use canonical access-aware listing.');
+$need('app/universal-command.php','conversation_team_list','Team Chat results must use canonical conversation access.');
+$need('app/universal-command.php','function universal_command_agent_resolve','Agent Brain must be able to resolve natural search through the same canonical layer.');
+$need('api/universal-command.php','current_user($pdo)','Universal command API must require an authenticated viewer.');
+$need('api/universal-command.php',"rate_limit_api_or_429($pdo,'universal-command'","Universal command API must be rate limited.");
+$need('app/shell.php','data-command-palette-open','Authenticated header search must launch the command palette.');
+$need('app/shell.php','data-command-palette','Shell must render one global command palette.');
+$need('app/shell.php','/assets/js/command-palette.js?v=74.4','Shell must load command palette behavior.');
+$need('app/shell.php','/assets/css/command-palette.css?v=74.4','Shell must load command palette styles.');
+$need('assets/js/command-palette.js',"e.ctrlKey||e.metaKey","Palette must support Ctrl/Cmd keyboard access.");
+$need('assets/js/command-palette.js',"e.key==='ArrowDown'","Palette must support keyboard result navigation.");
+$need('assets/js/command-palette.js','[data-create-launcher-open]','Create commands must hand off to the canonical create launcher.');
+$need('assets/js/command-palette.js','/api/universal-command.php','Palette must use the universal read API.');
+$need('assets/css/command-palette.css','@media(max-width:640px)','Palette must have a mobile layout.');
+$avoid('app/universal-command.php','CREATE TABLE','Universal search must not create a parallel index table.');
+$avoid('api/universal-command.php','INSERT INTO','Universal search endpoint must stay read-only.');
+if($fail){fwrite(STDERR,implode("\n",array_unique($fail))."\n");exit(1);}echo "Phase 74 Section 4 universal command palette contract passed.\n";
