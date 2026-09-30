@@ -19,7 +19,7 @@ $need('app/shell.php','data-object-tab="people"','Object drawer must include Peo
 $need('app/shell.php','data-object-tab="links"','Object drawer must include Links.');
 $need('app/shell.php','data-object-tab="agent"','Object drawer must include Agent.');
 $need('app/shell.php','/assets/js/shell-drawers.js?v=74.5','Shell must load Section 5 drawer behavior.');
-$need('app/shell.php','/assets/css/shell-drawers.css?v=74.5','Shell must load Section 5 drawer styling.');
+$need('app/shell.php','/assets/css/shell-drawers.css?v=74.6','Shell must load Section 5 drawer styling.');
 $avoid('app/shell.php','appHeaderNotificationDropdown','Legacy notification dropdown markup must be removed.');
 $need('assets/js/shell-drawers.js','/api/activity.php?limit=60','Activity tab must reuse the canonical activity API.');
 $need('assets/js/shell-drawers.js','/api/object-detail.php?type=','Object drawer must use the permission-aware detail API.');
@@ -27,6 +27,10 @@ $need('assets/js/shell-drawers.js',"searchParams.set('drawer_type'","Object draw
 $need('assets/js/shell-drawers.js','data-object-detail-type','Search/notification/activity results must be routable to the drawer.');
 $need('assets/css/shell-drawers.css','position:fixed','Slideouts must be fixed viewport surfaces.');
 $need('assets/css/shell-drawers.css','height:100dvh','Slideouts must own the visible viewport.');
+$need('assets/css/shell-drawers.css','overflow-x:clip!important','Authenticated shell must suppress document-level horizontal overflow from off-canvas drawers.');
+$need('assets/css/shell-drawers.css','max-width:100vw','Drawers must never exceed the viewport width.');
+$need('assets/css/shell-drawers.css','transform:translate3d(100%,0,0)','Closed drawers must translate fully off-canvas without adding layout width.');
+$need('assets/css/shell-drawers.css','box-sizing:border-box','Drawer borders must remain inside the viewport width calculation.');
 $need('assets/css/shell-drawers.css','@media(max-width:640px)','Drawers must have a mobile layout.');
 $need('app/universal-object-detail.php','research_object_access($pdo,$viewer,$type,$publicId)','Object detail must revalidate canonical access.');
 $need('app/universal-object-detail.php','research_object_descriptor','Object detail must use canonical descriptors.');
