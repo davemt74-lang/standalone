@@ -1,0 +1,32 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$read=function(string $p)use($root,&$fail): string{$f=$root.'/'.$p;if(!is_file($f)){$fail[]='Missing '.$p;return '';}return (string)file_get_contents($f);};
+$need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&!str_contains($c,$n))$fail[]=$m;};
+$avoid=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&str_contains($c,$n))$fail[]=$m;};
+
+$m='database/migrations/20260930_106_research_agent_stories.sql';
+foreach(['profile_image_url','research_agent_stories','research_agent_story_states','observation_key','generation_quality','ai_run_public_id'] as $n)$need($m,$n,'Stories migration missing '.$n);
+$need('app/research-agents.php','ra.profile_image_url','Research Agent list must expose profile images.');
+$need('app/research-agents.php','function research_agent_update_profile','Research Agents must support canonical profile updates.');
+$need('api/research-agents.php',"action==='update_profile'","Profile update API must be exposed.");
+$need('app/research-agent-stories.php','function research_agent_story_sync','Stories must derive from canonical proactive intelligence.');
+$need('app/research-agent-stories.php','proactive_briefing','Stories must reuse proactive research briefing output.');
+$need('app/research-agent-stories.php','notification_create','Important Stories must integrate with Notifications.');
+$need('app/research-agent-stories.php','ai_setting_model_id($pdo,\'research\')','Higher quality Stories must reuse the system Research LLM route.');
+$need('app/research-agent-stories.php','api_key_ciphertext','LLM Stories must require an active stored provider key.');
+$need('app/research-agent-stories.php','ai_queue_job','LLM Story enhancement must be queued, not block Home rendering.');
+$need('worker/ai-worker.php',"task_type']==='research_agent_story'","AI worker must apply Research Agent Story enhancement.");
+$need('worker/ai-worker.php',"if(\$type==='research_agent_story')","AI worker must build the bounded Story prompt.");
+$need('app/unified-activity.php','research_agent_story_activity','Stories must feed the canonical Activity timeline.');
+$need('app/notifications.php',"type==='research_agent_story'","Notifications must access-check and route Stories.");
+$need('home.php','RESEARCH AGENT STORIES','Home must replace Continue Research with Agent Stories.');
+$avoid('home.php','<span class="eyebrow">CONTINUE RESEARCH</span>','Legacy Continue Research strip must be removed.');
+$need('home.php','research_agent_story_sync','Home must sync Story presentation from proactive intelligence.');
+$need('home.php','research-agent-stories.js?v=1.0','Home must load Story interactions.');
+$need('assets/css/app.css','/* Research Agent Stories V1 */','Stories must have responsive Home styling.');
+$need('app/shell.php','appShellAgentIcon hasImage','Sidebar Agent identity must support profile images.');
+$need('app/research-agent-shell-ui.php','researchAgentUnifiedAvatar','Unified Agent shell must show the Agent profile image.');
+$need('research.php','data-agent-profile-edit','Research page must expose Agent profile editing.');
+$avoid('app/research-agent-stories.php','cognitive_watches','Stories must not create a second proactive watch engine.');
+if($fail){fwrite(STDERR,implode("\n",array_unique($fail))."\n");exit(1);}echo "Research Agent Stories V1 contract passed.\n";
