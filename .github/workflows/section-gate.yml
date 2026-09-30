@@ -1,0 +1,79 @@
+name: Annotated Section Gate
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: annotated-section-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: ${{ github.event.action == 'synchronize' }}
+
+jobs:
+  targeted-mariadb:
+    if: contains(github.event.pull_request.title, '[section-gate]')
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: annotated_section_gate
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - name: Targeted section DB and migration gates
+        env:
+          SECTION_GATE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_section_gate;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: bash tests/ci/run-section-gate.sh
+
+  targeted-mysql8:
+    if: contains(github.event.pull_request.title, '[section-gate]')
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: annotated_section_gate
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, curl, dom, openssl
+          coverage: none
+      - name: Targeted section DB and migration gates
+        env:
+          SECTION_GATE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=annotated_section_gate;charset=utf8mb4
+          DB_USER: root
+          DB_PASS: root
+        run: bash tests/ci/run-section-gate.sh
