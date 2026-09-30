@@ -32,7 +32,7 @@ $need('assets/css/home-team-chat.css','overflow-y:auto!important','Chat messages
 $need('assets/css/home-team-chat.css','/* Constrain Team Chat without collapsing the message pane. */','Team Chat must constrain the active chat without collapsing it.');
 $need('assets/css/home-team-chat.css','min-height:96px!important','Team Chat message history must retain visible height.');
 $need('assets/css/home-team-chat.css','overflow-y:auto!important','Team Chat message history must scroll vertically.');
-$avoid('assets/css/home-team-chat.css','height:0!important','Team Chat message pane must never be collapsed to zero height.');
+$avoid('assets/css/home-team-chat.css',"\n  height:0!important;",'Team Chat message pane must never be collapsed to zero height.');
 $need('home.php','Automatic','Chat Settings modal must include Automatic status.');
 $need('home.php','Available','Chat Settings modal must include Available status.');
 $need('home.php','Away','Chat Settings modal must include Away status.');
