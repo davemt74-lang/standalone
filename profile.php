@@ -38,6 +38,22 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             profile_showcase_pin_set($pdo,$viewer,(string)($_POST['object_type']??''),(string)($_POST['object_id']??''),$action==='profile_pin');
             header('Location: '.profile_path((string)$p['username']).'?tab='.rawurlencode($returnTab).'&profile_updated=1');exit;
         }
+        if($action==='profile_update'){
+            if(!$ownerControls)throw new RuntimeException('Profile owner access required.');
+            $display=trim((string)($_POST['display_name']??''));$bio=trim((string)($_POST['bio']??''));$website=trim((string)($_POST['website_url']??''));
+            if($display===''||mb_strlen($display)>100)throw new RuntimeException('Display name is required and must be 100 characters or fewer.');
+            if(mb_strlen($bio)>2000)throw new RuntimeException('Bio must be 2,000 characters or fewer.');
+            if($website!==''&&!filter_var($website,FILTER_VALIDATE_URL))throw new RuntimeException('Website must be a valid URL.');
+            $image=trim((string)($p['profile_image_url']??''));$cover=trim((string)($p['profile_cover_image_url']??''));$oldImage=$image;$oldCover=$cover;$uploadedImage='';$uploadedCover='';
+            if(isset($_POST['remove_profile_photo']))$image='';
+            if(isset($_POST['remove_profile_cover']))$cover='';
+            if(isset($_FILES['profile_photo'])&&(int)($_FILES['profile_photo']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE){$uploadedImage=profile_image_upload($_FILES['profile_photo'],(int)$viewer['id']);$image=$uploadedImage;}
+            if(isset($_FILES['profile_cover'])&&(int)($_FILES['profile_cover']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE){$uploadedCover=profile_cover_upload($_FILES['profile_cover'],(int)$viewer['id']);$cover=$uploadedCover;}
+            try{$pdo->prepare('UPDATE users SET display_name=?,bio=?,website_url=?,profile_image_url=?,profile_cover_image_url=? WHERE id=?')->execute([$display,$bio?:null,$website?:null,$image?:null,$cover?:null,(int)$viewer['id']]);}
+            catch(Throwable $e){if($uploadedImage!=='')profile_image_delete_local($uploadedImage);if($uploadedCover!=='')profile_image_delete_local($uploadedCover);throw $e;}
+            if($oldImage!==''&&$oldImage!==$image)profile_image_delete_local($oldImage);if($oldCover!==''&&$oldCover!==$cover)profile_image_delete_local($oldCover);
+            header('Location: '.profile_path((string)$p['username']).'?profile_updated=1');exit;
+        }
         if(in_array($action,['network_add_research','network_research_this'],true)){
             $agentPublic=trim((string)($_POST['agent_id']??''));$result=profile_network_add_to_agent($pdo,$config,$viewer,$agentPublic,(string)($_POST['object_type']??''),(string)($_POST['object_id']??''));
             if($action==='network_research_this'){$agent=research_agent_access($pdo,$viewer,$agentPublic);if($agent&&!empty($agent['conversation_public_id'])){header('Location: /home.php?agent='.rawurlencode((string)$agent['conversation_public_id']));exit;}}
