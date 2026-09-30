@@ -17,7 +17,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         header('Location: /research-intelligence-portfolios.php?view=portfolios&portfolio='.rawurlencode((string)$p['public_id']).'&created=1');exit;
     }catch(Throwable $e){$error=$e->getMessage();}
 }
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create Portfolio · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=74.6"></head>
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create Portfolio · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=74.6"><link rel="stylesheet" href="/assets/css/portfolio-create.css?v=74.3"></head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-intelligence-portfolio-create">
 <main class="intelligencePortfolioCanvas">
   <section class="researchLibraryToolbar"><nav class="researchLibraryTabs researchPrimaryActions"><a href="/research.php">Research Agents</a><a class="active" href="/research-intelligence-portfolios.php">Portfolios</a></nav></section>
