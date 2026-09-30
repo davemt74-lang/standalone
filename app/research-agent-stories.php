@@ -132,7 +132,7 @@ function research_agent_story_publish_manual(PDO $pdo,array $viewer,string $stor
     research_agent_story_notify_social($pdo,$viewer,$agent,$fresh);return $fresh;
 }
 function research_agent_story_access_draft(PDO $pdo,array $viewer,string $publicId): ?array {
-    if(!research_agent_stories_ready($pdo))return null;
+    if(!research_agent_story_authoring_ready($pdo))return null;
     $q=$pdo->prepare("SELECT s.*,ra.public_id agent_public_id,ra.owner_user_id,tm.role team_role
       FROM research_agent_stories s JOIN research_agents ra ON ra.id=s.agent_id
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
