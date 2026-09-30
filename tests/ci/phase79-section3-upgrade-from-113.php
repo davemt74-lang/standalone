@@ -17,7 +17,7 @@ try{
     if(installer_table_exists($pdo,'research_memory_controls'))throw new RuntimeException('113 fixture unexpectedly contains Agent Memory controls.');
 
     $applied=migration_apply_pending($pdo,$root.'/database/migrations',20);
-    if(!in_array('20261001_114_agent_memory_knowledge_management',$applied,true))throw new RuntimeException('Upgrade did not apply migration 114.');
+    if(!in_array('20260930_114_agent_memory_knowledge_management',$applied,true))throw new RuntimeException('Upgrade did not apply migration 114.');
     foreach(['research_memory_controls','research_memory_events','research_memory_usage'] as $table)if(!installer_table_exists($pdo,$table))throw new RuntimeException('114 upgraded schema missing '.$table.'.');
 
     $cols=[];
