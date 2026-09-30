@@ -119,6 +119,13 @@ function research_agent_story_queue_enhancement(PDO $pdo,array $config,array $vi
     return true;
 }
 
+function research_agent_story_review_ready(PDO $pdo): bool {
+    if(!research_agent_story_authoring_ready($pdo))return false;
+    try{
+        $db=installer_database_name($pdo);$q=$pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=? AND table_name='research_agent_stories' AND column_name IN ('origin','approval_state','reviewed_by_user_id','reviewed_at','review_note')");
+        $q->execute([$db]);return (int)$q->fetchColumn()===5;
+    }catch(Throwable $e){return false;}
+}
 function research_agent_story_intelligence_ready(PDO $pdo): bool {
     if(!research_agent_story_authoring_ready($pdo))return false;
     try{
@@ -188,6 +195,10 @@ function research_agent_story_publish_from_item(PDO $pdo,array $config,array $vi
     if($q->rowCount()===0){
         $q=$pdo->prepare("SELECT * FROM research_agent_stories WHERE agent_id=? AND observation_key=? LIMIT 1");$q->execute([(int)$agent['id'],$observationKey]);$story=$q->fetch()?:null;
     }else{
+        if(research_agent_story_review_ready($pdo)){
+            $approval=((string)$decision['reason']==='approval'&&$status==='draft')?'pending':'not_required';
+            $pdo->prepare("UPDATE research_agent_stories SET origin='proactive',approval_state=? WHERE public_id=?")->execute([$approval,$public]);
+        }
         $q=$pdo->prepare("SELECT * FROM research_agent_stories WHERE public_id=? LIMIT 1");$q->execute([$public]);$story=$q->fetch()?:null;
         if($story){
             if($status==='published'&&$priority==='high'){
@@ -219,12 +230,15 @@ function research_agent_story_create_manual(PDO $pdo,array $viewer,string $agent
     $q=$pdo->prepare("INSERT INTO research_agent_stories(public_id,agent_id,observation_key,story_type,priority,title,body,source_body,primary_url,generation_quality,generation_status,status,published_at,expires_at)
       VALUES(?,?,?,?,?,?,?,?,?,'deterministic','ready',?,NOW(),DATE_ADD(NOW(),INTERVAL 7 DAY))");
     $q->execute([$public,(int)$agent['id'],$observationKey,$storyType,$priority,$title,$body,$body,$primary!==''?$primary:null,$status]);
+    if(research_agent_story_review_ready($pdo))$pdo->prepare("UPDATE research_agent_stories SET origin='manual',approval_state='not_required' WHERE public_id=?")->execute([$public]);
     $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE public_id=? LIMIT 1');$q->execute([$public]);$story=$q->fetch()?:[];
     if($status==='published')research_agent_story_notify_social($pdo,$viewer,$agent,$story);
     return $story;
 }
 function research_agent_story_publish_manual(PDO $pdo,array $viewer,string $storyPublic): array {
     $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
+    if(research_agent_story_review_ready($pdo)&&(string)($story['origin']??'manual')==='proactive'&&(string)($story['approval_state']??'not_required')==='pending')throw new RuntimeException('This proactive Story requires approval before publishing.');
+    if(research_agent_story_review_ready($pdo)&&(string)($story['approval_state']??'not_required')==='rejected')throw new RuntimeException('Rejected Stories must be edited and resubmitted before publishing.');
     $agent=research_agent_access($pdo,$viewer,(string)$story['agent_public_id']);if(!$agent)throw new RuntimeException('Research Agent not found.');
     $pdo->prepare("UPDATE research_agent_stories SET status='published',published_at=NOW(),updated_at=NOW() WHERE id=? AND status='draft'")->execute([(int)$story['id']]);
     $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE id=? LIMIT 1');$q->execute([(int)$story['id']]);$fresh=$q->fetch()?:$story;
@@ -251,8 +265,23 @@ function research_agent_story_update_manual(PDO $pdo,array $viewer,string $story
     $scheduled=trim((string)($input['scheduled_at']??''));$scheduledSql=null;if($scheduled!==''){$dt=DateTimeImmutable::createFromFormat('Y-m-d\TH:i',$scheduled);if(!$dt)throw new InvalidArgumentException('Invalid Story schedule.');$scheduledSql=$dt->format('Y-m-d H:i:s');}
     $pdo->prepare("UPDATE research_agent_stories SET title=?,body=?,source_body=?,story_type=?,priority=?,primary_url=?,scheduled_at=?,edited_by_user_id=?,updated_at=NOW() WHERE id=? AND status='draft'")
       ->execute([$title,$body,$body,$type,$priority,$primary!==''?$primary:null,$scheduledSql,(int)$viewer['id'],(int)$story['id']]);
+    if(research_agent_story_review_ready($pdo)&&(string)($story['origin']??'manual')==='proactive'&&(string)($story['approval_state']??'')==='rejected')
+        $pdo->prepare("UPDATE research_agent_stories SET approval_state='pending',reviewed_by_user_id=NULL,reviewed_at=NULL,review_note=NULL WHERE id=?")->execute([(int)$story['id']]);
     $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE id=? LIMIT 1');$q->execute([(int)$story['id']]);return $q->fetch()?:$story;
 }
+function research_agent_story_review_manual(PDO $pdo,array $viewer,string $storyPublic,string $decision,string $note=''): array {
+    if(!research_agent_story_review_ready($pdo))throw new RuntimeException('Story approval requires the latest database upgrade.');
+    $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
+    if((string)($story['origin']??'manual')!=='proactive')throw new RuntimeException('Only proactive Stories use approval review.');
+    if((string)($story['approval_state']??'not_required')!=='pending')throw new RuntimeException('Story is not pending approval.');
+    $decision=strtolower(trim($decision));if(!in_array($decision,['approve','reject'],true))throw new InvalidArgumentException('Invalid Story review decision.');
+    $note=mb_substr(trim($note),0,1000);$state=$decision==='approve'?'approved':'rejected';
+    $pdo->prepare("UPDATE research_agent_stories SET approval_state=?,reviewed_by_user_id=?,reviewed_at=NOW(),review_note=?,updated_at=NOW() WHERE id=?")
+      ->execute([$state,(int)$viewer['id'],$note!==''?$note:null,(int)$story['id']]);
+    if($decision==='approve')return research_agent_story_publish_manual($pdo,$viewer,$storyPublic);
+    $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE id=? LIMIT 1');$q->execute([(int)$story['id']]);return $q->fetch()?:$story;
+}
+
 function research_agent_story_archive_manual(PDO $pdo,array $viewer,string $storyPublic): bool {
     $story=research_agent_story_access_draft($pdo,$viewer,$storyPublic);if(!$story)throw new RuntimeException('Story not found.');
     $q=$pdo->prepare("UPDATE research_agent_stories SET status='archived',archived_at=NOW(),edited_by_user_id=?,updated_at=NOW() WHERE id=?");
