@@ -339,7 +339,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
         $aside.=app_shell_research_agents($pdo,$user,$path).app_shell_research_projects($pdo,$user,$path);
     }
     $aside.='</aside>';
-    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$palette=$adminMode?'':app_shell_command_palette();$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'.$palette; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
+    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$palette=$adminMode?'':app_shell_command_palette();$objectDrawer=$adminMode?'':app_shell_object_detail_drawer();$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'.$palette.$objectDrawer; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
     $footer='';
     return [$aside,$header,$footer];
 }
@@ -347,7 +347,7 @@ function app_shell_transform(string $html): string {
     $state=$GLOBALS['annotated_shell']??null;
     if(!$state||!is_string($html)||stripos($html,'<html')===false||stripos($html,'<body')===false)return $html;
     if(str_contains($html,'data-annotated-shell="1"'))return $html;
-    if(!str_contains($html,'/assets/css/create-launcher.css'))$html=(string)preg_replace('#</head>#i','<link rel="stylesheet" href="/assets/css/create-launcher.css?v=74.3"><link rel="stylesheet" href="/assets/css/command-palette.css?v=74.4"></head>',$html,1);
+    if(!str_contains($html,'/assets/css/create-launcher.css'))$html=(string)preg_replace('#</head>#i','<link rel="stylesheet" href="/assets/css/create-launcher.css?v=74.3"><link rel="stylesheet" href="/assets/css/command-palette.css?v=74.4"><link rel="stylesheet" href="/assets/css/shell-drawers.css?v=74.5"></head>',$html,1);
     $pdo=$state['pdo']??null;$user=$state['user']??null;
     if(!$pdo instanceof PDO||!is_array($user))return $html;
 
@@ -358,7 +358,7 @@ function app_shell_transform(string $html): string {
     $mode=(string)($state['mode']??'full');$headerOnly=$mode==='header_only';
     $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1" data-chat-presence-csrf="'.app_shell_h(csrf_token()).'">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.($headerOnly?'':$objectBar).'<div class="appShellContent">';
     $presenceScript=(function_exists('conversation_presence_ready')&&conversation_presence_ready($pdo))?'<script src="/assets/js/chat-presence.js?v=12.0"></script>':'';
-    $researchAgentScript=($headerOnly?'':'<script src="/assets/js/research-agent-shell.js?v=47.0"></script>').'<script src="/assets/js/create-launcher.js?v=1.0"></script>'.($headerOnly?'':'<script src="/assets/js/command-palette.js?v=74.4"></script>');
+    $researchAgentScript=($headerOnly?'':'<script src="/assets/js/research-agent-shell.js?v=47.0"></script>').'<script src="/assets/js/create-launcher.js?v=1.0"></script>'.($headerOnly?'':'<script src="/assets/js/command-palette.js?v=74.4"></script><script src="/assets/js/shell-drawers.js?v=74.5"></script>');
     $close='</div>'.$footer.'</div></div>'.$presenceScript.$researchAgentScript;
 
     $html=(string)preg_replace('#<body([^>]*)>#i','<body$1>'.$open,$html,1);
