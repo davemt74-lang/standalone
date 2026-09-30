@@ -58,7 +58,7 @@ $summary=$home['summary'];
       <article class="researchHomeAgentCard" data-research-agent-card data-agent-id="<?=h((string)$agent['public_id'])?>">
         <a class="researchHomeAgentMain" href="<?=h(research_agent_shell_href($agent,'chat'))?>">
           <div class="researchHomeAgentTop">
-            <span class="researchHomeAgentIcon" aria-hidden="true">✦</span>
+            <span class="researchHomeAgentIcon<?=!empty($agent['profile_image_url'])?' hasImage':''?>" aria-hidden="true"><?php if(!empty($agent['profile_image_url'])):?><img src="<?=h((string)$agent['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$agent['name'],0,1)))?><?php endif?></span>
             <div>
               <small><?=h(research_home_agent_scope($agent))?></small>
               <h3><?=h((string)$agent['name'])?></h3>
@@ -72,7 +72,7 @@ $summary=$home['summary'];
           <?php if(trim((string)($agent['last_message']??''))!==''):?><blockquote><?=h((string)$agent['last_message'])?></blockquote><?php endif?>
         </a>
         <footer>
-          <button type="button" class="researchHomeFavorite" data-research-favorite aria-pressed="false" title="Add to favorites">☆</button>
+          <button type="button" class="researchHomeFavorite" data-research-favorite aria-pressed="false" title="Add to favorites">☆</button><button type="button" class="researchHomeFavorite" data-agent-profile-edit data-agent-id="<?=h((string)$agent['public_id'])?>" data-agent-name="<?=h((string)$agent['name'])?>" data-agent-description="<?=h((string)($agent['description']??''))?>" data-agent-image="<?=h((string)($agent['profile_image_url']??''))?>" title="Edit Agent profile">Profile</button>
           <nav aria-label="<?=h((string)$agent['name'])?> shortcuts">
             <a href="<?=h(research_agent_shell_href($agent,'knowledge'))?>">Knowledge</a>
             <a href="<?=h(research_agent_shell_href($agent,'research'))?>">Research</a>
@@ -130,6 +130,6 @@ $summary=$home['summary'];
   </section>
 </main>
 <script src="/assets/js/workspace-state.js?v=34.0"></script>
-<script src="/assets/js/research-home.js?v=75.1"></script>
+<script src="/assets/js/research-home.js?v=75.2"></script>
 </body>
 </html>
