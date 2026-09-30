@@ -291,7 +291,7 @@ function app_shell_mobile_nav(PDO $pdo,array $user,string $path,bool $adminMode,
 function app_shell_user_menu(array $user,bool $isAdmin): string {
     $username=(string)($user['username']??'');
     $profile=profile_path($username);
-    return '<details class="appUserMenu"><summary>'.app_shell_avatar($user,'appAvatar').'<span class="appUserSummary"><strong>'.app_shell_h((string)($user['display_name']??$username)).'</strong><small>@'.app_shell_h($username).'</small></span><span aria-hidden="true">⌄</span></summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/billing.php">Billing</a><a href="/account-members.php">Account members</a><a href="/connected-accounts.php">Connected accounts</a><a href="/data-attribution.php">Data & Attribution</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
+    return '<details class="appUserMenu"><summary aria-label="Open profile menu">'.app_shell_avatar($user,'appAvatar').'</summary><div class="appUserDropdown"><a href="'.app_shell_h($profile).'">View profile</a><a href="/settings.php">Settings</a><a href="/billing.php">Billing</a><a href="/account-members.php">Account members</a><a href="/connected-accounts.php">Connected accounts</a><a href="/data-attribution.php">Data & Attribution</a><a href="/onboarding.php">Onboarding</a>'.($isAdmin?'<a href="/admin/">Admin</a>':'').'<hr><a href="/logout.php">Sign out</a></div></details>';
 }
 function app_shell_markup(PDO $pdo,array $user): array {
     $path=app_shell_request_path();
@@ -310,7 +310,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
     }
     $aside.='</aside>';
     $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$header='<header class="appShellHeader">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="appHeaderBrandMobile">'.$brand.'</div>'.app_shell_search().'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
-    $footer='<footer class="appShellFooter"><span>Annotated · Research the web in context.</span><nav><a href="/explore.php">Explore</a><a href="/teams.php">Teams</a><a href="/chrome-extension.php">Chrome Extension</a><a href="/settings.php">Privacy & Settings</a></nav></footer>';
+    $footer='';
     return [$aside,$header,$footer];
 }
 function app_shell_transform(string $html): string {
