@@ -103,17 +103,24 @@ try{
     $proactiveReady=proactive_intelligence_ready($pdo);
     if($proactiveReady&&$cognitiveRuntimeReady&&$feedMode==='cognitive')proactive_intelligence_sync($pdo,$u,$cognitiveFeed);
     $proactiveBriefing=$proactiveReady?proactive_briefing($pdo,$u,3):$proactiveBriefing;
-    if(function_exists('research_agent_story_sync'))research_agent_story_sync($pdo,$config,$u,8);
-    if(function_exists('research_agent_story_list'))$agentStories=research_agent_story_list($pdo,$u,40);
-    if(function_exists('research_agent_story_groups'))$agentStoryGroups=research_agent_story_groups($pdo,$u,40);
-    $requestedStoryPublic=trim((string)($_GET['story']??''));
-    if($requestedStoryPublic!==''&&function_exists('research_agent_story_access'))$requestedStory=research_agent_story_access($pdo,$u,$requestedStoryPublic);
-    if(function_exists('research_agent_story_llm_available'))$agentStoriesLlm=research_agent_story_llm_available($pdo,$config);
     $proactiveAgentKey=trim((string)($_GET['proactive_agent']??''));
     $proactiveAgentHandoff=$proactiveReady&&$proactiveAgentKey!==''?proactive_agent_handoff($pdo,$u,$proactiveAgentKey):null;
 }catch(Throwable $e){
     $recordHomeIncident('proactive',$e);
     $proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];$proactiveAgentHandoff=null;
+}
+
+try{
+    if(function_exists('research_agent_stories_ready')&&research_agent_stories_ready($pdo)){
+        if(function_exists('research_agent_story_sync'))research_agent_story_sync($pdo,$config,$u,8);
+        if(function_exists('research_agent_story_list'))$agentStories=research_agent_story_list($pdo,$u,40);
+        if(function_exists('research_agent_story_groups'))$agentStoryGroups=research_agent_story_groups($pdo,$u,40);
+        $requestedStoryPublic=trim((string)($_GET['story']??''));
+        if($requestedStoryPublic!==''&&function_exists('research_agent_story_access'))$requestedStory=research_agent_story_access($pdo,$u,$requestedStoryPublic);
+        if(function_exists('research_agent_story_llm_available'))$agentStoriesLlm=research_agent_story_llm_available($pdo,$config);
+    }
+}catch(Throwable $e){
+    $agentStories=[];$agentStoryGroups=[];$requestedStory=null;$agentStoriesLlm=['available'=>false,'reason'=>'unavailable'];
 }
 
 try{
