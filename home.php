@@ -414,7 +414,7 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
   <div class="teamChatMessages" id="teamChatMessages" role="log" aria-live="polite" aria-label="Team messages"><div class="teamChatLoading">Loading messages…</div></div>
   <div class="teamChatReply" id="teamChatReply" hidden><span></span><button type="button" aria-label="Cancel reply">×</button></div>
   <form class="teamChatComposer" id="teamChatComposer"><textarea id="teamChatInput" rows="1" maxlength="5000" placeholder="Message your team…" aria-label="Message your team"></textarea><button type="submit" aria-label="Send message">↑</button></form>
-  <footer class="teamChatFooter"><span class="teamChatSelfStatus" data-team-chat-self-status><i class="chatPresenceDot status-<?=h((string)$chatStatus['effective_status'])?>"></i><span><?=h((string)($chatStatus['custom_status']?:ucfirst((string)$chatStatus['status_mode'])))?></span></span><a class="teamChatSettingsButton" href="/chat-settings.php" aria-label="Chat status settings" title="Chat status settings">⚙</a></footer>
+  <footer class="teamChatFooter"><span class="teamChatSelfStatus" data-team-chat-self-status><i class="chatPresenceDot status-<?=h((string)$chatStatus['effective_status'])?>"></i><span><?=h((string)($chatStatus['custom_status']?:ucfirst((string)$chatStatus['status_mode'])))?></span></span><button type="button" class="teamChatSettingsButton" data-team-chat-settings-open aria-haspopup="dialog" aria-controls="team-chat-settings-modal" aria-label="Chat settings" title="Chat settings">⚙</button></footer>
 </section>
 <?php else:?>
 <div class="card"><div class="profileMini"><?=app_shell_avatar($u,'avatarImageLg')?><span><strong><?=h($u['display_name'])?></strong><small>@<?=h($u['username'])?></small></span></div><div class="profileStats"><span><strong><?=h((string)$stats['followers'])?></strong> followers</span><span><strong><?=h((string)$stats['following_count'])?></strong> following</span><span><strong><?=h((string)$stats['annotation_count'])?></strong> annotations</span></div><a href="<?=h(profile_path((string)$u['username']))?>">View your profile</a></div>
@@ -431,16 +431,37 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
     <span class="teamChatMiniUnread" data-team-chat-mini-unread hidden></span>
   </button>
   <div class="teamChatMiniStatus">
-    <button type="button" class="teamChatMiniSettings" data-team-chat-status-toggle aria-expanded="false" aria-controls="team-chat-status-menu" aria-label="Chat status settings" title="Chat status settings">⚙</button>
-    <div class="teamChatStatusMenu" id="team-chat-status-menu" data-team-chat-status-menu hidden>
-      <strong>Chat status</strong>
-      <?php foreach(['auto'=>'Automatic','available'=>'Available','away'=>'Away','busy'=>'Busy','invisible'=>'Invisible'] as $mode=>$label):?>
-      <button type="button" data-team-chat-status-mode="<?=h($mode)?>" class="<?=($chatStatus['status_mode']??'auto')===$mode?'active':''?>"><i class="chatPresenceDot status-<?=$mode==='invisible'?'offline':($mode==='available'||$mode==='auto'?'online':h($mode))?>"></i><span><?=h($label)?></span></button>
-      <?php endforeach?>
-      <a href="/chat-settings.php">More settings</a>
-    </div>
+    <button type="button" class="teamChatMiniSettings" data-team-chat-settings-open aria-haspopup="dialog" aria-controls="team-chat-settings-modal" aria-label="Chat settings" title="Chat settings">⚙</button>
   </div>
 </aside>
+<?php endif?>
+<?php if($chatTeams):?>
+<dialog class="teamChatSettingsModal" id="team-chat-settings-modal" data-team-chat-settings-modal>
+  <form class="teamChatSettingsForm" data-team-chat-settings-form>
+    <header>
+      <div><span class="eyebrow">TEAM CHAT</span><h2>Chat settings</h2><p>Control how your availability appears to people who share a Team with you.</p></div>
+      <button type="button" data-team-chat-settings-close aria-label="Close chat settings">×</button>
+    </header>
+    <div class="teamChatSettingsCurrent">
+      <span class="chatPresenceDot status-<?=h((string)$chatStatus['effective_status'])?>"></span>
+      <div><strong data-team-chat-current-label><?=h((string)($chatStatus['custom_status']?:ucfirst((string)$chatStatus['status_mode'])))?></strong><small>Currently appears <span data-team-chat-effective-status><?=h((string)$chatStatus['effective_status'])?></span></small></div>
+    </div>
+    <fieldset class="teamChatSettingsChoices"><legend>Status</legend>
+      <?php foreach([
+        'auto'=>['Automatic','Online while Annotated is active in this browser tab; offline shortly after you leave.'],
+        'available'=>['Available','Show as available whenever this browser is actively connected.'],
+        'away'=>['Away','Show an away indicator while connected.'],
+        'busy'=>['Busy','Show that you are online but should not be interrupted.'],
+        'invisible'=>['Invisible','Use Team Chat normally while appearing offline to teammates.']
+      ] as $value=>$copy):?>
+      <label><input type="radio" name="status_mode" value="<?=h($value)?>" <?=($chatStatus['status_mode']??'auto')===$value?'checked':''?>><span><strong><?=h($copy[0])?></strong><small><?=h($copy[1])?></small></span></label>
+      <?php endforeach?>
+    </fieldset>
+    <label class="teamChatCustomStatus">Custom status<input type="text" name="custom_status" maxlength="120" value="<?=h((string)($chatStatus['custom_status']??''))?>" placeholder="Optional — e.g. Reviewing source notes"></label>
+    <p class="teamChatSettingsPrivacy">Your Team Chat status is visible only to users who currently share a Team with you. Invisible suppresses your online indicator but does not disable messaging.</p>
+    <footer><span data-team-chat-settings-feedback></span><button type="button" class="secondary" data-team-chat-settings-close>Cancel</button><button type="submit">Save chat status</button></footer>
+  </form>
+</dialog>
 <?php endif?>
 <?php if($chatTeams):?><button class="teamChatMobileToggle" type="button" data-team-chat-open aria-controls="team-chat">Team Chat <span data-team-chat-total-unread></span></button><div class="teamChatPopupLayer" data-team-chat-popups aria-live="polite"></div><?php endif?>
 <form class="homeAgentDock" id="homeAgentComposer" data-agent-chat-composer>
