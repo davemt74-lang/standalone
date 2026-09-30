@@ -305,3 +305,79 @@
   z-index:2;
   background:#fff;
 }
+
+
+/* Team Chat 10/10 viewport grid — fixed chrome, scrollable message body. */
+@media(min-width:901px){
+  .homeWorkspaceLayout.hasTeamChatRail>.homeRightRail.teamChatRightRail{
+    top:var(--team-chat-viewport-top,58px)!important;
+    bottom:0!important;
+    height:calc(100dvh - var(--team-chat-viewport-top,58px))!important;
+    max-height:calc(100dvh - var(--team-chat-viewport-top,58px))!important;
+    overflow:hidden!important;
+  }
+}
+.homeWorkspaceLayout.hasTeamChatRail .teamChatRail{
+  display:grid!important;
+  grid-template-rows:auto auto minmax(0,1fr) auto!important;
+  width:320px!important;
+  height:100%!important;
+  max-height:100%!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+.teamChatHeader,
+.teamChatTabs,
+.teamChatFooter{
+  min-height:0!important;
+}
+.teamChatTabPanel{
+  min-height:0!important;
+  overflow:hidden!important;
+}
+.teamChatTabPanel[data-team-chat-panel="chat"]:not([hidden]){
+  display:grid!important;
+  grid-template-rows:auto auto auto minmax(0,1fr) auto auto!important;
+  min-height:0!important;
+  height:auto!important;
+  overflow:hidden!important;
+}
+.teamChatTabPanel[data-team-chat-panel="members"]:not([hidden]){
+  display:block!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+.teamChatMessages{
+  min-height:0!important;
+  height:auto!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.teamChatComposer{
+  position:sticky!important;
+  bottom:0!important;
+  z-index:6!important;
+  flex:none!important;
+  background:#fff!important;
+}
+.teamChatFooter{
+  position:relative!important;
+  z-index:7!important;
+  background:#fff!important;
+}
+@media(max-width:900px){
+  .teamChatRightRail{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow:hidden!important;
+  }
+  .teamChatRail{
+    width:100%!important;
+    height:100%!important;
+    max-height:100%!important;
+  }
+}
