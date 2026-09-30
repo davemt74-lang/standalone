@@ -2,6 +2,9 @@ name: Annotated Two-Package Build
 
 on:
   workflow_call:
+  push:
+    branches:
+      - 'chatgpt/package-d222b742'
 
 permissions:
   contents: read
