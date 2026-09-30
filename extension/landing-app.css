@@ -4496,3 +4496,15 @@ body.storyViewerOpen{overflow:hidden!important}
 .publicAgentMetaGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 20px}.publicAgentMetaGrid>div{padding:14px;border:1px solid #ecece7;border-radius:12px}.publicAgentMetaGrid span,.publicAgentMetaGrid strong{display:block}.publicAgentMetaGrid span{color:#888;font-size:.68rem}.publicAgentMetaGrid strong{margin-top:4px}
 .publicAgentStoryList{display:grid;gap:8px}.publicAgentStoryList>a{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:13px 14px;border:1px solid #e5e5df;border-radius:12px;color:inherit;text-decoration:none}.publicAgentStoryList>a:hover{border-color:#bdbdb7}.publicAgentStoryList strong,.publicAgentStoryList small{display:block}.publicAgentStoryList small{margin-top:3px;color:#888;font-size:.66rem}.publicAgentStoryList>a>span{color:#666;font-size:.7rem;font-weight:780;white-space:nowrap}
 @media(max-width:760px){.publicAgentHero{grid-template-columns:74px minmax(0,1fr)}.publicAgentAvatar{width:74px;height:74px}.publicAgentActions{grid-column:1/-1;justify-content:flex-start;max-width:none}.publicAgentMetaGrid{grid-template-columns:1fr}.profileRelationshipBadge{min-height:32px}}
+
+
+/* Phase 77.5 — Follow Lists, Mutuals & Social Graph UX */
+.profilePersonCard{grid-template-columns:minmax(0,1fr) auto auto}
+.profilePersonIdentityLink{display:grid;grid-template-columns:52px minmax(0,1fr);gap:14px;align-items:center;min-width:0;color:inherit;text-decoration:none}
+.profilePersonIdentityLink:hover .profilePersonCopy strong{text-decoration:underline}
+.profilePersonRelationship{display:flex;align-items:center;justify-content:flex-end;min-width:0}
+.profileConnectionFollowButton{min-width:88px;min-height:36px;padding:7px 12px;border:1px solid #d2d2cc;border-radius:999px;background:#fff;color:#222;font-size:.72rem;font-weight:800}
+.profileConnectionFollowButton[aria-pressed="true"]{background:#111;border-color:#111;color:#fff}
+.profileConnectionFollowButton[aria-busy="true"]{opacity:.6;cursor:wait}
+.profileConnectionFollowButton:hover:not(:disabled){border-color:#999}
+@media(max-width:620px){.profilePersonCard{grid-template-columns:minmax(0,1fr) auto}.profilePersonRelationship{grid-column:1/2;padding-left:66px;justify-content:flex-start}.profileConnectionFollowButton{grid-column:2;grid-row:1/3}.profilePersonIdentityLink{grid-template-columns:48px minmax(0,1fr)}.profilePersonIdentityLink img,.profilePersonIdentityLink .profilePersonFallback{width:48px;height:48px}}
