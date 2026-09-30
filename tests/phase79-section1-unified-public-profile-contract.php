@@ -11,16 +11,16 @@ $migration=file_get_contents($root.'/database/migrations/20260930_112_profile_v2
 $css=file_get_contents($root.'/assets/css/profile-v2.css');
 
 $must=[
-  "$GLOBALS['annotated_shell_mode']='header_only';",
+  "\$GLOBALS['annotated_shell_mode']='header_only';",
   "'stories'=>'Stories'",
   "'agents'=>'Research Agents'",
   "'research'=>'Research'",
   "'annotations'=>'Annotations'",
   "'collections'=>'Collections'",
   "'about'=>'About'",
-  "profile_cover_image_url",
-  "profile-v2.css?v=79.1",
-  "research_agent_profile_list($pdo,(int)$p['id'],null,30)"
+  'profile_cover_image_url',
+  'profile-v2.css?v=79.1',
+  "research_agent_profile_list(\$pdo,(int)\$p['id'],null,30)"
 ];
 foreach($must as $needle)if(!str_contains((string)$profile,$needle))$fail[]='profile missing '.$needle;
 if(!str_contains((string)$showcase,"ra.visibility='public'"))$fail[]='public Story feed must require public Research Agents';
