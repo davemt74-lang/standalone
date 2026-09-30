@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS research_agent_story_policies (
   min_priority ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
   daily_story_cap TINYINT UNSIGNED NOT NULL DEFAULT 3,
   quiet_hours_enabled TINYINT(1) NOT NULL DEFAULT 0,
+  timezone_name VARCHAR(64) NOT NULL DEFAULT 'UTC',
   quiet_start TIME NULL,
   quiet_end TIME NULL,
   trigger_evidence TINYINT(1) NOT NULL DEFAULT 1,
