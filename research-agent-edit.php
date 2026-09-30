@@ -26,6 +26,22 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
               'weekday'=>(int)($_POST['weekday']??1),
               'automation_prompt'=>(string)($_POST['automation_prompt']??'')
             ]);$success='Research Agent updated.';
+        }elseif($op==='save_story_policy'){
+            research_agent_story_policy_update($pdo,$u,$agentId,[
+              'publish_mode'=>(string)($_POST['publish_mode']??'approval'),
+              'min_priority'=>(string)($_POST['min_priority']??'medium'),
+              'daily_story_cap'=>(int)($_POST['daily_story_cap']??3),
+              'quiet_hours_enabled'=>isset($_POST['quiet_hours_enabled']),
+              'timezone_name'=>(string)($_POST['story_timezone_name']??($u['timezone_name']??'UTC')),
+              'quiet_start'=>(string)($_POST['quiet_start']??''),
+              'quiet_end'=>(string)($_POST['quiet_end']??''),
+              'trigger_evidence'=>isset($_POST['trigger_evidence']),
+              'trigger_risk'=>isset($_POST['trigger_risk']),
+              'trigger_question'=>isset($_POST['trigger_question']),
+              'trigger_decision'=>isset($_POST['trigger_decision']),
+              'trigger_task'=>isset($_POST['trigger_task']),
+              'trigger_update'=>isset($_POST['trigger_update'])
+            ]);$success='Story publishing policy updated.';
         }elseif($op==='create_story'){
             $story=research_agent_story_create_manual($pdo,$u,$agentId,[
               'title'=>(string)($_POST['story_title']??''),
@@ -43,6 +59,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 }
 $agent=$ctx['agent'];$project=$ctx['project'];$automation=$ctx['automation'];$missions=$ctx['missions'];$plans=$ctx['plans'];$programs=$ctx['programs'];$watches=$ctx['watches'];$portfolios=$ctx['portfolios'];
 $drafts=function_exists('research_agent_story_drafts')?research_agent_story_drafts($pdo,$u,$agentId,30):[];
+$storyPolicy=function_exists('research_agent_story_policy')?research_agent_story_policy($pdo,$agent):research_agent_story_policy_defaults();
 $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$runTime=substr((string)($automation['run_time_local']??'09:00'),0,5);
 ?><!doctype html>
 <html>
@@ -96,7 +113,27 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
     </form>
 
     <section class="card researchAgentEditStory">
-      <header><span class="eyebrow">STORIES</span><h2>Create a Story</h2><p>Publish a direct update from this Agent or save it as a draft.</p></header>
+      <header><span class="eyebrow">STORY POLICY</span><h2>Proactive publishing</h2><p>Control when this Agent turns research activity into Stories.</p></header>
+      <form method="post" class="researchAgentStoryPolicyForm">
+        <input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent_id" value="<?=h($agentId)?>"><input type="hidden" name="op" value="save_story_policy">
+        <div class="researchAgentEditSplit">
+          <label>Publishing mode<select name="publish_mode"><option value="draft_only" <?=$storyPolicy['publish_mode']==='draft_only'?'selected':''?>>Draft only</option><option value="approval" <?=$storyPolicy['publish_mode']==='approval'?'selected':''?>>Require approval</option><option value="auto_publish" <?=$storyPolicy['publish_mode']==='auto_publish'?'selected':''?>>Auto-publish</option></select></label>
+          <label>Minimum importance<select name="min_priority"><option value="low" <?=$storyPolicy['min_priority']==='low'?'selected':''?>>Low</option><option value="medium" <?=$storyPolicy['min_priority']==='medium'?'selected':''?>>Medium</option><option value="high" <?=$storyPolicy['min_priority']==='high'?'selected':''?>>High</option></select></label>
+          <label>Daily Story cap<input type="number" min="1" max="20" name="daily_story_cap" value="<?=h((string)$storyPolicy['daily_story_cap'])?>"></label><label>Story timezone<input name="story_timezone_name" value="<?=h((string)($storyPolicy['timezone_name']??$timezone))?>"></label>
+        </div>
+        <div class="researchAgentStoryTriggers">
+          <strong>Trigger on</strong>
+          <?php foreach(['evidence'=>'Evidence','risk'=>'Risk / contradiction','question'=>'Open question','decision'=>'Decision','task'=>'Task / milestone','update'=>'General update'] as $key=>$label):?><label class="researchAgentEditCheck"><input type="checkbox" name="trigger_<?=h($key)?>" value="1" <?=!empty($storyPolicy['trigger_'.$key])?'checked':''?>> <?=h($label)?></label><?php endforeach?>
+        </div>
+        <div class="researchAgentStoryQuiet">
+          <label class="researchAgentEditCheck"><input type="checkbox" name="quiet_hours_enabled" value="1" <?=!empty($storyPolicy['quiet_hours_enabled'])?'checked':''?>> Use quiet hours</label>
+          <label>Start<input type="time" name="quiet_start" value="<?=h(substr((string)($storyPolicy['quiet_start']??''),0,5))?>"></label>
+          <label>End<input type="time" name="quiet_end" value="<?=h(substr((string)($storyPolicy['quiet_end']??''),0,5))?>"></label>
+        </div>
+        <button class="button secondary" type="submit">Save Story policy</button>
+      </form>
+
+      <header class="researchAgentEditSubhead"><span class="eyebrow">STORIES</span><h2>Create a Story</h2><p>Publish a direct update from this Agent or save it as a draft.</p></header>
       <form method="post">
         <input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent_id" value="<?=h($agentId)?>"><input type="hidden" name="op" value="create_story">
         <label>Title<input name="story_title" maxlength="240" required></label>
