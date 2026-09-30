@@ -10,7 +10,9 @@ $need('app/admin-ui.php','<div class="adminSidebarFoot"><a href="/logout.php">Si
 $avoid('admin/index.php','One operations workspace for accounts','Dashboard must not render the old long intro paragraph.');
 $avoid('admin/index.php','ADMIN V2.80 · CONTEXTUAL ADMIN AGENT','Dashboard must not render version history eyebrow copy.');
 $need('admin/index.php','class="adminDashboardHeader"','Dashboard must use the compact operational header.');
-$need('admin/index.php','class="adminDashboardSearch"','Dashboard search must live in the header.');
+$avoid('admin/index.php','class="adminDashboardSearch"','Dashboard must not render a dedicated search bar.');
+$need('admin/index.php','ADMIN COMMAND CENTER','Dashboard must render the comprehensive command-center header.');
+$need('assets/css/app.css','width:min(100%,1480px)!important','Admin pages must share a centered bounded canvas.');
 $need('assets/css/app.css','/* Admin shell + dashboard refresh — Sep 2026 */','Admin shell refresh styles must ship.');
 $need('assets/css/app.css','background:#f7f7f5!important','Admin sidebar must match the main canvas background.');
 $need('assets/css/app.css','margin:0 0 0 268px!important','Admin canvas must use the full right column.');

@@ -1,0 +1,43 @@
+/* Phase 74 Section 5 — notification/activity + universal object drawers */
+.appHeaderNotification{position:relative}
+.notificationActivityDrawer,.universalObjectDrawer{
+  position:fixed;top:0;right:0;height:100dvh;background:#fff;border-left:1px solid #dce1e5;
+  box-shadow:-20px 0 60px rgba(19,27,35,.16);transform:translateX(102%);transition:transform .18s ease;
+  display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden
+}
+.notificationActivityDrawer{width:min(430px,100vw);z-index:710}
+.universalObjectDrawer{width:min(520px,100vw);z-index:730}
+.notificationActivityDrawer.open,.universalObjectDrawer.open{transform:translateX(0)}
+.notificationDrawerBackdrop,.universalObjectBackdrop{position:fixed;inset:0;background:rgba(20,25,30,.24);backdrop-filter:blur(1px)}
+.notificationDrawerBackdrop{z-index:705}.universalObjectBackdrop{z-index:725}
+.notificationActivityDrawer>header,.universalObjectDrawer>header{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 18px 14px;border-bottom:1px solid #e7eaed;background:#fff
+}
+.notificationActivityDrawer h2,.universalObjectDrawer h2{margin:3px 0 0;font-size:1.05rem;line-height:1.2}
+.notificationActivityDrawer header button,.universalObjectDrawer header button,.universalObjectDrawer header a{
+  appearance:none;width:34px;height:34px;display:grid;place-items:center;border:1px solid #dce1e5;border-radius:50%;background:#fff;color:#555d65;text-decoration:none
+}
+.universalObjectDrawer header>div:last-child{display:flex;gap:7px}
+.notificationDrawerTabs,.universalObjectTabs{display:grid;padding:0 12px;border-bottom:1px solid #e8ebee;background:#fff}
+.notificationDrawerTabs{grid-template-columns:1fr 1fr}.universalObjectTabs{grid-template-columns:repeat(6,1fr);overflow-x:auto}
+.notificationDrawerTabs button,.universalObjectTabs button{
+  appearance:none;border:0;border-bottom:2px solid transparent;background:transparent;padding:11px 8px;color:#747c84;font-size:.68rem;font-weight:800;white-space:nowrap
+}
+.notificationDrawerTabs button.active,.universalObjectTabs button.active{border-bottom-color:#20252a;color:#20252a}
+.notificationDrawerTabs button span{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:4px;border-radius:9px;background:#20252a;color:#fff;font-size:.55rem}
+.notificationDrawerPanel{min-height:0;overflow-y:auto}.notificationDrawerPanel[hidden]{display:none!important}
+.notificationDrawerItem,.activityDrawerItem{
+  display:grid;padding:13px 16px;border-bottom:1px solid #eef0f2;color:#30363b;text-decoration:none;background:#fff
+}
+.notificationDrawerItem.unread{background:#f7f9fa}.notificationDrawerItem:hover,.activityDrawerItem:hover{background:#f3f5f6}
+.notificationDrawerItemTop{display:flex;justify-content:space-between;gap:12px}.notificationDrawerItemTop strong{font-size:.61rem;text-transform:uppercase;letter-spacing:.05em}.notificationDrawerItemTop small{font-size:.58rem;color:#90979e}
+.notificationDrawerItemTitle{margin-top:4px;font-size:.74rem;font-weight:800}.notificationDrawerItemBody{margin-top:4px;color:#6f7780;font-size:.66rem;line-height:1.45}
+.notificationDrawerAll{display:block;padding:13px 16px;color:#424a51;font-size:.68rem;font-weight:800;text-decoration:none}
+.notificationDrawerEmpty,.notificationDrawerLoading,.universalObjectEmpty,.universalObjectLoading{padding:28px 20px;display:grid;gap:6px;color:#747c84;font-size:.7rem}
+.activityDrawerItem{grid-template-columns:12px minmax(0,1fr);gap:9px}.activityDrawerDot{width:7px;height:7px;margin-top:5px;border-radius:50%;background:#a9b0b6}.activityDrawerItem>span:last-child{display:grid;gap:3px}.activityDrawerItem strong{font-size:.72rem}.activityDrawerItem em{font-size:.64rem;color:#737b83;font-style:normal;line-height:1.4}.activityDrawerItem small{font-size:.57rem;color:#979da3}
+.universalObjectDrawer>header small{display:block;margin-top:4px;color:#7c848c;font-size:.62rem}
+.universalObjectBody{min-height:0;overflow-y:auto;padding:14px}
+.universalObjectOverview{margin:0;display:grid;gap:9px}.universalObjectOverview>div{padding:11px 12px;border:1px solid #e4e7ea;border-radius:9px}.universalObjectOverview dt{font-size:.58rem;font-weight:800;color:#858c93;text-transform:uppercase;letter-spacing:.04em}.universalObjectOverview dd{margin:4px 0 0;font-size:.72rem;line-height:1.5;white-space:pre-wrap}
+.universalObjectFeed,.universalObjectPeople{display:grid;gap:7px}.universalObjectFeed>a,.universalObjectFeed>div,.universalObjectPeople>a{display:grid;gap:3px;padding:11px 12px;border:1px solid #e3e7ea;border-radius:9px;color:#33393f;text-decoration:none}.universalObjectFeed strong,.universalObjectPeople strong{font-size:.72rem}.universalObjectFeed span,.universalObjectPeople span{font-size:.63rem;color:#737b83;line-height:1.4}.universalObjectFeed small{font-size:.56rem;color:#989ea4}
+.universalObjectAgent{padding:18px;border:1px solid #e1e5e8;border-radius:10px}.universalObjectAgent h3{margin:5px 0 8px}.universalObjectAgent p{color:#697179;font-size:.7rem;line-height:1.5}.universalObjectAgent .button{display:inline-block;margin-top:8px;text-decoration:none}
+@media(max-width:640px){.notificationActivityDrawer,.universalObjectDrawer{width:100vw}.universalObjectTabs{grid-template-columns:repeat(6,minmax(78px,1fr))}}

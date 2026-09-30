@@ -9,7 +9,7 @@ $need('app/admin-operations.php',"status='executing'",'Governed execution must c
 $need('app/admin-operations.php',"(int)\$record['actor_user_id']!==(int)\$admin['id']", 'Governed previews must be executable only by their creating administrator.');
 $need('app/admin-operations.php','source condition is no longer active','Operations alerts must auto-resolve only when their source condition disappears.');
 $need('app/admin-operations.php','admin.*','V2.0 capability groundwork must preserve super-admin authority.');
-foreach(['class="adminDashboardHeader"','class="adminDashboardSearch"','NEEDS ATTENTION','Save this view','GOVERNED ACTIONS'] as $n)$need('admin/index.php',$n,'Command Center missing '.$n);
+foreach(['class="adminDashboardHeader"','ADMIN COMMAND CENTER','adminExecutiveGrid','adminOperationsOverview','NEEDS ATTENTION','Save this view','GOVERNED ACTIONS'] as $n)$need('admin/index.php',$n,'Command Center missing '.$n);
 foreach(['Governed action center','Preview governed action','Execute reviewed action','ACTION LEDGER'] as $n)$need('admin/action-center.php',$n,'Action Center missing '.$n);
 foreach(['ADMIN V2.0 · ACCOUNT 360','Unified commercial account','UNIFIED AUDIT TIMELINE','Account 360 history'] as $n)$need('admin/account.php',$n,'Account 360 missing '.$n);
 $need('app/admin-ui.php',"'action_center'=>",'Admin navigation must expose Action Center.');

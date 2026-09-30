@@ -24,7 +24,7 @@
   }[k]||k);
   const row=(item,key)=>{
     if(key==='actions')return `<button type="button" class="commandPaletteRow" data-command-row data-create-command="${esc(item.action)}"><span class="commandPaletteIcon">${esc(item.icon||'+')}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.meta||'Create')}</small></span><kbd>↵</kbd></button>`;
-    return `<a class="commandPaletteRow" data-command-row href="${esc(item.url)}"><span class="commandPaletteIcon">⌁</span><span><strong>${esc(item.title)}</strong><small>${esc(item.meta||'')}</small>${item.snippet?`<em>${esc(item.snippet)}</em>`:''}</span><kbd>↵</kbd></a>`;
+    const detailTypes=new Set(['research_agent','portfolio','mission','task','program','decision','action_plan','report']);const detail=detailTypes.has(String(item.type||''))&&item.public_id?` data-object-detail-type="${esc(item.type)}" data-object-detail-id="${esc(item.public_id)}"`:'';return `<a class="commandPaletteRow" data-command-row href="${esc(item.url)}"${detail}><span class="commandPaletteIcon">⌁</span><span><strong>${esc(item.title)}</strong><small>${esc(item.meta||'')}</small>${item.snippet?`<em>${esc(item.snippet)}</em>`:''}</span><kbd>↵</kbd></a>`;
   };
   const render=data=>{
     results.innerHTML='';let html='';
