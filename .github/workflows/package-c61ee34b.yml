@@ -1,0 +1,10 @@
+name: Package Team Chat tab scroll fix
+on:
+  push:
+    branches:
+      - chatgpt/package-c61ee34b
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
