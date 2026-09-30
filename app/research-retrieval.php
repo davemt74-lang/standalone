@@ -577,6 +577,10 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
           'snippet'=>research_retrieval_snippet((string)($row['content']??''),$query),'href'=>research_retrieval_href($row),
           'citation'=>['type'=>(string)$row['object_type'],'id'=>(string)$row['object_public_id'],'locator'=>$locator?:null,'label'=>(string)$row['title'].($locator!==''?' · '.$locator:'')]
         ];
+        if(function_exists('research_memory_apply_result')){
+            $result=research_memory_apply_result($pdo,$viewer,$project,$result);
+            if($result===null)continue;
+        }
         $best[$key]=$result;
     }
     $results=array_values($best);usort($results,function($a,$b)use($query){if($query==='')return strcmp((string)$b['updated_at'],(string)$a['updated_at']);return ($b['score']<=>$a['score'])?:strcmp((string)$b['updated_at'],(string)$a['updated_at']);});$results=array_slice($results,0,$limit);
