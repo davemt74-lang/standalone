@@ -4557,3 +4557,10 @@ body.storyViewerOpen{overflow:hidden!important}
 .researchAgentEditCheck{display:flex!important;grid-auto-flow:column;grid-template-columns:auto 1fr!important;align-items:center;justify-content:flex-start;gap:7px!important;margin-top:0!important;font-weight:700!important}
 .researchAgentEditCheck input{width:auto!important}
 @media(max-width:700px){.researchAgentStoryTriggers{grid-template-columns:1fr}.researchAgentStoryQuiet{grid-template-columns:1fr}}
+
+
+/* Phase 78.3 — Story Composer, Editing & Scheduling */
+.researchAgentStoryDraftEditor{border-top:1px solid #ecece7;padding:10px 0}
+.researchAgentStoryDraftEditor>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;cursor:pointer;list-style:none}
+.researchAgentStoryDraftEditor>summary::-webkit-details-marker{display:none}.researchAgentStoryDraftEditor>summary strong,.researchAgentStoryDraftEditor>summary small{display:block}.researchAgentStoryDraftEditor>summary small{margin-top:2px;color:#85857f}
+.researchAgentStoryDraftEditor[open]>summary{margin-bottom:12px}.researchAgentStoryDraftEditor form{display:grid;gap:10px}
