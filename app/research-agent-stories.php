@@ -2,8 +2,23 @@
 declare(strict_types=1);
 
 function research_agent_stories_ready(PDO $pdo): bool {
-    try{return installer_table_exists($pdo,'research_agent_stories')&&installer_table_exists($pdo,'research_agent_story_states');}
-    catch(Throwable $e){return false;}
+    try{
+        if(!installer_table_exists($pdo,'research_agent_stories')||!installer_table_exists($pdo,'research_agent_story_states'))return false;
+        $db=installer_database_name($pdo);
+        $storyColumns=['public_id','agent_id','observation_key','story_type','priority','title','body','source_body','primary_url','object_type','object_public_id','generation_quality','generation_status','status','published_at','expires_at','created_at','updated_at'];
+        $placeholders=implode(',',array_fill(0,count($storyColumns),'?'));
+        $q=$pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema=? AND table_name='research_agent_stories' AND column_name IN ($placeholders)");
+        $q->execute(array_merge([$db],$storyColumns));
+        $have=array_fill_keys($q->fetchAll(PDO::FETCH_COLUMN),true);
+        foreach($storyColumns as $column)if(empty($have[$column]))return false;
+        $stateColumns=['story_id','user_id','viewed_at','dismissed_at','updated_at'];
+        $placeholders=implode(',',array_fill(0,count($stateColumns),'?'));
+        $q=$pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema=? AND table_name='research_agent_story_states' AND column_name IN ($placeholders)");
+        $q->execute(array_merge([$db],$stateColumns));
+        $have=array_fill_keys($q->fetchAll(PDO::FETCH_COLUMN),true);
+        foreach($stateColumns as $column)if(empty($have[$column]))return false;
+        return true;
+    }catch(Throwable $e){return false;}
 }
 function research_agent_story_authoring_ready(PDO $pdo): bool {
     if(!research_agent_stories_ready($pdo))return false;
@@ -306,14 +321,17 @@ function research_agent_story_drafts(PDO $pdo,array $viewer,string $agentPublic,
 
 function research_agent_story_sync(PDO $pdo,array $config,array $viewer,int $limit=8): array {
     if(!research_agent_stories_ready($pdo)||!function_exists('proactive_briefing'))return ['ready'=>false,'created'=>0];
-    if(function_exists('research_agent_story_publish_due'))research_agent_story_publish_due($pdo,$viewer,30);
-    $brief=proactive_briefing($pdo,$viewer,max(3,min(8,$limit)));$created=0;
-    foreach((array)($brief['items']??[]) as $item){
-        $before=(int)$pdo->query('SELECT ROW_COUNT()')->fetchColumn();
-        $story=research_agent_story_publish_from_item($pdo,$config,$viewer,$item);
-        if($story)$created++;
+    try{
+        if(function_exists('research_agent_story_publish_due'))research_agent_story_publish_due($pdo,$viewer,30);
+        $brief=proactive_briefing($pdo,$viewer,max(3,min(8,$limit)));$created=0;
+        foreach((array)($brief['items']??[]) as $item){
+            try{$story=research_agent_story_publish_from_item($pdo,$config,$viewer,$item);if($story)$created++;}
+            catch(Throwable $e){continue;}
+        }
+        return ['ready'=>true,'created'=>$created];
+    }catch(Throwable $e){
+        return ['ready'=>false,'created'=>0];
     }
-    return ['ready'=>true,'created'=>$created];
 }
 function research_agent_story_social_visibility_sql(): string {
     return research_agent_social_visibility_sql(true);
