@@ -92,3 +92,5 @@ php tests/live-explore-agent-chat-ui-contract.php
 php tests/global-create-launcher-contract.php
 
 php tests/admin-shell-dashboard-refresh-contract.php
+
+php tests/auth-shell-team-chat-tabs-contract.php
