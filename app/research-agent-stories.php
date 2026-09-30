@@ -367,6 +367,26 @@ function research_agent_story_groups(PDO $pdo,array $viewer,int $limit=40): arra
     }
     return array_values($groups);
 }
+
+function research_agent_story_activity(PDO $pdo,array $viewer,int $limit=20): array {
+    if(!research_agent_stories_ready($pdo))return [];$limit=max(1,min(60,$limit));$rows=research_agent_story_list($pdo,$viewer,$limit,true);$out=[];
+    foreach($rows as $story){
+        $created=(string)($story['published_at']??$story['created_at']??'');$public=(string)($story['public_id']??'');if($public==='')continue;
+        $own=(int)($story['owner_user_id']??0)===(int)$viewer['id'];$agentName=(string)($story['agent_name']??'Research Agent');
+        $title=$own?$agentName.' published a Story':$agentName.' published a Story you can view';
+        $body=trim((string)($story['body']??''));$why=trim((string)($story['why_it_matters']??''));if($why!=='')$body=$body.' Why it matters: '.$why;
+        $out[]=[
+          'key'=>hash('sha256','research_agent_story|'.$public.'|'.$created),
+          'type'=>'research_agent_story_published','surface'=>'agent','created_at'=>$created,
+          'title'=>$title,'body'=>mb_substr($body,0,320),'href'=>(string)($story['story_url']??('/home.php?story='.rawurlencode($public))),
+          'actor'=>null,'object'=>['type'=>'research_agent_story','public_id'=>$public],
+          'context'=>[['type'=>'research','public_id'=>(string)($story['project_public_id']??'')],['type'=>'research_agent_story','public_id'=>$public]],
+          'meta'=>array_filter(['agent'=>$agentName,'story_type'=>(string)($story['story_type']??''),'priority'=>(string)($story['priority']??''),'follow_up'=>!empty($story['parent_story_id'])?'yes':null])
+        ];
+    }
+    return $out;
+}
+
 function research_agent_story_state(PDO $pdo,array $viewer,string $publicId,string $action): bool {
     $story=research_agent_story_access($pdo,$viewer,$publicId);if(!$story)return false;
     if($action==='view')$sql="INSERT INTO research_agent_story_states(story_id,user_id,viewed_at) VALUES(?,?,NOW()) ON DUPLICATE KEY UPDATE viewed_at=COALESCE(viewed_at,NOW()),updated_at=NOW()";
