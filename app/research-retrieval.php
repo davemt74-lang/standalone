@@ -543,14 +543,18 @@ function research_retrieval_search(PDO $pdo,array $config,array $viewer,string $
 
     if($query!==''&&function_exists('research_memory_ready')&&research_memory_ready($pdo)){
         try{
-            $likeCorrection='%'.$query.'%';
+            $likeCorrection='%'.$query.'%';$correctionWhere=$where;
+            $correctionWhere[]="mc.retrieval_state<>'exclude'";
+            $correctionWhere[]='mc.correction_text IS NOT NULL';
+            $correctionWhere[]='mc.correction_text LIKE ?';
+            $correctionParams=array_merge($params,[$likeCorrection]);
             $mq=$pdo->prepare("SELECT d.*,c.id chunk_id,c.chunk_index,c.locator_type,c.locator_label,c.locator_json,c.heading,c.content,6 lexical_score,c.embedding_json
               FROM research_memory_controls mc
               JOIN research_retrieval_documents d ON d.project_id=mc.project_id AND d.object_type=mc.object_type AND d.object_public_id=mc.object_public_id
               LEFT JOIN research_retrieval_chunks c ON c.id=(SELECT c2.id FROM research_retrieval_chunks c2 WHERE c2.document_id=d.id ORDER BY c2.chunk_index LIMIT 1)
-              WHERE mc.project_id=? AND mc.retrieval_state<>'exclude' AND mc.correction_text IS NOT NULL AND mc.correction_text LIKE ?
+              WHERE ".implode(' AND ',$correctionWhere)."
               ORDER BY mc.updated_at DESC LIMIT ".($limit*3));
-            $mq->execute([$projectId,$likeCorrection]);
+            $mq->execute($correctionParams);
             foreach($mq->fetchAll()?:[] as $row)$rows[]=$row;
         }catch(Throwable $e){}
     }
