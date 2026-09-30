@@ -5,7 +5,7 @@ $need=function(string $file,string $needle,string $message)use(&$fail,$root){$pa
 $avoid=function(string $file,string $needle,string $message)use(&$fail,$root){$path=$root.'/'.$file;if(is_file($path)&&str_contains((string)file_get_contents($path),$needle))$fail[]=$message;};
 
 $need('app/research-agents.php',"latest_story_public_id",'Profile Agent listing must expose live Story metadata.');
-$need('app/research-agents.php',"research_agent_story_list($pdo,$viewer,60)",'Profile Agent Story metadata must reuse canonical Story access.');
+$need('app/research-agents.php',"research_agent_story_list(\$pdo,\$viewer,60)",'Profile Agent Story metadata must reuse canonical Story access.');
 $need('profile.php','/research-agent-public.php?agent=','Profile Agent cards must open the public Agent experience.');
 $need('profile.php','profileRelationshipBadge','Profile must surface current social relationship state.');
 $need('research-agent-public.php','research_agent_social_access($pdo,$viewerContext,$agentId)','Public Agent page must use canonical visibility access.');
