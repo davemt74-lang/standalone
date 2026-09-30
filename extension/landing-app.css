@@ -4570,3 +4570,8 @@ body.storyViewerOpen{overflow:hidden!important}
 .homeStoryFollowUp{display:inline-flex;margin-bottom:10px;padding:4px 8px;border-radius:999px;background:#f1f1ed;font-size:.66rem;font-weight:850;letter-spacing:.05em;text-transform:uppercase}
 .homeStoryWhy{margin-top:18px;padding:14px 16px;border:1px solid #e5e5df;border-radius:14px;background:#fafaf7}
 .homeStoryWhy strong{display:block;margin-bottom:4px;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase}.homeStoryWhy p{margin:0!important;color:#555;line-height:1.5}
+
+
+/* Phase 78.6 — Story Approval & Operational Lifecycle */
+.researchAgentStoryReviewForm{display:grid;gap:10px;margin-top:12px;padding:12px;border:1px solid #e5e5df;border-radius:12px;background:#fafaf7}
+.researchAgentStoryReviewForm textarea{width:100%;padding:9px 10px;border:1px solid #d8d8d2;border-radius:10px;background:#fff;font:inherit}
