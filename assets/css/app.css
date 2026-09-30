@@ -4176,3 +4176,76 @@
     grid-template-columns:auto 1fr auto!important;
   }
 }
+
+
+/* Admin dashboard command-center composition. */
+.adminDashboardHeader p{
+  margin:7px 0 0;
+  max-width:760px;
+  color:#717780;
+  font-size:.76rem;
+  line-height:1.45;
+}
+.adminDashboardHeaderActions{display:flex;gap:8px;flex-wrap:wrap}
+.adminExecutiveGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin:0 auto 18px!important;
+}
+.adminExecutiveCard{
+  margin:0!important;
+  min-height:170px;
+  display:grid;
+  grid-template-rows:auto auto auto 1fr auto;
+  gap:6px;
+  padding:18px!important;
+}
+.adminExecutiveCard h2{margin:0;font-size:.95rem}
+.adminExecutiveCard>strong{font-size:2rem;line-height:1;margin-top:3px}
+.adminExecutiveCard p{margin:0;color:#737a82;font-size:.7rem;line-height:1.45}
+.adminExecutiveCard a{align-self:end;font-size:.68rem;font-weight:800;text-decoration:none}
+.adminOperationsOverview{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  margin:0 auto 18px!important;
+}
+.adminOperationsOverview>.card{margin:0!important}
+.adminOverviewStats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.adminOverviewStats a{
+  display:grid;
+  gap:3px;
+  min-width:0;
+  padding:11px 10px;
+  border:1px solid #e4e7ea;
+  border-radius:9px;
+  background:#fafbfb;
+  color:#363c42;
+  text-decoration:none;
+}
+.adminOverviewStats strong{
+  overflow:hidden;
+  font-size:1.15rem;
+  line-height:1.1;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.adminOverviewStats span{
+  color:#7d848c;
+  font-size:.61rem;
+  line-height:1.25;
+}
+@media(max-width:1280px){
+  .adminExecutiveGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .adminOverviewStats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .adminDashboardHeader{align-items:flex-start!important}
+  .adminDashboardHeaderActions{width:100%}
+  .adminExecutiveGrid,.adminOperationsOverview{grid-template-columns:1fr}
+}
