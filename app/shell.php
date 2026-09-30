@@ -61,22 +61,44 @@ function app_shell_notification_time_label(string $createdAt): string {
     try{$dt=new DateTimeImmutable($createdAt);return $dt->format('M j · g:i A');}
     catch(Throwable $e){return $createdAt;}
 }
+function app_shell_notification_object_attrs(array $item): string {
+    $map=['research_program'=>'program','research_intelligence_portfolio'=>'portfolio','research_report'=>'report'];
+    $type=$map[(string)($item['object_type']??'')]??'';
+    $public=trim((string)($item['object_public_id']??''));
+    return $type!==''&&$public!==''?' data-object-detail-type="'.app_shell_h($type).'" data-object-detail-id="'.app_shell_h($public).'"':'';
+}
 function app_shell_header_notification(PDO $pdo,array $user,int $unread): string {
     $label='Notifications'.($unread>0?', '.$unread.' unread':'');
     $count=$unread>0?'<span class="appHeaderNotificationBadge">'.app_shell_h((string)min($unread,99)).($unread>99?'+':'').'</span>':'';
     $icon='<span class="appHeaderNotificationGlyph" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span>';
-    $items=app_shell_notification_preview($pdo,$user,5);
+    $items=[];try{$items=function_exists('notification_rows')?array_slice(notification_rows($pdo,$user,40,false),0,40):[];}catch(Throwable $e){}
     $rows='';
     foreach($items as $item){
         $category=ucfirst((string)($item['category']??'Update'));
         $title=ucwords(str_replace('_',' ',(string)($item['notification_type']??'notification')));
-        $body=trim((string)($item['body']??''));if(mb_strlen($body)>118)$body=mb_substr($body,0,115).'…';
+        $body=trim((string)($item['body']??''));if(mb_strlen($body)>160)$body=mb_substr($body,0,157).'…';
         $url=(string)($item['url']??'');if($url===''||!str_starts_with($url,'/')||str_starts_with($url,'//'))$url='/notifications.php';
         $time=app_shell_notification_time_label((string)($item['created_at']??''));
-        $rows.='<a class="appHeaderNotificationItem" href="'.app_shell_h($url).'"><span class="appHeaderNotificationItemTop"><strong>'.app_shell_h($category).'</strong><small>'.app_shell_h($time).'</small></span><span class="appHeaderNotificationItemTitle">'.app_shell_h($title).'</span>'.($body!==''?'<span class="appHeaderNotificationItemBody">'.app_shell_h($body).'</span>':'').'</a>';
+        $unreadClass=empty($item['read_at'])?' unread':'';
+        $rows.='<a class="notificationDrawerItem'.$unreadClass.'" href="'.app_shell_h($url).'"'.app_shell_notification_object_attrs($item).'><span class="notificationDrawerItemTop"><strong>'.app_shell_h($category).'</strong><small>'.app_shell_h($time).'</small></span><span class="notificationDrawerItemTitle">'.app_shell_h($title).'</span>'.($body!==''?'<span class="notificationDrawerItemBody">'.app_shell_h($body).'</span>':'').'</a>';
     }
-    if($rows==='')$rows='<div class="appHeaderNotificationEmpty"><strong>You’re caught up.</strong><span>No unread notifications right now.</span></div>';
-    return '<details class="appHeaderNotificationMenu"><summary class="appHeaderIcon appHeaderNotification" aria-label="'.app_shell_h($label).'">'.$icon.$count.'</summary><div class="appHeaderNotificationDropdown"><div class="appHeaderNotificationHead"><strong>Notifications</strong>'.($unread>0?'<span>'.app_shell_h((string)$unread).' unread</span>':'<span>All caught up</span>').'</div><div class="appHeaderNotificationList">'.$rows.'</div><a class="appHeaderNotificationFooter" href="/notifications.php">View all notifications</a></div></details>';
+    if($rows==='')$rows='<div class="notificationDrawerEmpty"><strong>You’re caught up.</strong><span>No notifications right now.</span></div>';
+    return '<button type="button" class="appHeaderIcon appHeaderNotification" data-notification-drawer-open aria-label="'.app_shell_h($label).'" aria-controls="notification-activity-drawer">'.$icon.$count.'</button>'
+      .'<aside class="notificationActivityDrawer" id="notification-activity-drawer" data-notification-drawer aria-hidden="true">'
+      .'<header><div><span class="eyebrow">UPDATES</span><h2>Notifications &amp; Activity</h2></div><button type="button" data-notification-drawer-close aria-label="Close">×</button></header>'
+      .'<nav class="notificationDrawerTabs" role="tablist"><button type="button" class="active" role="tab" aria-selected="true" data-notification-tab="notifications">Notifications'.($unread>0?' <span>'.$unread.'</span>':'').'</button><button type="button" role="tab" aria-selected="false" data-notification-tab="activity">Activity</button></nav>'
+      .'<section class="notificationDrawerPanel active" data-notification-panel="notifications">'.$rows.'<a class="notificationDrawerAll" href="/notifications.php">View all notifications</a></section>'
+      .'<section class="notificationDrawerPanel" data-notification-panel="activity" hidden><div class="notificationDrawerLoading" data-activity-loading>Loading activity…</div><div data-activity-list></div><a class="notificationDrawerAll" href="/activity.php">Open full activity timeline</a></section>'
+      .'</aside><div class="notificationDrawerBackdrop" data-notification-drawer-backdrop hidden></div>';
+}
+function app_shell_object_detail_drawer(): string {
+    return '<aside class="universalObjectDrawer" data-object-detail-drawer aria-hidden="true">'
+      .'<header><div><span class="eyebrow" data-object-detail-type-label>OBJECT</span><h2 data-object-detail-title>Object detail</h2><small data-object-detail-meta></small></div><div><a data-object-detail-open href="#" aria-label="Open full page">↗</a><button type="button" data-object-detail-close aria-label="Close">×</button></div></header>'
+      .'<nav class="universalObjectTabs" role="tablist">'
+      .'<button type="button" class="active" data-object-tab="overview">Overview</button><button type="button" data-object-tab="activity">Activity</button><button type="button" data-object-tab="files">Files</button><button type="button" data-object-tab="people">People</button><button type="button" data-object-tab="links">Links</button><button type="button" data-object-tab="agent">Agent</button>'
+      .'</nav>'
+      .'<div class="universalObjectBody" data-object-detail-body><div class="universalObjectLoading">Loading…</div></div>'
+      .'</aside><div class="universalObjectBackdrop" data-object-detail-backdrop hidden></div>';
 }
 function app_shell_link(string $href,string $label,string $icon,string $path,?string $match=null,string $badge=''): string {
     $active=$match!==null?str_starts_with($path,$match):$path===$href;
