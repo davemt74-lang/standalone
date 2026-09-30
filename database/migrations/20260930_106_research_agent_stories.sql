@@ -1,6 +1,7 @@
 -- Research Agent Stories V1 — profile identity + proactive text stories
 ALTER TABLE research_agents
-  ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR(500) NULL AFTER description;
+  ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR(500) NULL AFTER description,
+  ADD COLUMN IF NOT EXISTS visibility ENUM('private','friends','public') NOT NULL DEFAULT 'private' AFTER profile_image_url;
 
 CREATE TABLE IF NOT EXISTS research_agent_stories (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
