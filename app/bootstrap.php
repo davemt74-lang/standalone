@@ -140,3 +140,5 @@ require_once __DIR__ . '/vp3-connector.php';
 
 require_once __DIR__ . '/unified-activity.php';
 require_once __DIR__ . '/universal-object-detail.php';
+
+require_once __DIR__ . '/research-agent-stories.php';
