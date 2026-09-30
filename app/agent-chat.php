@@ -226,6 +226,9 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     if(!$userMessage['created']){
         $q=$pdo->prepare("SELECT id,public_id,body FROM conversation_messages WHERE conversation_id=? AND parent_message_id=? AND sender_type='agent' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");$q->execute([$conversation['id'],$userMessageId]);if($existing=$q->fetch()){$assistant=['id'=>(int)$existing['id'],'public_id'=>$existing['public_id'],'body'=>$existing['body'],'sender_type'=>'agent','role'=>'assistant','action_proposals'=>agent_actions_ready($pdo)?agent_action_message_proposals($pdo,$viewer,(int)$existing['id']):[]];if(function_exists('data_response_attribution_map')){$map=data_response_attribution_map($pdo,[(int)$existing['id']]);$assistant['attribution']=$map[(int)$existing['id']]??null;}return ['conversation'=>['public_id'=>$conversation['public_id'],'title'=>$conversation['title']],'user_message'=>$userMessage,'assistant_message'=>$assistant,'deduplicated'=>true];}
     }
+    if($userMessage['created']&&$researchAgent&&$retrievalContext&&function_exists('research_memory_record_usage')){
+        research_memory_record_usage($pdo,$viewer,$researchAgent,(array)($retrievalContext['results']??[]),$userMessageId);
+    }
     if($userMessage['created'])foreach($context as $item)$pdo->prepare('INSERT INTO conversation_message_attachments(message_id,attachment_type,object_public_id,metadata_json) VALUES(?,?,?,?)')->execute([$userMessageId,$item['type'],$item['public_id'],json_encode(['label'=>$item['label']],JSON_UNESCAPED_SLASHES)]);
     if(function_exists('object_handoff_message_attachments')){
         $attachmentMap=object_handoff_message_attachments($pdo,$viewer,[$userMessageId]);
