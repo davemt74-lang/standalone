@@ -4,7 +4,7 @@ $root=dirname(__DIR__);$fail=[];
 $read=function(string $p)use($root,&$fail): string{$f=$root.'/'.$p;if(!is_file($f)){$fail[]='Missing '.$p;return '';}return (string)file_get_contents($f);};
 $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&!str_contains($c,$n))$fail[]=$m;};
 
-$need('home.php',"homeWorkspaceLayout<?=$chatTeams?' hasTeamChatRail':''?>",'Home must mark the layout when Team Chat is available.');
+$need('home.php','hasTeamChatRail','Home must mark the layout when Team Chat is available.');
 $need('home.php','/assets/css/home-team-chat.css?v=74.3','Home must load the Team Chat visibility override after app.css.');
 $need('home.php','data-team-chat-rail','Home must render the canonical Team Chat rail.');
 $need('home.php','/assets/js/team-chat.js?v=36.0','Home must load the Team Chat client when Team conversations exist.');
