@@ -41,10 +41,11 @@ $atRisk=array_values(array_filter($changes,fn($x)=>in_array((string)($x['change_
 $engineLinks=$selected?research_agent_knowledge_engine_links($selected):['library'=>[],'insights'=>[],'changes'=>[]];
 $memoryReady=(bool)($selected&&function_exists('research_memory_ready')&&research_memory_ready($pdo)&&research_retrieval_ready($pdo));
 $memoryQuery=mb_substr(trim((string)($_GET['memory_q']??'')),0,190);
-$memoryPage=max(1,(int)($_GET['memory_page']??1));$memoryPerPage=50;$memoryOffset=($memoryPage-1)*$memoryPerPage;
-$memoryItems=$memoryReady?research_memory_catalog($pdo,$u,$project,$memoryPerPage,$memoryOffset,$memoryQuery):[];
+$memoryPage=max(1,(int)($_GET['memory_page']??1));$memoryPerPage=50;
 $memoryTotal=$memoryReady?research_memory_catalog_count($pdo,$u,$project,$memoryQuery):0;
 $memoryPages=max(1,(int)ceil($memoryTotal/$memoryPerPage));if($memoryPage>$memoryPages)$memoryPage=$memoryPages;
+$memoryOffset=($memoryPage-1)*$memoryPerPage;
+$memoryItems=$memoryReady?research_memory_catalog($pdo,$u,$project,$memoryPerPage,$memoryOffset,$memoryQuery):[];
 $memorySummary=$memoryReady?research_memory_summary($pdo,$u,$project):['total'=>0,'excluded'=>0,'corrected'=>0,'used'=>0];
 $changeObjectTitle=static function(array $change): string {
     $row=(array)($change['after']??$change['before']??[]);
