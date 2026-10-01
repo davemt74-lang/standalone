@@ -50,3 +50,18 @@
 .sponsoredDetailCard p{line-height:1.6;margin:3px 0;color:#637784}
 @media(max-width:920px){.sponsoredDetailHero{grid-template-columns:minmax(0,1fr);gap:25px}.sponsoredDetailHeroAside{max-width:440px}.sponsoredDetailLayout{grid-template-columns:minmax(0,1fr)}.sponsoredDetailRail{position:static;grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:590px){.sponsoredDetail{width:min(100% - 24px,1240px)}.sponsoredDetailHero{padding:26px 20px;border-radius:16px}.sponsoredDetailSection{padding:23px 18px}.sponsoredDetailFacts,.sponsoredDetailWorkflow,.sponsoredDetailRail{grid-template-columns:minmax(0,1fr)}.sponsoredDetailSectionHead h2{font-size:20px}}
+
+.sponsoredDetailChipsLight{margin-top:15px}
+.sponsoredDetailChipsLight span{color:#2d4e60;border-color:#d8e5eb;background:#eef5f8}
+.sponsoredDetailDeliverableGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:17px 0}
+.sponsoredDetailDeliverable{min-width:0;background:#f6f9fa;border:1px solid #e0e9ed;border-radius:11px;padding:17px}
+.sponsoredDetailDeliverable .sponsoredDetailEyebrow{color:#627c8a}
+.sponsoredDetailDeliverable h3{margin:6px 0 3px}
+.sponsoredDetailDeliverable .sponsoredDetailSmall{color:#596f7c}
+.sponsoredDetailMilestones{list-style:none;counter-reset:spm;margin:18px 0 0;padding:0;display:grid;gap:15px}
+.sponsoredDetailMilestones li{counter-increment:spm;position:relative;padding:15px 16px 15px 54px;background:#f5f8f9;border-radius:10px;border:1px solid #e0e8ec}
+.sponsoredDetailMilestones li:before{content:counter(spm,decimal-leading-zero);position:absolute;top:16px;left:16px;color:#4d7082;font-weight:800;font-size:12px}
+.sponsoredDetailMilestones li strong{display:block;color:#213948}
+.sponsoredDetailMilestones li .meta{display:block;margin-top:4px}
+.sponsoredDetailMilestones li p{margin:8px 0 0}
+@media(max-width:690px){.sponsoredDetailDeliverableGrid{grid-template-columns:minmax(0,1fr)}}
