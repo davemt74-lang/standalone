@@ -28,6 +28,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             ]);$success='Research Agent updated.';
         }elseif($op==='save_story_policy'){
             research_agent_story_policy_update($pdo,$u,$agentId,[
+              'stories_enabled'=>isset($_POST['stories_enabled']),
               'publish_mode'=>(string)($_POST['publish_mode']??'approval'),
               'min_priority'=>(string)($_POST['min_priority']??'medium'),
               'daily_story_cap'=>(int)($_POST['daily_story_cap']??3),
@@ -126,6 +127,7 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
       <header><span class="eyebrow">STORY POLICY</span><h2>Proactive publishing</h2><p>Control when this Agent turns research activity into Stories.</p></header>
       <form method="post" class="researchAgentStoryPolicyForm">
         <input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent_id" value="<?=h($agentId)?>"><input type="hidden" name="op" value="save_story_policy">
+        <label class="researchAgentEditCheck"><input type="checkbox" name="stories_enabled" value="1" <?=!empty($storyPolicy['stories_enabled'])?'checked':''?>> <strong>Stories on</strong> — allow this Research Agent to publish and display Stories</label>
         <div class="researchAgentEditSplit">
           <label>Publishing mode<select name="publish_mode"><option value="draft_only" <?=$storyPolicy['publish_mode']==='draft_only'?'selected':''?>>Draft only</option><option value="approval" <?=$storyPolicy['publish_mode']==='approval'?'selected':''?>>Require approval</option><option value="auto_publish" <?=$storyPolicy['publish_mode']==='auto_publish'?'selected':''?>>Auto-publish</option></select></label>
           <label>Minimum importance<select name="min_priority"><option value="low" <?=$storyPolicy['min_priority']==='low'?'selected':''?>>Low</option><option value="medium" <?=$storyPolicy['min_priority']==='medium'?'selected':''?>>Medium</option><option value="high" <?=$storyPolicy['min_priority']==='high'?'selected':''?>>High</option></select></label>

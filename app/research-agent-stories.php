@@ -33,7 +33,7 @@ function research_agent_story_policy_ready(PDO $pdo): bool {
     try{return installer_table_exists($pdo,'research_agent_story_policies');}catch(Throwable $e){return false;}
 }
 function research_agent_story_policy_defaults(): array {
-    return ['publish_mode'=>'approval','min_priority'=>'medium','daily_story_cap'=>3,'quiet_hours_enabled'=>0,'timezone_name'=>'UTC','quiet_start'=>null,'quiet_end'=>null,
+    return ['stories_enabled'=>1,'publish_mode'=>'approval','min_priority'=>'medium','daily_story_cap'=>3,'quiet_hours_enabled'=>0,'timezone_name'=>'UTC','quiet_start'=>null,'quiet_end'=>null,
       'trigger_evidence'=>1,'trigger_risk'=>1,'trigger_question'=>1,'trigger_decision'=>1,'trigger_task'=>1,'trigger_update'=>1];
 }
 function research_agent_story_policy(PDO $pdo,array $agent): array {
@@ -41,20 +41,25 @@ function research_agent_story_policy(PDO $pdo,array $agent): array {
     $q=$pdo->prepare('SELECT * FROM research_agent_story_policies WHERE agent_id=? LIMIT 1');$q->execute([(int)$agent['id']]);$row=$q->fetch()?:[];
     return array_merge($defaults,$row);
 }
+function research_agent_stories_enabled(PDO $pdo,array $agent): bool {
+    $policy=research_agent_story_policy($pdo,$agent);
+    return !array_key_exists('stories_enabled',$policy)||(int)$policy['stories_enabled']===1;
+}
 function research_agent_story_policy_update(PDO $pdo,array $viewer,string $agentPublic,array $input): array {
     $agent=research_agent_access($pdo,$viewer,$agentPublic);if(!$agent)throw new RuntimeException('Research Agent not found.');
     $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);if(!$canEdit)throw new RuntimeException('You do not have permission to edit this Research Agent.');
     if(!research_agent_story_policy_ready($pdo))throw new RuntimeException('Story publishing policy requires the latest database upgrade.');
+    $enabled=!empty($input['stories_enabled'])?1:0;
     $mode=(string)($input['publish_mode']??'approval');if(!in_array($mode,['draft_only','approval','auto_publish'],true))$mode='approval';
     $min=(string)($input['min_priority']??'medium');if(!in_array($min,['low','medium','high'],true))$min='medium';
     $cap=max(1,min(20,(int)($input['daily_story_cap']??3)));$quiet=!empty($input['quiet_hours_enabled'])?1:0;$timezone=trim((string)($input['timezone_name']??($viewer['timezone_name']??'UTC')));research_automation_timezone($timezone);
     $start=trim((string)($input['quiet_start']??''));$end=trim((string)($input['quiet_end']??''));if(!$quiet){$start='';$end='';}
     foreach([$start,$end] as $t)if($t!==''&&!preg_match('/^(?:[01]d|2[0-3]):[0-5]d$/',$t))throw new InvalidArgumentException('Quiet hours must use HH:MM.');
     $triggers=[];foreach(['evidence','risk','question','decision','task','update'] as $type)$triggers[$type]=!empty($input['trigger_'.$type])?1:0;
-    $sql="INSERT INTO research_agent_story_policies(agent_id,publish_mode,min_priority,daily_story_cap,quiet_hours_enabled,timezone_name,quiet_start,quiet_end,trigger_evidence,trigger_risk,trigger_question,trigger_decision,trigger_task,trigger_update,updated_by_user_id)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      ON DUPLICATE KEY UPDATE publish_mode=VALUES(publish_mode),min_priority=VALUES(min_priority),daily_story_cap=VALUES(daily_story_cap),quiet_hours_enabled=VALUES(quiet_hours_enabled),timezone_name=VALUES(timezone_name),quiet_start=VALUES(quiet_start),quiet_end=VALUES(quiet_end),trigger_evidence=VALUES(trigger_evidence),trigger_risk=VALUES(trigger_risk),trigger_question=VALUES(trigger_question),trigger_decision=VALUES(trigger_decision),trigger_task=VALUES(trigger_task),trigger_update=VALUES(trigger_update),updated_by_user_id=VALUES(updated_by_user_id)";
-    $pdo->prepare($sql)->execute([(int)$agent['id'],$mode,$min,$cap,$quiet,$timezone,$start!==''?$start:null,$end!==''?$end:null,$triggers['evidence'],$triggers['risk'],$triggers['question'],$triggers['decision'],$triggers['task'],$triggers['update'],(int)$viewer['id']]);
+    $sql="INSERT INTO research_agent_story_policies(agent_id,stories_enabled,publish_mode,min_priority,daily_story_cap,quiet_hours_enabled,timezone_name,quiet_start,quiet_end,trigger_evidence,trigger_risk,trigger_question,trigger_decision,trigger_task,trigger_update,updated_by_user_id)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ON DUPLICATE KEY UPDATE stories_enabled=VALUES(stories_enabled),publish_mode=VALUES(publish_mode),min_priority=VALUES(min_priority),daily_story_cap=VALUES(daily_story_cap),quiet_hours_enabled=VALUES(quiet_hours_enabled),timezone_name=VALUES(timezone_name),quiet_start=VALUES(quiet_start),quiet_end=VALUES(quiet_end),trigger_evidence=VALUES(trigger_evidence),trigger_risk=VALUES(trigger_risk),trigger_question=VALUES(trigger_question),trigger_decision=VALUES(trigger_decision),trigger_task=VALUES(trigger_task),trigger_update=VALUES(trigger_update),updated_by_user_id=VALUES(updated_by_user_id)";
+    $pdo->prepare($sql)->execute([(int)$agent['id'],$enabled,$mode,$min,$cap,$quiet,$timezone,$start!==''?$start:null,$end!==''?$end:null,$triggers['evidence'],$triggers['risk'],$triggers['question'],$triggers['decision'],$triggers['task'],$triggers['update'],(int)$viewer['id']]);
     return research_agent_story_policy($pdo,$agent);
 }
 function research_agent_story_priority_rank(string $priority): int {return ['low'=>1,'medium'=>2,'high'=>3][$priority]??2;}
@@ -64,7 +69,8 @@ function research_agent_story_policy_quiet(array $policy,?DateTimeImmutable $now
     return $start<$end?($time>=$start&&$time<$end):($time>=$start||$time<$end);
 }
 function research_agent_story_policy_decision(PDO $pdo,array $agent,string $storyType,string $priority): array {
-    $policy=research_agent_story_policy($pdo,$agent);$triggerKey='trigger_'.$storyType;if(!array_key_exists($triggerKey,$policy))$triggerKey='trigger_update';
+    $policy=research_agent_story_policy($pdo,$agent);
+    if(empty($policy['stories_enabled']))return ['allow'=>false,'status'=>'suppressed','reason'=>'stories_disabled','policy'=>$policy];$triggerKey='trigger_'.$storyType;if(!array_key_exists($triggerKey,$policy))$triggerKey='trigger_update';
     if(empty($policy[$triggerKey]))return ['allow'=>false,'status'=>'suppressed','reason'=>'trigger_disabled','policy'=>$policy];
     if(research_agent_story_priority_rank($priority)<research_agent_story_priority_rank((string)$policy['min_priority']))return ['allow'=>false,'status'=>'suppressed','reason'=>'below_threshold','policy'=>$policy];
     if(research_agent_story_policy_quiet($policy))return ['allow'=>true,'status'=>'draft','reason'=>'quiet_hours','policy'=>$policy];
@@ -239,6 +245,7 @@ function research_agent_story_create_manual(PDO $pdo,array $viewer,string $agent
     $agent=research_agent_access($pdo,$viewer,$agentPublic);if(!$agent)throw new RuntimeException('Research Agent not found.');
     $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);
     if(!$canEdit)throw new RuntimeException('You do not have permission to publish Stories for this Research Agent.');
+    if(!research_agent_stories_enabled($pdo,$agent))throw new RuntimeException('Stories are turned off for this Research Agent.');
     $title=mb_substr(trim((string)($input['title']??'')),0,240);if($title==='')throw new InvalidArgumentException('Story title is required.');
     $body=mb_substr(trim((string)($input['body']??'')),0,1800);if($body==='')throw new InvalidArgumentException('Story body is required.');
     $storyType=strtolower(trim((string)($input['story_type']??'update')));if(!in_array($storyType,['update','evidence','risk','question','decision','task','briefing'],true))$storyType='update';
@@ -259,6 +266,7 @@ function research_agent_story_publish_manual(PDO $pdo,array $viewer,string $stor
     if(research_agent_story_review_ready($pdo)&&(string)($story['origin']??'manual')==='proactive'&&(string)($story['approval_state']??'not_required')==='pending')throw new RuntimeException('This proactive Story requires approval before publishing.');
     if(research_agent_story_review_ready($pdo)&&(string)($story['approval_state']??'not_required')==='rejected')throw new RuntimeException('Rejected Stories must be edited and resubmitted before publishing.');
     $agent=research_agent_access($pdo,$viewer,(string)$story['agent_public_id']);if(!$agent)throw new RuntimeException('Research Agent not found.');
+    if(!research_agent_stories_enabled($pdo,$agent))throw new RuntimeException('Stories are turned off for this Research Agent.');
     $pdo->prepare("UPDATE research_agent_stories SET status='published',published_at=NOW(),updated_at=NOW() WHERE id=? AND status='draft'")->execute([(int)$story['id']]);
     $q=$pdo->prepare('SELECT * FROM research_agent_stories WHERE id=? LIMIT 1');$q->execute([(int)$story['id']]);$fresh=$q->fetch()?:$story;
     research_agent_story_notify_social($pdo,$viewer,$agent,$fresh);return $fresh;
@@ -385,7 +393,8 @@ function research_agent_story_access(PDO $pdo,array $viewer,string $publicId): ?
       JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
-      WHERE s.public_id=:story_public AND ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW())".research_agent_story_published_filter($pdo,'s')." AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
+      LEFT JOIN research_agent_story_policies sp ON sp.agent_id=ra.id
+      WHERE s.public_id=:story_public AND COALESCE(sp.stories_enabled,1)=1 AND ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW())".research_agent_story_published_filter($pdo,'s')." AND ".research_agent_story_social_visibility_sql()." LIMIT 1";
     $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$params[':story_public']=$publicId;$q->execute($params);
     $row=$q->fetch()?:null;if(!$row)return null;$row['story_url']='/home.php?story='.rawurlencode((string)$row['public_id']);return $row;
 }
@@ -402,7 +411,8 @@ function research_agent_story_list(PDO $pdo,array $viewer,int $limit=20,bool $in
       JOIN users u ON u.id=ra.owner_user_id AND u.status='active'
       LEFT JOIN teams t ON t.id=ra.team_id
       LEFT JOIN research_agent_story_states st ON st.story_id=s.id AND st.user_id=:viewer_state
-      WHERE ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW())".research_agent_story_published_filter($pdo,'s')." AND ".research_agent_story_social_visibility_sql().$dismiss."
+      LEFT JOIN research_agent_story_policies sp ON sp.agent_id=ra.id
+      WHERE COALESCE(sp.stories_enabled,1)=1 AND ra.status<>'archived' AND (s.expires_at IS NULL OR s.expires_at>NOW())".research_agent_story_published_filter($pdo,'s')." AND ".research_agent_story_social_visibility_sql().$dismiss."
       ORDER BY social_rank ASC,(st.viewed_at IS NULL) DESC,s.priority='high' DESC,s.published_at DESC,s.id DESC LIMIT ".$limit;
     $q=$pdo->prepare($sql);$params=research_agent_story_social_params($viewer);$params[':viewer_owner_rank']=(int)$viewer['id'];$params[':viewer_team_rank']=(int)$viewer['id'];$params[':viewer_state']=(int)$viewer['id'];$q->execute($params);
     $rows=$q->fetchAll()?:[];foreach($rows as &$row)$row['story_url']='/home.php?story='.rawurlencode((string)$row['public_id']);unset($row);return $rows;

@@ -219,15 +219,9 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
     <a class="button secondary" href="/onboarding.php">Setup checklist</a>
   </div>
 </section>
-<?php elseif($homePrimaryAgent):?>
+<?php elseif($agentStoryGroups):?>
 <section class="homeAgentStories" aria-label="Research Agent Stories" data-agent-stories data-open-story="<?=h((string)($requestedStory['public_id']??''))?>">
   <div class="homeAgentStoriesRail">
-    <?php if(!$agentStoryGroups):?>
-      <a class="homeAgentStoryCard emptyStory" href="<?=h($homeAgentUrl)?>">
-        <span class="homeAgentStoryAvatar"><?php if(!empty($homePrimaryAgent['profile_image_url'])):?><img src="<?=h((string)$homePrimaryAgent['profile_image_url'])?>" alt=""><?php else:?><?=h(mb_strtoupper(mb_substr((string)$homePrimaryAgent['name'],0,1)))?><?php endif?></span>
-        <strong><?=h((string)$homePrimaryAgent['name'])?></strong>
-      </a>
-    <?php endif?>
     <?php foreach($agentStoryGroups as $group):$firstStory=$group['stories'][0]??null;if(!$firstStory)continue;?>
       <article class="homeAgentStoryCard <?=$group['unread_count']>0?'isNew':'isViewed'?>" data-story-agent="<?=h((string)$group['agent_public_id'])?>">
         <button type="button" class="homeAgentStoryMain" data-story-open="<?=h((string)$firstStory['public_id'])?>" aria-label="<?=h((string)$group['agent_name'])?> Stories">

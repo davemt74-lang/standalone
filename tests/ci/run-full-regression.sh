@@ -128,6 +128,7 @@ db_tests=(
   tests/phase75-section1-research-home-agent-launcher-db.php
   tests/phase79-section3-agent-memory-knowledge-management-db.php
   tests/phase80-section1-research-sponsor-account-governance-db.php
+  tests/phase80-detour-research-agent-stories-toggle-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
