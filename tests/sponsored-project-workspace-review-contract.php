@@ -62,6 +62,27 @@ $assert(str_contains($backend,'sponsored_workspace_access($pdo,$viewer,')&&str_c
     'Mutations recheck current authority instead of trusting a stale browser session.');
 $assert(str_contains($backend,'sponsored_research_participation_get(')&&str_contains($backend,'sponsored_project_assignment('),
     'Workspace researcher access requires the canonical accepted participation and assigned Agent.');
+$detail=(string)file_get_contents($root.'/sponsored-project.php');
+$workspacePage=(string)file_get_contents($root.'/sponsored-project-workspace.php');
+$assert(str_contains($detail,'sponsored_workspace_access($pdo,$viewer')&&
+        str_contains($detail,'sponsored_workspace_ready($pdo)'),
+    'Project detail links to collaboration only after live capability and role checks.');
+$assert(str_contains($workspacePage,'current_user($pdo)??[]')&&
+        str_contains($workspacePage,'sponsored_workspace_demo_updates'),
+    'Public read-only demo can be previewed without creating real project data.');
+$assert(str_contains($workspacePage,"research_agent_access($pdo,$viewer")&&
+        str_contains($workspacePage,"research_agent_shell_href($agent,'desktop')")&&
+        str_contains($workspacePage,"research_agent_shell_href($agent,'library')"),
+    'Researcher uses their existing authorized Agent Desktop/Library without sharing private files with sponsor.');
+$assert(str_contains($backend,"$"."assignment['participation_id']")&&
+        str_contains($backend,"$"."participation['id']"),
+    'Project access binds the exact accepted participation to the existing assignment.');
+$assert(str_contains($backend,'A closed Sponsored Project workspace is read-only.'),
+    'Terminal project workspaces cannot accept further journal writes.');
+$closed=$sponsor;$closed['campaign']['status']='completed';
+$reject(static fn()=>sponsored_workspace_validate_update($closed,['id'=>11],[
+    'scope'=>'project','title'=>'After completion','body'=>'Must not write'
+]),'Completed campaigns are read-only in the collaboration layer.');
 $assert(!str_contains($backend,'research_agent_workspace_create_')&&!str_contains($backend,'team_research_assign('),
     'Project updates never bypass canonical Team/Agent ACL or duplicate desktop writes.');
 $assert(str_contains($migration,'CREATE TABLE IF NOT EXISTS sponsored_project_updates')
