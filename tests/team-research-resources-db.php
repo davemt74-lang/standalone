@@ -67,4 +67,8 @@ checkTeam(research_agent_access($pdo,$viewer,$agentPublic)===null,'Unassignment 
 $q=$pdo->prepare('SELECT user_id FROM conversation_members WHERE conversation_id=?');$q->execute([$conversationId]);
 checkTeam(array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN))===[(int)$owner['id']],'Original owner is sole conversation member after unassignment.');
 checkTeam(in_array($agentPublic,array_column(team_research_assignable($pdo,(int)$owner['id']),'public_id'),true),'Agent can be re-shared only after returning to private ownership.');
+$pdo->prepare("UPDATE research_agents SET visibility='public' WHERE public_id=?")->execute([$agentPublic]);
+checkTeam(!in_array($agentPublic,array_column(team_research_assignable($pdo,(int)$owner['id']),'public_id'),true),'Public Agents cannot be selected for Team sharing.');
+$publicDenied=false;try{team_research_assign($pdo,$team,$owner,$agentPublic);}catch(RuntimeException $e){$publicDenied=true;}
+checkTeam($publicDenied,'Runtime rejects sharing a public Agent into a private Team.');
 echo "Team Research resources database journey passed.\n";
