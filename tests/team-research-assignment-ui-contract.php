@@ -8,7 +8,7 @@ foreach([
   'Attach Research Agent</h2>'=>'Team assignment must be visible in the main Team content.',
   'name="agent_id" required'=>'Team owner must have a Research Agent dropdown.',
   'foreach($assignable as $candidate)'=>'Team dropdown must enumerate eligible owned Agents.',
-  "if($isOwner):"=>'Team assignment must be owner-only.',
+  'if($isOwner):'=>'Team assignment must be owner-only.',
   'confirm_workspace_share'=>'Sharing must require informed confirmation.',
   "team_research_assign(\$pdo,\$team,\$u"=>'Attach actions must use canonical ownership-checked runtime.',
   "team_research_unassign(\$pdo,\$team,\$u"=>'Team owner must be able to remove shared Agents.',
@@ -26,7 +26,7 @@ foreach([
   "team_research_unassign(\$pdo,\$team,\$u,\$agentId)"=>'Agent edit must reuse canonical secure remove runtime.',
   "name=\"team_id\" required"=>'Agent edit must offer Team dropdown.',
   "name=\"confirm_workspace_share\""=>'Agent edit must require explicit share acknowledgement.',
-  "Current"=>'Agent edit should expose current assignment.',
+  'Current'=>'Agent edit should expose current assignment.',
   'Remove from Team'=>'Agent edit must allow removal.',
   'Select a Team'=>'Agent edit Team picker needs an explicit empty default.',
 ] as $phrase=>$message)if(!str_contains($edit,$phrase))$issues[]=$message;
