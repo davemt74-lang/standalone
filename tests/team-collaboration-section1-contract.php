@@ -22,7 +22,7 @@ foreach([
 foreach([
     "'team_create_research_document'" =>'Team document post action missing.',
     "['owner','admin','researcher']"=>'Only authorized Team roles may contribute.',
-    "team_research_collaboration_create_document($pdo,$u"=>'Team page must use permission-checked document creation.',
+    'team_research_collaboration_create_document($pdo,$u'=>'Team page must use permission-checked document creation.',
     'name="csrf"'=>'Research contribution POST must include valid CSRF.',
     'name="agent_id"'=>'Team contribution must pick an assigned Agent.',
     'name="body"'=>'Team contribution must require research notes.',
