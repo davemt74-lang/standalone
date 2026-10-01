@@ -91,7 +91,7 @@ function sponsored_project_compensation_summary(PDO $pdo,int $campaignId): array
 function sponsored_project_public_list(PDO $pdo,string $query='',int $limit=100): array {
     $limit=max(1,min(250,$limit));$query=mb_substr(trim($query),0,120);$params=[];$where="c.status='open' AND c.access_mode='public' AND c.researcher_compensation_cents>0 AND (c.starts_at IS NULL OR c.starts_at<=NOW()) AND (c.submission_deadline IS NULL OR c.submission_deadline>NOW()) AND (c.max_participants IS NULL OR (SELECT COUNT(*) FROM sponsored_research_agent_assignments ax WHERE ax.campaign_id=c.id AND ax.status IN ('active','paused','completed'))<c.max_participants)";
     if($query!==''){$where.=" AND (c.title LIKE ? OR c.brief LIKE ? OR c.objective LIKE ? OR sp.organization_name LIKE ?)";$like='%'.$query.'%';$params=[$like,$like,$like,$like];}
-    $q=$pdo->prepare("SELECT c.public_id,c.title,c.brief,c.objective,c.budget_currency,c.researcher_compensation_cents,c.compensation_model,c.max_participants,c.starts_at,c.submission_deadline,c.review_deadline,c.eligibility_json,c.created_at,sp.organization_name,
+    $q=$pdo->prepare("SELECT c.public_id,c.title,c.brief,c.objective,c.budget_currency,c.researcher_compensation_cents,c.compensation_model,c.max_participants,c.starts_at,c.submission_deadline,c.review_deadline,c.eligibility_json,c.disclosure_json,c.created_at,sp.organization_name,
       (SELECT COUNT(*) FROM sponsored_research_agent_assignments a WHERE a.campaign_id=c.id AND a.status IN ('active','paused','completed')) assigned_count
       FROM sponsored_research_campaigns c JOIN sponsor_account_profiles sp ON sp.id=c.sponsor_profile_id
       WHERE $where ORDER BY c.created_at DESC LIMIT $limit");$q->execute($params);$rows=$q->fetchAll()?:[];
@@ -100,7 +100,7 @@ function sponsored_project_public_list(PDO $pdo,string $query='',int $limit=100)
 function sponsored_project_public_get(PDO $pdo,string $publicId): ?array {
     $q=$pdo->prepare("SELECT c.public_id,c.id,c.title,c.brief,c.objective,c.budget_currency,c.researcher_compensation_cents,c.compensation_model,c.max_participants,c.starts_at,c.submission_deadline,c.review_deadline,c.eligibility_json,c.created_at,sp.organization_name
       FROM sponsored_research_campaigns c JOIN sponsor_account_profiles sp ON sp.id=c.sponsor_profile_id WHERE c.public_id=? AND c.status='open' AND c.access_mode='public' AND c.researcher_compensation_cents>0 AND (c.starts_at IS NULL OR c.starts_at<=NOW()) AND (c.submission_deadline IS NULL OR c.submission_deadline>NOW()) AND (c.max_participants IS NULL OR (SELECT COUNT(*) FROM sponsored_research_agent_assignments ax WHERE ax.campaign_id=c.id AND ax.status IN ('active','paused','completed'))<c.max_participants) LIMIT 1");
-    $q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;$row['eligibility']=sponsored_research_campaign_json($row['eligibility_json']??null);unset($row['eligibility_json']);
+    $q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;$row['eligibility']=sponsored_research_campaign_json($row['eligibility_json']??null);unset($row['eligibility_json']);$row['disclosures']=sponsored_research_campaign_json($row['disclosure_json']??null);unset($row['disclosure_json']);
     $row['questions']=sponsored_research_campaign_questions($pdo,(int)$row['id']);unset($row['id']);return $row;
 }
 
