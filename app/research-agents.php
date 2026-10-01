@@ -266,8 +266,8 @@ function research_agent_team(PDO $pdo,array $viewer,string $teamPublicId): ?arra
     $teamPublicId=trim($teamPublicId);if($teamPublicId==='')return null;
     $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,tm.role FROM teams t
       JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=?
-      WHERE t.public_id=? AND tm.role IN ('owner','admin','researcher') LIMIT 1");
-    $q->execute([(int)$viewer['id'],$teamPublicId]);
+      WHERE t.public_id=? AND t.owner_user_id=? AND tm.role='owner' LIMIT 1");
+    $q->execute([(int)$viewer['id'],$teamPublicId,(int)$viewer['id']]);
     return $q->fetch()?:null;
 }
 
