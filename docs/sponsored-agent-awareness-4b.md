@@ -11,7 +11,7 @@ Builds on merged 4A integration audit (PR #251) and Section 3 collaboration work
 - If campaign revision or latest terms hash differs, flag the context as requiring renewed explicit acceptance; never imply the latest terms were accepted.
 - Current exact assigned Agent, assignment status/submit flag and latest **own** submission status and own review note.
 - At most eight workspace updates, fetched from existing SQL scope policy: sponsor project-wide notes and this researcher's own private thread only. All context strings and excerpts are bounded. No participant roster, other researcher's files or compensation details.
-- Every attachment is revalidated through the existing Agent Chat context path and the automatic assigned-Agent context adapter. Selecting another assigned Agent's Sponsored Project inside a different Agent conversation fails closed.
+- Every attachment is revalidated through the existing Agent Chat context path and the automatic assigned-Agent context adapter. Selecting another assigned Agent's Sponsored Project inside a different Agent conversation fails closed. Manual and automatic project context require a privately owned Agent conversation with no additional members, rechecked for each message.
 - No sample projects, sponsor credentials, unrelated authorized public projects, Team Agent sharing, training consent, action execution or submissions.
 
 ## User experience
@@ -20,7 +20,7 @@ Native Agent Chat context picker gains **Assigned Sponsored Projects** and the n
 ## Independent gate (10 evidence requirements)
 1. Audited 4A baseline and reused canonical functions without additional migration.
 2. Permission-checked personal approved researcher/accepted participation/matching assignment.
-3. Personally owned Agent and Team sharing prohibited; selected cross-Agent contexts rejected.
+3. Personally owned Agent and Team sharing prohibited; selected cross-Agent and all shared-conversation contexts rejected.
 4. Authorized context picker excludes sponsors, samples and unassigned approved researchers.
 5. Read from immutable accepted campaign revision and validate its stored SHA-256 config hash and cross-check the current campaign hash without rehashing MySQL-reordered historical JSON.
 6. Return only the user's own stored accepted terms/version/hash; flag revision/terms changes for reacceptance.
