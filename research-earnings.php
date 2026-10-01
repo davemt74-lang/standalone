@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/app/bootstrap.php';
+$u=require_user($pdo);header('Cache-Control: private, no-store');$error='';
+try{research_account_require_approved($pdo,$u);}catch(Throwable $e){$error=$e->getMessage();}
+$balances=$error?[]:sponsored_research_finance_researcher_balances($pdo,(int)$u['id']);$tx=$error?[]:sponsored_research_finance_transactions_for_researcher($pdo,$u,200);
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Research Earnings · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><main class="panel" style="max-width:1100px;margin:32px auto"><div class="pageTitle"><span class="eyebrow">SPONSORED RESEARCH</span><h1>Research Earnings</h1><p>Balances are derived from the immutable Sponsored Research financial ledger. Payout transfer is not enabled in this section.</p></div>
+<?php if($error):?><div class="error"><?=h($error)?></div><?php endif?>
+<?php foreach($balances as $currency=>$b):?><section class="card"><h2><?=h($currency)?></h2><p><strong>Pending / available for future payout:</strong> <?=number_format(((int)$b['pending_cents'])/100,2)?></p><p><strong>Held:</strong> <?=number_format(((int)$b['held_cents'])/100,2)?></p></section><?php endforeach?>
+<section class="card"><h2>Ledger history</h2><?php if(!$tx):?><p>No sponsored-research earnings yet.</p><?php else:?><table><thead><tr><th>Date</th><th>Campaign</th><th>Type</th><th>Currency</th><th>Reference</th></tr></thead><tbody><?php foreach($tx as $t):?><tr><td><?=h((string)$t['created_at'])?></td><td><?=h((string)$t['campaign_title'])?></td><td><?=h((string)$t['transaction_type'])?></td><td><?=h((string)$t['currency'])?></td><td><?=h((string)($t['reference_public_id']??''))?></td></tr><?php endforeach?></tbody></table><?php endif?></section></main></body></html>
