@@ -51,8 +51,15 @@ $check(str_contains($automation,'function research_automation_execute(')&&str_co
     'Research scheduler and notification dedupe already exist.');
 $check(str_contains($notifications,"if(\$type==='sponsored_project_submission')"),
     'Existing Sponsored submission notifications are integrated; no duplicate notification engine.');
-$check(!str_contains($notifications,"if(\$type==='sponsored_project')"),
-    'Dedicated Sponsored Project notification-object ACL remains a documented future gap.');
+// 4A is historical: the 4D gap changes from absent to permission-checked.
+$fourDPresent=is_file($root.'/app/sponsored-agent-proactive.php');
+if($fourDPresent)$check(str_contains($notifications,"if(\$type==='sponsored_project')")
+    &&str_contains($notifications,'sponsored_workspace_access(')
+    &&str_contains($notifications,"'research_sponsored_deadline'")
+    &&str_contains($notifications,"'research_sponsored_blocker'"),
+    '4D closes the documented notification-object gap with explicit current recipient ACL.');
+else $check(!str_contains($notifications,"if(\$type==='sponsored_project')"),
+    'Until 4D, a dedicated Sponsored Project notification-object ACL remains a documented gap.');
 $docs=$read('docs/sponsored-agent-integration-4a.md');
 $check(str_contains($docs,'**4B — Agent project awareness.**')
   &&str_contains($docs,'**4C — Governed Agent operations.**')
