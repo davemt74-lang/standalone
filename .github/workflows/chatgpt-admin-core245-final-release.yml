@@ -1,0 +1,10 @@
+name: Admin Core Final Deploy
+on:
+  push:
+    branches:
+      - chatgpt/admin-core245-final-release
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
