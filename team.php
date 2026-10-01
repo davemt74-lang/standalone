@@ -20,6 +20,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if(!$isOwner)throw new RuntimeException('Only the Team owner may remove assigned Research Agents.');
             team_research_unassign($pdo,$team,$u,trim((string)($_POST['agent_id']??'')));
             $success='Research Agent and its workspace removed from Team access.';
+        }elseif($op==='team_create_research_document'){
+            if(!in_array((string)$team['access_role'],['owner','admin','researcher'],true))
+                throw new RuntimeException('Your Team role allows viewing research but not creating documents.');
+            $agentPublicId=trim((string)($_POST['agent_id']??''));
+            $project=team_research_collaboration_project($pdo,$u,(int)$team['id'],$agentPublicId,true);
+            $doc=team_research_collaboration_create_document($pdo,$u,(int)$team['id'],$agentPublicId,[
+                'title'=>(string)($_POST['title']??''),'body'=>(string)($_POST['body']??'')
+            ]);
+            if(function_exists('research_retrieval_queue_project'))research_retrieval_queue_project($pdo,(int)$project['id']);
+            if(function_exists('research_autonomy_queue_project'))research_autonomy_queue_project($pdo,(int)$project['id'],(int)$u['id'],'workspace_change','A Team member added a Research document.');
+            $success='Your research document was saved to the shared Agent Library.';
         }elseif($op==='invite'){
             if(!$canManage)throw new RuntimeException('Team admin permission is required.');
             $username=trim((string)($_POST['username']??''));
@@ -45,6 +56,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 $q=$pdo->prepare('SELECT u.id,u.username,u.display_name,u.profile_image_url,tm.role,tm.created_at FROM team_members tm JOIN users u ON u.id=tm.user_id WHERE tm.team_id=? ORDER BY FIELD(tm.role,"owner","admin","researcher","viewer"),u.display_name');
 $q->execute([$team['id']]);$members=$q->fetchAll();
 $resources=team_research_resources($pdo,(int)$team['id']);$assignable=$isOwner?team_research_assignable($pdo,(int)$u['id']):[];
+$teamRecentResearch=team_research_collaboration_recent($pdo,$u,(int)$team['id'],18);
+$canContributeResearch=in_array((string)$team['access_role'],['owner','admin','researcher'],true);
+
 $q=$pdo->prepare('SELECT public_id,title,description,status,updated_at FROM research_projects WHERE team_id=? ORDER BY updated_at DESC LIMIT 20');$q->execute([$team['id']]);$projects=$q->fetchAll();
 $q=$pdo->prepare("SELECT a.public_id FROM annotations a WHERE a.team_id=? AND a.visibility='team' AND a.status='published' ORDER BY a.published_at DESC LIMIT 25");
 $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $annotationPublic){$row=public_discovery_annotation($pdo,(string)$annotationPublic,$u);if($row)$annotations[]=$row;}
@@ -65,6 +79,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 .teamMemberAddForm{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding-top:12px}
 .teamMemberAddForm label{flex:1;min-width:200px}
 @media(max-width:700px){.teamAttachAgentForm{grid-template-columns:1fr}.teamWorkspaceFullWidth{padding:16px 14px 56px}}
+.teamSharedResearch{margin:20px 0 26px;padding:24px}.teamSharedResearch .sectionHeadWeb{margin:0 0 12px}.teamResearchComposer{margin:14px 0;border:1px solid var(--border,#d9dee4);border-radius:12px;padding:16px}.teamResearchComposer summary{width:max-content;max-width:100%;cursor:pointer}.teamResearchComposerForm{display:grid;gap:12px;margin-top:16px;max-width:760px}.teamResearchComposerForm>label{display:grid;gap:6px}.teamResearchComposerForm :is(select,input,textarea){max-width:100%;width:100%;box-sizing:border-box}.teamResearchRecent{margin-top:20px}.teamResearchRecent h3{margin:0 0 12px}.teamResearchRecentGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px}.teamResearchRecentItem{display:grid;align-content:start;gap:8px;min-width:0;padding:16px;border:1px solid #d9dee4;border-radius:12px}.teamResearchRecentItem h4,.teamResearchRecentItem p{margin:0}.teamResearchRecentItem small{overflow-wrap:anywhere}.teamResearchRecentItem a{width:max-content;max-width:100%}
 </style></head><body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="team" data-workspace-team="<?=h((string)$team['public_id'])?>">
 <main class="teamWorkspaceFullWidth">
 <div class="pageTitle"><span class="eyebrow">TEAM · <?=h(strtoupper((string)$team['access_role']))?></span><h1><?=h($team['name'])?></h1><p>Shared people, Research Agents, Desktops, Libraries and private Team collaboration.</p><a class="button secondary" href="/home.php?team=<?=rawurlencode((string)$team['public_id'])?>#team-chat">Open Team Chat</a></div>
@@ -117,6 +132,47 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 </div>
 <?php if($isOwner&&(int)$resource['owner_user_id']===(int)$u['id']):?><form method="post" onsubmit="return confirm('Remove Team access to this Agent, Desktop, Library and its conversation?')"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="unassign_agent"><input type="hidden" name="agent_id" value="<?=h((string)$resource['public_id'])?>"><button class="button secondary">Remove from Team</button></form><?php endif?></article><?php endforeach?>
 <?php if(!$resources):?><div class="card empty">No shared Research Agents yet. The Team owner can assign Agents they own.</div><?php endif?></div>
+<section class="card teamSharedResearch" id="team-shared-research" aria-labelledby="teamSharedResearchHeading">
+  <header class="sectionHeadWeb"><div><span class="eyebrow">SHARED WORKSPACE</span><h2 id="teamSharedResearchHeading">Team Research Contributions</h2>
+    <p>Work together using the assigned Agents' existing Research Projects, Desktops and Libraries. Personal Agents remain personal unless their owners choose to attach them.</p></div></header>
+  <?php if(!$resources):?>
+    <p class="meta">There are no shared Research Agents yet. You can still collaborate through the Team feed and projects above. Attaching an Agent is optional.</p>
+  <?php else:?>
+    <?php if($canContributeResearch):?>
+      <details class="teamResearchComposer"<?php if(($error!==''&&($_POST['op']??'')==='team_create_research_document'))echo ' open';?>>
+        <summary class="button">Add research to Team Library</summary>
+        <form method="post" class="teamResearchComposerForm">
+          <input type="hidden" name="csrf" value="<?=h(csrf_token())?>">
+          <input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>">
+          <input type="hidden" name="op" value="team_create_research_document">
+          <label>Shared Research Agent<select name="agent_id" required>
+            <option value="">Choose an assigned Agent</option>
+            <?php foreach($resources as $resource):?>
+              <option value="<?=h((string)$resource['public_id'])?>" <?=($_POST['agent_id']??'')===$resource['public_id']?'selected':''?>><?=h((string)$resource['name'])?></option>
+            <?php endforeach?>
+          </select></label>
+          <label>Research title<input name="title" maxlength="240" required value="<?=h((string)($_POST['op']??'')==='team_create_research_document'?($_POST['title']??''):''))?>" placeholder="Finding or research document title"></label>
+          <label>Notes<textarea name="body" rows="6" maxlength="50000" required placeholder="Add findings, supporting evidence or research notes"><?=h((string)(($_POST['op']??'')==='team_create_research_document')?($_POST['body']??''):''))?></textarea></label>
+          <div class="inlineActions"><button class="button" type="submit">Save to shared Library</button><span class="meta">The document records you as its contributor and remains in the Agent's existing Project.</span></div>
+        </form>
+      </details>
+    <?php else:?><p class="meta">Your Team role is view-only. You can read shared research but cannot create or edit documents.</p><?php endif?>
+    <?php if($teamRecentResearch):?>
+      <div class="teamResearchRecent"><h3>Recent contributions</h3>
+        <div class="teamResearchRecentGrid"><?php foreach($teamRecentResearch as $item):?>
+          <article class="teamResearchRecentItem">
+            <span class="eyebrow"><?=h(ucfirst((string)$item['object_type']))?> · <?=h((string)$item['agent_name'])?></span>
+            <h4><?=h((string)$item['title'])?></h4>
+            <?php if(!empty($item['document_summary'])):?><p><?=h(mb_substr((string)$item['document_summary'],0,180))?></p><?php endif?>
+            <small>Added by <?=h((string)$item['contributor_name'])?><?php if((string)$item['last_editor_name']!==(string)$item['contributor_name']):?> · Edited by <?=h((string)$item['last_editor_name'])?><?php endif?> · <?=h((string)$item['updated_at'])?></small>
+            <a href="<?=h(research_agent_shell_href($item,'library'))?>">Open Agent Library →</a>
+          </article>
+        <?php endforeach?></div>
+      </div>
+    <?php else:?><p class="meta">No research contributions in these shared workspaces yet.</p><?php endif?>
+  <?php endif?>
+</section>
+
 <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM RESEARCH</span><h2>Projects</h2></div><a href="/research.php">All Research</a></div>
 <div class="sourceGrid"><?php foreach($projects as $p):?><a class="card sourceCard" href="/research-project.php?id=<?=h($p['public_id'])?>"><span class="meta"><?=h(ucfirst((string)$p['status']))?> · updated <?=h((string)$p['updated_at'])?></span><h3><?=h($p['title'])?></h3><?php if($p['description']):?><p><?=h(mb_substr((string)$p['description'],0,220))?></p><?php endif?></a><?php endforeach?><?php if(!$projects):?><div class="card empty">No team Research projects yet.</div><?php endif?></div>
 
