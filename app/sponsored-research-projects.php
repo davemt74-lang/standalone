@@ -51,7 +51,9 @@ function sponsored_project_assign_agent(PDO $pdo,array $viewer,string $campaignP
     if($existing&&!sponsored_project_compensation_for_assignment($pdo,(int)$existing['id']))
         throw new RuntimeException('An existing assignment without agreed compensation requires an explicit agreement; the advertised fee cannot be applied retroactively.');
     $participation=sponsored_research_participation_get($pdo,(int)$campaign['id'],(int)$viewer['id']);
-    if(!$participation||$participation['status']!=='active'||(int)$participation['campaign_revision_accepted']!==(int)$campaign['current_revision'])
+    $publishedTerms=sponsored_research_campaign_terms_latest($pdo,(int)$campaign['id']);
+    if(!$participation||$participation['status']!=='active'||(int)$participation['campaign_revision_accepted']!==(int)$campaign['current_revision']
+       ||!$publishedTerms||(int)$participation['terms_id']!==(int)$publishedTerms['id'])
         $participation=sponsored_research_campaign_join($pdo,$viewer,$campaignPublicId,$input);
     if($existing)return $existing; // Reaccepting revised terms never resets the original agreement.
     $pdo->beginTransaction();
@@ -101,7 +103,7 @@ function sponsored_project_submit(PDO $pdo,array $viewer,string $campaignPublicI
     }
     $title=mb_substr(trim($title),0,255);if($title==='')$title=(string)($snaps[0]['title']??$campaign['title'].' submission');
     $core=['campaign_public_id'=>$campaign['public_id'],'assignment_public_id'=>$a['public_id'],'research_agent_public_id'=>$a['research_agent_public_id'],'researcher_user_id'=>(int)$viewer['id'],'revision_number'=>$revisionNumber,'supersedes_public_id'=>$supersedesPublicId!==''?$supersedesPublicId:null,'assets'=>array_map(fn($x)=>[$x['type'],$x['public_id'],$x['version'],$x['hash']],$snaps)];$hash=data_attribution_hash($core);
-    $pdo->beginTransaction();try{
+    $ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();try{
       // Serialize submissions for each assignment; every revision must be linked
       // to the latest submitted version and a completed assignment is immutable.
       $lock=$pdo->prepare('SELECT status,research_agent_id FROM sponsored_research_agent_assignments WHERE id=? FOR UPDATE');
@@ -119,8 +121,8 @@ function sponsored_project_submit(PDO $pdo,array $viewer,string $campaignPublicI
       $public=ulid_like();$pdo->prepare("INSERT INTO sponsored_research_project_submissions(public_id,assignment_id,campaign_id,researcher_user_id,research_agent_id,supersedes_submission_id,revision_number,title,summary,status,submitted_by_agent,submission_hash) VALUES(?,?,?,?,?,?,?,?,?,'submitted',?,?)")->execute([$public,(int)$a['id'],(int)$campaign['id'],(int)$viewer['id'],(int)$a['research_agent_id'],$supersedesId,$revisionNumber,$title,trim($summary)!==''?$summary:null,$byAgent?1:0,$hash]);$sid=(int)$pdo->lastInsertId();
       foreach($snaps as $pos=>$x)$pdo->prepare('INSERT INTO sponsored_research_project_submission_assets(public_id,project_submission_id,asset_type,asset_public_id,asset_version,title,snapshot_json,snapshot_hash,position) VALUES(?,?,?,?,?,?,?,?,?)')->execute([ulid_like(),$sid,$x['type'],$x['public_id'],$x['version'],$x['title'],data_attribution_encode($x['snapshot']),$x['hash'],$pos]);
       sponsored_project_event($pdo,(int)$campaign['id'],(int)$a['id'],$sid,(int)$viewer['id'],$supersedesId?'project_submission_resubmitted':'project_submission_created',['submission_hash'=>$hash,'asset_count'=>count($snaps),'submitted_by_agent'=>$byAgent,'revision_number'=>$revisionNumber,'supersedes_public_id'=>$supersedesPublicId!==''?$supersedesPublicId:null]);
-      $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+      if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     if(function_exists('notification_create'))notification_create($pdo,(int)$viewer['id'],(int)$viewer['id'],$supersedesId?'research_sponsored_resubmitted':'research_sponsored_submitted','sponsored_project_submission',$public,$supersedesId?'Sponsored Project revision submitted.':'Sponsored Project submission received.',['allow_self'=>true,'category'=>'research','dedupe_key'=>'sponsored-submit:'.$public]);
     sponsored_project_notify_admins($pdo,(int)$viewer['id'],$supersedesId?'research_sponsored_resubmitted':'research_sponsored_submitted',$public,$supersedesId?'A Sponsored Project revision was submitted.':'A Sponsored Project submission was received.',['campaign_public_id'=>$campaign['public_id'],'research_agent_public_id'=>$a['research_agent_public_id']]);
     return sponsored_project_submission_get($pdo,$public)??[];

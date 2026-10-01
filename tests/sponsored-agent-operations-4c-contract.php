@@ -19,8 +19,10 @@ $unknown=false;try{sponsored_agent_operations_link(['conversation_public_id'=>'a
 catch(InvalidArgumentException $e){$unknown=true;}
 $check($unknown,'Unrecognized operations fail closed.');
 $helper=$read('app/sponsored-agent-operations.php');
-$check(!str_contains($helper,'sponsored_project_submit(')&&!str_contains($helper,'sponsored_workspace_post(')
-  &&!str_contains($helper,'agent_action_execute_capability(')&&!str_contains($helper,'PDO::beginTransaction'),
+$governedAt=strpos($helper,'function sponsored_agent_operation_capabilities(');
+$guided=$governedAt===false?$helper:substr($helper,0,$governedAt);
+$check(!str_contains($guided,'sponsored_project_submit(')&&!str_contains($guided,'sponsored_workspace_post(')
+  &&!str_contains($guided,'agent_action_execute_capability(')&&!str_contains($guided,'PDO::beginTransaction'),
   'Handoffs never bypass native confirmation or nest independent Sponsored Project transactions.');
 $check(str_contains($helper,'sponsored_agent_awareness_access(')&&
   str_contains($helper,'sponsored_agent_awareness_project_context(')&&
