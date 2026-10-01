@@ -148,7 +148,7 @@ sponsored4cCheck($blockNotice!==false
     &&!notification_object_access($pdo,$researcher,$blockNotice)
     &&str_contains((string)notification_url($pdo,$sponsor,$blockNotice),'#activity')
     &&notification_url($pdo,$researcher,$blockNotice)===null,
-    'Blocker notification contains no researcher's private text and resolves only for authorized sponsor managers.');
+    "Blocker notification contains no researcher's private text and resolves only for authorized sponsor managers.");
 $repeat=sponsored_agent_proactive_scan($pdo,60,new DateTimeImmutable('now',new DateTimeZone('UTC')));
 sponsored4cCheck($repeat['blockers']===0,'Hourly blocker scans use a stable update-and-recipient deduplication key.');
 sponsored_workspace_post($pdo,$researcherAccess,$researcher,[
