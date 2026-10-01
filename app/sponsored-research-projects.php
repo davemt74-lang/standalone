@@ -24,7 +24,7 @@ function sponsored_project_assignment(PDO $pdo,int $campaignId,int $userId): ?ar
       WHERE a.campaign_id=? AND a.researcher_user_id=? LIMIT 1");$q->execute([$campaignId,$userId]);return $q->fetch()?:null;
 }
 function sponsored_project_owned_agents(PDO $pdo,array $viewer): array {
-    $q=$pdo->prepare("SELECT ra.public_id,ra.name,ra.profile_image_url,rp.public_id project_public_id,rp.title project_title FROM research_agents ra JOIN research_projects rp ON rp.id=ra.project_id WHERE ra.owner_user_id=? AND ra.status='active' ORDER BY ra.updated_at DESC,ra.id DESC");
+    $q=$pdo->prepare("SELECT ra.public_id,ra.name,ra.profile_image_url,rp.public_id project_public_id,rp.title project_title FROM research_agents ra JOIN research_projects rp ON rp.id=ra.project_id WHERE ra.owner_user_id=? AND ra.team_id IS NULL AND rp.team_id IS NULL AND ra.status='active' ORDER BY ra.updated_at DESC,ra.id DESC");
     $q->execute([(int)$viewer['id']]);return $q->fetchAll()?:[];
 }
 function sponsored_project_listings_for_researcher(PDO $pdo,array $viewer,int $limit=100): array {
@@ -41,6 +41,8 @@ function sponsored_project_assign_agent(PDO $pdo,array $viewer,string $campaignP
     $agent=research_agent_access($pdo,$viewer,$agentPublicId);
     if(!$agent||(int)$agent['owner_user_id']!==(int)$viewer['id']||$agent['status']!=='active')
         throw new RuntimeException('Choose one of your active Research Agents.');
+    if($agent['team_id']!==null||$agent['project_team_id']!==null)
+        throw new RuntimeException('Team-shared Research Agents cannot accept a Sponsored Project without a separate sponsored collaboration agreement.');
     $existing=sponsored_project_assignment($pdo,(int)$campaign['id'],(int)$viewer['id']);
     // Changing the Agent on an agreed assignment would disconnect immutable deliverables
     // from the frozen compensation record. Completion must never be reopened.
