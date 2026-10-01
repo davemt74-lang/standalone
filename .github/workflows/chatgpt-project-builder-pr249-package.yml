@@ -1,0 +1,10 @@
+name: Sponsored Project Builder PR249 Deploy
+on:
+  push:
+    branches:
+      - chatgpt/project-builder-pr249-deploy-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
