@@ -67,6 +67,18 @@ workspaceDbCheck(($context['meta']['read_only']??false)===true
 $agentRow=research_agent_access($pdo,$researcher,$agentPublic);
 $auto=sponsored_agent_awareness_agent_context($pdo,$researcher,$agentRow);
 workspaceDbCheck($auto!==null&&$auto['public_id']===$campaignPublic,'Personally owned assigned Agent automatically receives project awareness.');
+$privateConversation=agent_chat_access($pdo,$researcher,$convPublic);
+workspaceDbCheck(sponsored_agent_awareness_private_conversation($pdo,$researcher,$privateConversation),
+    'Own one-member personal Agent conversation permits paid-project context.');
+$pdo->prepare("INSERT IGNORE INTO conversation_members(conversation_id,user_id,member_role) VALUES(?,?,'member')")
+    ->execute([(int)$privateConversation['id'],(int)$sponsor['id']]);
+workspaceDbCheck(!sponsored_agent_awareness_private_conversation($pdo,$researcher,$privateConversation),
+    'Adding another member immediately prevents paid-project content from entering a shared Agent conversation.');
+$pdo->prepare('DELETE FROM conversation_members WHERE conversation_id=? AND user_id=?')
+    ->execute([(int)$privateConversation['id'],(int)$sponsor['id']]);
+workspaceDbCheck(sponsored_agent_awareness_private_conversation($pdo,$researcher,$privateConversation),
+    'After restoring sole ownership, the private Agent context is available again.');
+
 $selected=agent_chat_context_item($pdo,$researcher,'sponsored_project',$campaignPublic);
 workspaceDbCheck($selected!==null&&$selected['text']===$context['text'],'Existing Chat context selector resolves to the identical guarded adapter.');
 $unknown=$make('UnassignedResearcher');
