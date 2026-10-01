@@ -5,9 +5,15 @@ if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 $limit=25;foreach($argv??[] as $arg)if(str_starts_with((string)$arg,'--limit='))$limit=max(1,min(200,(int)substr((string)$arg,8)));
 if(!research_automation_ready($pdo)){fwrite(STDERR,"Phase 18 migration is required.\n");exit(2);}
 release_worker_heartbeat($pdo,'research_automation','starting','Worker invocation started.');
-$scheduled=0;$watch=0;$portfolioCycles=['claimed'=>0,'completed'=>0,'skipped'=>0,'failed'=>0,'briefings'=>0];$completed=0;$skipped=0;$failed=0;$retried=0;
+$scheduled=0;$watch=0;$sponsoredAlerts=['deadlines'=>0,'blockers'=>0,'revisions'=>0];$sponsoredError=null;$portfolioCycles=['claimed'=>0,'completed'=>0,'skipped'=>0,'failed'=>0,'briefings'=>0];$completed=0;$skipped=0;$failed=0;$retried=0;
 try{
-    $scheduled=research_automation_enqueue_due($pdo,100);$watch=research_automation_enqueue_watch_alerts($pdo,200);if(function_exists('research_intelligence_portfolio_process_due'))$portfolioCycles=research_intelligence_portfolio_process_due($pdo,min(25,$limit));
+    $scheduled=research_automation_enqueue_due($pdo,100);$watch=research_automation_enqueue_watch_alerts($pdo,200);
+    // 4D reuses this existing scheduled worker; alerts are idempotent and
+    // permission revalidated rather than running a second scheduler.
+    try{if(function_exists('sponsored_agent_proactive_ready')&&sponsored_agent_proactive_ready($pdo))
+        $sponsoredAlerts=sponsored_agent_proactive_scan($pdo,min(100,$limit));}
+    catch(Throwable $e){$sponsoredError=mb_substr($e->getMessage(),0,600);fwrite(STDERR,'Sponsored alert scan: '.$sponsoredError."\n");}
+if(function_exists('research_intelligence_portfolio_process_due'))$portfolioCycles=research_intelligence_portfolio_process_due($pdo,min(25,$limit));
     for($i=0;$i<$limit;$i++){
         $run=research_automation_claim($pdo);if(!$run)break;
         $viewer=null;$automation=null;
@@ -38,7 +44,8 @@ try{
             fwrite(STDERR,'Run '.$run['public_id'].': '.$e->getMessage()."\n");
         }
     }
-    $processed=$completed+$skipped;$status=$failed>0?'failure':'success';$message="scheduled=$scheduled watch=$watch portfolio_cycles=".$portfolioCycles['completed']." portfolio_briefings=".$portfolioCycles['briefings']." completed=$completed skipped=$skipped retried=$retried failed=".($failed+$portfolioCycles['failed']);release_worker_heartbeat($pdo,'research_automation',$status,$message,$processed);echo "Research automation $message\n";
+    $processed=$completed+$skipped;$allFailed=$failed+$portfolioCycles['failed']+($sponsoredError!==null?1:0);
+    $status=$allFailed>0?'failure':'success';$message="scheduled=$scheduled watch=$watch sponsored_deadlines=".$sponsoredAlerts['deadlines']." sponsored_blockers=".$sponsoredAlerts['blockers']." sponsored_revisions=".$sponsoredAlerts['revisions']." portfolio_cycles=".$portfolioCycles['completed']." portfolio_briefings=".$portfolioCycles['briefings']." completed=$completed skipped=$skipped retried=$retried failed=".$allFailed;release_worker_heartbeat($pdo,'research_automation',$status,$message,$processed);echo "Research automation $message\n";
 }catch(Throwable $e){
     $message=mb_substr($e->getMessage(),0,1000);release_worker_heartbeat($pdo,'research_automation','failure',$message);fwrite(STDERR,$message."\n");exit(1);
 }
