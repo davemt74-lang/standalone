@@ -97,3 +97,22 @@ function sponsored_project_public_get(PDO $pdo,string $publicId): ?array {
     $q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;$row['eligibility']=sponsored_research_campaign_json($row['eligibility_json']??null);unset($row['eligibility_json']);
     $row['questions']=sponsored_research_campaign_questions($pdo,(int)$row['id']);unset($row['id']);return $row;
 }
+
+function sponsored_project_sample_settings(PDO $pdo): array {
+    if(!installer_table_exists($pdo,'sponsored_research_project_settings'))return ['sample_data_enabled'=>0];
+    $q=$pdo->query('SELECT * FROM sponsored_research_project_settings WHERE id=1');return $q->fetch()?:['id'=>1,'sample_data_enabled'=>0];
+}
+function sponsored_project_sample_toggle(PDO $pdo,array $admin,bool $enabled): array {
+    if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
+    if(!installer_table_exists($pdo,'sponsored_research_project_settings'))throw new RuntimeException('Sponsored Project settings require the latest database upgrade.');
+    $pdo->prepare('INSERT INTO sponsored_research_project_settings(id,sample_data_enabled,updated_by_user_id) VALUES(1,?,?) ON DUPLICATE KEY UPDATE sample_data_enabled=VALUES(sample_data_enabled),updated_by_user_id=VALUES(updated_by_user_id),updated_at=NOW()')->execute([$enabled?1:0,(int)$admin['id']]);
+    return sponsored_project_sample_settings($pdo);
+}
+function sponsored_project_sample_projects(PDO $pdo): array {
+    $settings=sponsored_project_sample_settings($pdo);if(empty($settings['sample_data_enabled']))return [];
+    return [
+      ['public_id'=>'sample-market-ai-001','title'=>'AI Adoption in Independent Retail','status'=>'open','access_mode'=>'public','organization_name'=>'Northstar Market Research','budget_currency'=>'USD','researcher_compensation_cents'=>45000,'budget_cents'=>500000,'assigned_agents'=>3,'submissions'=>2,'compensation_earned_cents'=>45000,'compensation_approved_cents'=>0,'compensation_paid_cents'=>0,'sample_data'=>1,'brief'=>'Research how independent retailers are adopting AI for inventory, customer service, merchandising, and operations.','submission_deadline'=>'2026-11-15 23:59:00','requirements'=>['Identity verified','Retail or SMB research experience','English']],
+      ['public_id'=>'sample-energy-002','title'=>'Residential Battery Buying Drivers','status'=>'open','access_mode'=>'public','organization_name'=>'Gridline Insights','budget_currency'=>'USD','researcher_compensation_cents'=>65000,'budget_cents'=>750000,'assigned_agents'=>5,'submissions'=>4,'compensation_earned_cents'=>130000,'compensation_approved_cents'=>65000,'compensation_paid_cents'=>65000,'sample_data'=>1,'brief'=>'Study purchase motivations, objections, financing expectations, and installer trust factors for residential battery systems.','submission_deadline'=>'2026-11-30 23:59:00','requirements'=>['Identity verified','Energy or consumer research','English']],
+      ['public_id'=>'sample-food-003','title'=>'Premium Frozen Pizza Customer Research','status'=>'draft','access_mode'=>'private','organization_name'=>'Mesa Consumer Lab','budget_currency'=>'USD','researcher_compensation_cents'=>30000,'budget_cents'=>300000,'assigned_agents'=>0,'submissions'=>0,'compensation_earned_cents'=>0,'compensation_approved_cents'=>0,'compensation_paid_cents'=>0,'sample_data'=>1,'brief'=>'Explore customer expectations for premium frozen pizza including crust, toppings, price sensitivity, and convenience.','submission_deadline'=>'2026-12-10 23:59:00','requirements'=>['Approved Research Account','Consumer research experience']]
+    ];
+}
