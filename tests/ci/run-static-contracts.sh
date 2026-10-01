@@ -100,3 +100,4 @@ php tests/team-research-resources-contract.php
 php tests/phase80-team-integrity-audit-contract.php
 php tests/team-research-assignment-ui-contract.php
 php tests/team-render-sponsored-sidebar-regression.php
+php tests/team-collaboration-section1-contract.php
