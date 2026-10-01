@@ -77,6 +77,9 @@ function research_agent_workspace_object(PDO $pdo,array $viewer,string $publicId
         if(!research_agent_access($pdo,$viewer,(string)$row['research_agent_public_id']))return null;
     }elseif(!project_access($pdo,(int)$viewer['id'],(string)$row['project_public_id']))return null;
     $row['metadata']=json_decode((string)($row['metadata_json']??''),true)?:[];
+    // Canonical Team-scope tag is dynamic: a historic origin tag is not an ACL.
+    $row['contribution_tag']=!empty($row['team_public_id'])?'Team · '.(string)$row['team_name']:null;
+    $row['origin_team_contribution']=($row['metadata']['contribution_scope']??'')==='team';
     return $row;
 }
 
@@ -120,7 +123,11 @@ function research_agent_workspace_list(PDO $pdo,array $viewer,array $project,boo
       ORDER BY CASE WHEN rwo.object_type='folder' THEN 0 ELSE 1 END,rwo.sort_order,rwo.title,rwo.id
       LIMIT ".$limit);
     $q->execute([(int)$project['id'],$status]);$rows=$q->fetchAll()?:[];
-    foreach($rows as &$row)$row['metadata']=json_decode((string)($row['metadata_json']??''),true)?:[];
+    foreach($rows as &$row){
+        $row['metadata']=json_decode((string)($row['metadata_json']??''),true)?:[];
+        $row['contribution_tag']=!empty($row['team_public_id'])?'Team · '.(string)$row['team_name']:null;
+        $row['origin_team_contribution']=($row['metadata']['contribution_scope']??'')==='team';
+    }
     unset($row);
     return $rows;
 }
