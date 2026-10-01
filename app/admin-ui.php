@@ -53,6 +53,7 @@ function admin_ui_nav_sections(): array {
                 'source_monitor'=>['label'=>'Source Monitor','url'=>'/admin/source-monitor.php'],
                 'data_attribution'=>['label'=>'Data Governance','url'=>'/admin/data-attribution.php'],
                 'datasets'=>['label'=>'Dataset Registry','url'=>'/admin/datasets.php'],
+                'sponsored_research_datasets'=>['label'=>'Sponsored Research Datasets','url'=>'/admin/sponsored-research-datasets.php'],
                 'discovery_entities'=>['label'=>'Discovery Entities','url'=>'/admin/discovery-entities.php'],
             ],
         ],
