@@ -91,6 +91,13 @@ workspaceDbCheck(str_contains($context['text'],'FIRST_RESEARCHER_SECRET_DO_NOT_D
   &&str_contains($otherContext['text'],'SECOND_RESEARCHER_SECRET_DO_NOT_DISCLOSE')
   &&!str_contains($otherContext['text'],'FIRST_RESEARCHER_SECRET_DO_NOT_DISCLOSE'),
   'Own private Sponsor Project journal is visible to the Agent while another participant’s thread is never leaked.');
+$termsBefore=(string)$context['meta']['accepted_terms_hash'];
+sponsored_research_campaign_terms_publish($pdo,$sponsor,$campaignPublic,'New sponsor terms that the researcher has NOT accepted.','New terms without approval.');
+$termsStale=sponsored_agent_awareness_project_context($pdo,$researcher,$campaignPublic,$agentPublic);
+workspaceDbCheck(($termsStale['meta']['requires_reacceptance']??false)
+  &&$termsStale['meta']['accepted_terms_hash']===$termsBefore
+  &&!str_contains($termsStale['text'],'New sponsor terms that the researcher has NOT accepted.'),
+  'A newly published unaccepted terms version never replaces accepted terms in the Agent context.');
 $pdo->prepare("UPDATE sponsored_research_campaigns SET current_revision=current_revision+1 WHERE id=?")->execute([(int)$campaign['id']]);
 $stale=sponsored_agent_awareness_project_context($pdo,$researcher,$campaignPublic,$agentPublic);
 workspaceDbCheck($stale!==null&&($stale['meta']['requires_reacceptance']??false)
