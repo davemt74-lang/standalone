@@ -7,6 +7,7 @@ function sponsored_research_participation_ready(PDO $pdo): bool {
           && installer_table_exists($pdo,'sponsored_research_campaign_invites')
           && installer_table_exists($pdo,'sponsored_research_campaign_terms')
           && installer_table_exists($pdo,'sponsored_research_participations')
+          && installer_table_exists($pdo,'sponsored_research_participation_acceptances')
           && installer_table_exists($pdo,'sponsored_research_participation_events');
     }catch(Throwable $e){return false;}
 }
@@ -64,7 +65,7 @@ function sponsored_research_campaign_eligibility_check(PDO $pdo,array $researche
     $languages=array_map('mb_strtolower',(array)($profile['languages']??[]));foreach((array)($rules['languages']??[]) as $requiredLanguage){if(!in_array(mb_strtolower((string)$requiredLanguage),$languages,true)){$eligible=false;$reasons[]='language:'.(string)$requiredLanguage;}}
     $completed=sponsored_research_campaign_completed_count($pdo,(int)$researcher['id']);$minCompleted=(int)($rules['min_completed_campaigns']??0);if($completed<$minCompleted){$eligible=false;$reasons[]='completed_campaigns';}
     $invite=sponsored_research_campaign_invite_for($pdo,(int)$campaign['id'],(int)$researcher['id']);$mode=(string)$campaign['access_mode'];
-    if($mode==='invite_only'&&(!$invite||$invite['status']!=='pending')){$eligible=false;$reasons[]='invite_required';}
+    if($mode==='invite_only'&&(!$invite||!in_array((string)$invite['status'],['pending','accepted'],true))){$eligible=false;$reasons[]='invite_required';}
     if($mode==='private'&&(!$invite||!in_array((string)$invite['status'],['pending','accepted'],true))){$eligible=false;$reasons[]='private_access_required';}
     return [
       'eligible'=>$eligible,
@@ -95,6 +96,9 @@ function sponsored_research_campaign_opportunities(PDO $pdo,array $researcher,in
       WHERE c.status='open' ORDER BY c.submission_deadline IS NULL,c.submission_deadline,c.updated_at DESC LIMIT ".$limit);
     $rows=[];foreach($q->fetchAll()?:[] as $row){$row['eligibility']=sponsored_research_campaign_json($row['eligibility_json']??null);$row['disclosures']=sponsored_research_campaign_json($row['disclosure_json']??null);if(!sponsored_research_campaign_visible_to_researcher($pdo,$researcher,$row))continue;$row['eligibility_result']=sponsored_research_campaign_eligibility_check($pdo,$researcher,$row);$rows[]=$row;}return $rows;
 }
+function sponsored_research_participation_acceptances(PDO $pdo,int $participationId,int $limit=100): array {
+    $q=$pdo->prepare('SELECT a.*,t.version_number terms_version,t.terms_hash FROM sponsored_research_participation_acceptances a JOIN sponsored_research_campaign_terms t ON t.id=a.terms_id WHERE a.participation_id=? ORDER BY a.id DESC LIMIT '.max(1,min(250,$limit)));$q->execute([$participationId]);return $q->fetchAll()?:[];
+}
 function sponsored_research_participation_get(PDO $pdo,int $campaignId,int $userId): ?array {
     $q=$pdo->prepare("SELECT p.*,t.version_number terms_version,t.terms_hash,t.terms_text FROM sponsored_research_participations p JOIN sponsored_research_campaign_terms t ON t.id=p.terms_id WHERE p.campaign_id=? AND p.researcher_user_id=? LIMIT 1");$q->execute([$campaignId,$userId]);$row=$q->fetch();if(!$row)return null;$row['eligibility_snapshot']=sponsored_research_campaign_json($row['eligibility_snapshot_json']??null);return $row;
 }
@@ -122,7 +126,10 @@ function sponsored_research_campaign_join(PDO $pdo,array $researcher,string $cam
               ->execute([$public,(int)$fresh['id'],(int)$researcher['id'],(int)$profile['id'],$invite['id']??null,(int)$fresh['current_revision'],(int)$terms['id'],json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),$conflict!==''?$conflict:null,$nda?1:0,$sponsorAck?1:0]);$participationId=(int)$pdo->lastInsertId();
           }
           if($invite&&$invite['status']==='pending')$pdo->prepare("UPDATE sponsored_research_campaign_invites SET status='accepted',accepted_at=NOW(),updated_at=NOW() WHERE id=?")->execute([(int)$invite['id']]);
-          sponsored_research_participation_event($pdo,(int)$fresh['id'],$participationId,(int)$researcher['id'],(int)$researcher['id'],'participation_joined',['campaign_revision'=>(int)$fresh['current_revision'],'terms_version'=>(int)$terms['version_number'],'terms_hash'=>$terms['terms_hash'],'training_consent_granted'=>false]);
+          $acceptancePublic=ulid_like();
+          $pdo->prepare('INSERT INTO sponsored_research_participation_acceptances(public_id,participation_id,campaign_id,researcher_user_id,terms_id,campaign_revision,eligibility_snapshot_json,conflict_disclosure,nda_accepted,sponsorship_disclosure_acknowledged) VALUES(?,?,?,?,?,?,?,?,?,?)')
+            ->execute([$acceptancePublic,$participationId,(int)$fresh['id'],(int)$researcher['id'],(int)$terms['id'],(int)$fresh['current_revision'],json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR),$conflict!==''?$conflict:null,$nda?1:0,$sponsorAck?1:0]);
+          sponsored_research_participation_event($pdo,(int)$fresh['id'],$participationId,(int)$researcher['id'],(int)$researcher['id'],'participation_joined',['acceptance_public_id'=>$acceptancePublic,'campaign_revision'=>(int)$fresh['current_revision'],'terms_version'=>(int)$terms['version_number'],'terms_hash'=>$terms['terms_hash'],'training_consent_granted'=>false]);
           $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         return sponsored_research_participation_get($pdo,(int)$fresh['id'],(int)$researcher['id'])??[];
