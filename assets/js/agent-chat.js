@@ -122,10 +122,12 @@
     return chip;
   }
   function capabilityLabel(key){
-    return ({'research.create_task':'Create research task','research.create_note':'Create research note','research.create_document':'Create research document','research.create_sticky':'Create sticky note','research.create_claim':'Create claim','research.attach_annotation_evidence':'Attach annotation evidence','research.create_finding':'Create finding','research.link_claims':'Link claims'})[key]||String(key||'Research action');
+    return ({'research.create_task':'Create research task','research.create_note':'Create research note','research.create_document':'Create research document','research.create_sticky':'Create sticky note','research.create_claim':'Create claim','research.attach_annotation_evidence':'Attach annotation evidence','research.create_finding':'Create finding','research.link_claims':'Link claims','sponsored.project.post_update':'Post private Sponsored Project update','sponsored.project.submit':'Submit Sponsored Project research for review'})[key]||String(key||'Research action');
   }
   function proposalSummary(p){
     const a=p.arguments||{},key=p.capability_key||'';
+    if(key==='sponsored.project.post_update')return (a.title||'Private project update')+' · only your sponsor can see it';
+    if(key==='sponsored.project.submit')return (a.title||'Project submission')+' · '+String((a.assets||[]).length)+' existing evidence asset(s)';
     if(key==='research.create_task')return a.title||'New research task';
     if(key==='research.create_note')return String(a.body||'').slice(0,180);
     if(key==='research.create_document')return a.title||'New research document';
