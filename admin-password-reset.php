@@ -30,6 +30,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $got=(int)$pdo->query("SELECT GET_LOCK('annotated_admin_password_reset',5)")->fetchColumn();
             if($got!==1)throw new RuntimeException('Admin password recovery is busy. Retry.');
             try{
+                if(!admin_recovery_owner_valid(__DIR__,$ownerToken))throw new RuntimeException('Server-owner recovery proof was revoked.');
                 $q=$pdo->prepare("SELECT id,username,email FROM users WHERE role='admin' AND status='active' AND (LOWER(COALESCE(email,''))=LOWER(?) OR username=?) LIMIT 1");
                 $q->execute([$identifier,$identifier]);
                 $admin=$q->fetch();
