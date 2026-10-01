@@ -24,9 +24,10 @@ $updates=sponsored_workspace_recent($pdo,$access,$viewer,75);
 $specs=$sample?sponsored_project_detail_sample_builder_specs((string)$campaign['public_id'],sponsored_project_detail_sample_specs((string)$campaign['public_id']))
     :sponsored_project_builder_normalize($campaign['project_specs']??($campaign['project_specs_json']??null),$campaign['submission_deadline']??null);
 $agent=$role==='researcher'?research_agent_access($pdo,$viewer,(string)$access['assignment']['research_agent_public_id']):null;
-$canPost=$role==='sponsor'||($role==='researcher'&&
-   (string)($access['participation']['status']??'')==='active'
-   &&(string)($access['assignment']['status']??'')==='active');
+$canPost=!in_array((string)($campaign['status']??''),['completed','cancelled','archived'],true)
+    &&($role==='sponsor'||($role==='researcher'&&
+      (string)($access['participation']['status']??'')==='active'
+      &&(string)($access['assignment']['status']??'')==='active'));
 $title=(string)$campaign['title'];
 ?><!doctype html><html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -100,7 +101,7 @@ $title=(string)$campaign['title'];
 <label>Update text<textarea name="body" maxlength="4000" rows="5" required placeholder="What changed, and what should happen next?"></textarea></label>
 <button class="button" type="submit">Record update</button></form>
 <p class="sponsoredDetailHint">Posts are append-only and attributed to the author. They do not modify agreed deliverables, acceptance terms, Agent files or compensation.</p></section>
-<?php elseif(!$sample):?><div class="sponsoredWorkspaceBanner">Your assignment is not active. Existing project updates remain available for reference, but posting is disabled.</div><?php endif?>
+<?php elseif(!$sample):?><div class="sponsoredWorkspaceBanner">This project or your assignment is no longer active. Existing updates remain available for reference, but posting is disabled.</div><?php endif?>
 </div><aside class="sponsoredWorkspaceRail">
 <section class="sponsoredDetailCard"><strong>Project checkpoints</strong>
 <?php if(!$specs['milestones']):?><p>No milestones specified. The sponsor may configure these in the Project Builder.</p><?php else:?>
