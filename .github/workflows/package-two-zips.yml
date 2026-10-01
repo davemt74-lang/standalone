@@ -534,6 +534,8 @@ jobs:
           test -f package-website/app/sponsored-agent-operations.php
           test -f package-website/docs/sponsored-agent-governed-4c.md
           test -f package-website/tests/sponsored-agent-governed-4c-contract.php
+          test -f package-website/assets/css/sponsored-agent-operations.css
+          test -f package-website/docs/sponsored-agent-operations-4c.md
           test -f package-website/assets/js/agent-chat.js
           test -f package-website/docs/sponsored-agent-awareness-4b.md
           test -f package-website/app/sponsored-project-workspace.php

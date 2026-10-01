@@ -32,7 +32,7 @@ $cognitiveBase=['ready'=>false,'items'=>[],'hidden_count'=>0];
 $cognitiveFeed=['ready'=>false,'sections'=>[],'total'=>0,'hidden_count'=>0,'ranking'=>''];
 $actionCenter=['ready'=>false,'groups'=>[],'items'=>[],'total'=>0,'high_count'=>0,'counts'=>[]];
 $proactiveReady=false;$proactiveBriefing=['ready'=>false,'items'=>[],'count'=>0];$agentStories=[];$agentStoryGroups=[];$requestedStory=null;$agentStoriesLlm=['available'=>false];
-$proactiveAgentHandoff=null;$crossResearchAgentHandoff=null;$reviewAgentHandoff=null;$impactAgentHandoff=null;$portfolioAgentHandoff=null;$directAgentHandoff=null;
+$proactiveAgentHandoff=null;$crossResearchAgentHandoff=null;$reviewAgentHandoff=null;$impactAgentHandoff=null;$portfolioAgentHandoff=null;$directAgentHandoff=null;$sponsoredOperationHandoff=null;
 $homeRuntimeIncidents=[];
 
 $recordHomeIncident=function(string $component,Throwable $e) use (&$homeRuntimeIncidents): void {
@@ -145,6 +145,19 @@ try{
     $recordHomeIncident('agent-handoff',$e);
     $crossResearchAgentHandoff=$reviewAgentHandoff=$impactAgentHandoff=$portfolioAgentHandoff=$directAgentHandoff=null;
 }
+
+try{
+    // Never resolve a Sponsor Project from an arbitrary query without the
+    // personally assigned, owner-only conversation already selected by Home.
+    $sponsoredOperationProject=trim((string)($_GET['sponsored_project']??''));
+    $sponsoredOperationKey=trim((string)($_GET['sponsored_action']??''));
+    if($sponsoredOperationProject!==''&&$sponsoredOperationKey!==''&&$requestedResearchAgent){
+        $sponsoredOperationHandoff=sponsored_agent_operations_handoff(
+            $pdo,$u,$sponsoredOperationProject,
+            (string)$requestedResearchAgent['conversation_public_id'],$sponsoredOperationKey
+        );
+    }
+}catch(Throwable $ignored){$sponsoredOperationHandoff=null;}
 
 $feed=[];$bookmarkFeed=[];$networkFeed=[];$latestFeed=[];
 try{
@@ -521,4 +534,5 @@ $homeLibraryUrl=$homePrimaryAgent?$homeAgentUrl.'&workspace=library':'/research.
 <?php if($impactAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$impactAgentHandoff['prompt'],'context'=>$impactAgentHandoff['context'],'source'=>'change_impact'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?php if($portfolioAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode(['prompt'=>$portfolioAgentHandoff['prompt'],'context'=>$portfolioAgentHandoff['context'],'source'=>'research_portfolio'],JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?php if($directAgentHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode($directAgentHandoff,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
+<?php if($sponsoredOperationHandoff):?><script>document.dispatchEvent(new CustomEvent('annotated:agent-chat-request',{detail:<?=json_encode($sponsoredOperationHandoff,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_SLASHES)?>,bubbles:true,cancelable:true}));</script><?php endif?>
 <?=annotation_ui_scripts($u)?></body></html>
