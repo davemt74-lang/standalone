@@ -530,6 +530,9 @@ jobs:
           test -f package-website/database/migrations/20261001_127_extension_release_manager.sql
           test -f package-website/database/migrations/20261001_128_sponsored_project_builder.sql
           test -f package-website/database/migrations/20261001_129_sponsored_project_workspace.sql
+          test -f package-website/app/sponsored-agent-awareness.php
+          test -f package-website/assets/js/agent-chat.js
+          test -f package-website/docs/sponsored-agent-awareness-4b.md
           test -f package-website/app/sponsored-project-workspace.php
           test -f package-website/sponsored-project-workspace.php
           test -f package-website/assets/css/sponsored-project-workspace.css
