@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
 $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-foreach(['installer','storage','jobs','concurrency','functions','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','subscriptions','account-admin','account-membership','research-accounts','sponsored-project-builder','sponsored-research-campaigns','sponsored-research-project-compensation','sponsored-project-detail'] as $lib)require_once $root.'/app/'.$lib.'.php';
+foreach(['installer','storage','jobs','concurrency','functions','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','subscriptions','account-admin','account-membership','research-accounts','sponsored-project-builder','sponsored-research-campaigns','sponsored-research-participation','sponsored-research-project-compensation','sponsored-project-detail'] as $lib)require_once $root.'/app/'.$lib.'.php';
 function spBuilderCheck(bool $ok,string $m):void{if(!$ok)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
 $run='spBuilderCheck'.substr(bin2hex(random_bytes(5)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
 $make=function(string $name,string $role='user')use($pdo,$run,$pub):array{$u=substr(strtolower($name).'_'.$run,0,48);$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,email_verified_at,status,role,plan_tier,live_presence_mode) VALUES(?,?,?,?,NOW(),'active',?,'pro','cloaked')")->execute([$pub('u'),$u,$name,$u.'@example.test',$role]);$id=(int)$pdo->lastInsertId();$pdo->prepare('INSERT IGNORE INTO user_preferences(user_id) VALUES(?)')->execute([$id]);$q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$id]);return $q->fetch();};
@@ -77,6 +77,20 @@ spBuilderCheck($open['status']==='open'&&$guest!==null&&$guest['role']==='visito
 spBuilderCheck(count($guest['project']['project_specs']['deliverables'])===2&&$guest['project']['project_specs']['target_audience']==='Independent neighborhood retail operators',
  'Public project page consumes the identical published specification from the existing campaign.');
 spBuilderCheck($guest['project']['disclosures']['sponsorship_disclosure_required']===false,'Public detail reads actual disclosure policy instead of fabricating defaults.');
+// Accepted researchers must never inherit silent, changed deliverable obligations.
+research_account_apply($pdo,$plain,['specialties'=>'retail technology','languages'=>'English']);
+research_account_admin_decide($pdo,$admin,(int)$plain['id'],'research_account','approved','Certified for test.','identity');
+$terms=sponsored_research_campaign_terms_publish($pdo,$sponsor,$id,'Produce the reviewed research report.','Initial research terms.');
+$accepted=sponsored_research_campaign_join($pdo,$plain,$id,['accept_terms'=>true,'conflict_disclosure'=>'None']);
+spBuilderCheck($accepted['status']==='active','Approved researcher can explicitly accept published participation terms.');
+$revBefore=(int)sponsored_research_campaign_by_public($pdo,$id)['current_revision'];
+$blockedSpec=false;
+try{sponsored_research_campaign_update($pdo,$sponsor,$id,[
+ 'project_specs'=>array_merge($spec,['deliverables'=>[['title'=>'Unagreed extra','format'=>'report','acceptance_criteria'=>'Unexpected new obligation']]]),
+ 'reason'=>'Attempt to silently change accepted obligations.',
+]);}catch(RuntimeException $e){$blockedSpec=str_contains($e->getMessage(),'re-consent');}
+spBuilderCheck($blockedSpec&&(int)sponsored_research_campaign_by_public($pdo,$id)['current_revision']===$revBefore,
+ 'Active accepted participation locks material Project Builder changes until an explicit re-consent workflow exists.');
 $campaign=sponsored_research_campaign_update($pdo,$sponsor,$id,['access_mode'=>'private','reason'=>'Close public access.']);
 spBuilderCheck(sponsored_project_detail_resolve($pdo,null,$id)===null,'Privacy changes immediately protect project specifications from guests.');
 $sampleSettings=sponsored_project_sample_settings($pdo);
