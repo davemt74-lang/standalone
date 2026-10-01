@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS sponsored_research_campaigns (
   disclosure_json JSON NULL,
   starts_at DATETIME NULL,
   submission_deadline DATETIME NULL,
+  review_deadline DATETIME NULL,
   current_revision INT UNSIGNED NOT NULL DEFAULT 1,
   config_hash CHAR(64) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
