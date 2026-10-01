@@ -10,7 +10,7 @@ $need('app/sponsored-research-knowledge.php','Knowledge Base release is blocked 
 $need('app/sponsored-research-knowledge.php',"'knowledge_item_corrected'",'Correction must preserve a supersession event.');
 $need('app/sponsored-research-knowledge.php',"'historical_releases_preserved'=>true",'Rights withdrawal must preserve historical releases.');
 $need('app/bootstrap.php',"'/sponsored-research-knowledge.php'",'Sponsored Knowledge runtime must load through bootstrap.');
-$need('sponsored-knowledge.php','Promote accepted research','Sponsor Knowledge promotion workspace is missing.');
+$need('research-sponsored-knowledge-admin.php','Promote accepted research','Sponsor Knowledge promotion workspace is missing.');
 $need('research-sponsored-knowledge.php','Revoke future use','Contributor Knowledge-rights workspace is missing.');
 $need('app/research-surface-map.php',"'app/sponsored-research-knowledge.php'=>'knowledge'",'Sponsored Knowledge engine must be registered in Research architecture.');
 if($fail){foreach(array_unique($fail) as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Phase 80 Section 7 Knowledge Base Versioning & Promotion contract passed.\n";
