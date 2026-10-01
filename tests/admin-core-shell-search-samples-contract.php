@@ -18,4 +18,9 @@ $check(str_contains($admin,'name="sample_data_enabled"')&&str_contains($admin,'r
 $check(str_contains($admin,'sponsored_project_sample_toggle(')&&str_contains($admin,'admin.research_data.manage'), 'Sample data switch must persist via current permission-controlled backend.');
 $check(str_contains($admin,'$sampleProjects')&&str_contains($admin,'Sample Projects'), 'Sample data must display when enabled.');
 $check(hash_equals(hash('sha256',$css),hash('sha256',$read('extension/landing-app.css'))), 'Shared extension CSS must match deployed website CSS.');
+foreach(glob($root.'/admin/*.php')?:[] as $page){
+    if(str_ends_with($page,'-export.php'))continue;
+    $markup=(string)file_get_contents($page);
+    $check(str_contains($markup,'admin_ui_sidebar('),'Admin page '.basename($page).' must use canonical Admin navigation and its centered canvas.');
+}
 if($fail){foreach($fail as $msg)fwrite(STDERR,"FAIL: $msg\n");exit(1);}echo "Canonical Admin layout, search and sample-data contract passed.\n";
