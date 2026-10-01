@@ -28,6 +28,7 @@ function research_agent_shell_resolve(PDO $pdo,array $viewer,string $candidate='
         if(!$selected&&function_exists('research_agent_by_conversation'))$selected=research_agent_by_conversation($pdo,$viewer,$candidate);
     }
     if(!$selected&&$agents)$selected=$agents[0];
+    if($selected)$selected['can_edit']=(int)($selected['owner_user_id']??0)===(int)$viewer['id'];
     return ['agents'=>$agents,'agent'=>$selected,'agent_id'=>(string)($selected['public_id']??'')];
 }
 
@@ -62,7 +63,7 @@ function research_agent_shell_render(?array $agent,array $agents,string $active=
         <?php foreach(research_agent_shell_tabs() as $key=>$tab):?><a href="<?=h(research_agent_shell_href($agent,$key))?>" class="<?=$active===$key?'active':''?>" <?=$active===$key?'aria-current="page"':''?> data-research-agent-tab="<?=h($key)?>"><?=h($tab['label'])?></a><?php endforeach?>
       </nav>
       <div class="researchAgentUnifiedTools">
-        <a href="/research-agent-edit.php?agent=<?=rawurlencode((string)$agent['public_id'])?>" data-research-agent-edit>Edit</a>
+        <?php if(!empty($agent['can_edit'])):?><a href="/research-agent-edit.php?agent=<?=rawurlencode((string)$agent['public_id'])?>" data-research-agent-edit>Edit</a><?php endif?>
         <?php if($showWorkspace&&$active==='chat'):?><button type="button" class="researchLibraryOpenButton researchAgentUnifiedWorkspaceButton" data-research-library-open>Library</button><button type="button" class="researchDesktopOpenButton researchAgentUnifiedWorkspaceButton" data-research-desktop-open>Desktop</button>
         <?php elseif($showWorkspace):?><a href="<?=h(research_agent_shell_href($agent,'library'))?>" data-research-agent-workspace-link="library">Library</a><a href="<?=h(research_agent_shell_href($agent,'desktop'))?>" data-research-agent-workspace-link="desktop">Desktop</a><?php endif?>
         <?php if(count($agents)>1):?><label class="researchAgentUnifiedSwitcher"><span class="srOnly">Research Agent</span><select data-research-agent-shell-switch data-shell-tab="<?=h($active)?>" aria-label="Switch Research Agent"><?php foreach($agents as $row):?><option value="<?=h((string)$row['public_id'])?>" data-conversation="<?=h((string)$row['conversation_public_id'])?>" <?=hash_equals((string)$agent['public_id'],(string)$row['public_id'])?'selected':''?>><?=h((string)$row['name'])?></option><?php endforeach?></select></label><?php endif?>
