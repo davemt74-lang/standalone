@@ -556,6 +556,11 @@ jobs:
           test -f package-website/docs/v1-webserver-and-recovery.md
           test -f package-website/tests/v1-webroot-exposure-contract.php
           test ! -e package-website/reset-admin.php
+          test -f package-website/bin/create-setup-token.php
+          test -f package-website/docs/v1-owner-install-upgrade.md
+          test -f package-website/tests/phase81-v1-owner-install-contract.php
+          test -f package-website/tests/v1-owner-install-db.php
+          test ! -e package-website/annotated-setup-owner.key
 
       - name: Smoke test release packages
         shell: bash
