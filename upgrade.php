@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/migrations.php';
-if(users_exist($pdo)){$upgradeUser=current_user($pdo);if(!$upgradeUser||$upgradeUser['role']!=='admin'){http_response_code(403);exit('Administrator access required.');}}
+if(!users_exist($pdo)){http_response_code(403);exit('Complete owner-authorized installation and create the first administrator before upgrading.');}
+$upgradeUser=current_user($pdo);
+if(!$upgradeUser||$upgradeUser['role']!=='admin'){http_response_code(403);exit('Administrator access required.');}
 $dir=__DIR__.'/database/migrations';$pending=[];$runs=[];$error='';
 try{
     migration_prepare_tables($pdo);
