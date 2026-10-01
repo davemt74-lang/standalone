@@ -1,0 +1,10 @@
+name: Team Agent PR239 Deploy Package
+on:
+  push:
+    branches:
+      - chatgpt/team-agent-239-release-package
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
