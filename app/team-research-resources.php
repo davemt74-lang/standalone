@@ -52,6 +52,9 @@ function team_research_assign(PDO $pdo,array $team,array $viewer,string $agentPu
             ->execute([(int)$team['id'],(int)$agent['project_id']]);
         $pdo->prepare('UPDATE research_agents SET team_id=? WHERE id=? AND team_id IS NULL')
             ->execute([(int)$team['id'],(int)$agent['id']]);
+        // Existing personal conversation invites cannot retain access outside Team membership.
+        $pdo->prepare('DELETE FROM conversation_members WHERE conversation_id=? AND user_id NOT IN (SELECT user_id FROM team_members WHERE team_id=?)')
+            ->execute([(int)$agent['conversation_id'],(int)$team['id']]);
         $members=$pdo->prepare('SELECT user_id FROM team_members WHERE team_id=?');$members->execute([(int)$team['id']]);
         foreach($members->fetchAll(PDO::FETCH_COLUMN)?:[] as $userId){
             $role=$pdo->prepare('SELECT role FROM team_members WHERE team_id=? AND user_id=?');
