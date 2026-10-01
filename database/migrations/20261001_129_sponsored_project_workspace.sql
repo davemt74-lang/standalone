@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS sponsored_project_updates (
   public_id VARCHAR(40) NOT NULL UNIQUE,
   campaign_id BIGINT UNSIGNED NOT NULL,
   actor_user_id BIGINT UNSIGNED NOT NULL,
+  actor_role ENUM('sponsor','researcher') NOT NULL,
   scope ENUM('project','participant') NOT NULL,
   participant_user_id BIGINT UNSIGNED NULL,
   milestone_position SMALLINT UNSIGNED NULL,
