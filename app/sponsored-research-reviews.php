@@ -93,7 +93,8 @@ function sponsored_research_review_responses(PDO $pdo,int $caseId): array {
 function sponsored_research_review_decide(PDO $pdo,array $viewer,string $casePublicId,string $decision,string $note=''): array {
     $case=sponsored_research_review_case_get($pdo,$casePublicId);if(!$case)throw new RuntimeException('Review case not found.');sponsored_research_campaign_require_manage($pdo,$viewer,(string)$case['campaign_public_id']);
     if(!in_array($decision,['accepted','revision_requested','rejected'],true))throw new InvalidArgumentException('Invalid final review decision.');
-    if(in_array((string)$case['status'],['accepted','rejected','resolved'],true))throw new RuntimeException('This review case already has a terminal decision.');
+    if(in_array((string)$case['status'],['accepted','rejected','disputed','resolved'],true))throw new RuntimeException('This review case cannot be changed in its current state.');
+    $q=$pdo->prepare("SELECT COUNT(*) FROM sponsored_research_review_assignments WHERE review_case_id=? AND status='assigned'");$q->execute([(int)$case['id']]);if((int)$q->fetchColumn()>0)throw new RuntimeException('All assigned reviewers must respond or be recused before a final decision.');
     $responses=sponsored_research_review_responses($pdo,(int)$case['id']);$note=trim($note);if($decision!=='accepted'&&$note==='')throw new InvalidArgumentException('A decision note is required for revision requests and rejections.');
     $pdo->beginTransaction();try{
       $eligible=$decision==='accepted'?1:0;
