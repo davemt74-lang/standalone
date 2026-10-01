@@ -22,6 +22,9 @@ function sponsored_research_dataset_purpose(string $purpose): string {
 function sponsored_research_dataset_purpose_flag(string $purpose): string {
     return match($purpose){'shared_retrieval'=>'shared_retrieval','evaluation'=>'evaluation','training'=>'training','commercial_training'=>'commercial_training'};
 }
+function sponsored_research_dataset_registry_purpose(string $purpose): string {
+    return $purpose==='shared_retrieval'?'retrieval':$purpose;
+}
 function sponsored_research_dataset_release_items(PDO $pdo,array $release): array {
     $rows=sponsored_research_knowledge_release_items($pdo,(int)$release['id']);if(!$rows)throw new RuntimeException('Knowledge release contains no items.');return $rows;
 }
@@ -67,7 +70,7 @@ function sponsored_research_dataset_assemble(PDO $pdo,array $viewer,string $rele
     sponsored_research_dataset_refresh_release($pdo,$releasePublicId);$consent=sponsored_research_dataset_consent_snapshot($pdo,$release,$purpose);if(empty($consent['eligible']))throw new RuntimeException('Every Knowledge item requires explicit consent and current Source rights for '.$purpose.'.');
     $itemIds=[];foreach((array)$consent['manifest']['items'] as $item)$itemIds[]=(string)$item['knowledge_item_public_id'];
     $datasetName=mb_substr(trim($name)?:((string)$release['knowledge_base_name'].' · '.$purpose.' · release '.(int)$release['release_number']),0,180);
-    $dataset=data_dataset_create($pdo,$viewer,['name'=>$datasetName,'description'=>'Assembled from immutable Sponsored Research Knowledge release '.$release['public_id'].'.','purpose'=>$purpose,'source_object_public_ids'=>$itemIds,'corpus_types'=>['sponsored_knowledge'],'max_items'=>count($itemIds)]);
+    $dataset=data_dataset_create($pdo,$viewer,['name'=>$datasetName,'description'=>'Assembled from immutable Sponsored Research Knowledge release '.$release['public_id'].'.','purpose'=>sponsored_research_dataset_registry_purpose($purpose),'source_object_public_ids'=>$itemIds,'corpus_types'=>['sponsored_knowledge'],'max_items'=>count($itemIds)]);
     $pdo->beginTransaction();try{
       $public=ulid_like();$manifestJson=data_attribution_encode($consent['manifest']);$pdo->prepare("INSERT INTO sponsored_research_dataset_builds(public_id,knowledge_release_id,dataset_id,purpose,consent_manifest_json,consent_manifest_hash,release_manifest_hash,status,created_by_user_id) VALUES(?,?,?,?,?,?,?,'draft',?)")
         ->execute([$public,(int)$release['id'],(int)$dataset['id'],$purpose,$manifestJson,$consent['manifest_hash'],$release['manifest_hash'],(int)$viewer['id']]);$buildId=(int)$pdo->lastInsertId();
