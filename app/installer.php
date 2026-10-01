@@ -26,6 +26,11 @@ function installer_setup_token_valid(string $siteRoot,string $provided): bool {
     $provided=trim($provided);
     return $expected!==null&&preg_match('/^[a-f0-9]{64}$/D',$provided)===1&&hash_equals($expected,$provided);
 }
+function installer_first_admin_claim_allowed(PDO $pdo,string $siteRoot,string $token): bool {
+    return installer_setup_token_valid($siteRoot,$token)
+      &&installer_table_exists($pdo,'users')
+      &&(int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn()===0;
+}
 function installer_setup_session_ready(string $siteRoot,array $session): bool {
     $expected=installer_setup_token_read($siteRoot);
     $saved=$session['setup_owner_sha256']??null;
