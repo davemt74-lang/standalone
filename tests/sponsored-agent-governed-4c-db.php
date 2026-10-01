@@ -94,6 +94,14 @@ $submissionArgs=$base+['title'=>'Agent-assisted research submission','summary'=>
 $missingEvidence=$makeProposal('sponsored.project.submit',$submissionArgs,$context['refs']);
 sponsored4cCheck($missingEvidence===[],'Fabricated or unattached report/doc IDs cannot be proposed for project submission.');
 $refs=array_merge($context['refs'],[['type'=>'document','id'=>(string)$doc['public_id']]]);
+$validated=sponsored_agent_operation_validate($pdo,$researcher,$project,'sponsored.project.submit',
+    sponsored_agent_operation_clean('sponsored.project.submit',$submissionArgs),$refs);
+if(!$validated){
+    $preflight=sponsored_agent_operation_access($pdo,$researcher,$project,sponsored_agent_operation_clean('sponsored.project.submit',$submissionArgs));
+    fwrite(STDERR,"Diagnostic: approved source proposal preflight=".($preflight?'authorized':'denied').
+      " submit_enabled=".(int)($preflight['assignment']['agent_submit_enabled']??0).
+      " reference_count=".count($refs)."\n");
+}
 $submissionProposal=$makeProposal('sponsored.project.submit',$submissionArgs,$refs);
 sponsored4cCheck(count($submissionProposal)===1&&$submissionProposal[0]['status']==='pending',
    'Only cited existing evidence creates an explicitly confirmable Sponsored Project submission.');
