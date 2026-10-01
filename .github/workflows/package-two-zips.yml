@@ -552,6 +552,10 @@ jobs:
           test -f package-website/app/sponsored-project-builder-ui.php
           test -f package-website/assets/css/sponsored-project-builder.css
           test -f package-website/downloads/Annotated-Chrome-Extension.zip
+          test -f package-website/.htaccess
+          test -f package-website/docs/v1-webserver-and-recovery.md
+          test -f package-website/tests/v1-webroot-exposure-contract.php
+          test ! -e package-website/reset-admin.php
 
       - name: Smoke test release packages
         shell: bash
