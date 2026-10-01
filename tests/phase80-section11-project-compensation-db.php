@@ -32,6 +32,7 @@ $assignment=sponsored_project_assign_agent($pdo,$researcher,(string)$campaign['p
 $comp=sponsored_project_compensation_for_assignment($pdo,(int)$assignment['id']);ok11($comp!==null&&(int)$comp['amount_cents']===25000&&$comp['status']==='pending','Assignment freezes the advertised flat fee as pending compensation.');
 
 $campaign=sponsored_research_campaign_update($pdo,$sponsor,(string)$campaign['public_id'],['researcher_compensation'=>'350.00','reason'=>'Increase fee for future researchers.']);
+sponsored_research_campaign_terms_publish($pdo,$sponsor,(string)$campaign['public_id'],'Updated project terms after compensation revision.','Republish current terms.');
 sponsored_project_assign_agent($pdo,$researcher,(string)$campaign['public_id'],$agentPublic,['accept_terms'=>true]);
 $compAgain=sponsored_project_compensation_for_assignment($pdo,(int)$assignment['id']);ok11((int)$compAgain['amount_cents']===25000,'Existing researcher keeps the original frozen fee after the advertised fee changes.');
 $current=sponsored_research_campaign_by_public($pdo,(string)$campaign['public_id']);ok11((int)$current['researcher_compensation_cents']===35000,'Updated project advertises the new fee for future researchers.');
