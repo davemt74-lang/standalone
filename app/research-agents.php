@@ -224,7 +224,7 @@ function research_agent_chat_feed(PDO $pdo,array $viewer,string $agentPublicId,i
 
 function research_agent_access(PDO $pdo,array $viewer,string $publicId): ?array {
     $publicId=trim($publicId);if($publicId===''||!research_agent_ready($pdo))return null;
-    $q=$pdo->prepare("SELECT ra.*,rp.public_id project_public_id,rp.title project_title,c.public_id conversation_public_id,
+    $q=$pdo->prepare("SELECT ra.*,rp.public_id project_public_id,rp.title project_title,rp.team_id project_team_id,c.public_id conversation_public_id,
       t.public_id team_public_id,t.name team_name,tm.role team_role
       FROM research_agents ra
       JOIN research_projects rp ON rp.id=ra.project_id
