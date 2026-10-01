@@ -1,0 +1,30 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
+$pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
+foreach(['installer','storage','jobs','concurrency','functions','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','account-admin','account-membership','research-accounts','sponsored-research-campaigns'] as $lib)require_once $root.'/app/'.$lib.'.php';
+function p80s2(bool $ok,string $m):void{if(!$ok)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
+$run='p80s2'.substr(bin2hex(random_bytes(5)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
+$make=function(string $name,string $role='user')use($pdo,$run,$pub):array{$u=substr(strtolower($name).'_'.$run,0,48);$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,email_verified_at,status,role,plan_tier,live_presence_mode) VALUES(?,?,?,?,NOW(),'active',?,'pro','cloaked')")->execute([$pub('u'),$u,$name,$u.'@example.test',$role]);$id=(int)$pdo->lastInsertId();$pdo->prepare('INSERT IGNORE INTO user_preferences(user_id) VALUES(?)')->execute([$id]);$q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$id]);return $q->fetch();};
+$admin=$make('CampaignAdmin','admin');$sponsor=$make('ApprovedSponsor');$plain=$make('PlainUser');
+$pkg=(int)$pdo->query("SELECT id FROM subscription_packages WHERE slug='basic-user' LIMIT 1")->fetchColumn();
+$pdo->prepare("INSERT INTO accounts(public_id,account_type,name,owner_user_id,personal_user_id,package_id,subscription_status,period_start,period_end,status) VALUES(?, 'personal', ?,?,?,?,'active',CURRENT_DATE,DATE_ADD(CURRENT_DATE,INTERVAL 1 MONTH),'active')")->execute([$pub('acct'),'Sponsor Account',(int)$sponsor['id'],(int)$sponsor['id'],$pkg]);$accountId=(int)$pdo->lastInsertId();$pdo->prepare("INSERT INTO account_members(account_id,user_id,account_role) VALUES(?,?,'owner')")->execute([$accountId,(int)$sponsor['id']]);$q=$pdo->prepare('SELECT public_id FROM accounts WHERE id=?');$q->execute([$accountId]);$accountPublic=(string)$q->fetchColumn();
+sponsor_account_apply($pdo,$sponsor,['organization_name'=>'Sponsor Lab']);research_account_admin_decide($pdo,$admin,(int)$sponsor['id'],'sponsor_account','approved','Approved sponsor.','organization');
+$agent=research_agent_create($pdo,$sponsor,['name'=>'Sponsor Research Agent','description'=>'Campaign research authority','cadence'=>'manual','timezone_name'=>'UTC']);
+$blocked=false;try{sponsored_research_campaign_create($pdo,$plain,['account_id'=>$accountPublic,'title'=>'Blocked','brief'=>'No sponsor authority','objective'=>'Should fail']);}catch(Throwable $e){$blocked=true;}p80s2($blocked,'Unapproved Sponsor Account cannot create campaigns.');
+$campaign=sponsored_research_campaign_create($pdo,$sponsor,[
+ 'account_id'=>$accountPublic,'research_agent_id'=>$agent['public_id'],'title'=>'Battery Market Research','brief'=>'Investigate battery supply-chain changes.','objective'=>'Produce source-backed findings for planning.',
+ 'questions'=>["Which suppliers changed capacity?","What risks materially changed?"],'access_mode'=>'invite_only','budget_currency'=>'USD','budget_cents'=>250000,'max_participants'=>5,
+ 'eligibility'=>['minimum_verification'=>'identity','required_specialties'=>['energy','market research']],'disclosures'=>['sponsor_disclosure'=>'Sponsored by Sponsor Lab','conflict_disclosure_required'=>true],
+ 'starts_at'=>'2026-10-05 09:00:00','submission_deadline'=>'2026-10-20 17:00:00'
+]);
+p80s2($campaign['status']==='draft'&&$campaign['access_mode']==='invite_only','Campaign starts governed as a draft with configured access.');
+p80s2((int)$campaign['budget_cents']===250000&&count($campaign['questions'])===2,'Campaign persists budget and structured research questions.');
+p80s2((string)$campaign['research_agent_public_id']===(string)$agent['public_id'],'Campaign reuses an existing Research Agent.');
+p80s2(strlen((string)$campaign['config_hash'])===64,'Initial campaign configuration is hashed.');
+$versions=sponsored_research_campaign_versions($pdo,$sponsor,(string)$campaign['public_id']);p80s2(count($versions)===1&&(int)$versions[0]['revision_number']===1,'Initial campaign brief is immutably versioned.');
+$updated=sponsored_research_campaign_update($pdo,$sponsor,(string)$campaign['public_id'],['brief'=>'Updated supply-chain research brief.','questions'=>["Which suppliers changed capacity?","What risks changed?","What evidence contradicts the trend?"],'reason'=>'Expanded contradiction coverage.']);
+p80s2((int)$updated['current_revision']===2&&count($updated['questions'])===3,'Campaign amendment creates revision 2 without a parallel Mission system.');
+$versions=sponsored_research_campaign_versions($pdo,$sponsor,(string)$campaign['public_id']);p80s2(count($versions)===2&&!hash_equals((string)$versions[0]['config_hash'],(string)$versions[1]['config_hash']),'Campaign versions preserve distinct immutable config hashes.');
+$open=sponsored_research_campaign_set_status($pdo,$sponsor,(string)$campaign['public_id'],'open');p80s2($open['status']==='open','Governed campaign lifecycle supports opening a draft.');
+echo "Phase 80 Section 2 Sponsored Research Campaign Foundation database journey passed.\n";
