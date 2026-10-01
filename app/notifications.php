@@ -90,6 +90,10 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
     if($type==='research_review'){
         return function_exists('research_review_access')&&research_review_access($pdo,$viewer,$public)!==null;
     }
+    if($type==='sponsored_project_submission'){
+        if(!function_exists('sponsored_project_submission_get'))return false;$s=sponsored_project_submission_get($pdo,$public);if(!$s)return false;
+        return ($viewer['role']??'')==='admin'||(int)$s['researcher_user_id']===(int)$viewer['id'];
+    }
     if($type==='research_automation'){
         if(!function_exists('research_automation_access'))return false;
         return research_automation_access($pdo,$viewer,$public)!==null;
@@ -127,6 +131,11 @@ function notification_url(PDO $pdo,array $viewer,array $n): ?string {
     if(!notification_object_access($pdo,$viewer,$n))return null;$type=(string)($n['object_type']??'');$public=(string)($n['object_public_id']??'');$context=json_decode((string)($n['context_json']??''),true)?:[];
     if($type==='research_review'){
         return function_exists('research_review_access')&&research_review_access($pdo,$viewer,$public)?'/research-reviews.php?id='.rawurlencode($public):null;
+    }
+    if($type==='sponsored_project_submission'){
+        if(!function_exists('sponsored_project_submission_get'))return null;$s=sponsored_project_submission_get($pdo,$public);if(!$s)return null;
+        if(($viewer['role']??'')==='admin')return '/admin/sponsored-projects.php?campaign='.rawurlencode((string)$s['campaign_public_id']).'#submission-'.rawurlencode($public);
+        return (int)$s['researcher_user_id']===(int)$viewer['id']?'/research-sponsored-projects.php#submission-'.rawurlencode($public):null;
     }
     if($type==='research_automation'){
         if(!function_exists('research_automation_access'))return null;$a=research_automation_access($pdo,$viewer,$public);if(!$a)return null;
