@@ -98,7 +98,7 @@ function admin_access_route_requirement(string $path,string $method='GET'): ?str
     $path='/'.ltrim((string)(parse_url($path,PHP_URL_PATH)?:$path),'/');$method=strtoupper($method);$write=$method!=='GET'&&$method!=='HEAD';
     $map=[
         '/admin/'=>['admin.operations.view','admin.operations.manage'],'/admin/index.php'=>['admin.operations.view','admin.operations.manage'],'/admin/assistant.php'=>['admin.operations.view','admin.operations.view'],'/admin/action-center.php'=>['admin.actions.view','admin.actions.view'],'/admin/roles-permissions.php'=>['admin.roles.view','admin.roles.view'],'/admin/support.php'=>['admin.support.view','admin.support.manage'],'/admin/support-case.php'=>['admin.support.view','admin.support.manage'],
-        '/admin/accounts.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/account.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/users.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/packages.php'=>['admin.accounts.view','admin.accounts.manage'],
+        '/admin/accounts.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/research-accounts.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/account.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/users.php'=>['admin.accounts.view','admin.accounts.manage'],'/admin/packages.php'=>['admin.accounts.view','admin.accounts.manage'],
         '/admin/billing.php'=>['admin.billing.view','admin.billing.manage'],'/admin/billing-analytics.php'=>['admin.billing.view','admin.billing.manage'],'/admin/overage-billing.php'=>['admin.billing.view','admin.billing.manage'],'/admin/promotions.php'=>['admin.billing.view','admin.billing.manage'],'/admin/tax-invoices.php'=>['admin.billing.view','admin.billing.manage'],
         '/admin/financial-reporting.php'=>['admin.finance.view','admin.finance.manage'],'/admin/financial-export.php'=>['admin.finance.export','admin.finance.export'],
         '/admin/customer-success.php'=>['admin.customer_success.view','admin.customer_success.manage'],'/admin/customer-success-account.php'=>['admin.customer_success.view','admin.customer_success.manage'],
@@ -116,7 +116,7 @@ function admin_access_authorize_request(PDO $pdo,array $admin): void {
 function admin_access_nav_capability(string $key): string {
     return match($key){
         'dashboard','assistant'=>'admin.operations.view','action_center'=>'admin.actions.view','roles_permissions'=>'admin.roles.view','support'=>'admin.support.view','support_case'=>'admin.support.view',
-        'accounts','users','packages'=>'admin.accounts.view',
+        'accounts','users','packages','research_accounts'=>'admin.accounts.view',
         'billing','billing_analytics','overage_billing','promotions','tax_invoices'=>'admin.billing.view',
         'financial_reporting'=>'admin.finance.view',
         'customer_success','customer_success_account'=>'admin.customer_success.view','security_compliance'=>'admin.security.view','platform_governance'=>'admin.platform.view',
