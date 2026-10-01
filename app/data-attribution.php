@@ -107,7 +107,7 @@ function data_source_rights_set(PDO $pdo,array $viewer,string $sourcePublicId,ar
     $reviewStatus=$class==='unknown'?'unreviewed':'reviewed';
     $pdo->prepare('INSERT INTO source_rights(source_id,rights_class,retrieval_allowed,excerpt_storage_allowed,model_context_allowed,training_allowed,commercial_training_allowed,license_code,rights_holder,policy_url,review_status,reviewed_by_user_id,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE rights_class=VALUES(rights_class),retrieval_allowed=VALUES(retrieval_allowed),excerpt_storage_allowed=VALUES(excerpt_storage_allowed),model_context_allowed=VALUES(model_context_allowed),training_allowed=VALUES(training_allowed),commercial_training_allowed=VALUES(commercial_training_allowed),license_code=VALUES(license_code),rights_holder=VALUES(rights_holder),policy_url=VALUES(policy_url),review_status=VALUES(review_status),reviewed_by_user_id=VALUES(reviewed_by_user_id),reviewed_at=NOW(),updated_at=NOW()')
         ->execute([$sourceId,$class,$retrieval,$storage,$context,$training,$commercial,$license,$holder,$policy,$reviewStatus,$viewer['id']]);
-    data_corpus_refresh_object($pdo,'source',$sourcePublicId);
+    data_corpus_refresh_object($pdo,'source',$sourcePublicId);if(function_exists('sponsored_research_dataset_refresh_knowledge_for_source'))sponsored_research_dataset_refresh_knowledge_for_source($pdo,$sourcePublicId);
     return data_source_rights($pdo,$sourcePublicId)??[];
 }
 
