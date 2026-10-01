@@ -40,6 +40,10 @@ $check(str_contains($adapter,'function sponsored_agent_awareness_private_convers
    &&str_contains($chat,'Sponsored Project context is available only inside your private Agent conversation.')
    &&str_contains($chat,'sponsored_agent_awareness_private_conversation($pdo,$viewer,$conversation)'),
    'Manual selection and automatic context injection both fail closed in non-owned or multi-member Agent conversations.');
+$team=$read('app/team-research-resources.php');
+$check(str_contains($team,'SELECT 1 FROM sponsored_research_agent_assignments WHERE research_agent_id=? LIMIT 1')
+    &&!str_contains($team,"status IN ('active','paused','completed') LIMIT 1"),
+    'Past as well as active Sponsored Agent assignments prevent later Team sharing of historical paid-project conversations.');
 $check(!str_contains($js,'innerHTML=item.label'),'Context picker uses textContent to render untrusted project title.');
 if($failed){foreach($failed as $e)fwrite(STDERR,"FAIL: $e\n");exit(1);}
 echo "PASS: Sponsored Project Agent Awareness Section 4B integration/security contracts.\n";
