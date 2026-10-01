@@ -3,7 +3,7 @@ declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
 require_once __DIR__.'/app/sponsored-project-detail.php';
 require_once __DIR__.'/app/sponsored-project-workspace.php';
-$viewer=require_user($pdo);
+$viewer=current_user($pdo)??[];
 header('Cache-Control: private, no-store');
 if(!sponsored_workspace_ready($pdo)){http_response_code(503);exit('Sponsored Project Workspace requires migration 129.');}
 $public=trim((string)($_GET['project']??$_POST['project']??''));
@@ -23,6 +23,7 @@ $submissions=sponsored_workspace_submission_summaries($pdo,$access,$viewer,50);
 $updates=sponsored_workspace_recent($pdo,$access,$viewer,75);
 $specs=$sample?sponsored_project_detail_sample_builder_specs((string)$campaign['public_id'],sponsored_project_detail_sample_specs((string)$campaign['public_id']))
     :sponsored_project_builder_normalize($campaign['project_specs']??($campaign['project_specs_json']??null),$campaign['submission_deadline']??null);
+$agent=$role==='researcher'?research_agent_access($pdo,$viewer,(string)$access['assignment']['research_agent_public_id']):null;
 $canPost=$role==='sponsor'||($role==='researcher'&&
    (string)($access['participation']['status']??'')==='active'
    &&(string)($access['assignment']['status']??'')==='active');
@@ -117,6 +118,9 @@ $title=(string)$campaign['title'];
 <a href="/sponsored-research.php?campaign=<?=rawurlencode($public)?>">Invitations and participant management</a></section>
 <?php elseif($role==='researcher'):?><section class="sponsoredDetailCard"><strong>Your assigned Agent</strong>
 <p><?=h((string)$access['assignment']['research_agent_name'])?></p>
+<?php if($agent):?><a href="<?=h(research_agent_shell_href($agent,'desktop'))?>">Open your Agent Desktop</a>
+<a href="<?=h(research_agent_shell_href($agent,'library'))?>">Open your Agent Library</a>
+<a href="/research-project.php?id=<?=rawurlencode((string)$agent['project_public_id'])?>">Your existing Research Project</a><?php endif?>
 <a href="/research-reports.php?agent=<?=rawurlencode((string)$access['assignment']['research_agent_public_id'])?>&view=recent">Open your Agent reports</a>
 <a href="/research-sponsored-projects.php#project-<?=rawurlencode($public)?>">Submit through your existing workflow</a></section><?php endif?>
 <section class="sponsoredDetailCard"><strong><?= $sample?'Example submissions':'Submission status' ?></strong>
