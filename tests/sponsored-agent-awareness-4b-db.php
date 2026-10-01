@@ -53,7 +53,7 @@ $options=sponsored_agent_awareness_project_options($pdo,$researcher,12);
 workspaceDbCheck(count($options)===1&&$options[0]['type']==='sponsored_project'&&$options[0]['public_id']===$campaignPublic,
     'Native context picker returns only own accepted and assigned Sponsored Project.');
 workspaceDbCheck(sponsored_agent_awareness_project_options($pdo,$sponsor)===[],
-    'Sponsors do not receive a researcher's assigned Chat context options.');
+    "Sponsors do not receive a researcher's assigned Chat context options.");
 $context=sponsored_agent_awareness_project_context($pdo,$researcher,$campaignPublic,$agentPublic);
 workspaceDbCheck($context!==null&&$context['type']==='sponsored_project'
   &&str_contains($context['text'],'Independent retailers')
