@@ -533,6 +533,10 @@ jobs:
           test -f package-website/app/sponsored-agent-awareness.php
           test -f package-website/app/sponsored-agent-operations.php
           test -f package-website/docs/sponsored-agent-governed-4c.md
+          test -f package-website/app/sponsored-agent-proactive.php
+          test -f package-website/docs/sponsored-agent-proactive-4d.md
+          test -f package-website/tests/sponsored-agent-proactive-4d-contract.php
+          test -f package-website/bin/research-automations.php
           test -f package-website/tests/sponsored-agent-governed-4c-contract.php
           test -f package-website/assets/css/sponsored-agent-operations.css
           test -f package-website/docs/sponsored-agent-operations-4c.md
