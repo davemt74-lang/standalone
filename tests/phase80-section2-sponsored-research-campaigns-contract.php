@@ -13,6 +13,7 @@ $need('sponsored-research.php','name="conflict_disclosure_required"','Sponsor wo
 $need('sponsored-research.php','name="review_deadline"','Sponsor workspace must capture a review deadline.');
 $need('sponsored-research.php','optional_separate_consent','Training use must remain an optional separate-consent request.');
 $need('sponsored-research.php','name="op" value="update"','Sponsor workspace must support versioned campaign amendments.');
+$need('research-account.php','Open Sponsored Research','Approved Sponsor Accounts must have a direct Sponsored Research entry point.');
 $need('app/research-surface-map.php',"'app/sponsored-research-campaigns.php'=>'governance'",'Sponsored Research must remain registered in the canonical Research governance map.');
 $need('tests/ci/run-full-regression.sh','tests/phase80-section2-sponsored-research-campaigns-db.php','Release regression must retain the Section 2 DB journey.');
 if($fail){foreach(array_unique($fail) as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Phase 80 Section 2 Sponsored Research Campaign Foundation contract passed.\n";
