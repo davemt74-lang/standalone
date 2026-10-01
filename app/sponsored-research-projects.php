@@ -32,20 +32,43 @@ function sponsored_project_listings_for_researcher(PDO $pdo,array $viewer,int $l
     $q->execute([(int)$viewer['id']]);$out=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $public){$c=sponsored_research_campaign_by_public($pdo,(string)$public);if(!$c)continue;$c['eligibility_check']=sponsored_research_campaign_eligibility_check($pdo,$viewer,$c);$c['assignment']=sponsored_project_assignment($pdo,(int)$c['id'],(int)$viewer['id']);$out[]=$c;}return $out;
 }
 function sponsored_project_assign_agent(PDO $pdo,array $viewer,string $campaignPublicId,string $agentPublicId,array $input): array {
-    research_account_require_approved($pdo,$viewer);$campaign=sponsored_research_campaign_by_public($pdo,$campaignPublicId);if(!$campaign||!sponsored_research_campaign_visible_to_researcher($pdo,$viewer,$campaign))throw new RuntimeException('Sponsored Project is unavailable.');
-    $elig=sponsored_research_campaign_eligibility_check($pdo,$viewer,$campaign);if(empty($elig['eligible']))throw new RuntimeException('Your Research Account does not meet this project’s eligibility requirements.');
+    research_account_require_approved($pdo,$viewer);
+    $campaign=sponsored_research_campaign_by_public($pdo,$campaignPublicId);
+    if(!$campaign||!sponsored_research_campaign_visible_to_researcher($pdo,$viewer,$campaign))throw new RuntimeException('Sponsored Project is unavailable.');
+    $elig=sponsored_research_campaign_eligibility_check($pdo,$viewer,$campaign);
+    if(empty($elig['eligible']))throw new RuntimeException('Your Research Account does not meet this project’s eligibility requirements.');
     if((int)($campaign['researcher_compensation_cents']??0)<=0)throw new RuntimeException('This Sponsored Project is not accepting researchers until compensation is configured.');
+    $agent=research_agent_access($pdo,$viewer,$agentPublicId);
+    if(!$agent||(int)$agent['owner_user_id']!==(int)$viewer['id']||$agent['status']!=='active')
+        throw new RuntimeException('Choose one of your active Research Agents.');
+    $existing=sponsored_project_assignment($pdo,(int)$campaign['id'],(int)$viewer['id']);
+    // Changing the Agent on an agreed assignment would disconnect immutable deliverables
+    // from the frozen compensation record. Completion must never be reopened.
+    if($existing&&((int)$existing['research_agent_id']!==(int)$agent['id']||(string)$existing['status']!=='active'))
+        throw new RuntimeException('An existing Sponsored Project assignment cannot change Agents or be reopened.');
+    if($existing&&!sponsored_project_compensation_for_assignment($pdo,(int)$existing['id']))
+        throw new RuntimeException('An existing assignment without agreed compensation requires an explicit agreement; the advertised fee cannot be applied retroactively.');
     $participation=sponsored_research_participation_get($pdo,(int)$campaign['id'],(int)$viewer['id']);
-    if(!$participation||$participation['status']!=='active'||(int)$participation['campaign_revision_accepted']!==(int)$campaign['current_revision'])$participation=sponsored_research_campaign_join($pdo,$viewer,$campaignPublicId,$input);
-    $agent=research_agent_access($pdo,$viewer,$agentPublicId);if(!$agent||(int)$agent['owner_user_id']!==(int)$viewer['id']||$agent['status']!=='active')throw new RuntimeException('Choose one of your active Research Agents.');
-    $existing=sponsored_project_assignment($pdo,(int)$campaign['id'],(int)$viewer['id']);$public=$existing?(string)$existing['public_id']:ulid_like();
-    if($existing){$pdo->prepare("UPDATE sponsored_research_agent_assignments SET participation_id=?,research_agent_id=?,status='active',agent_submit_enabled=1,assigned_at=NOW(),withdrawn_at=NULL,removed_at=NULL WHERE id=?")->execute([(int)$participation['id'],(int)$agent['id'],(int)$existing['id']]);$id=(int)$existing['id'];}
-    else{$pdo->prepare("INSERT INTO sponsored_research_agent_assignments(public_id,campaign_id,participation_id,researcher_user_id,research_agent_id,status) VALUES(?,?,?,?,?,'active')")->execute([$public,(int)$campaign['id'],(int)$participation['id'],(int)$viewer['id'],(int)$agent['id']]);$id=(int)$pdo->lastInsertId();}
-    $assignment=sponsored_project_assignment($pdo,(int)$campaign['id'],(int)$viewer['id'])??[];
-    if(function_exists('sponsored_project_compensation_ensure'))sponsored_project_compensation_ensure($pdo,$assignment,$campaign,(int)$viewer['id']);
-    sponsored_project_event($pdo,(int)$campaign['id'],$id,null,(int)$viewer['id'],'research_agent_assigned',['agent_public_id'=>$agent['public_id'],'project_public_id'=>$agent['project_public_id'],'compensation_cents'=>(int)$campaign['researcher_compensation_cents'],'currency'=>$campaign['budget_currency']]);
-    return $assignment;
+    if(!$participation||$participation['status']!=='active'||(int)$participation['campaign_revision_accepted']!==(int)$campaign['current_revision'])
+        $participation=sponsored_research_campaign_join($pdo,$viewer,$campaignPublicId,$input);
+    if($existing)return $existing; // Reaccepting revised terms never resets the original agreement.
+    $pdo->beginTransaction();
+    try{
+        $public=ulid_like();
+        $pdo->prepare("INSERT INTO sponsored_research_agent_assignments(public_id,campaign_id,participation_id,researcher_user_id,research_agent_id,status) VALUES(?,?,?,?,?,'active')")
+          ->execute([$public,(int)$campaign['id'],(int)$participation['id'],(int)$viewer['id'],(int)$agent['id']]);
+        $id=(int)$pdo->lastInsertId();
+        $assignment=sponsored_project_assignment($pdo,(int)$campaign['id'],(int)$viewer['id']);
+        if(!$assignment)throw new RuntimeException('Sponsored Project assignment could not be reloaded.');
+        sponsored_project_compensation_ensure($pdo,$assignment,$campaign,(int)$viewer['id']);
+        sponsored_project_event($pdo,(int)$campaign['id'],$id,null,(int)$viewer['id'],'research_agent_assigned',
+            ['agent_public_id'=>$agent['public_id'],'project_public_id'=>$agent['project_public_id'],
+             'compensation_cents'=>(int)$campaign['researcher_compensation_cents'],'currency'=>$campaign['budget_currency']]);
+        $pdo->commit();
+        return $assignment;
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
+
 function sponsored_project_asset_system_report(PDO $pdo,array $viewer,array $a,string $publicId): array {
     $r=research_system_report_access($pdo,$viewer,$publicId);if(!$r||(int)$r['research_agent_id']!==(int)$a['research_agent_id']||(string)$r['status']!=='ready')throw new RuntimeException('Choose a ready Report Run from the assigned Research Agent.');
     $snap=['schema'=>'annotated-sponsored-system-report-v1','public_id'=>$r['public_id'],'agent_public_id'=>$r['agent_public_id'],'project_public_id'=>$r['project_public_id'],'report_type'=>$r['report_type'],'title'=>$r['title'],'summary'=>$r['rendered_summary'],'input_state_hash'=>$r['input_state_hash'],'knowledge_manifest'=>$r['knowledge_manifest'],'sections'=>$r['sections'],'created_at'=>$r['created_at']];
