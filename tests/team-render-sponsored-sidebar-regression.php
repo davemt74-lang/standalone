@@ -59,6 +59,7 @@ $teamVars=['u'=>$viewer,'team'=>$team,'isOwner'=>true,'canManage'=>true,'error'=
     'projects'=>[['public_id'=>'project-fixture','title'=>'Shared Research Project','status'=>'active','updated_at'=>'2026-10-01','description'=>'Shared evidence']],
     'annotations'=>[['public_id'=>'annotation-fixture']],
     'canContributeResearch'=>true,
+    'teamDraftTitle'=>'','teamDraftBody'=>'',
     'teamRecentResearch'=>[['public_id'=>'doc-fixture','object_type'=>'document','title'=>'Researcher source notes','updated_at'=>'2026-10-01','contributor_name'=>'Researcher','last_editor_name'=>'Owner',
        'agent_name'=>'Festo','agent_public_id'=>'agent-fixture','conversation_public_id'=>'conversation-fixture','team_public_id'=>'team-fixture','tag_label'=>'Team · Workola','origin_team_contribution'=>true,'document_summary'=>'Evidence reviewed']]];
 $teamHtml=render_real_page('team.php',$teamVars);
