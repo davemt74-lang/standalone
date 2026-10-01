@@ -233,7 +233,9 @@ function research_agent_access(PDO $pdo,array $viewer,string $publicId): ?array 
       LEFT JOIN team_members tm ON tm.team_id=ra.team_id AND tm.user_id=?
       WHERE ra.public_id=? AND ((ra.team_id IS NULL AND ra.owner_user_id=?) OR (ra.team_id IS NOT NULL AND tm.user_id=?)) LIMIT 1");
     $q->execute([(int)$viewer['id'],$publicId,(int)$viewer['id'],(int)$viewer['id']]);
-    return $q->fetch()?:null;
+    $row=$q->fetch()?:null;if(!$row)return null;
+    if(function_exists('sponsored_project_agent_context'))$row['sponsored_project_context']=sponsored_project_agent_context($pdo,(int)$row['id']);
+    return $row;
 }
 
 function research_agent_by_conversation(PDO $pdo,array $viewer,string $conversationPublicId): ?array {
