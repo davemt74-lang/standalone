@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
 require_once __DIR__.'/app/sponsored-project-detail.php';
+require_once __DIR__.'/app/sponsored-project-workspace.php';
 $viewer=current_user($pdo);
 header($viewer?'Cache-Control: private, no-store':'Cache-Control: public, max-age=60');
 $id=(string)($_GET['project']??'');
@@ -12,6 +13,11 @@ $specs=$p['project_specs'];
 $title=(string)$p['title'];$currency=(string)$p['currency'];
 $fee=sponsored_project_detail_money($p,(int)$p['fee_cents']);
 $limited=!empty($p['max_participants']);
+$workspaceAvailable=false;
+if(sponsored_workspace_ready($pdo)){
+ try{$workspaceAvailable=(bool)sponsored_workspace_access($pdo,$viewer??[],$id);}
+ catch(Throwable $ignored){$workspaceAvailable=false;}
+}
 ?><!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title><?=h($title)?> · Sponsored Project · Annotated</title><meta name="description" content="Sponsored Research project objectives, specifications, eligibility, submission workflow, and participation requirements.">
@@ -46,6 +52,7 @@ $limited=!empty($p['max_participants']);
     <?php endif?>
   </aside>
 </header>
+<?php if($workspaceAvailable):?><nav class="sponsoredWorkspaceDetailLink" aria-label="Project workspace"><div><strong><?= $sample?'Explore sample workspace':'Project collaboration workspace' ?></strong><span><?= $sample?'View a demonstration of milestones and project updates. No real messages or transactions.':'Review attributed project updates, milestones and your role-specific research activity.' ?></span></div><a class="button" href="/sponsored-project-workspace.php?project=<?=rawurlencode($id)?>"><?= $sample?'Preview workspace':'Open workspace' ?> →</a></nav><?php endif?>
 <div class="sponsoredDetailLayout">
 <div class="sponsoredDetailMain">
   <section class="sponsoredDetailSection" id="overview"><div class="sponsoredDetailSectionHead"><span>01 / BRIEF</span><h2>Project overview</h2></div>
