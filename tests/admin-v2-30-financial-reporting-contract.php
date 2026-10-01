@@ -25,7 +25,7 @@ $need('app/agent-chat.php','Admin V2.30 finance context is read-only','Agent pro
 $need('assets/css/app.css','.adminSidebar~main.panel{','Admin shell must explicitly override the generic panel container.');
 $need('assets/css/app.css','background:#f7f7f5;','Admin content canvas must use the page background.');
 $need('assets/css/app.css','border:0;','Admin outer content canvas must remove the generic panel border.');
-$need('assets/css/app.css','margin:0 0 0 268px;','Admin main workspace must consume the right-side width from the fixed sidebar.');
+$need('assets/css/app.css','margin:0 0 0 var(--admin-nav-width);','Admin main workspace must consume the right-side width from the fixed sidebar.');
 $need('tests/ci/run-full-regression.sh','tests/admin-v2-30-financial-reporting-db.php','Full regression must execute V2.30 finance database journey.');
 $need('.github/workflows/full-regression.yml','admin-v2-30-upgrade-from-075.php','Phase gate must rehearse migration 076 from 075.');
 $need('.github/workflows/package-two-zips.yml','20260924_076_admin_financial_reporting_reconciliation.sql','Production package must include migration 076.');
