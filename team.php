@@ -6,7 +6,7 @@ $id=trim((string)($_GET['id']??$_POST['team']??''));$error='';$success='';
 $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,t.owner_user_id,t.created_at,tm.role access_role FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=? WHERE t.public_id=? LIMIT 1");
 $q->execute([$u['id'],$id]);$team=$q->fetch();
 if(!$team){http_response_code(404);exit('Team not found or access denied.');}
-$canManage=in_array($team['access_role'],['owner','admin'],true);$isOwner=$team['access_role']==='owner';
+$canManage=in_array($team['access_role'],['owner','admin'],true);$isOwner=$team['access_role']==='owner'&&(int)$team['owner_user_id']===(int)$u['id'];
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$op=(string)($_POST['op']??'');
@@ -25,8 +25,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $username=trim((string)($_POST['username']??''));
             $q=$pdo->prepare('SELECT id FROM users WHERE username=? AND status="active"');$q->execute([$username]);$uid=(int)($q->fetchColumn()?:0);
             if(!$uid)throw new RuntimeException('User not found.');
-            $pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'researcher') ON DUPLICATE KEY UPDATE user_id=user_id")->execute([$team['id'],$uid]);
-            team_research_sync_member($pdo,(int)$team['id'],$uid,true);$success='Member added.';
+             $invited=team_research_add_member($pdo,$team,$u,$uid);
+            $success=$invited?'Member added.':'This user is already a Team member.';
         }elseif($op==='role'){
             if(!$isOwner)throw new RuntimeException('Only the team owner can change member roles.');
             $member=(int)($_POST['member_id']??0);$role=(string)($_POST['role']??'researcher');
@@ -60,8 +60,9 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 .teamAttachAgentForm select{width:100%;max-width:100%;min-height:44px}
 .teamAttachAgentConfirmation{grid-column:1/-1;display:flex;align-items:flex-start;gap:9px;font-size:.91rem;line-height:1.5}
 .teamAttachAgentConfirmation input{flex:none;margin-top:5px}
-.teamMemberAdd{margin:18px 0 0;padding:14px 18px}
-.teamMemberAdd summary{cursor:pointer;font-weight:650}
+.teamMemberAdd{margin:20px 0 0;padding:18px 0 0;border-top:1px solid #e7e7e7}
+.teamMemberAdd h3{margin:0 0 5px;font-size:1.08rem}
+.teamMemberAdd p{margin:0}
 .teamMemberAddForm{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding-top:12px}
 .teamMemberAddForm label{flex:1;min-width:200px}
 @media(max-width:700px){.teamAttachAgentForm{grid-template-columns:1fr}.teamWorkspaceFullWidth{padding:16px 14px 56px}}
@@ -72,7 +73,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 <div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">MEMBERS</span><h2><?=count($members)?> people</h2></div></div>
 <?php foreach($members as $m):?><div class="sessionRow"><a class="profileMini" href="<?=h(profile_path((string)$m['username']))?>"><?=app_shell_avatar($m,'teamMiniAvatar')?><span><strong><?=h($m['display_name'])?></strong><small>@<?=h($m['username'])?> · <?=h(ucfirst($m['role']))?></small></span></a>
 <?php if($isOwner&&(int)$m['id']!==(int)$team['owner_user_id']):?><div class="inlineActions"><form method="post" class="inlineForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="role"><input type="hidden" name="member_id" value="<?=h((string)$m['id'])?>"><select name="role"><option value="admin" <?=$m['role']==='admin'?'selected':''?>>Admin</option><option value="researcher" <?=$m['role']==='researcher'?'selected':''?>>Researcher</option><option value="viewer" <?=$m['role']==='viewer'?'selected':''?>>Viewer</option></select><button class="button secondary">Save</button></form><form method="post" onsubmit="return confirm('Remove this member from the team?')"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="remove"><input type="hidden" name="member_id" value="<?=h((string)$m['id'])?>"><button class="button secondary">Remove</button></form></div><?php endif?></div><?php endforeach?>
-<?php if($canManage):?><details class="card teamMemberAdd"><summary>Add a member</summary><form method="post" class="teamMemberAddForm"><?=csrf_field()?><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="Existing Annotated username"></label><button class="button">Add member</button></form></details><?php endif?>
+<?php if($canManage):?><section class="teamMemberAdd" aria-labelledby="teamMemberAddHeading"><h3 id="teamMemberAddHeading">Add a member</h3><p class="meta">Invite an existing Annotated user by username.</p><form method="post" class="teamMemberAddForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required autocomplete="off" placeholder="Enter username"></label><button class="button" type="submit">Add member</button></form></section><?php endif?>
 </div>
 
 <section class="card teamAttachAgent" id="team-agent-attachment" aria-labelledby="attachResearchAgentHeading">
@@ -82,7 +83,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
   <?php if($isOwner):?>
     <?php if($assignable):?>
     <form method="post" class="teamAttachAgentForm">
-      <?=csrf_field()?>
+      <input type="hidden" name="csrf" value="<?=h(csrf_token())?>">
       <input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>">
       <input type="hidden" name="op" value="assign_agent">
       <label>Choose one of your available Research Agents
@@ -115,8 +116,8 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 <a class="button secondary" href="<?=h(research_agent_shell_href($resource,'library'))?>">Library</a>
 <a class="button secondary" href="<?=h(research_agent_shell_href($resource,'reports'))?>">Reports</a>
 </div>
-<?php if($isOwner&&(int)$resource['owner_user_id']===(int)$u['id']):?><form method="post" onsubmit="return confirm('Remove Team access to this Agent, Desktop, Library and its conversation?')"><?=csrf_field()?><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="unassign_agent"><input type="hidden" name="agent_id" value="<?=h((string)$resource['public_id'])?>"><button class="button secondary">Remove from Team</button></form><?php endif?></article><?php endforeach?>
-<?php if(!$resources):?><div class="card empty">No shared Research Agents yet. The Team owner can assign Agents they own.</div><?php endif?></div>
+<?php if($isOwner&&(int)$resource['owner_user_id']===(int)$u['id']):?><form method="post" onsubmit="return confirm('Remove Team access to this Agent, Desktop, Library and its conversation?')"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="unassign_agent"><input type="hidden" name="agent_id" value="<?=h((string)$resource['public_id'])?>"><button class="button secondary">Remove from Team</button></form><?php endif?></article><?php endforeach?>
+<?php if(!$resources):?><div class="card empty">No Research Agents attached. Your Team can still collaborate without an Agent; the owner may attach an eligible Agent at any time.</div><?php endif?></div>
 <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM RESEARCH</span><h2>Projects</h2></div><a href="/research.php">All Research</a></div>
 <div class="sourceGrid"><?php foreach($projects as $p):?><a class="card sourceCard" href="/research-project.php?id=<?=h($p['public_id'])?>"><span class="meta"><?=h(ucfirst((string)$p['status']))?> · updated <?=h((string)$p['updated_at'])?></span><h3><?=h($p['title'])?></h3><?php if($p['description']):?><p><?=h(mb_substr((string)$p['description'],0,220))?></p><?php endif?></a><?php endforeach?><?php if(!$projects):?><div class="card empty">No team Research projects yet.</div><?php endif?></div>
 
