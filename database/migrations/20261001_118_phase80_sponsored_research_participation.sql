@@ -68,6 +68,28 @@ CREATE TABLE IF NOT EXISTS sponsored_research_participations (
   CONSTRAINT fk_sponsored_participation_terms FOREIGN KEY(terms_id) REFERENCES sponsored_research_campaign_terms(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS sponsored_research_participation_acceptances (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  public_id VARCHAR(40) NOT NULL UNIQUE,
+  participation_id BIGINT UNSIGNED NOT NULL,
+  campaign_id BIGINT UNSIGNED NOT NULL,
+  researcher_user_id BIGINT UNSIGNED NOT NULL,
+  terms_id BIGINT UNSIGNED NOT NULL,
+  campaign_revision INT UNSIGNED NOT NULL,
+  eligibility_snapshot_json JSON NOT NULL,
+  conflict_disclosure TEXT NULL,
+  nda_accepted TINYINT(1) NOT NULL DEFAULT 0,
+  sponsorship_disclosure_acknowledged TINYINT(1) NOT NULL DEFAULT 0,
+  accepted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_sponsored_acceptance_participation(participation_id,accepted_at,id),
+  INDEX idx_sponsored_acceptance_campaign(campaign_id,accepted_at,id),
+  INDEX idx_sponsored_acceptance_researcher(researcher_user_id,accepted_at,id),
+  CONSTRAINT fk_sponsored_acceptance_participation FOREIGN KEY(participation_id) REFERENCES sponsored_research_participations(id) ON DELETE CASCADE,
+  CONSTRAINT fk_sponsored_acceptance_campaign FOREIGN KEY(campaign_id) REFERENCES sponsored_research_campaigns(id) ON DELETE CASCADE,
+  CONSTRAINT fk_sponsored_acceptance_researcher FOREIGN KEY(researcher_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_sponsored_acceptance_terms FOREIGN KEY(terms_id) REFERENCES sponsored_research_campaign_terms(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS sponsored_research_participation_events (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   public_id VARCHAR(40) NOT NULL UNIQUE,
