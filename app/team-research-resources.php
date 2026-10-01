@@ -113,7 +113,7 @@ function team_research_assign(PDO $pdo,array $team,array $viewer,string $agentPu
         // Sponsored assignments have separate confidentiality and compensation obligations.
         $sponsor=$pdo->prepare("SELECT 1 FROM sponsored_research_agent_assignments WHERE research_agent_id=? LIMIT 1");
         $sponsor->execute([(int)$agent['id']]);
-        if($sponsor->fetchColumn())throw new RuntimeException('Research Agents with a past or current Sponsored Research assignment cannot share their historical private conversation with a Team without an explicit sponsored collaboration agreement.');
+        if($sponsor->fetchColumn())throw new RuntimeException('Sponsored Research Agents cannot be shared with a Team without an explicit sponsored collaboration agreement. This also applies after withdrawal or removal to preserve historical private conversations.');
         $other=$pdo->prepare("SELECT COUNT(*) FROM research_agents WHERE project_id=? AND id<>? AND status<>'archived'");
         $other->execute([(int)$agent['project_id'],(int)$agent['id']]);
         if((int)$other->fetchColumn()>0)
