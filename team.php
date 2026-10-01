@@ -61,7 +61,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 .teamAttachAgentConfirmation{grid-column:1/-1;display:flex;align-items:flex-start;gap:9px;font-size:.91rem;line-height:1.5}
 .teamAttachAgentConfirmation input{flex:none;margin-top:5px}
 .teamMemberAdd{margin:18px 0 0;padding:14px 18px}
-.teamMemberAdd summary{cursor:pointer;font-weight:650}
+.teamMemberAdd h3{margin:0 0 4px;font-size:1rem}
 .teamMemberAddForm{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding-top:12px}
 .teamMemberAddForm label{flex:1;min-width:200px}
 @media(max-width:700px){.teamAttachAgentForm{grid-template-columns:1fr}.teamWorkspaceFullWidth{padding:16px 14px 56px}}
@@ -72,7 +72,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 <div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">MEMBERS</span><h2><?=count($members)?> people</h2></div></div>
 <?php foreach($members as $m):?><div class="sessionRow"><a class="profileMini" href="<?=h(profile_path((string)$m['username']))?>"><?=app_shell_avatar($m,'teamMiniAvatar')?><span><strong><?=h($m['display_name'])?></strong><small>@<?=h($m['username'])?> · <?=h(ucfirst($m['role']))?></small></span></a>
 <?php if($isOwner&&(int)$m['id']!==(int)$team['owner_user_id']):?><div class="inlineActions"><form method="post" class="inlineForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="role"><input type="hidden" name="member_id" value="<?=h((string)$m['id'])?>"><select name="role"><option value="admin" <?=$m['role']==='admin'?'selected':''?>>Admin</option><option value="researcher" <?=$m['role']==='researcher'?'selected':''?>>Researcher</option><option value="viewer" <?=$m['role']==='viewer'?'selected':''?>>Viewer</option></select><button class="button secondary">Save</button></form><form method="post" onsubmit="return confirm('Remove this member from the team?')"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="remove"><input type="hidden" name="member_id" value="<?=h((string)$m['id'])?>"><button class="button secondary">Remove</button></form></div><?php endif?></div><?php endforeach?>
-<?php if($canManage):?><details class="card teamMemberAdd"><summary>Add a member</summary><form method="post" class="teamMemberAddForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="Existing Annotated username"></label><button class="button">Add member</button></form></details><?php endif?>
+<?php if($canManage):?><div class="teamMemberAdd"><h3>Add a member</h3><p class="meta">Invite an existing Annotated user by username.</p><form method="post" class="teamMemberAddForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="Existing Annotated username" autocomplete="off"></label><button class="button" type="submit">Add member</button></form></div><?php endif?>
 </div>
 
 <section class="card teamAttachAgent" id="team-agent-attachment" aria-labelledby="attachResearchAgentHeading">
