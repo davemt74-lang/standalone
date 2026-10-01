@@ -134,3 +134,56 @@ function team_research_unassign(PDO $pdo,array $team,array $viewer,string $agent
         $pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
+
+/**
+ * Section 1: use the canonical Agent Project and its existing workspace ACL.
+ * Never infer Team access from the caller-supplied Team ID alone.
+ */
+function team_research_collaboration_project(PDO $pdo,array $viewer,int $teamId,string $agentPublicId,bool $write=false): array {
+    $q=$pdo->prepare("SELECT rp.id project_id,rp.public_id project_public_id,
+      ra.public_id agent_public_id,ra.conversation_id,tm.role member_role
+      FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=?
+      JOIN research_agents ra ON ra.team_id=t.id AND ra.public_id=? AND ra.status<>'archived'
+      JOIN research_projects rp ON rp.id=ra.project_id AND rp.team_id=t.id AND rp.status<>'archived'
+      WHERE t.id=? LIMIT 1");
+    $q->execute([(int)$viewer['id'],trim($agentPublicId),$teamId]);$scoped=$q->fetch();
+    if(!$scoped)throw new RuntimeException('This Research Agent is not assigned to your Team.');
+    $project=research_agent_workspace_project($pdo,$viewer,(string)$scoped['agent_public_id']);
+    if(!$project||(int)$project['id']!==(int)$scoped['project_id'])
+        throw new RuntimeException('The Team Research workspace is unavailable.');
+    if($write)research_agent_workspace_require_write($project);
+    return $project;
+}
+function team_research_collaboration_create_document(PDO $pdo,array $viewer,int $teamId,string $agentPublicId,array $input): array {
+    $project=team_research_collaboration_project($pdo,$viewer,$teamId,$agentPublicId,true);
+    $title=mb_substr(trim((string)($input['title']??'')),0,240);
+    if($title==='')throw new InvalidArgumentException('Document title is required.');
+    $body=trim((string)($input['body']??''));
+    if($body==='')throw new InvalidArgumentException('Add your research notes before saving.');
+    if(mb_strlen($body)>50000)throw new InvalidArgumentException('Research notes must be 50,000 characters or fewer.');
+    return research_agent_workspace_create_document($pdo,$viewer,$project,[
+        'title'=>$title,'body'=>$body,'document_type'=>'document'
+    ]);
+}
+function team_research_collaboration_recent(PDO $pdo,array $viewer,int $teamId,int $limit=18): array {
+    // A removed member must not see contributions through a stale browser session.
+    $q=$pdo->prepare('SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1');
+    $q->execute([$teamId,(int)$viewer['id']]);
+    if(!$q->fetchColumn())return [];
+    $limit=max(1,min(40,$limit));
+    $q=$pdo->prepare("SELECT rwo.public_id,rwo.object_type,rwo.title,rwo.updated_at,
+      u.display_name contributor_name,u.username contributor_username,
+      COALESCE(editor.display_name,u.display_name) last_editor_name,
+      ra.public_id agent_public_id,ra.name agent_name,c.public_id conversation_public_id,
+      rwd.summary document_summary,rwd.revision_number
+      FROM research_workspace_objects rwo
+      JOIN research_projects rp ON rp.id=rwo.project_id AND rp.team_id=?
+      JOIN research_agents ra ON ra.project_id=rp.id AND ra.team_id=? AND ra.status<>'archived'
+      JOIN conversations c ON c.id=ra.conversation_id
+      JOIN users u ON u.id=rwo.created_by_user_id
+      LEFT JOIN research_workspace_documents rwd ON rwd.object_id=rwo.id
+      LEFT JOIN users editor ON editor.id=rwd.last_edited_by_user_id
+      WHERE rwo.status='active' AND rwo.object_type IN ('document','bookmark','upload','recording')
+      ORDER BY rwo.updated_at DESC,rwo.id DESC LIMIT ".$limit);
+    $q->execute([$teamId,$teamId]);return $q->fetchAll()?:[];
+}
