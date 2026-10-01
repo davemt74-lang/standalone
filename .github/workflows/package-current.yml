@@ -1,0 +1,10 @@
+name: Package merged Annotated build
+on:
+  push:
+    branches:
+      - chatgpt/package-2504f437
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
