@@ -24,8 +24,11 @@ $workspace=$read('app/sponsored-project-workspace.php');
 $notifications=$read('app/notifications.php');
 $check(str_contains($chat,"function agent_chat_context_item(")&&str_contains($chat,"function agent_chat_context_normalize("),
     'Selected Agent Chat context is already permission-revalidated.');
-$check(!preg_match("/if\\s*\\(\\s*\\$"."type\\s*===\\s*['\\\"]sponsored_project['\\\"]/",$chat),
-    'The audit does not falsely mark a selected Sponsored Project context as already built.');
+$bIsPresent=is_file($root.'/app/sponsored-agent-awareness.php');
+if($bIsPresent)$check(str_contains($chat,"if(\$type==='sponsored_project')")&&str_contains($chat,'sponsored_agent_awareness_project_context('),
+    'Section 4B fulfills the audited selected Sponsored Project context gap through its canonical adapter.');
+else $check(!preg_match("/if\\s*\\(\\s*\\$"."type\\s*===\\s*['\\\"]sponsored_project['\\\"]/",$chat),
+    'Before Section 4B the audited Sponsored Project context remains an explicit gap.');
 $registry=substr($actions,strpos($actions,'function agent_action_capabilities(): array {'),strpos($actions,'function agent_action_capability_prompt(): string {')-strpos($actions,'function agent_action_capabilities(): array {'));
 $check(!str_contains($registry,"'sponsored.")&&!str_contains($registry,"'sponsored_research."),
     'Existing Agent action registry has no dedicated Sponsored Project write capabilities.');

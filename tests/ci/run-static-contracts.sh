@@ -108,4 +108,5 @@ php tests/sponsored-project-detail-contract.php
 php tests/sponsored-project-builder-review-contract.php
 php tests/sponsored-project-workspace-review-contract.php
 php tests/sponsored-agent-integration-4a-contract.php
+php tests/sponsored-agent-awareness-4b-contract.php
 php tests/extension-release-manager-contract.php

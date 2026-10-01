@@ -111,9 +111,9 @@ function team_research_assign(PDO $pdo,array $team,array $viewer,string $agentPu
         if($agent['team_id']!==null||$agent['project_team_id']!==null)
             throw new RuntimeException('This Agent or its workspace is already Team-assigned.');
         // Sponsored assignments have separate confidentiality and compensation obligations.
-        $sponsor=$pdo->prepare("SELECT 1 FROM sponsored_research_agent_assignments WHERE research_agent_id=? AND status IN ('active','paused','completed') LIMIT 1");
+        $sponsor=$pdo->prepare("SELECT 1 FROM sponsored_research_agent_assignments WHERE research_agent_id=? LIMIT 1");
         $sponsor->execute([(int)$agent['id']]);
-        if($sponsor->fetchColumn())throw new RuntimeException('Sponsored Research Agents cannot be shared with a Team without an explicit sponsored collaboration agreement.');
+        if($sponsor->fetchColumn())throw new RuntimeException('Sponsored Research Agents cannot be shared with a Team without an explicit sponsored collaboration agreement. This applies to any past or current Sponsored Research assignment, including withdrawal or removal, to protect historical private conversations.');
         $other=$pdo->prepare("SELECT COUNT(*) FROM research_agents WHERE project_id=? AND id<>? AND status<>'archived'");
         $other->execute([(int)$agent['project_id'],(int)$agent['id']]);
         if((int)$other->fetchColumn()>0)
