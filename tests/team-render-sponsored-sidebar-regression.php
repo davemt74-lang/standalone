@@ -35,11 +35,21 @@ $resources=[['id'=>21,'public_id'=>'agent-21','name'=>'Sample Agent','project_ti
 $assignable=[['public_id'=>'agent-22','name'=>'Unassigned personal Agent','project_title'=>'Personal Project']];
 $projects=[['public_id'=>'project-5','title'=>'Team Research Project','description'=>'Description','status'=>'active','updated_at'=>'2026-10-01']];
 $annotations=[['public_id'=>'annotation-5']];
+$canContributeResearch=true;
+$teamRecentResearch=[['public_id'=>'document-8','object_type'=>'document','title'=>'Evidence review','updated_at'=>'2026-10-01','contributor_name'=>'Researcher','last_editor_name'=>'Owner','agent_name'=>'Sample Agent','agent_public_id'=>'agent-21','conversation_public_id'=>'chat-21','document_summary'=>'Key research findings']];
 $teamHtml=renderTemplate(pageMarkup('team.php'));
-foreach(['Add a member','name="csrf"','name="username"','Attach Research Agent','name="agent_id"','Assigned Research Agents, Desktops','Projects','Recent annotations','Remove from Team','</main>'] as $needle)
+foreach(['Add a member','name="csrf"','name="username"','Attach Research Agent','name="agent_id"','Assigned Research Agents, Desktops','Team Research Contributions','Add research to Team Library','Evidence review','Added by Researcher','Projects','Recent annotations','Remove from Team','</main>'] as $needle)
     checkRender(str_contains($teamHtml,$needle),'team.php missing '.$needle);
 checkRender(strpos($teamHtml,'Attach Research Agent')<strpos($teamHtml,'Recent annotations'),'Team page cuts off content below member card.');
 checkRender(!str_contains($teamHtml,'<aside>'),'Team page must not restore old right sidebar.');
+$canContributeResearch=false;
+$viewerHtml=renderTemplate(pageMarkup('team.php'));
+checkRender(str_contains($viewerHtml,'view-only'),'Viewer must see explicit read-only collaboration status.');
+checkRender(!str_contains($viewerHtml,'name="body"'),'Viewer must not receive a research document composer.');
+$resources=[];$teamRecentResearch=[];
+$unassignedHtml=renderTemplate(pageMarkup('team.php'));
+checkRender(str_contains($unassignedHtml,'Attaching an Agent is optional'),'Teams without Agents must still render and remain usable.');
+$canContributeResearch=true;
 $agentId='agent-22';
 $agent=['public_id'=>'agent-22','name'=>'Unassigned personal Agent','visibility'=>'private','status'=>'active','monitoring_cadence'=>'daily','profile_image_url'=>'','description'=>'Research purpose'];
 $project=['title'=>'Personal Research','description'=>'Private project'];
