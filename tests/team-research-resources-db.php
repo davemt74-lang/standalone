@@ -41,6 +41,15 @@ $forged=['id'=>$teamId,'owner_user_id'=>(int)$outsider['id'],'access_role'=>'own
 try{team_research_assign($pdo,$forged,$outsider,$agentPublic);}catch(RuntimeException $e){$denied=true;}
 checkTeam($denied,'Forged owner context cannot assign a different user’s Agent.');
 team_research_assign($pdo,$team,$owner,$agentPublic);
+$shared=team_research_resources($pdo,$teamId);
+checkTeam(count($shared)===1&&(string)$shared[0]['conversation_public_id']===$convPublic,'Shared Team resource includes canonical Agent conversation.');
+checkTeam(str_contains(research_agent_shell_href($shared[0],'chat'),'/home.php?agent='),
+    'Team Agent Chat opens the selected canonical conversation.');
+checkTeam(str_contains(research_agent_shell_href($shared[0],'desktop'),'workspace=desktop')&&
+    str_contains(research_agent_shell_href($shared[0],'library'),'workspace=library'),
+    'Team Desktop and Library open the selected Agent workspace.');
+checkTeam(str_contains(research_agent_shell_href($shared[0],'reports'),'/research-reports.php?agent='),
+    'Team Report Studio remains linked to the selected Agent.');
 checkTeam((int)$pdo->query('SELECT team_id FROM research_agents WHERE public_id='.$pdo->quote($agentPublic))->fetchColumn()===$teamId,'Agent uses canonical Team assignment.');
 checkTeam((int)$pdo->query('SELECT team_id FROM research_projects WHERE public_id='.$pdo->quote($projectPublic))->fetchColumn()===$teamId,'Desktop and Library use canonical Team Project.');
 $q=$pdo->prepare('SELECT user_id,member_role FROM conversation_members WHERE conversation_id=?');$q->execute([$conversationId]);$members=[];foreach($q->fetchAll() as $m)$members[(int)$m['user_id']]=$m['member_role'];
