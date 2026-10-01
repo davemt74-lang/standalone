@@ -21,7 +21,7 @@ function extension_release_manifest_validate(array $m): array {
     $version=(string)($m['version']??'');
     if(!preg_match('/^(?:0|[1-9][0-9]*)(?:\\.(?:0|[1-9][0-9]*)){1,3}$/D',$version)||strlen($version)>32)
         throw new InvalidArgumentException('manifest.json must contain a valid numeric extension version.');
-    if(trim((string)($m['name']??''))==='')throw new InvalidArgumentException('Extension name is required.');
+    if(trim((string)($m['name']??''))!=='Annotated')throw new InvalidArgumentException('The package must identify the Annotated Chrome extension.');
     $min=(string)($m['minimum_chrome_version']??'');
     if($min!==''&&!preg_match('/^[0-9]{2,4}(?:\\.[0-9]+){0,3}$/D',$min))
         throw new InvalidArgumentException('Minimum Chrome version is malformed.');
@@ -58,12 +58,13 @@ function extension_release_zip_inspect(string $file): array {
             $size=(int)($stat['size']??0);$compressed=(int)($stat['comp_size']??0);
             $expanded+=$size;if($expanded>100*1024*1024||$size>35*1024*1024)
                 throw new InvalidArgumentException('Extension ZIP exceeds the safe expanded-size limit.');
-            if($size>1*1024*1024&&$compressed>0&&$size/$compressed>300)
+            if($size>1*1024*1024&&($compressed<=0||$size/$compressed>300))
                 throw new InvalidArgumentException('Extension ZIP contains an excessive compression ratio.');
             $ops=0;$attrs=0;if($zip->getExternalAttributesIndex($i,$ops,$attrs)){
                 if((($attrs>>16)&0170000)===0120000)
                     throw new InvalidArgumentException('ZIP symlinks are not permitted.');
             }
+            if(!empty($stat['encryption_method']))throw new InvalidArgumentException('Encrypted extension ZIP entries are not supported.');
             if($name==='manifest.json'){
                 if($size>256*1024)throw new InvalidArgumentException('Manifest file is too large.');
                 $manifestData=$zip->getFromIndex($i);
@@ -75,7 +76,7 @@ function extension_release_zip_inspect(string $file): array {
         }
         if(!is_array($decoded))throw new InvalidArgumentException('Extension manifest must be an object.');
         $manifest=extension_release_manifest_validate($decoded);
-        foreach(['sidepanel.html','service-worker.js'] as $required)
+        foreach(['sidepanel.html','service-worker.js','content.js','sidepanel-state.js','sidepanel.js','options.html'] as $required)
             if(!isset($names[$required]))throw new InvalidArgumentException('Extension ZIP is missing '.$required.'.');
         if(($decoded['background']['service_worker']??null)!=='service-worker.js'||
            ($decoded['side_panel']['default_path']??null)!=='sidepanel.html')
