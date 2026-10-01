@@ -5,7 +5,7 @@ $m='database/migrations/20261001_120_phase80_sponsored_research_review.sql';
 foreach(['sponsored_research_review_cases','sponsored_research_review_assignments','sponsored_research_review_responses','sponsored_research_disputes','sponsored_research_review_events','blind_review','criteria_hash','compensation_eligible'] as $n)$need($m,$n,'Migration 120 missing '.$n);
 foreach(['function sponsored_research_review_open','function sponsored_research_review_assign','function sponsored_research_review_assignment_for','function sponsored_research_review_respond','function sponsored_research_review_decide','function sponsored_research_dispute_open','function sponsored_research_dispute_resolve'] as $n)$need('app/sponsored-research-reviews.php',$n,'Sponsored review runtime missing '.$n);
 $need('app/sponsored-research-reviews.php',"'Anonymous Researcher'",'Blind review must mask researcher identity.');
-$need('app/sponsored-research-reviews.php',"unset($snapshot['researcher_user_id']",'Blind review must redact researcher identity from frozen snapshot.');
+$need('app/sponsored-research-reviews.php',"unset(\$snapshot['researcher_user_id']",'Blind review must redact researcher identity from frozen snapshot.');
 $need('app/sponsored-research-reviews.php',"status='disputed',compensation_eligible=0",'Dispute must place accepted compensation eligibility on hold.');
 $need('app/sponsored-research-reviews.php','All assigned reviewers must respond or be recused before a final decision.','Final decision must not bypass assigned reviewers.');
 $need('app/bootstrap.php',"'/sponsored-research-reviews.php'",'Sponsored review runtime must load through bootstrap.');
