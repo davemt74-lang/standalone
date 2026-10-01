@@ -34,9 +34,10 @@ $submission=sponsored_research_submission_submit($pdo,$researcher,(string)$draft
 $res=sponsored_research_compensation_reserve($pdo,$sponsor,(string)$submission['public_id'],50000);
 p80s6($res['status']==='reserved'&&(int)$res['gross_amount_cents']===50000&&(int)$res['platform_fee_bps']===1000,'Sponsor reserves gross compensation with the platform fee policy frozen at reservation time.');
 $bal=sponsored_research_finance_campaign_balances($pdo,(int)$campaign['id'],'USD');p80s6((int)$bal['campaign_available']===50000&&(int)$bal['campaign_reserved']===50000,'Reservation moves funds from available to reserved without changing total funded value.');
-$over=false;try{sponsored_research_compensation_reserve($pdo,$sponsor,(string)$submission['public_id'],90000);}catch(Throwable $e){} // idempotent existing reservation
-// Create a second submission is not allowed per participation; validate available balance directly instead.
-p80s6((int)$bal['campaign_available']<90000,'Available balance prevents over-commitment of funded campaign money.');
+sponsored_research_compensation_release($pdo,$sponsor,(string)$submission['public_id'],'Adjust compensation before review.');
+$bal=sponsored_research_finance_campaign_balances($pdo,(int)$campaign['id'],'USD');p80s6((int)$bal['campaign_available']===100000&&(int)$bal['campaign_reserved']===0,'Released reservation restores campaign available balance without deleting ledger history.');
+$over=false;try{sponsored_research_compensation_reserve($pdo,$sponsor,(string)$submission['public_id'],120000);}catch(RuntimeException $e){$over=true;}p80s6($over,'Funded balance and campaign budget prevent over-reservation.');
+$res=sponsored_research_compensation_reserve($pdo,$sponsor,(string)$submission['public_id'],50000);p80s6($res['status']==='reserved'&&(int)$res['gross_amount_cents']===50000,'Released reservation row can be safely re-reserved for the same submission.');
 
 $case=sponsored_research_review_open($pdo,$sponsor,(string)$submission['public_id'],['blind_review'=>true]);
 $case=sponsored_research_review_decide($pdo,$sponsor,(string)$case['public_id'],'accepted','Accepted for compensation.');
@@ -61,6 +62,6 @@ p80s6((int)$wallet['USD']['pending_cents']===0&&(int)$wallet['USD']['held_cents'
 p80s6((int)$bal['campaign_available']===100000&&(int)$bal['platform_fee']===0,'Reversal restores gross funds to campaign available balance and reverses platform fee.');
 $final=sponsored_research_review_case_get($pdo,(string)$case['public_id']);p80s6((int)$final['compensation_eligible']===0,'Reversed compensation is no longer payout-eligible.');
 
-$q=$pdo->prepare('SELECT COUNT(*) FROM sponsored_research_financial_transactions WHERE campaign_id=?');$q->execute([(int)$campaign['id']]);p80s6((int)$q->fetchColumn()===6,'Funding, reservation, settlement, hold, release and reversal remain as six immutable financial transactions.');
+$q=$pdo->prepare('SELECT COUNT(*) FROM sponsored_research_financial_transactions WHERE campaign_id=?');$q->execute([(int)$campaign['id']]);p80s6((int)$q->fetchColumn()===8,'Funding, two reservations, reservation release, settlement, dispute hold/release and reversal remain as eight immutable financial transactions.');
 
 echo "Phase 80 Section 6 Compensation, Earnings & Financial Ledger database journey passed.\n";
