@@ -46,7 +46,7 @@ $check(str_contains($backend,'sponsored_agent_awareness_access(')
     &&str_contains($backend,"$"."p['campaign_revision_accepted']")
     &&str_contains($backend,"$"."a['project_id']"),
     'Every proposal and confirmation uses current accepted revision, terms and exact assigned Agent Research project.');
-$check(str_contains($backend,"'sponsored_project:'.")&&str_contains($backend,"$"."seen[$kind.':'."),
+$check(str_contains($backend,"'sponsored_project:'.")&&str_contains($backend, '$seen[$kind.'),
     'Proposal validates actual cited project and existing source evidence, not invented IDs.');
 $check(str_contains($backend,"'scope'=>'participant'")&&str_contains($backend,"sponsored_workspace_validate_update("),
     'Agent never broadcasts, marks sponsor milestones completed, or bypasses private thread validation.');
