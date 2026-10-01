@@ -1,0 +1,10 @@
+name: Sponsored Agent Awareness PR252 Deploy
+on:
+  push:
+    branches:
+      - chatgpt/sponsored-awareness-pr252-deploy-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
