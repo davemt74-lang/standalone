@@ -1,7 +1,16 @@
-Options -MultiViews
+Options -MultiViews -Indexes
 RewriteEngine On
 
-# Existing files and directories always win.
+# V1 HTTP boundary: private libraries, CLI workers, migrations, internal docs
+# and tests are bundled for PHP/CLI only. Deny before existing-file bypass.
+RewriteRule ^reset-admin\.php$ - [F,L,NC]
+RewriteRule ^(?:app|bin|database|docs|tests|worker|storage)(?:/|$) - [F,L,NC]
+RewriteRule (^|/)\.(?:git|github|env|svn|hg)(?:/|$|\.) - [F,L,NC]
+RewriteRule ^(?:README|AUDIT)\.md$ - [F,L,NC]
+RewriteRule ^admin-password-reset\.enable$ - [F,L,NC]
+
+# Existing public files and directories must still work (API, CSS, avatars,
+# extension manifest and public pages).
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
