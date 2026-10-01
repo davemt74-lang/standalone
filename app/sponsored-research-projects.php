@@ -125,7 +125,7 @@ function sponsored_research_project_assignment_update(PDO $pdo,array $viewer,str
     $q=$pdo->prepare('SELECT * FROM sponsored_research_task_assignments WHERE id=?');$q->execute([(int)$a['id']]);return $q->fetch()?:[];
 }
 function sponsored_research_task_ref_exists(PDO $pdo,array $viewer,string $type,string $publicId): bool {
-    if(in_array($type,['annotation','claim','finding','report_version'],true))return data_object_descriptor($pdo,$type,$publicId)!==null;
+    if(in_array($type,['annotation','claim','finding','report_version'],true)){$d=data_object_descriptor($pdo,$type,$publicId);return $d!==null&&(int)($d['contributor_user_id']??0)===(int)$viewer['id'];}
     if($type==='source')return source_access($pdo,$publicId,$viewer)!==null;
     if($type==='mission')return research_mission_access($pdo,$viewer,$publicId)!==null;
     if($type==='dataset')return data_dataset_get($pdo,$publicId)!==null;
