@@ -23,6 +23,7 @@ $submissions=sponsored_workspace_submission_summaries($pdo,$access,$viewer,50);
 $updates=sponsored_workspace_recent($pdo,$access,$viewer,75);
 $specs=$sample?sponsored_project_detail_sample_builder_specs((string)$campaign['public_id'],sponsored_project_detail_sample_specs((string)$campaign['public_id']))
     :sponsored_project_builder_normalize($campaign['project_specs']??($campaign['project_specs_json']??null),$campaign['submission_deadline']??null);
+$milestoneStates=$sample?array_fill(0,count($specs['milestones']),'sample preview'):sponsored_workspace_milestone_states($specs['milestones'],$updates);
 $agent=$role==='researcher'?research_agent_access($pdo,$viewer,(string)$access['assignment']['research_agent_public_id']):null;
 $canPost=!in_array((string)($campaign['status']??''),['completed','cancelled','archived'],true)
     &&($role==='sponsor'||($role==='researcher'&&
@@ -108,6 +109,7 @@ $title=(string)$campaign['title'];
 <?php foreach($specs['milestones'] as $i=>$m):?><div class="sponsoredWorkspaceCheckpoint">
 <span class="meta">M<?=h((string)($i+1))?><?=!empty($m['due_date'])?' · '.h((string)$m['due_date']):''?></span>
 <strong><?=h((string)$m['title'])?></strong>
+<span class="sponsoredWorkspaceMilestoneState"><?=h(ucwords(str_replace('_',' ',(string)$milestoneStates[$i])))?></span>
 <p><?=h((string)$m['success_criteria'])?></p></div><?php endforeach?>
 <?php endif?></section>
 <?php if($role==='sponsor'):?><section class="sponsoredDetailCard"><strong>Approved, assigned researchers</strong>
