@@ -14,6 +14,7 @@ p80s1(!research_account_is_approved($pdo,$researcher),'Pending researcher is blo
 $blocked=false;try{research_account_require_approved($pdo,$researcher);}catch(RuntimeException $e){$blocked=str_contains($e->getMessage(),'approved Research Account');}p80s1($blocked,'Canonical paid-research gate rejects unapproved users.');
 $r=research_account_admin_decide($pdo,$admin,(int)$researcher['id'],'research_account','approved','Qualified researcher.','identity');
 p80s1($r['status']==='approved'&&$r['verification_level']==='identity','Admin approval activates Research Account with verification level.');
+p80s1((int)$r['marketplace_visible']===0,'Research Account approval does not silently publish the researcher into the marketplace.');
 p80s1(research_account_is_approved($pdo,$researcher),'Approved Research Account passes paid-research eligibility.');
 $s=sponsor_account_apply($pdo,$dual,['organization_name'=>'Example Sponsor','website_url'=>'https://example.test']);
 research_account_apply($pdo,$dual,['specialties'=>'Policy','languages'=>'English']);
