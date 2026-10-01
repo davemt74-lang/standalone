@@ -17,6 +17,7 @@ function team_research_assignable(PDO $pdo,int $ownerId): array {
       WHERE ra.owner_user_id=? AND rp.owner_user_id=ra.owner_user_id AND ra.team_id IS NULL AND rp.team_id IS NULL
         AND ra.status<>'archived' AND rp.status<>'archived'
         AND NOT EXISTS (SELECT 1 FROM research_agents other WHERE other.project_id=rp.id AND other.id<>ra.id AND other.status<>'archived')
+        AND NOT EXISTS (SELECT 1 FROM sponsored_research_agent_assignments sponsor WHERE sponsor.research_agent_id=ra.id AND sponsor.status IN ('active','paused','completed'))
       ORDER BY ra.name LIMIT 100");
     $q->execute([$ownerId]);return $q->fetchAll()?:[];
 }
@@ -60,6 +61,10 @@ function team_research_assign(PDO $pdo,array $team,array $viewer,string $agentPu
             throw new RuntimeException('The Team owner may assign only Research Agents and projects they personally own.');
         if($agent['team_id']!==null||$agent['project_team_id']!==null)
             throw new RuntimeException('This Agent or its workspace is already Team-assigned.');
+        // Sponsored assignments have separate confidentiality and compensation obligations.
+        $sponsor=$pdo->prepare("SELECT 1 FROM sponsored_research_agent_assignments WHERE research_agent_id=? AND status IN ('active','paused','completed') LIMIT 1");
+        $sponsor->execute([(int)$agent['id']]);
+        if($sponsor->fetchColumn())throw new RuntimeException('Sponsored Research Agents cannot be shared with a Team without an explicit sponsored collaboration agreement.');
         $other=$pdo->prepare("SELECT COUNT(*) FROM research_agents WHERE project_id=? AND id<>? AND status<>'archived'");
         $other->execute([(int)$agent['project_id'],(int)$agent['id']]);
         if((int)$other->fetchColumn()>0)
