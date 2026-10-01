@@ -39,16 +39,16 @@ else{
         foreach($names as $name=>$body)$zip->addFromString($name,$body);
         $zip->close();
     };
-    $canonical=['manifest.json'=>json_encode($valid,JSON_THROW_ON_ERROR),'service-worker.js'=>'','sidepanel.html'=>'<html></html>'];
+    $canonical=['manifest.json'=>json_encode($valid,JSON_THROW_ON_ERROR),'service-worker.js'=>'','sidepanel.html'=>'<html></html>','content.js'=>'','sidepanel-state.js'=>'','sidepanel.js'=>'','options.html'=>'<html></html>'];
     try{
         $write($canonical);
         $m=extension_release_zip_inspect($path);
         $check($m['version']==='0.36.1','Accepts valid Annotated ZIP with root manifest and runtime files.');
-        $write(['sub/manifest.json'=>$canonical['manifest.json'],'service-worker.js'=>'','sidepanel.html'=>'']);
+        $write(array_diff_key($canonical,['manifest.json'=>true])+['sub/manifest.json'=>$canonical['manifest.json']]);
         try{extension_release_zip_inspect($path);$check(false,'Accepted a nested manifest.');}catch(InvalidArgumentException $e){}
         $write($canonical+['../outside.js'=>'']);
         try{extension_release_zip_inspect($path);$check(false,'Accepted ZIP path traversal.');}catch(InvalidArgumentException $e){}
-        $write(['manifest.json'=>$canonical['manifest.json'],'sidepanel.html'=>'']);
+        $write(array_diff_key($canonical,['service-worker.js'=>true]));
         try{extension_release_zip_inspect($path);$check(false,'Accepted ZIP missing background worker.');}catch(InvalidArgumentException $e){}
     }finally{@unlink($path);}
 }
