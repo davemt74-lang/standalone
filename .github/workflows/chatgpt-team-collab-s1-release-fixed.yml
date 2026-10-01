@@ -1,0 +1,10 @@
+name: Team Collaboration S1 Corrected Deploy
+on:
+  push:
+    branches:
+      - chatgpt/team-collab-s1-release-fixed
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
