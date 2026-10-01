@@ -93,6 +93,11 @@ checkTeam(($sharedDoc['title']??'')==='Team contributor notes','Researcher can s
 $tagged=research_agent_workspace_object($pdo,$researcher,(string)$sharedDoc['public_id'],false);
 checkTeam(($tagged['metadata']['contribution_scope']??'')==='team'&&(int)($tagged['metadata']['origin_team_id']??0)===$teamId
   &&(int)($tagged['metadata']['contributor_user_id']??0)===(int)$researcher['id'],'Team contribution origin tag and contributor remain on the canonical document.');
+
+$libraryRows=research_agent_workspace_list($pdo,$viewer,research_agent_workspace_project($pdo,$viewer,$agentPublic),false,100);
+$sharedLibraryRows=array_values(array_filter($libraryRows,fn($row)=>(string)$row['public_id']===(string)$sharedDoc['public_id']));
+checkTeam(count($sharedLibraryRows)===1&&($sharedLibraryRows[0]['contribution_tag']??'')==='Team · Team audit workspace'
+    &&!empty($sharedLibraryRows[0]['origin_team_contribution']),'Shared Team Desktop and Library API objects expose the contributor origin and current Team badge.');
 $memberAgent=research_agent_access($pdo,$viewer,$agentPublic);
 checkTeam($memberAgent!==null&&str_contains(research_agent_shell_href($memberAgent,'desktop'),'workspace=desktop')&&str_contains(research_agent_shell_href($memberAgent,'library'),'workspace=library'),'Team viewer has working entry routes to the assigned Agent Desktop and Library.');
 
