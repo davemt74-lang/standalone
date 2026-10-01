@@ -102,14 +102,16 @@ function sponsored_project_builder_normalize(mixed $input,?string $submissionDea
     ];
 }
 function sponsored_project_builder_from_post(array $input): array {
+    if(isset($input['spec_methods'])&&!is_array($input['spec_methods']))
+        throw new InvalidArgumentException('Research method selection is invalid.');
     return [
-      'target_audience'=>(string)($input['spec_target_audience']??''),
-      'geography'=>(string)($input['spec_geography']??''),
-      'scope_in'=>(string)($input['spec_scope_in']??''),
-      'scope_out'=>(string)($input['spec_scope_out']??''),
-      'methods'=>(array)($input['spec_methods']??[]),
-      'deliverables'=>(string)($input['spec_deliverables']??''),
-      'milestones'=>(string)($input['spec_milestones']??''),
+      'target_audience'=>$input['spec_target_audience']??'',
+      'geography'=>$input['spec_geography']??'',
+      'scope_in'=>$input['spec_scope_in']??'',
+      'scope_out'=>$input['spec_scope_out']??'',
+      'methods'=>$input['spec_methods']??[],
+      'deliverables'=>$input['spec_deliverables']??'',
+      'milestones'=>$input['spec_milestones']??'',
     ];
 }
 /**
