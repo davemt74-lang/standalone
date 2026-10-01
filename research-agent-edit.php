@@ -126,27 +126,28 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
   <section class="card researchAgentEditTeamPanel" id="team-assignment" aria-labelledby="teamAssignmentHeading">
     <header class="researchAgentEditTeamHeading">
       <div><span class="eyebrow">TEAM ACCESS</span><h2 id="teamAssignmentHeading">Assign to a Team</h2>
-      <p>Only you can attach this Research Agent to a Team you own. Its existing Project, Desktop, Library, research and conversation will be shared with that Team.</p></div>
+      <p>Team assignment is optional. Your Research Agent works independently unless you choose to attach it to a Team you own. Attaching shares its existing Project, Desktop, Library, research and conversation with that Team.</p></div>
     </header>
     <?php if($assignedTeam):?>
       <div class="researchAgentEditTeamAssigned"><strong>Currently attached to <?=h((string)$assignedTeam['name'])?></strong>
         <a class="button secondary" href="/team.php?id=<?=rawurlencode((string)$assignedTeam['public_id'])?>">Open Team</a></div>
       <?php if(!empty($assignedTeam['owner_member'])&&(int)$assignedTeam['owner_user_id']===(int)$u['id']):?>
         <form method="post" onsubmit="return confirm('Remove this Agent, its Desktop, Library, research and conversation from the Team?')">
-          <?=csrf_field()?><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
+          <input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
           <input type="hidden" name="op" value="unassign_team">
           <button class="button secondary" type="submit">Remove from Team</button>
         </form>
         <p class="meta">To move this Agent to another Team, remove it here and then attach it to the new Team.</p>
       <?php else:?><p class="meta">The current Team assignment needs its owner to resolve its access permissions.</p><?php endif?>
     <?php elseif(!$ownedTeams):?>
-      <p>You don't own any Teams yet.</p><a class="button secondary" href="/teams.php">Create a Team</a>
+      <p>This Agent is not assigned to a Team. It will continue working independently.</p><p>You don't own any Teams yet.</p><a class="button secondary" href="/teams.php">Create a Team</a>
     <?php elseif(!$canAttachTeam):?>
-      <p>This Agent is not currently eligible for Team sharing. Make it Private and ensure you own its Project. It also cannot share a Project with another active Agent or have an active sponsored assignment.</p>
+      <p>This Agent is not assigned to a Team and can continue working independently.</p><p>This Agent is not currently eligible for Team sharing. Make it Private and ensure you own its Project. It also cannot share a Project with another active Agent or have an active sponsored assignment.</p>
       <a class="button secondary" href="/teams.php">View my Teams</a>
     <?php else:?>
+      <p class="meta">Currently unassigned — this Agent remains yours unless you attach it below.</p>
       <form method="post" class="researchAgentEditTeamForm">
-        <?=csrf_field()?><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
+        <input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
         <input type="hidden" name="op" value="assign_team">
         <label>Choose one of your Teams
           <select name="team_id" required><option value="">Select a Team</option>
