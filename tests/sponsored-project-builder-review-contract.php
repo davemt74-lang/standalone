@@ -50,6 +50,9 @@ $expect(str_contains($model,'sponsored_project_detail_sample_builder_specs'),'Sa
 $expect(str_contains($sponsor,'sponsored_project_builder_from_post($_POST)'),'Campaign create/update must pass sanitized specification data.');
 $expect(str_contains($campaign,"'project_specs'=>")&&str_contains($campaign,'sponsored_research_campaign_snapshot('),'Project specifications must use canonical immutable campaign revisions.');
 $expect(str_contains($public,'c.project_specs_json'),'Strict operational public getter must select project specs without exposing private campaign.');
+$expect(str_contains($campaign,"'sponsored-research-participation'")&&str_contains($campaign,'sponsored_project_builder_assert_mutable('),'Specification revisions serialize with participant acceptance and preserve agreed obligations.');
+try{sponsored_project_builder_from_post(['spec_methods'=>'Desk research']);$expect(false,'Tampered scalar method input was accepted.');}catch(InvalidArgumentException $e){}
+
 $migration=(string)file_get_contents($root.'/database/migrations/20261001_128_sponsored_project_builder.sql');
 $expect(str_contains($migration,'ADD COLUMN project_specs_json'),'Migration must extend existing sponsored campaign, never add second project engine.');
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}
