@@ -6,7 +6,7 @@ $id=trim((string)($_GET['id']??$_POST['team']??''));$error='';$success='';
 $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,t.owner_user_id,t.created_at,tm.role access_role FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=? WHERE t.public_id=? LIMIT 1");
 $q->execute([$u['id'],$id]);$team=$q->fetch();
 if(!$team){http_response_code(404);exit('Team not found or access denied.');}
-$canManage=in_array($team['access_role'],['owner','admin'],true);$isOwner=$team['access_role']==='owner';
+$canManage=in_array($team['access_role'],['owner','admin'],true);$isOwner=$team['access_role']==='owner'&&(int)$team['owner_user_id']===(int)$u['id'];
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$op=(string)($_POST['op']??'');
@@ -25,8 +25,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $username=trim((string)($_POST['username']??''));
             $q=$pdo->prepare('SELECT id FROM users WHERE username=? AND status="active"');$q->execute([$username]);$uid=(int)($q->fetchColumn()?:0);
             if(!$uid)throw new RuntimeException('User not found.');
-            $pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'researcher') ON DUPLICATE KEY UPDATE user_id=user_id")->execute([$team['id'],$uid]);
-            team_research_sync_member($pdo,(int)$team['id'],$uid,true);$success='Member added.';
+            $added=team_research_add_member($pdo,$team,$u,$uid);
+            $success=$added?'Member added.':'This user is already a Team member.';
         }elseif($op==='role'){
             if(!$isOwner)throw new RuntimeException('Only the team owner can change member roles.');
             $member=(int)($_POST['member_id']??0);$role=(string)($_POST['role']??'researcher');
@@ -116,7 +116,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 <a class="button secondary" href="<?=h(research_agent_shell_href($resource,'reports'))?>">Reports</a>
 </div>
 <?php if($isOwner&&(int)$resource['owner_user_id']===(int)$u['id']):?><form method="post" onsubmit="return confirm('Remove Team access to this Agent, Desktop, Library and its conversation?')"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="unassign_agent"><input type="hidden" name="agent_id" value="<?=h((string)$resource['public_id'])?>"><button class="button secondary">Remove from Team</button></form><?php endif?></article><?php endforeach?>
-<?php if(!$resources):?><div class="card empty">No shared Research Agents yet. The Team owner can assign Agents they own.</div><?php endif?></div>
+<?php if(!$resources):?><div class="card empty">No Research Agents attached. Your Team can still collaborate without an Agent; the owner may attach an eligible Agent at any time.</div><?php endif?></div>
 <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM RESEARCH</span><h2>Projects</h2></div><a href="/research.php">All Research</a></div>
 <div class="sourceGrid"><?php foreach($projects as $p):?><a class="card sourceCard" href="/research-project.php?id=<?=h($p['public_id'])?>"><span class="meta"><?=h(ucfirst((string)$p['status']))?> · updated <?=h((string)$p['updated_at'])?></span><h3><?=h($p['title'])?></h3><?php if($p['description']):?><p><?=h(mb_substr((string)$p['description'],0,220))?></p><?php endif?></a><?php endforeach?><?php if(!$projects):?><div class="card empty">No team Research projects yet.</div><?php endif?></div>
 
