@@ -101,6 +101,8 @@ function research_route_surface_map(): array {
         'research-outcomes.php'=>['classification'=>'LEGACY_ROUTE','target'=>'agent.research.decisions','reason'=>'Old Decision Memory folds into Phase 71 Decisions and Outcome Memory.'],
         'research-opportunities.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsored Research opportunities are a contextual paid-research participation surface, not a competing primary Research destination.'],
         'research-earnings.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsored Research earnings are a contextual researcher finance surface, not a primary Research destination.'],
+        'research-sponsored-knowledge.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Contributor Sponsored Knowledge rights are a contextual governance surface.'],
+        'sponsored-knowledge.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsor Knowledge promotion and immutable releases remain contextual to a Sponsored Research campaign.'],
         'research-portfolio.php'=>['classification'=>'LEGACY_ROUTE','target'=>'research.home','reason'=>'Legacy Research Portfolio attention view folds into Research home; Intelligence Portfolios remain canonical.'],
         'research-programs.php'=>['classification'=>'MERGE_UI','target'=>'agent.research.recurring','reason'=>'Programs remain the recurring-research engine.'],
         'research-project.php'=>['classification'=>'LEGACY_ROUTE','target'=>'agent.chat','reason'=>'Project stays internal as the permission/data boundary; Agent becomes the primary workspace concept.'],
