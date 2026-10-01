@@ -1,0 +1,10 @@
+name: Sponsored Project Workspace PR250 Deploy
+on:
+  push:
+    branches:
+      - chatgpt/sponsored-workspace-pr250-deploy-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
