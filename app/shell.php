@@ -197,7 +197,7 @@ function app_shell_user_nav(PDO $pdo,array $user,string $path,?int $unread=null)
     $links[]=app_shell_link('/home.php','Home','⌂',$path);
     $links[]=app_shell_link('/explore.php','Explore','◎',$path);
     $links[]=app_shell_link('/teams.php','Teams','♙',$path,null,app_shell_badge($teamCount));
-    $links[]=app_shell_link('/research.php','Research','▤',$path,'/research');
+    $links[]=app_shell_link('/research.php','Research','▤',$path,$path==='/research-projects.php'?'/research.php':'/research');
     $links[]=app_shell_link('/research-projects.php','Sponsored Research','◇',$path);
     $links[]=app_shell_link('/live.php','Live','◉',$path);
     $links[]=app_shell_link('/saved.php','Saved','◇',$path,'/saved');
