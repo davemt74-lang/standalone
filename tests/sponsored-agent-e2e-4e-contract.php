@@ -24,7 +24,7 @@ $assert(str_contains($worker,'sponsored_agent_proactive_scan(')
 $assert(str_contains($map,"'4e_acceptance'"),'Canonical map describes one consolidated 4E acceptance gate.');
 $assert(str_contains($doc,'Operator activation check')
  &&str_contains($doc,'cron')
- &&str_contains($doc,'no automatic sponsor approval'),
+ &&str_contains($doc,'No automatic sponsor approval'),
  'Operator scheduling is an explicit operational release requirement, not an unproven CI claim.');
 $assert(!is_file($root.'/database/migrations/20261001_130_sponsored_agent_e2e.sql'),
  '4E adds no new task/Agent/sponsor/notification schema.');
