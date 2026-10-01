@@ -48,6 +48,7 @@ required=(
   app/research-agent-shell-ui.php assets/js/research-agent-unified-shell.js research-agent-research.php tests/phase74-section2-unified-research-agent-shell-contract.php tests/phase74-section2-unified-research-agent-shell-db.php
   app/research-agent-reports-ui.php tests/phase74-section5-unified-reports-ui-contract.php tests/phase74-section5-unified-reports-ui-db.php
   app/research-portfolios-ui.php tests/phase74-section6-portfolios-global-attention-contract.php tests/phase74-section6-portfolios-global-attention-db.php app/research-legacy-compat.php tests/phase74-section7-legacy-navigation-compatibility-contract.php tests/phase74-section7-legacy-navigation-compatibility-db.php tests/phase74-section8-end-to-end-release-contract.php tests/phase74-section8-end-to-end-release-db.php
+  admin/extension-releases.php app/extension-releases.php extension-download.php database/migrations/20261001_127_extension_release_manager.sql
   extension/manifest.json downloads/Annotated-Chrome-Extension.zip
 )
 for path in "${required[@]}"; do [[ -f "$tmp/site/$path" ]] || { echo "Missing website package file: $path" >&2; exit 1; }; done
