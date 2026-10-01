@@ -34,7 +34,7 @@ $check(str_contains($adapter,'mb_substr(implode(')&&str_contains($adapter,"'read
     'Context size bounded, read-only, and free of side-effect calls.');
 $check(str_contains($adapter,'$stale=$acceptedRevision!==$currentRevision||$termsChanged')&&str_contains($adapter,'requires_reacceptance'),
     'Updated campaign revision is flagged rather than silently accepted.');
-$check(str_contains($adapter,'sponsored_research_campaign_versions')&&str_contains($adapter,'sponsored_research_campaign_hash($snapshot)'),'Only checksum-verified accepted revision enters sponsored research context.');
+$check(str_contains($adapter,'sponsored_research_campaign_versions')&&str_contains($adapter,"$"."c['config_hash']"),'Read model validates stored immutable version lineage against live hash for accepted current revision.');
 $check(str_contains($chat,'belongs to a different assigned Research Agent'),'Selected context cannot attach another Agent\'s project to the current Agent conversation.');
 $check(!str_contains($js,'innerHTML=item.label'),'Context picker uses textContent to render untrusted project title.');
 if($failed){foreach($failed as $e)fwrite(STDERR,"FAIL: $e\n");exit(1);}
