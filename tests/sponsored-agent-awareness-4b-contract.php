@@ -36,6 +36,10 @@ $check(str_contains($adapter,'$stale=$acceptedRevision!==$currentRevision||$term
     'Updated campaign revision is flagged rather than silently accepted.');
 $check(str_contains($adapter,'sponsored_research_campaign_versions')&&str_contains($adapter,"$"."c['config_hash']"),'Read model validates stored immutable version lineage against live hash for accepted current revision.');
 $check(str_contains($chat,'belongs to a different assigned Research Agent'),'Selected context cannot attach another Agent\'s project to the current Agent conversation.');
+$check(str_contains($adapter,'function sponsored_agent_awareness_private_conversation(')&&str_contains($adapter,'conversation_members WHERE conversation_id=? AND user_id<>?')
+   &&str_contains($chat,'Sponsored Project context is available only inside your private Agent conversation.')
+   &&str_contains($chat,'sponsored_agent_awareness_private_conversation($pdo,$viewer,$conversation)'),
+   'Manual selection and automatic context injection both fail closed in non-owned or multi-member Agent conversations.');
 $check(!str_contains($js,'innerHTML=item.label'),'Context picker uses textContent to render untrusted project title.');
 if($failed){foreach($failed as $e)fwrite(STDERR,"FAIL: $e\n");exit(1);}
 echo "PASS: Sponsored Project Agent Awareness Section 4B integration/security contracts.\n";
