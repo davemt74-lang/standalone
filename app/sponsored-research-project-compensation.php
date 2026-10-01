@@ -60,11 +60,12 @@ function sponsored_project_compensation_admin_transition(PDO $pdo,array $admin,s
     ];if(!in_array($status,$allowed[$from]??[],true))throw new RuntimeException('That compensation status transition is not allowed.');
     $paymentReference=mb_substr(trim($paymentReference),0,190);$note=mb_substr(trim($note),0,12000);
     if($status==='paid'&&$paymentReference==='')throw new InvalidArgumentException('Payment reference is required when marking compensation paid.');
+    if($status==='voided'&&$note==='')throw new InvalidArgumentException('An Admin reason is required when voiding compensation.');
     $sets=["status=?","updated_by_user_id=?","admin_note=?"];$params=[$status,(int)$admin['id'],$note!==''?$note:null];
     if($status==='approved_for_payment')$sets[]='approved_at=NOW()';
     elseif($status==='paid'){$sets[]='paid_at=NOW()';$sets[]='payment_reference=?';$params[]=$paymentReference;}
     elseif($status==='voided')$sets[]='voided_at=NOW()';
-    $params[]=(int)$comp['id'];$pdo->prepare('UPDATE sponsored_research_project_compensations SET '.implode(',',$sets).' WHERE id=?')->execute($params);
+    $params[]=(int)$comp['id'];$pdo->beginTransaction();try{$pdo->prepare('UPDATE sponsored_research_project_compensations SET '.implode(',',$sets).' WHERE id=?')->execute($params);if($status==='voided'&&$from==='pending')$pdo->prepare("UPDATE sponsored_research_agent_assignments SET status='removed',agent_submit_enabled=0,removed_at=NOW() WHERE id=? AND status IN ('active','paused')")->execute([(int)$comp['assignment_id']]);$pdo->commit();}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     sponsored_project_event($pdo,(int)$comp['campaign_id'],(int)$comp['assignment_id'],$comp['accepted_submission_id']?(int)$comp['accepted_submission_id']:null,(int)$admin['id'],'project_compensation_'.$status,['compensation_public_id'=>$comp['public_id'],'from_status'=>$from,'to_status'=>$status,'payment_reference'=>$paymentReference!==''?$paymentReference:null]);
     if(function_exists('notification_create')){
       $type='research_sponsored_compensation_'.$status;$body=match($status){'approved_for_payment'=>'Your Sponsored Project compensation was approved for payment.','paid'=>'Your Sponsored Project compensation was marked paid.','voided'=>'Your Sponsored Project compensation was voided.',default=>'Your Sponsored Project compensation changed.'};
