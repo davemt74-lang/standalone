@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/app/bootstrap.php';
-$viewer=current_user($pdo);header('Cache-Control: public, max-age=60');
+$viewer=current_user($pdo);header($viewer?'Cache-Control: private, no-store':'Cache-Control: public, max-age=60');
 $query=trim((string)($_GET['q']??''));$selectedId=trim((string)($_GET['project']??''));
 $projects=sponsored_project_public_list($pdo,$query,100);$selected=$selectedId!==''?sponsored_project_public_get($pdo,$selectedId):null;
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Research Projects · Annotated</title><meta name="description" content="Browse open Sponsored Research Projects and find paid research work for qualified Annotated Research Accounts."><link rel="stylesheet" href="/assets/css/app.css"></head><body>
