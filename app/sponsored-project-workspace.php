@@ -31,6 +31,7 @@ function sponsored_workspace_access(PDO $pdo,array $viewer,string $publicId): ?a
     $participation=sponsored_research_participation_get($pdo,(int)$campaign['id'],(int)$viewer['id']);
     $assignment=sponsored_project_assignment($pdo,(int)$campaign['id'],(int)$viewer['id']);
     if(!$participation||!$assignment||
+       (int)$assignment['participation_id']!==(int)$participation['id']||
        !in_array((string)$participation['status'],['active','completed'],true)||
        !in_array((string)$assignment['status'],['active','paused','completed'],true))
         return null;
