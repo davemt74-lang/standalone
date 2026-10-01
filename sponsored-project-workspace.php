@@ -29,13 +29,14 @@ $canPost=!in_array((string)($campaign['status']??''),['completed','cancelled','a
     &&($role==='sponsor'||($role==='researcher'&&
       (string)($access['participation']['status']??'')==='active'
       &&(string)($access['assignment']['status']??'')==='active'));
+$agentOperationAvailable=$role==='researcher'&&$agent&&$canPost&&sponsored_agent_operations_handoff($pdo,$viewer,$public,(string)($agent['conversation_public_id']??''),'plan')!==null;
 $title=(string)$campaign['title'];
 ?><!doctype html><html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title><?=h($title)?> · Project Workspace · Annotated</title>
 <link rel="stylesheet" href="/assets/css/app.css">
 <link rel="stylesheet" href="/assets/css/sponsored-project-detail.css">
-<link rel="stylesheet" href="/assets/css/sponsored-project-workspace.css"></head>
+<link rel="stylesheet" href="/assets/css/sponsored-project-workspace.css"><link rel="stylesheet" href="/assets/css/sponsored-agent-operations.css"></head>
 <body class="sponsoredDetailPage">
 <main class="sponsoredDetail sponsoredWorkspace">
 <nav class="sponsoredDetailBreadcrumb" aria-label="Breadcrumb">
@@ -56,6 +57,27 @@ $title=(string)$campaign['title'];
 <?php elseif($role==='researcher'):?><div class="sponsoredWorkspaceBanner">Only sponsor-wide announcements and your own private participant thread are visible here. Your personal Agent desktop and library are not shared with the sponsor.</div><?php endif?>
 <?php if($feedback):?><div class="sponsoredWorkspaceError" role="alert"><?=h($feedback)?></div><?php endif?>
 <?php if(!empty($_GET['posted'])):?><div class="sponsoredWorkspaceSuccess" role="status">Project update recorded.</div><?php endif?>
+<?php if($agentOperationAvailable):?>
+<section class="sponsoredAgentOps" aria-labelledby="sponsored-agent-ops-heading">
+  <div class="sponsoredAgentOpsHead"><span class="sponsoredDetailEyebrow">ASSIGNED RESEARCH AGENT · GUIDED OPERATIONS</span>
+    <h2 id="sponsored-agent-ops-heading">Work on this Sponsored Project with your Agent</h2>
+    <p>Each action opens your existing personal Agent Chat with only your accepted Sponsored Project context. Tasks, plans and Report Runs require your confirmation. Project updates and final submissions remain explicit manual actions in the existing governed workflows.</p></div>
+  <div class="sponsoredAgentOpsCards">
+  <?php foreach(sponsored_agent_operations_catalog() as $operation=>$step):?>
+    <article class="sponsoredAgentOpsCard">
+      <h3><?=h((string)$step['title'])?></h3><p><?=h((string)$step['description'])?></p>
+      <a class="button secondary" href="<?=h(sponsored_agent_operations_link($agent,$public,(string)$operation))?>">Open in Agent Chat</a>
+    </article>
+  <?php endforeach?></div>
+  <div class="sponsoredAgentOpsManual">
+    <span>Final approval stays with you</span>
+    <a href="/research-sponsored-projects.php#project-<?=rawurlencode($public)?>">Review and explicitly submit ready work</a>
+    <a href="#activity">Review and publish a private progress update</a>
+  </div>
+</section>
+<?php elseif($role==='researcher'&&!$sample):?>
+<div class="sponsoredWorkspaceBanner">Agent-guided operations are read-only or unavailable until your personal Agent assignment is active and the current project terms and scope are accepted. Your existing workspace and previously submitted work remain accessible under their normal permissions.</div>
+<?php endif?>
 <div class="sponsoredWorkspaceGrid"><div class="sponsoredWorkspacePrimary">
 <section class="sponsoredDetailSection" id="activity"><div class="sponsoredDetailSectionHead"><span>PROJECT JOURNAL</span><h2>Progress and collaboration</h2></div>
 <p class="sponsoredWorkspaceIntro">An attributed history of project checkpoints and messages. Your Research Agent's source files remain in its existing governed workspace; accepted submissions are summarized below.</p>
