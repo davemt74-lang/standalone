@@ -1,0 +1,18 @@
+.spBuilder{border:1px solid #dce5eb;border-radius:13px;background:#f8fafb;margin:19px 0;overflow:hidden}
+.spBuilder>summary{cursor:pointer;padding:18px 20px;display:flex;align-items:center;background:#eef4f6;color:#243947;font-weight:720;list-style:none}
+.spBuilder>summary::-webkit-details-marker{display:none}
+.spBuilder>summary:after{content:"＋";margin-left:auto;font-size:19px;color:#4f7182}
+.spBuilder[open]>summary:after{content:"－"}
+.spBuilder>summary span{display:grid;gap:3px}
+.spBuilder>summary small{font-size:12px;font-weight:450;color:#677f8c}
+.spBuilderContent{padding:21px;display:grid;gap:15px}
+.spBuilderColumns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.spBuilderColumns>label{min-width:0}
+.spBuilder label{display:grid;gap:7px}
+.spBuilderMethods{margin:0;padding:13px;border:1px solid #dce5eb;border-radius:9px}
+.spBuilderMethods legend{font-weight:670;color:#283d48;padding:0 7px}
+.spBuilderMethodGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.spBuilderMethodGrid .spBuilderMethod{display:flex;align-items:center;gap:7px;font-size:13px}
+.spBuilder input[type=checkbox]{width:auto}
+.spBuilderNotice{background:#edf4f6;color:#385766;border-left:3px solid #7096aa;padding:11px 13px;border-radius:7px;font-size:13px;line-height:1.55}
+@media(max-width:700px){.spBuilderColumns,.spBuilderMethodGrid{grid-template-columns:minmax(0,1fr)}.spBuilderContent{padding:15px}}

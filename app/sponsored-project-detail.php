@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/sponsored-project-builder.php';
 
 /**
  * One read model for real and illustrative Sponsored Projects. Never create
@@ -25,10 +26,33 @@ function sponsored_project_detail_sample_specs(string $publicId): array {
     ];
     return $specs[$publicId]??[];
 }
+function sponsored_project_detail_sample_builder_specs(string $id,array $sampleSpec): array {
+    $audiences=[
+      'sample-market-ai-001'=>['audience'=>'Owners and operators of independent retail businesses','region'=>'United States','scope'=>'Adoption trends, operational use cases, buying decisions','methods'=>['Desk research','Interviews']],
+      'sample-energy-002'=>['audience'=>'Households considering home battery storage','region'=>'United States','scope'=>'Buyer motivations, financing and installer trust','methods'=>['Desk research','Survey']],
+      'sample-food-003'=>['audience'=>'Premium frozen pizza buyers','region'=>'United States','scope'=>'Concept preference, pricing, repeat purchases','methods'=>['Survey','Data analysis']],
+    ];
+    $data=$audiences[$id]??['audience'=>'Research participants','region'=>'Not specified','scope'=>'Illustrative research work','methods'=>['Desk research']];
+    $deliverables=[];
+    foreach((array)($sampleSpec['deliverables']??[]) as $label)$deliverables[]=[
+      'title'=>(string)$label,'format'=>'report','acceptance_criteria'=>'Illustrative deliverable: provide evidence and a documented methodology.',
+      'due_date'=>null,
+    ];
+    return sponsored_project_builder_normalize([
+      'target_audience'=>$data['audience'],'geography'=>$data['region'],'scope_in'=>$data['scope'],
+      'scope_out'=>'Out-of-scope activities are illustrative. This demonstration cannot receive work.',
+      'methods'=>$data['methods'],'deliverables'=>$deliverables,
+      'milestones'=>[
+        ['title'=>'Research plan','success_criteria'=>'Example method and source plan documented.','due_date'=>null],
+        ['title'=>'Evidence synthesis','success_criteria'=>'Illustrative findings organized for review.','due_date'=>null],
+      ],
+    ]);
+}
 function sponsored_project_detail_normalize(array $row,bool $sample=false): array {
     $sampleSpec=$sample?sponsored_project_detail_sample_specs((string)($row['public_id']??'')):[];
     $elig=sponsored_research_campaign_eligibility($row['eligibility']??($row['eligibility_json']??[]));
     $disclosures=sponsored_research_campaign_disclosures($row['disclosures']??($row['disclosure_json']??[]));
+    $builder=$sample?sponsored_project_detail_sample_builder_specs((string)($row['public_id']??''),$sampleSpec):sponsored_project_builder_normalize($row['project_specs']??($row['project_specs_json']??null),$row['submission_deadline']??null);
     $questions=[];
     foreach((array)($sampleSpec['questions']??$row['questions']??[]) as $q){
         $value=trim((string)(is_array($q)?($q['question']??''):$q));
@@ -45,6 +69,7 @@ function sponsored_project_detail_normalize(array $row,bool $sample=false): arra
       'objective'=>(string)($sampleSpec['objective']??$row['objective']??''),
       'questions'=>$questions,
       'sample_deliverables'=>(array)($sampleSpec['deliverables']??[]),
+      'project_specs'=>$builder,
       'requirements'=>(array)($row['requirements']??[]),
       'eligibility'=>$elig,
       'disclosures'=>$disclosures,

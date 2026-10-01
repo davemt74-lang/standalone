@@ -80,7 +80,7 @@ projectDetailCheck(str_contains($detail,'DEMONSTRATION · SAMPLE DATA')&&str_con
 projectDetailCheck(!str_contains($detail,"REQUEST_METHOD")&&!str_contains($detail,'sponsored_project_assign_agent('),'Public project page never mutates assignments or payments');
 projectDetailCheck(str_contains($public,'Location: /sponsored-project.php?project=')&&str_contains($public,'View sample project'),'Public discovery links and legacy redirects reach canonical detail');
 projectDetailCheck(str_contains($sponsor,'View project page')&&str_contains($researcherPage,'Project specifications'),'Sponsor and researcher flows link to project detail');
-projectDetailCheck(str_contains($runtime,'c.disclosure_json,c.created_at')&&str_contains($runtime,"\$row['disclosures']="),'Public project getter supplies accurate published disclosure choices');
+projectDetailCheck(str_contains($runtime,'c.disclosure_json,c.project_specs_json,c.created_at')&&str_contains($runtime,"\$row['disclosures']="),'Public project getter supplies accurate published disclosure choices');
 projectDetailCheck(is_file($root.'/assets/css/sponsored-project-detail.css'),'Responsive project-specific styles exist');
 if($fails){foreach($fails as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}
 echo "Sponsored Project detail access, visibility and navigation contract passed.\n";

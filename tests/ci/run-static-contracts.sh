@@ -105,4 +105,5 @@ php tests/admin-core-shell-search-samples-contract.php
 php tests/admin-core-shell-sample-render-contract.php
 php tests/sponsored-sample-visibility-contract.php
 php tests/sponsored-project-detail-contract.php
+php tests/sponsored-project-builder-review-contract.php
 php tests/extension-release-manager-contract.php
