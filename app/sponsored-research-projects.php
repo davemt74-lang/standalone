@@ -100,6 +100,20 @@ function sponsored_project_submit(PDO $pdo,array $viewer,string $campaignPublicI
     $title=mb_substr(trim($title),0,255);if($title==='')$title=(string)($snaps[0]['title']??$campaign['title'].' submission');
     $core=['campaign_public_id'=>$campaign['public_id'],'assignment_public_id'=>$a['public_id'],'research_agent_public_id'=>$a['research_agent_public_id'],'researcher_user_id'=>(int)$viewer['id'],'revision_number'=>$revisionNumber,'supersedes_public_id'=>$supersedesPublicId!==''?$supersedesPublicId:null,'assets'=>array_map(fn($x)=>[$x['type'],$x['public_id'],$x['version'],$x['hash']],$snaps)];$hash=data_attribution_hash($core);
     $pdo->beginTransaction();try{
+      // Serialize submissions for each assignment; every revision must be linked
+      // to the latest submitted version and a completed assignment is immutable.
+      $lock=$pdo->prepare('SELECT status,research_agent_id FROM sponsored_research_agent_assignments WHERE id=? FOR UPDATE');
+      $lock->execute([(int)$a['id']]);$lockedAssignment=$lock->fetch();
+      if(!$lockedAssignment||(string)$lockedAssignment['status']!=='active'||(int)$lockedAssignment['research_agent_id']!==(int)$a['research_agent_id'])
+          throw new RuntimeException('The assignment changed. Reload before submitting.');
+      $latest=$pdo->prepare('SELECT id,status FROM sponsored_research_project_submissions WHERE assignment_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE');
+      $latest->execute([(int)$a['id']]);$latestSubmission=$latest->fetch()?:null;
+      if($supersedesId!==null){
+          if(!$latestSubmission||(int)$latestSubmission['id']!==$supersedesId||(string)$latestSubmission['status']!=='revision_requested')
+              throw new RuntimeException('Revision must replace the latest requested submission.');
+      }elseif($latestSubmission){
+          throw new RuntimeException('This assignment already has a submission. Continue through its review or requested revision.');
+      }
       $public=ulid_like();$pdo->prepare("INSERT INTO sponsored_research_project_submissions(public_id,assignment_id,campaign_id,researcher_user_id,research_agent_id,supersedes_submission_id,revision_number,title,summary,status,submitted_by_agent,submission_hash) VALUES(?,?,?,?,?,?,?,?,?,'submitted',?,?)")->execute([$public,(int)$a['id'],(int)$campaign['id'],(int)$viewer['id'],(int)$a['research_agent_id'],$supersedesId,$revisionNumber,$title,trim($summary)!==''?$summary:null,$byAgent?1:0,$hash]);$sid=(int)$pdo->lastInsertId();
       foreach($snaps as $pos=>$x)$pdo->prepare('INSERT INTO sponsored_research_project_submission_assets(public_id,project_submission_id,asset_type,asset_public_id,asset_version,title,snapshot_json,snapshot_hash,position) VALUES(?,?,?,?,?,?,?,?,?)')->execute([ulid_like(),$sid,$x['type'],$x['public_id'],$x['version'],$x['title'],data_attribution_encode($x['snapshot']),$x['hash'],$pos]);
       sponsored_project_event($pdo,(int)$campaign['id'],(int)$a['id'],$sid,(int)$viewer['id'],$supersedesId?'project_submission_resubmitted':'project_submission_created',['submission_hash'=>$hash,'asset_count'=>count($snaps),'submitted_by_agent'=>$byAgent,'revision_number'=>$revisionNumber,'supersedes_public_id'=>$supersedesPublicId!==''?$supersedesPublicId:null]);
@@ -131,6 +145,17 @@ function sponsored_project_admin_status(PDO $pdo,array $admin,string $submission
     $note=mb_substr(trim($note),0,12000);if($status==='revision_requested'&&$note==='')throw new InvalidArgumentException('Revision instructions are required.');
     $decision=in_array($status,['accepted','revision_requested','rejected'],true);
     $pdo->beginTransaction();try{
+      $assignmentLock=$pdo->prepare('SELECT status,completed_submission_id FROM sponsored_research_agent_assignments WHERE id=? FOR UPDATE');
+      $assignmentLock->execute([(int)$s['assignment_id']]);$assignmentState=$assignmentLock->fetch();
+      if(!$assignmentState||(string)$assignmentState['status']!=='active'||$assignmentState['completed_submission_id']!==null)
+          throw new RuntimeException('This assignment has already been completed or is no longer active.');
+      $submissionLock=$pdo->prepare('SELECT status FROM sponsored_research_project_submissions WHERE id=? FOR UPDATE');
+      $submissionLock->execute([(int)$s['id']]);$lockedStatus=(string)($submissionLock->fetchColumn()?:'');
+      if($lockedStatus!==$from)throw new RuntimeException('Submission review status changed. Reload before deciding.');
+      $latest=$pdo->prepare('SELECT id FROM sponsored_research_project_submissions WHERE assignment_id=? ORDER BY id DESC LIMIT 1');
+      $latest->execute([(int)$s['assignment_id']]);
+      if((int)$latest->fetchColumn()!==(int)$s['id'])
+          throw new RuntimeException('Only the latest submission can receive a review decision.');
       $pdo->prepare('UPDATE sponsored_research_project_submissions SET status=?,reviewed_at=NOW(),review_note=?,reviewed_by_user_id=?,decision_at=? WHERE id=?')->execute([$status,$note!==''?$note:null,(int)$admin['id'],$decision?date('Y-m-d H:i:s'):null,(int)$s['id']]);
       if($status==='accepted'){$pdo->prepare("UPDATE sponsored_research_agent_assignments SET status='completed',completed_submission_id=?,completed_at=NOW() WHERE id=?")->execute([(int)$s['id'],(int)$s['assignment_id']]);if(function_exists('sponsored_project_compensation_mark_earned'))sponsored_project_compensation_mark_earned($pdo,$s,$admin);}
       sponsored_project_event($pdo,(int)$s['campaign_id'],(int)$s['assignment_id'],(int)$s['id'],(int)$admin['id'],'project_submission_'.$status,['from_status'=>$from,'to_status'=>$status,'review_note'=>$note!==''?$note:null,'revision_number'=>(int)($s['revision_number']??1)]);
