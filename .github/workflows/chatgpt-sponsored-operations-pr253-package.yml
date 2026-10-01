@@ -1,0 +1,10 @@
+name: Sponsored Agent Operations PR253 Deploy
+on:
+  push:
+    branches:
+      - chatgpt/sponsored-operations-pr253-deploy-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
