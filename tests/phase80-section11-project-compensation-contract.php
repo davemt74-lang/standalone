@@ -8,6 +8,9 @@ foreach(['function sponsored_project_compensation_ensure','function sponsored_pr
 $need('app/sponsored-research-campaigns.php',"'researcher_compensation_cents'","Campaign configuration does not version researcher compensation.");
 $need('app/sponsored-research-projects.php','sponsored_project_compensation_ensure','Assignment does not freeze project compensation.');
 $need('app/sponsored-research-projects.php','sponsored_project_compensation_mark_earned','Acceptance does not earn compensation.');
+$need('app/sponsored-research-projects.php','already completed and cannot be reopened','Completed Sponsored Project assignments are not terminal.');
+$need('app/sponsored-research-project-compensation.php','An Admin reason is required when voiding compensation.','Voided compensation does not require an Admin reason.');
+$need('app/sponsored-research-project-compensation.php',"status='removed',agent_submit_enabled=0",'Pending compensation void does not terminate the assignment.');
 $need('research-sponsored-projects.php','My compensation','Researcher compensation status UI is missing.');
 $need('admin/sponsored-projects.php','Approve for payment','Admin compensation approval UI is missing.');
 $need('admin/sponsored-projects.php','Mark paid','Admin paid transition UI is missing.');
@@ -19,4 +22,5 @@ $need('app/sponsored-research-project-compensation.php','function sponsored_proj
 $need('app/sponsored-research-project-compensation.php','function sponsored_project_sample_projects','Admin sample Sponsored Projects are missing.');
 $need('admin/sponsored-projects.php','Sample project data','Admin sample-data controls are missing.');
 $need('admin/sponsored-projects.php','SAMPLE DATA','Admin sample-project labeling is missing.');
+if(str_contains((string)file_get_contents($root.'/research-projects.php'),'sponsored_project_sample_projects'))$fail[]='Admin sample projects must not leak into the public operational marketplace.';
 if($fail){foreach(array_unique($fail) as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Phase 80 Section 11 compensation/public marketplace contract passed.\n";
