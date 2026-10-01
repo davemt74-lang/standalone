@@ -185,6 +185,7 @@ function sponsored_research_campaign_update(PDO $pdo,array $viewer,string $publi
         $disclosures=array_key_exists('disclosures',$input)?sponsored_research_campaign_disclosures($input['disclosures']):sponsored_research_campaign_disclosures($campaign['disclosures']);
         $questions=array_key_exists('questions',$input)?sponsored_research_campaign_questions_clean($input['questions']):array_map(fn($q)=>(string)$q['question'],$campaign['questions']);if(!$questions)throw new InvalidArgumentException('Add at least one campaign research question.');
         $specs=sponsored_project_builder_normalize($input['project_specs']??($campaign['project_specs']??[]),$deadline);
+        sponsored_project_builder_assert_mutable($pdo,(int)$campaign['id'],(array)($campaign['project_specs']??sponsored_project_builder_normalize([])),$specs);
         $pdo->beginTransaction();try{
           $next=(int)$campaign['current_revision']+1;
           $pdo->prepare("UPDATE sponsored_research_campaigns SET research_agent_id=?,title=?,brief=?,objective=?,access_mode=?,budget_currency=?,budget_cents=?,compensation_model='flat_fee',researcher_compensation_cents=?,max_participants=?,eligibility_json=?,disclosure_json=?,project_specs_json=?,starts_at=?,submission_deadline=?,review_deadline=?,current_revision=?,updated_at=NOW() WHERE id=?")
