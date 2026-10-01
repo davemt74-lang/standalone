@@ -122,4 +122,4 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 
 <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM FEED</span><h2>Recent annotations</h2></div></div>
 <?php foreach($annotations as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?><?php if(!$annotations):?><div class="card empty">No team-only annotations yet. Team captures from the Chrome sidebar will appear here.</div><?php endif?>
-</section></main><?=annotation_ui_scripts($u)?><script src="/assets/js/workspace-state.js?v=34.0"></script></body></html>
+</main><?=annotation_ui_scripts($u)?><script src="/assets/js/workspace-state.js?v=34.0"></script></body></html>
