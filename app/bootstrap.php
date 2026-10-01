@@ -51,6 +51,7 @@ require_once __DIR__ . '/account-membership.php';
 require_once __DIR__ . '/research-accounts.php';
 require_once __DIR__ . '/sponsored-research-campaigns.php';
 require_once __DIR__ . '/sponsored-research-participation.php';
+require_once __DIR__ . '/sponsored-research-submissions.php';
 require_once __DIR__ . '/stripe-billing.php';
 require_once __DIR__ . '/billing-operations.php';
 require_once __DIR__ . '/ai-usage.php';
