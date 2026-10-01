@@ -47,6 +47,7 @@ done
 
 for test in "${UPGRADE_TESTS[@]}"; do
   echo "::group::Targeted upgrade rehearsal: $test"
+  reset_db annotated_section_upgrade
   export DB_DSN="mysql:host=127.0.0.1;port=3306;dbname=annotated_section_upgrade;charset=utf8mb4"
 
   mapfile -t RESET_VARS < <(grep -oE "getenv\(\x27[A-Z0-9_]*RESET[A-Z0-9_]*\x27\)" "$test" \
