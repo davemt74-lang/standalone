@@ -32,8 +32,10 @@ $check(str_contains($adapter,"$"."p['terms_text']")&&str_contains($adapter,"$"."
 $check(str_contains($adapter,'mb_substr(implode(')&&str_contains($adapter,"'read_only'=>true")&&
     !str_contains($adapter,'sponsored_project_submit(')&&!str_contains($adapter,'sponsored_workspace_post('),
     'Context size bounded, read-only, and free of side-effect calls.');
-$check(str_contains($adapter,'$stale=$acceptedRevision!==$currentRevision')&&str_contains($adapter,'requires_reacceptance'),
+$check(str_contains($adapter,'$stale=$acceptedRevision!==$currentRevision||$termsChanged')&&str_contains($adapter,'requires_reacceptance'),
     'Updated campaign revision is flagged rather than silently accepted.');
+$check(str_contains($adapter,'sponsored_research_campaign_versions')&&str_contains($adapter,'sponsored_research_campaign_hash($snapshot)'),'Only checksum-verified accepted revision enters sponsored research context.');
+$check(str_contains($chat,'belongs to a different assigned Research Agent'),'Selected context cannot attach another Agent\'s project to the current Agent conversation.');
 $check(!str_contains($js,'innerHTML=item.label'),'Context picker uses textContent to render untrusted project title.');
 if($failed){foreach($failed as $e)fwrite(STDERR,"FAIL: $e\n");exit(1);}
 echo "PASS: Sponsored Project Agent Awareness Section 4B integration/security contracts.\n";
