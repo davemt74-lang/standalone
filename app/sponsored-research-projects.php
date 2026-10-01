@@ -51,7 +51,9 @@ function sponsored_project_assign_agent(PDO $pdo,array $viewer,string $campaignP
     if($existing&&!sponsored_project_compensation_for_assignment($pdo,(int)$existing['id']))
         throw new RuntimeException('An existing assignment without agreed compensation requires an explicit agreement; the advertised fee cannot be applied retroactively.');
     $participation=sponsored_research_participation_get($pdo,(int)$campaign['id'],(int)$viewer['id']);
-    if(!$participation||$participation['status']!=='active'||(int)$participation['campaign_revision_accepted']!==(int)$campaign['current_revision'])
+    $publishedTerms=sponsored_research_campaign_terms_latest($pdo,(int)$campaign['id']);
+    if(!$participation||$participation['status']!=='active'||(int)$participation['campaign_revision_accepted']!==(int)$campaign['current_revision']
+       ||!$publishedTerms||(int)$participation['terms_id']!==(int)$publishedTerms['id'])
         $participation=sponsored_research_campaign_join($pdo,$viewer,$campaignPublicId,$input);
     if($existing)return $existing; // Reaccepting revised terms never resets the original agreement.
     $pdo->beginTransaction();
