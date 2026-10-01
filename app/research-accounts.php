@@ -52,15 +52,15 @@ function sponsor_account_apply(PDO $pdo,array $user,array $input): array {
 }
 function research_account_admin_decide(PDO $pdo,array $admin,int $userId,string $authority,string $status,string $reason,string $verificationLevel='basic'): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
+    if(function_exists('admin_access_assert_capability'))admin_access_assert_capability($pdo,$admin,'admin.accounts.manage');
     $status=trim($status);if(!in_array($status,['approved','suspended','revoked'],true))throw new InvalidArgumentException('Unsupported approval state.');
     $reason=trim($reason);if($reason===''&&$status!=='approved')throw new InvalidArgumentException('A reason is required to suspend or revoke research authority.');
     $table=$authority==='research_account'?'research_account_profiles':($authority==='sponsor_account'?'sponsor_account_profiles':'');if($table==='')throw new InvalidArgumentException('Unknown research authority.');
     $profile=$authority==='research_account'?research_account_profile($pdo,$userId):sponsor_account_profile($pdo,$userId);if(!$profile)throw new RuntimeException('The user has not applied for this authority.');$before=$profile;
     if($authority==='research_account'){$allowed=['basic','identity','qualification','organization','payout'];}else{$allowed=['basic','identity','organization','billing'];}
     if(!in_array($verificationLevel,$allowed,true))$verificationLevel='basic';
-    $approvedAt=$status==='approved'?'NOW()':'approved_at';$suspendedAt=$status==='suspended'?'NOW()':'NULL';$revokedAt=$status==='revoked'?'NOW()':'NULL';$visible=$authority==='research_account'&&$status==='approved'?1:0;
     $sql="UPDATE {$table} SET status=?,verification_level=?,decision_reason=?,approved_by_user_id=?,approved_at=".($status==='approved'?'NOW()':'approved_at').",suspended_at=".($status==='suspended'?'NOW()':'NULL').",revoked_at=".($status==='revoked'?'NOW()':'NULL');
-    if($authority==='research_account')$sql.=',marketplace_visible='.($visible?'1':'0');
+    if($authority==='research_account'&&$status!=='approved')$sql.=',marketplace_visible=0';
     $sql.=' WHERE user_id=?';$pdo->prepare($sql)->execute([$status,$verificationLevel,$reason!==''?mb_substr($reason,0,500):null,(int)$admin['id'],$userId]);
     $after=$authority==='research_account'?research_account_profile($pdo,$userId):sponsor_account_profile($pdo,$userId);research_account_event($pdo,$authority,$userId,(int)$admin['id'],$status,$before,$after,$reason);return $after;
 }
