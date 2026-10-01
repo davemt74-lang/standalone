@@ -103,7 +103,7 @@ $limited=!empty($p['max_participants']);
     <?php else:?>
       <p>The sponsor has not yet configured structured deliverables. The published brief and participation terms describe the work expected.</p>
     <?php endif?>
-    <p>Annotator's existing Research Agent workspace supports ready Agent Reports, attached Research Documents, and published Research Report versions.</p>
+    <p>Annotated's existing Research Agent workspace supports ready Agent Reports, attached Research Documents, and published Research Report versions.</p>
     <div class="sponsoredDetailWorkflow">
       <div><span>1</span><strong>Review the brief</strong><p>Understand the objective, questions, eligibility and disclosures.</p></div>
       <div><span>2</span><strong>Assign a Research Agent</strong><p>Approved researchers accept the current terms and assign their own active Agent.</p></div>
