@@ -116,7 +116,7 @@ function sponsored_research_campaign_join(PDO $pdo,array $researcher,string $cam
         if(!empty($terms['requires_conflict_disclosure'])&&$conflict==='')throw new InvalidArgumentException('A conflict-of-interest disclosure is required.');
         $nda=!empty($input['accept_nda']);if(!empty($terms['requires_nda'])&&!$nda)throw new InvalidArgumentException('You must accept the campaign NDA.');
         $sponsorAck=!empty($input['acknowledge_sponsorship']);if(!empty($disclosures['sponsorship_disclosure_required'])&&!$sponsorAck)throw new InvalidArgumentException('You must acknowledge the sponsorship disclosure.');
-        $q=$pdo->prepare("SELECT COUNT(*) FROM sponsored_research_participations WHERE campaign_id=? AND status='active'");$q->execute([(int)$fresh['id']]);$active=(int)$q->fetchColumn();if($fresh['max_participants']!==null&&$active>=(int)$fresh['max_participants'])throw new RuntimeException('This campaign has reached its participant limit.');
+        $q=$pdo->prepare("SELECT COUNT(*) FROM sponsored_research_participations WHERE campaign_id=? AND status='active'");$q->execute([(int)$fresh['id']]);$active=(int)$q->fetchColumn();if($fresh['max_participants']!==null&&(!$existing||$existing['status']!=='active')&&$active>=(int)$fresh['max_participants'])throw new RuntimeException('This campaign has reached its participant limit.');
         $profile=research_account_profile($pdo,(int)$researcher['id']);$invite=sponsored_research_campaign_invite_for($pdo,(int)$fresh['id'],(int)$researcher['id']);$public=ulid_like();
         $pdo->beginTransaction();try{
           if($existing){
