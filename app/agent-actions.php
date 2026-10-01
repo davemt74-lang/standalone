@@ -491,6 +491,8 @@ function agent_action_create_proposals(PDO $pdo,array $viewer,array $conversatio
     $out=[];
     foreach(array_slice($rawActions,0,6) as $raw){
         if(!is_array($raw))continue;$cap=(string)($raw['capability']??'');if(!isset($capabilities[$cap]))continue;
+        if(str_starts_with($cap,'sponsored.project.')&&(!function_exists('sponsored_agent_awareness_private_conversation')
+           ||!sponsored_agent_awareness_private_conversation($pdo,$viewer,$conversation)))continue;
         $projectPublic=trim((string)($raw['project_id']??''));if($projectPublic===''&&count($projects)===1)$projectPublic=(string)array_key_first($projects);
         $project=$projects[$projectPublic]??null;if(!$project||!project_can_write($project))continue;
         try{$args=agent_action_clean_arguments($cap,is_array($raw['arguments']??null)?$raw['arguments']:[]);}catch(Throwable $e){continue;}
@@ -748,6 +750,12 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
             $pdo->prepare("UPDATE agent_action_proposals SET status='stale',error_text='Research project changed after proposal.' WHERE id=?")->execute([$proposal['id']]);agent_action_event($pdo,(int)$proposal['id'],'stale',(int)$viewer['id'],['reason'=>'project_state_changed']);$pdo->commit();throw new AgentActionStale('The Research project changed after this proposal. Ask the Agent to review the current state and propose the action again.');
         }
         $args=json_decode((string)$proposal['arguments_json'],true);if(!is_array($args))throw new RuntimeException('Stored Agent action arguments are invalid.');
+        if(str_starts_with((string)$proposal['capability_key'],'sponsored.project.')){
+            $cq=$pdo->prepare('SELECT * FROM conversations WHERE id=? LIMIT 1');$cq->execute([(int)$proposal['conversation_id']]);
+            $privateConversation=$cq->fetch();
+            if(!$privateConversation||!sponsored_agent_awareness_private_conversation($pdo,$viewer,$privateConversation))
+                throw new AgentActionForbidden('Sponsored Project actions require the original private Agent conversation.');
+        }
         $section7Governed=in_array((string)$proposal['capability_key'],[
           'research.portfolio.create_decision_draft','research.decision.create_action_plan_draft','research.decision.open_reconsideration',
           'research.portfolio.create_strategic_review','research.portfolio.create_strategic_briefing',
