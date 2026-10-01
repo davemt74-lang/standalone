@@ -1,0 +1,10 @@
+name: Annotated Audited Deploy Package
+on:
+  push:
+    branches:
+      - chatgpt/annotated-audit-deploy-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
