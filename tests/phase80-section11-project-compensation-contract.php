@@ -9,6 +9,8 @@ $need('app/sponsored-research-campaigns.php',"'researcher_compensation_cents'","
 $need('app/sponsored-research-projects.php','sponsored_project_compensation_ensure','Assignment does not freeze project compensation.');
 $need('app/sponsored-research-projects.php','sponsored_project_compensation_mark_earned','Acceptance does not earn compensation.');
 $need('app/sponsored-research-projects.php','already completed and cannot be reopened','Completed Sponsored Project assignments are not terminal.');
+$need('app/sponsored-research-project-compensation.php','An Admin reason is required when voiding compensation.','Voided compensation does not require an Admin reason.');
+$need('app/sponsored-research-project-compensation.php',"status='removed',agent_submit_enabled=0",'Pending compensation void does not terminate the assignment.');
 $need('research-sponsored-projects.php','My compensation','Researcher compensation status UI is missing.');
 $need('admin/sponsored-projects.php','Approve for payment','Admin compensation approval UI is missing.');
 $need('admin/sponsored-projects.php','Mark paid','Admin paid transition UI is missing.');
