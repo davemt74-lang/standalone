@@ -3,7 +3,7 @@ declare(strict_types=1);
 /** Shared Sponsor Project Builder fields for creation and amendment. */
 function sponsored_project_builder_form(array $specs=[],bool $expanded=true): string {
     $specs=sponsored_project_builder_normalize($specs);
-    $escape=static fn(mixed $x):string=h((string)$x);
+    $escape=static fn(mixed $x): string => h((string)$x);
     $methodOptions=['Desk research','Interviews','Survey','Field study','Data analysis','Literature review','Other'];
     $options='';
     foreach($methodOptions as $method){
