@@ -33,7 +33,7 @@ foreach([
   'project_owner_id'=>'Sharing requires matching Project ownership.',
   'Set the Research Agent visibility to Private'=>'Only Private Agents can become Team workspace resources.',
   "other.project_id=rp.id"=>'Sharing rejects projects with other active Agents.',
-  'Sponsored Research Agents cannot be shared with a Team'=>'Sponsored Agents require explicit collaboration authority.'
+  'Sponsored Research assignments'=>'Sponsored Agents require explicit collaboration authority.'
 ] as $fragment=>$label)if(!str_contains($teams,$fragment))$fail[]=$label;
 if(!str_contains($agents,"t.owner_user_id=? AND tm.role='owner'"))$fail[]='Direct Team Agent creation must be owner-only.';
 if(!str_contains($agents,"Team Research Agents must remain Private."))$fail[]='Direct Team Agent creation must enforce Private visibility.';
