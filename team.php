@@ -58,6 +58,8 @@ $q->execute([$team['id']]);$members=$q->fetchAll();
 $resources=team_research_resources($pdo,(int)$team['id']);$assignable=$isOwner?team_research_assignable($pdo,(int)$u['id']):[];
 $teamRecentResearch=team_research_collaboration_recent($pdo,$u,(int)$team['id'],18);
 $canContributeResearch=in_array((string)$team['access_role'],['owner','admin','researcher'],true);
+$teamDraftTitle=(($_POST['op']??'')==='team_create_research_document')?(string)($_POST['title']??''):'';
+$teamDraftBody=(($_POST['op']??'')==='team_create_research_document')?(string)($_POST['body']??''):'';
 
 $q=$pdo->prepare('SELECT public_id,title,description,status,updated_at FROM research_projects WHERE team_id=? ORDER BY updated_at DESC LIMIT 20');$q->execute([$team['id']]);$projects=$q->fetchAll();
 $q=$pdo->prepare("SELECT a.public_id FROM annotations a WHERE a.team_id=? AND a.visibility='team' AND a.status='published' ORDER BY a.published_at DESC LIMIT 25");
@@ -162,8 +164,8 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
               <option value="<?=h((string)$resource['public_id'])?>" <?=($_POST['agent_id']??'')===$resource['public_id']?'selected':''?>><?=h((string)$resource['name'])?></option>
             <?php endforeach?>
           </select></label>
-          <label>Research title<input name="title" maxlength="240" required value="<?=h((string)($_POST['op']??'')==='team_create_research_document'?($_POST['title']??''):''))?>" placeholder="Finding or research document title"></label>
-          <label>Notes<textarea name="body" rows="6" maxlength="50000" required placeholder="Add findings, supporting evidence or research notes"><?=h((string)(($_POST['op']??'')==='team_create_research_document')?($_POST['body']??''):''))?></textarea></label>
+          <label>Research title<input name="title" maxlength="240" required value="<?=h($teamDraftTitle)?>" placeholder="Finding or research document title"></label>
+          <label>Notes<textarea name="body" rows="6" maxlength="50000" required placeholder="Add findings, supporting evidence or research notes"><?=h($teamDraftBody)?></textarea></label>
           <div class="inlineActions"><button class="button" type="submit">Save to shared Library</button><span class="meta">The document records you as its contributor and remains in the Agent's existing Project.</span></div>
         </form>
       </details>
