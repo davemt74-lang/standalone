@@ -35,3 +35,14 @@ CREATE TABLE IF NOT EXISTS sponsored_research_project_compensations (
   CONSTRAINT fk_sponsored_project_comp_submission FOREIGN KEY(accepted_submission_id) REFERENCES sponsored_research_project_submissions(id) ON DELETE RESTRICT,
   CONSTRAINT fk_sponsored_project_comp_actor FOREIGN KEY(updated_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS sponsored_research_project_settings (
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  sample_data_enabled TINYINT(1) NOT NULL DEFAULT 1,
+  updated_by_user_id BIGINT UNSIGNED NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sponsored_project_settings_actor FOREIGN KEY(updated_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO sponsored_research_project_settings(id,sample_data_enabled) VALUES(1,1);
