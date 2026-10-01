@@ -14,7 +14,7 @@ function sponsored_project_event(PDO $pdo,int $campaignId,?int $assignmentId,?in
       ->execute([ulid_like(),$campaignId,$assignmentId,$submissionId,$actorId,mb_substr($type,0,80),$payload?data_attribution_encode($payload):null]);
 }
 function sponsored_project_assignment(PDO $pdo,int $campaignId,int $userId): ?array {
-    $q=$pdo->prepare("SELECT a.*,ra.public_id research_agent_public_id,ra.name research_agent_name,ra.profile_image_url,rp.public_id project_public_id,rp.title project_title
+    $q=$pdo->prepare("SELECT a.*,ra.public_id research_agent_public_id,ra.name research_agent_name,ra.profile_image_url,ra.project_id,rp.public_id project_public_id,rp.title project_title
       FROM sponsored_research_agent_assignments a JOIN research_agents ra ON ra.id=a.research_agent_id JOIN research_projects rp ON rp.id=ra.project_id
       WHERE a.campaign_id=? AND a.researcher_user_id=? LIMIT 1");$q->execute([$campaignId,$userId]);return $q->fetch()?:null;
 }
