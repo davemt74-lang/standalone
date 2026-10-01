@@ -51,6 +51,7 @@ required=(
   admin/extension-releases.php app/extension-releases.php extension-download.php database/migrations/20261001_127_extension_release_manager.sql
   app/sponsored-project-builder.php app/sponsored-project-builder-ui.php assets/css/sponsored-project-builder.css database/migrations/20261001_128_sponsored_project_builder.sql
   app/sponsored-agent-awareness.php assets/js/agent-chat.js docs/sponsored-agent-awareness-4b.md
+  app/sponsored-agent-operations.php assets/css/sponsored-agent-operations.css docs/sponsored-agent-operations-4c.md
   app/sponsored-project-workspace.php sponsored-project-workspace.php assets/css/sponsored-project-workspace.css database/migrations/20261001_129_sponsored_project_workspace.sql
   extension/manifest.json downloads/Annotated-Chrome-Extension.zip
 )
