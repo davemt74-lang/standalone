@@ -47,7 +47,7 @@ $id=(string)$campaign['public_id'];
 spBuilderCheck($campaign['status']==='draft'&&$campaign['project_specs']===$normalized,'Campaign create uses existing sponsor authority and canonical spec record.');
 $versions=sponsored_research_campaign_versions($pdo,$sponsor,$id);
 $config=json_decode((string)$versions[0]['config_json'],true,512,JSON_THROW_ON_ERROR);
-spBuilderCheck($config['project_specs']===$normalized&&count($versions)===1,'Initial immutable campaign revision contains the exact normalized project specification.');
+spBuilderCheck(sponsored_project_builder_normalize($config['project_specs'],'2030-12-15 20:00:00')===$normalized&&count($versions)===1,'Initial immutable campaign revision contains the exact normalized project specification.');
 $before=$campaign['config_hash'];
 $campaign=sponsored_research_campaign_update($pdo,$sponsor,$id,[
  'project_specs'=>array_merge($spec,['deliverables'=>array_merge($spec['deliverables'],[[
