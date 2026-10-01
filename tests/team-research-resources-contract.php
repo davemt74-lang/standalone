@@ -17,9 +17,10 @@ foreach([
   "UPDATE research_projects SET team_id=?"=>'Agent project must use canonical Team permissions.',
   "UPDATE research_agents SET team_id=?"=>'Agent must use canonical Team permissions.',
   "team_research_sync_member"=>'Conversation membership must remain synchronized.',
+  "conversation_public_id"=>'Team resources need the canonical conversation route.',
   "DELETE FROM conversation_members"=>'Member removal must revoke conversation access.'
 ] as $fragment=>$message)if(!str_contains($runtime,$fragment))$errors[]=$message;
-foreach(["\$isOwner?team_research_assignable", "if(!\$isOwner)throw new RuntimeException('Only the Team owner may assign", 'confirm_workspace_share', 'team_research_assign(', 'team_research_unassign(', "team_research_sync_member(\$pdo", '/research-reports.php?agent=', '/research-agent-knowledge.php?agent='] as $fragment)if(!str_contains($page,$fragment))$errors[]='Team page missing '.$fragment;
+foreach(["\$isOwner?team_research_assignable", "if(!\$isOwner)throw new RuntimeException('Only the Team owner may assign", 'confirm_workspace_share', 'team_research_assign(', 'team_research_unassign(', "team_research_sync_member(\$pdo", "research_agent_shell_href(\$resource,'chat')", "research_agent_shell_href(\$resource,'desktop')", "research_agent_shell_href(\$resource,'library')", "research_agent_shell_href(\$resource,'reports')"] as $fragment)if(!str_contains($page,$fragment))$errors[]='Team page missing '.$fragment;
 foreach(['/research-agent.php','/research-agent-workspace.php'] as $invalid)if(str_contains($page,$invalid))$errors[]='Invalid legacy link '.$invalid;
 if($errors){foreach($errors as $e)fwrite(STDERR,"FAIL: $e\n");exit(1);}
 echo "Team owner-controlled Research Agent/Desktop/Library assignment contract passed.\n";
