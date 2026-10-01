@@ -173,7 +173,7 @@ function sponsored_workspace_post(PDO $pdo,array $access,array $viewer,array $in
         throw new RuntimeException('Your project workspace access has changed.');
     $participants=$fresh['role']==='sponsor'?sponsored_workspace_participants($pdo,$fresh,$viewer):[];
     $valid=sponsored_workspace_validate_update($fresh,$viewer,$input,$participants);
-    $public=ulid_like();$pdo->beginTransaction();
+    $public=ulid_like();$ownsTransaction=!$pdo->inTransaction();if($ownsTransaction)$pdo->beginTransaction();
     try{
         $pdo->prepare("INSERT INTO sponsored_project_updates(public_id,campaign_id,actor_user_id,actor_role,scope,participant_user_id,milestone_position,progress_status,title,body)
             VALUES(?,?,?,?,?,?,?,?,?,?)")
@@ -184,7 +184,7 @@ function sponsored_workspace_post(PDO $pdo,array $access,array $viewer,array $in
         sponsored_project_event($pdo,(int)$campaign['id'],null,null,(int)$viewer['id'],
            'sponsored_workspace_update',['update_public_id'=>$public,'scope'=>$valid['scope'],
              'progress_status'=>$valid['progress_status'],'milestone_position'=>$valid['milestone_position']]);
-        $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
     return ['public_id'=>$public]+$valid;
 }
