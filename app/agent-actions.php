@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/research-workspace.php';
+require_once __DIR__.'/sponsored-agent-operations.php';
 
 final class AgentActionStale extends RuntimeException {}
 final class AgentActionForbidden extends RuntimeException {}
@@ -129,7 +130,7 @@ function agent_action_capabilities(): array {
         'label'=>'Link claims','description'=>'Create a typed relationship between two existing Claims in the project.',
         'arguments'=>['source_claim_id'=>'Claim public ID','target_claim_id'=>'Claim public ID','relation_type'=>'supports|contradicts|depends_on|refines|duplicates|context','note'=>'string optional']
       ],
-    ];
+    ] + sponsored_agent_operation_capabilities();
 }
 
 function agent_action_capability_prompt(): string {
@@ -163,6 +164,9 @@ function agent_action_project_map(PDO $pdo,array $viewer,array $context): array 
         $type=(string)($item['type']??'');$id=(string)($item['public_id']??'');
         if($type==='research'){
             $p=project_access($pdo,(int)$viewer['id'],$id);if($p)$projects[(string)$p['public_id']]=$p;
+        }elseif($type==='sponsored_project'&&function_exists('sponsored_agent_awareness_access')){
+            $access=sponsored_agent_awareness_access($pdo,$viewer,$id);
+            if($access){$p=project_access($pdo,(int)$viewer['id'],(string)$access['assignment']['project_public_id']);if($p)$projects[(string)$p['public_id']]=$p;}
         }elseif($type==='report'&&function_exists('research_system_report_access')){
             $report=research_system_report_access($pdo,$viewer,$id);if($report){$p=project_access($pdo,(int)$viewer['id'],(string)$report['project_public_id']);if($p)$projects[(string)$p['public_id']]=$p;}
         }
@@ -194,6 +198,7 @@ function agent_action_program_catchup(): array {
 
 function agent_action_clean_arguments(string $capability,array $args): array {
     $s=fn($v,$max)=>mb_substr(trim((string)$v),0,$max);
+    if(str_starts_with($capability,'sponsored.project.'))return sponsored_agent_operation_clean($capability,$args);
     if($capability==='research.create_task'){
         $title=$s($args['title']??'',255);if($title==='')throw new InvalidArgumentException('Task title is required.');
         $type=(string)($args['task_type']??'general');if(!isset(agent_action_task_types()[$type]))$type='general';
@@ -411,6 +416,7 @@ function agent_action_ref_set(array $refs): array {
 }
 function agent_action_validate_project_arguments(PDO $pdo,array $viewer,array $project,string $capability,array $args,array $refs): bool {
     $projectId=(int)$project['id'];$seen=agent_action_ref_set($refs);
+    if(str_starts_with($capability,'sponsored.project.'))return sponsored_agent_operation_validate($pdo,$viewer,$project,$capability,$args,$refs);
     if(str_starts_with($capability,'research.portfolio.')){
         $portfolio=(string)($args['portfolio_id']??'');if($portfolio===''||!isset($seen['portfolio:'.$portfolio]))return false;
         if(!function_exists('research_intelligence_portfolio_contains_project')||!research_intelligence_portfolio_contains_project($pdo,$viewer,$portfolio,$projectId))return false;
@@ -518,6 +524,7 @@ function agent_action_claim_row(PDO $pdo,int $projectId,string $publicId): ?arra
 
 function agent_action_execute_capability(PDO $pdo,array $viewer,array $project,string $capability,array $args): array {
     $projectId=(int)$project['id'];$userId=(int)$viewer['id'];
+    if(str_starts_with($capability,'sponsored.project.'))return sponsored_agent_operation_execute($pdo,$viewer,$project,$capability,$args);
     if($capability==='research.create_task'){
         if(function_exists('research_tasks_ready')&&research_tasks_ready($pdo)){
             $task=research_task_create_for_project($pdo,$viewer,$project,$args,true);
@@ -743,7 +750,8 @@ function agent_action_confirm_execute(PDO $pdo,array $viewer,string $proposalPub
         $args=json_decode((string)$proposal['arguments_json'],true);if(!is_array($args))throw new RuntimeException('Stored Agent action arguments are invalid.');
         $section7Governed=in_array((string)$proposal['capability_key'],[
           'research.portfolio.create_decision_draft','research.decision.create_action_plan_draft','research.decision.open_reconsideration',
-          'research.portfolio.create_strategic_review','research.portfolio.create_strategic_briefing'
+          'research.portfolio.create_strategic_review','research.portfolio.create_strategic_briefing',
+          'sponsored.project.post_update','sponsored.project.submit'
         ],true);
         if($section7Governed){
             $provenance=json_decode((string)($proposal['provenance_json']??''),true);$proposalRefs=[];
