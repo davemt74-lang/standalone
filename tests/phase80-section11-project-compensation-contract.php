@@ -8,6 +8,7 @@ foreach(['function sponsored_project_compensation_ensure','function sponsored_pr
 $need('app/sponsored-research-campaigns.php',"'researcher_compensation_cents'","Campaign configuration does not version researcher compensation.");
 $need('app/sponsored-research-projects.php','sponsored_project_compensation_ensure','Assignment does not freeze project compensation.');
 $need('app/sponsored-research-projects.php','sponsored_project_compensation_mark_earned','Acceptance does not earn compensation.');
+$need('app/sponsored-research-projects.php','already completed and cannot be reopened','Completed Sponsored Project assignments are not terminal.');
 $need('research-sponsored-projects.php','My compensation','Researcher compensation status UI is missing.');
 $need('admin/sponsored-projects.php','Approve for payment','Admin compensation approval UI is missing.');
 $need('admin/sponsored-projects.php','Mark paid','Admin paid transition UI is missing.');
