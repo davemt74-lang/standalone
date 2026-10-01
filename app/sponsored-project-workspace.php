@@ -96,6 +96,25 @@ function sponsored_workspace_recent(PDO $pdo,array $access,array $viewer,int $li
       $where ORDER BY up.id DESC LIMIT $limit");
     $q->execute($params);return $q->fetchAll()?:[];
 }
+/**
+ * Only sponsor project-wide journal entries affect the shared milestone rail.
+ * Private researcher updates stay in the private thread, never public progress.
+ * This is an informational journal projection, not canonical task completion.
+ */
+function sponsored_workspace_milestone_states(array $milestones,array $updates): array {
+    $states=array_fill(0,count($milestones),'planned');
+    $found=[];
+    foreach($updates as $entry){
+        if(($entry['scope']??'')!=='project'||($entry['actor_role']??'')!=='sponsor')continue;
+        $position=(int)($entry['milestone_position']??0);
+        if($position<1||$position>count($milestones)||isset($found[$position]))continue;
+        $status=(string)($entry['progress_status']??'update');
+        if(!in_array($status,['update','started','blocked','ready_for_review','completed'],true))continue;
+        $states[$position-1]=$status;
+        $found[$position]=true;
+    }
+    return $states;
+}
 function sponsored_workspace_validate_update(array $access,array $viewer,array $input,array $participants=[]): array {
     if($access['role']==='sample')throw new RuntimeException('Demonstration projects cannot create updates.');
     if(in_array((string)($access['campaign']['status']??''),['completed','cancelled','archived'],true))
