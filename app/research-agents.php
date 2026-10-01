@@ -132,7 +132,7 @@ function research_agent_discover_public(PDO $pdo,?array $viewer,string $term='',
 function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
     if(!research_agent_ready($pdo))return [];
     $limit=max(1,min(50,$limit));
-    $q=$pdo->prepare("SELECT ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.visibility,ra.status,ra.monitoring_cadence,ra.is_default,ra.updated_at,
+    $q=$pdo->prepare("SELECT ra.public_id,ra.owner_user_id,ra.name,ra.description,ra.profile_image_url,ra.visibility,ra.status,ra.monitoring_cadence,ra.is_default,ra.updated_at,
       rp.public_id project_public_id,rp.title project_title,
       c.public_id conversation_public_id,COALESCE(c.last_message_at,c.updated_at,c.created_at) activity_at,
       (SELECT m.body FROM conversation_messages m WHERE m.conversation_id=c.id AND m.deleted_at IS NULL ORDER BY m.id DESC LIMIT 1) last_message,
@@ -155,7 +155,7 @@ function research_agent_list(PDO $pdo,array $viewer,int $limit=30): array {
 
 function research_agent_edit_context(PDO $pdo,array $viewer,string $publicId): array {
     $agent=research_agent_access($pdo,$viewer,$publicId);if(!$agent)throw new RuntimeException('Research Agent not found.');
-    $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);
+    $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id'];
     if(!$canEdit)throw new RuntimeException('You do not have permission to edit this Research Agent.');
     $project=['public_id'=>(string)$agent['project_public_id'],'title'=>(string)$agent['project_title'],'description'=>(string)($agent['description']??''),'status'=>'active'];
     $q=$pdo->prepare('SELECT public_id,title,description,status,updated_at FROM research_projects WHERE id=? LIMIT 1');$q->execute([(int)$agent['project_id']]);$project=$q->fetch()?:$project;
@@ -323,6 +323,7 @@ function research_agent_create(PDO $pdo,array $viewer,array $input,bool $isDefau
 
         $profileImage=mb_substr(trim((string)($input['profile_image_url']??'')),0,500);if($profileImage!==''&&!preg_match('#^(https?://|/uploads/)#i',$profileImage))$profileImage='';
         $visibility=strtolower(trim((string)($input['visibility']??'private')));if(!in_array($visibility,['private','friends','public'],true))$visibility='private';
+        if($team&&$visibility!=='private')throw new RuntimeException('Team Research Agents must remain Private.');
         $pdo->prepare("INSERT INTO research_agents(public_id,owner_user_id,team_id,project_id,conversation_id,automation_id,name,description,profile_image_url,visibility,status,monitoring_cadence,is_default)
           VALUES(?,?,?,?,?,?,?,?,?,?, 'active',?,?)")
           ->execute([$agentPublic,(int)$viewer['id'],$team['id']??null,$projectId,$conversationId,$automationId,$name,$description!==''?$description:null,$profileImage!==''?$profileImage:null,$visibility,$cadence,$isDefault?1:null]);
@@ -388,13 +389,14 @@ function research_agent_workspace_options(PDO $pdo,array $viewer): array {
 
 function research_agent_update_profile(PDO $pdo,array $viewer,string $publicId,array $input): array {
     $agent=research_agent_access($pdo,$viewer,$publicId);if(!$agent)throw new RuntimeException('Research Agent not found.');
-    $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id']||in_array((string)($agent['team_role']??''),['owner','admin'],true);
+    $canEdit=(int)$agent['owner_user_id']===(int)$viewer['id'];
     if(!$canEdit)throw new RuntimeException('You do not have permission to edit this Research Agent.');
     $name=mb_substr(trim((string)($input['name']??$agent['name'])),0,190);if($name==='')throw new InvalidArgumentException('Research Agent name is required.');
     $description=mb_substr(trim((string)($input['description']??$agent['description']??'')),0,4000);
     $image=mb_substr(trim((string)($input['profile_image_url']??$agent['profile_image_url']??'')),0,500);
     if($image!==''&&!preg_match('#^(https?://|/uploads/)#i',$image))throw new InvalidArgumentException('Profile image must be an HTTPS URL or uploaded image path.');
     $visibility=strtolower(trim((string)($input['visibility']??$agent['visibility']??'private')));if(!in_array($visibility,['private','friends','public'],true))throw new InvalidArgumentException('Invalid Research Agent visibility.');
+    if($agent['team_id']!==null&&$visibility!=='private')throw new RuntimeException('Unassign this Research Agent from its Team before making it public or friends-only.');
     $pdo->prepare('UPDATE research_agents SET name=?,description=?,profile_image_url=?,visibility=?,updated_at=NOW() WHERE id=?')->execute([$name,$description!==''?$description:null,$image!==''?$image:null,$visibility,(int)$agent['id']]);
     $pdo->prepare('UPDATE research_projects SET title=?,description=?,updated_at=NOW() WHERE id=?')->execute([$name,$description!==''?$description:null,(int)$agent['project_id']]);
     $pdo->prepare('UPDATE conversations SET title=?,updated_at=NOW() WHERE id=?')->execute([$name,(int)$agent['conversation_id']]);
