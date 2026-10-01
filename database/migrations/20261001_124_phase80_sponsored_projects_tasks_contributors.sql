@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS sponsored_research_projects (
   campaign_id BIGINT UNSIGNED NOT NULL UNIQUE,
   research_project_id BIGINT UNSIGNED NOT NULL UNIQUE,
   team_id BIGINT UNSIGNED NOT NULL,
+  managed_team TINYINT(1) NOT NULL DEFAULT 0,
   research_agent_id BIGINT UNSIGNED NULL,
   status ENUM('active','paused','completed','cancelled','archived') NOT NULL DEFAULT 'active',
   created_by_user_id BIGINT UNSIGNED NOT NULL,
