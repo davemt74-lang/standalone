@@ -1,0 +1,10 @@
+name: Sponsored Agent Governed PR254 Deploy
+on:
+  push:
+    branches:
+      - chatgpt/sponsored-governed-pr254-deploy-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
