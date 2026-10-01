@@ -107,15 +107,16 @@ function sponsored_research_campaign_join(PDO $pdo,array $researcher,string $cam
     return app_with_advisory_lock($pdo,'sponsored-research-participation',(int)$campaign['id'],function() use($pdo,$researcher,$campaign,$input){
         $fresh=sponsored_research_campaign_by_public($pdo,(string)$campaign['public_id']);if(!$fresh||!sponsored_research_campaign_visible_to_researcher($pdo,$researcher,$fresh))throw new RuntimeException('This Sponsored Research campaign is no longer available.');
         $eligibility=sponsored_research_campaign_eligibility_check($pdo,$researcher,$fresh);if(empty($eligibility['eligible']))throw new RuntimeException('You do not meet this campaign’s eligibility requirements.');
-        $existing=sponsored_research_participation_get($pdo,(int)$fresh['id'],(int)$researcher['id']);if($existing&&$existing['status']==='active')return $existing;
+        $existing=sponsored_research_participation_get($pdo,(int)$fresh['id'],(int)$researcher['id']);
         $terms=sponsored_research_campaign_terms_latest($pdo,(int)$fresh['id']);if(!$terms)throw new RuntimeException('Campaign participation terms have not been published.');
         if((int)$terms['campaign_revision']!==(int)$fresh['current_revision'])throw new RuntimeException('Campaign terms must be republished for the current campaign revision.');
+        if($existing&&$existing['status']==='active'&&(int)$existing['campaign_revision_accepted']===(int)$fresh['current_revision']&&(int)$existing['terms_id']===(int)$terms['id'])return $existing;
         if(empty($input['accept_terms']))throw new InvalidArgumentException('You must accept the campaign participation terms.');
         $disclosures=(array)($fresh['disclosures']??[]);$conflict=trim((string)($input['conflict_disclosure']??''));
         if(!empty($terms['requires_conflict_disclosure'])&&$conflict==='')throw new InvalidArgumentException('A conflict-of-interest disclosure is required.');
         $nda=!empty($input['accept_nda']);if(!empty($terms['requires_nda'])&&!$nda)throw new InvalidArgumentException('You must accept the campaign NDA.');
         $sponsorAck=!empty($input['acknowledge_sponsorship']);if(!empty($disclosures['sponsorship_disclosure_required'])&&!$sponsorAck)throw new InvalidArgumentException('You must acknowledge the sponsorship disclosure.');
-        $q=$pdo->prepare("SELECT COUNT(*) FROM sponsored_research_participations WHERE campaign_id=? AND status='active'");$q->execute([(int)$fresh['id']]);$active=(int)$q->fetchColumn();if($fresh['max_participants']!==null&&$active>=(int)$fresh['max_participants'])throw new RuntimeException('This campaign has reached its participant limit.');
+        $q=$pdo->prepare("SELECT COUNT(*) FROM sponsored_research_participations WHERE campaign_id=? AND status='active'");$q->execute([(int)$fresh['id']]);$active=(int)$q->fetchColumn();if($fresh['max_participants']!==null&&(!$existing||$existing['status']!=='active')&&$active>=(int)$fresh['max_participants'])throw new RuntimeException('This campaign has reached its participant limit.');
         $profile=research_account_profile($pdo,(int)$researcher['id']);$invite=sponsored_research_campaign_invite_for($pdo,(int)$fresh['id'],(int)$researcher['id']);$public=ulid_like();
         $pdo->beginTransaction();try{
           if($existing){
