@@ -33,18 +33,16 @@ function sponsored_project_compensation_ensure(PDO $pdo,array $assignment,array 
     sponsored_project_event($pdo,(int)$campaign['id'],(int)$assignment['id'],null,$actorUserId,'project_compensation_agreed',['compensation_public_id'=>$public,'amount_cents'=>$amount,'currency'=>$currency,'model'=>'flat_fee']);
     return sponsored_project_compensation_for_assignment($pdo,(int)$assignment['id'])??[];
 }
-function sponsored_project_compensation_backfill_campaign(PDO $pdo,array $campaign,?int $actorUserId=null): int {
-    if((int)($campaign['researcher_compensation_cents']??0)<=0)return 0;
-    $q=$pdo->prepare("SELECT a.* FROM sponsored_research_agent_assignments a
-      LEFT JOIN sponsored_research_project_compensations pc ON pc.assignment_id=a.id
-      WHERE a.campaign_id=? AND pc.id IS NULL AND a.status IN ('active','paused','completed')");
-    $q->execute([(int)$campaign['id']]);$count=0;foreach($q->fetchAll()?:[] as $assignment){sponsored_project_compensation_ensure($pdo,$assignment,$campaign,$actorUserId);$count++;}return $count;
-}
 function sponsored_project_compensation_mark_earned(PDO $pdo,array $submission,array $actor): array {
     $campaign=sponsored_research_campaign_by_public($pdo,(string)$submission['campaign_public_id']);if(!$campaign)throw new RuntimeException('Sponsored Project not found.');
     $q=$pdo->prepare('SELECT * FROM sponsored_research_agent_assignments WHERE id=? LIMIT 1');$q->execute([(int)$submission['assignment_id']]);$assignment=$q->fetch();if(!$assignment)throw new RuntimeException('Sponsored Project assignment not found.');
-    $comp=sponsored_project_compensation_ensure($pdo,$assignment,$campaign,(int)$actor['id']);
-    if(in_array((string)$comp['status'],['earned','approved_for_payment','paid'],true))return $comp;
+    $comp=sponsored_project_compensation_for_assignment($pdo,(int)$assignment['id']);
+    if(!$comp)throw new RuntimeException('Researcher compensation was not agreed at assignment. Acceptance requires an explicit agreement.');
+    if((int)$comp['research_agent_id']!==(int)$submission['research_agent_id'])throw new RuntimeException('The submitted Agent differs from the frozen compensation agreement.');
+    if(in_array((string)$comp['status'],['earned','approved_for_payment','paid'],true)){
+        if((int)$comp['accepted_submission_id']!==(int)$submission['id'])throw new RuntimeException('Compensation is already linked to another accepted submission.');
+        return $comp;
+    }
     if((string)$comp['status']==='voided')throw new RuntimeException('Voided project compensation cannot be earned.');
     $pdo->prepare("UPDATE sponsored_research_project_compensations SET status='earned',accepted_submission_id=?,earned_at=NOW(),updated_by_user_id=? WHERE id=?")
       ->execute([(int)$submission['id'],(int)$actor['id'],(int)$comp['id']]);
@@ -54,7 +52,13 @@ function sponsored_project_compensation_mark_earned(PDO $pdo,array $submission,a
 }
 function sponsored_project_compensation_admin_transition(PDO $pdo,array $admin,string $compPublicId,string $status,string $paymentReference='',string $note=''): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
-    $comp=sponsored_project_compensation_get($pdo,$compPublicId);if(!$comp)throw new RuntimeException('Sponsored Project compensation record not found.');
+    $pdo->beginTransaction();
+    try{
+    $q=$pdo->prepare('SELECT assignment_id FROM sponsored_research_project_compensations WHERE public_id=? FOR UPDATE');
+    $q->execute([$compPublicId]);$assignmentId=(int)($q->fetchColumn()?:0);
+    if(!$assignmentId)throw new RuntimeException('Sponsored Project compensation record not found.');
+    $comp=sponsored_project_compensation_for_assignment($pdo,$assignmentId);
+    if(!$comp)throw new RuntimeException('Sponsored Project compensation record not found.');
     $from=(string)$comp['status'];$allowed=[
       'pending'=>['voided'],'earned'=>['approved_for_payment','voided'],'approved_for_payment'=>['paid','voided'],'paid'=>[],'voided'=>[]
     ];if(!in_array($status,$allowed[$from]??[],true))throw new RuntimeException('That compensation status transition is not allowed.');
@@ -66,6 +70,8 @@ function sponsored_project_compensation_admin_transition(PDO $pdo,array $admin,s
     elseif($status==='voided')$sets[]='voided_at=NOW()';
     $params[]=(int)$comp['id'];$pdo->prepare('UPDATE sponsored_research_project_compensations SET '.implode(',',$sets).' WHERE id=?')->execute($params);
     sponsored_project_event($pdo,(int)$comp['campaign_id'],(int)$comp['assignment_id'],$comp['accepted_submission_id']?(int)$comp['accepted_submission_id']:null,(int)$admin['id'],'project_compensation_'.$status,['compensation_public_id'=>$comp['public_id'],'from_status'=>$from,'to_status'=>$status,'payment_reference'=>$paymentReference!==''?$paymentReference:null]);
+    $pdo->commit();
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     if(function_exists('notification_create')){
       $type='research_sponsored_compensation_'.$status;$body=match($status){'approved_for_payment'=>'Your Sponsored Project compensation was approved for payment.','paid'=>'Your Sponsored Project compensation was marked paid.','voided'=>'Your Sponsored Project compensation was voided.',default=>'Your Sponsored Project compensation changed.'};
       $submissionPublic=(string)($comp['accepted_submission_public_id']??'');
@@ -83,7 +89,7 @@ function sponsored_project_compensation_summary(PDO $pdo,int $campaignId): array
     $out=['pending'=>0,'earned'=>0,'approved_for_payment'=>0,'paid'=>0,'voided'=>0,'total_cents'=>0];foreach($q->fetchAll()?:[] as $r){$out[(string)$r['status']]=(int)$r['amount_cents'];if($r['status']!=='voided')$out['total_cents']+=(int)$r['amount_cents'];}return $out;
 }
 function sponsored_project_public_list(PDO $pdo,string $query='',int $limit=100): array {
-    $limit=max(1,min(250,$limit));$query=mb_substr(trim($query),0,120);$params=[];$where="c.status='open' AND c.access_mode='public' AND c.researcher_compensation_cents>0 AND (c.submission_deadline IS NULL OR c.submission_deadline>NOW()) AND (c.max_participants IS NULL OR (SELECT COUNT(*) FROM sponsored_research_agent_assignments ax WHERE ax.campaign_id=c.id AND ax.status IN ('active','paused','completed'))<c.max_participants)";
+    $limit=max(1,min(250,$limit));$query=mb_substr(trim($query),0,120);$params=[];$where="c.status='open' AND c.access_mode='public' AND c.researcher_compensation_cents>0 AND (c.starts_at IS NULL OR c.starts_at<=NOW()) AND (c.submission_deadline IS NULL OR c.submission_deadline>NOW()) AND (c.max_participants IS NULL OR (SELECT COUNT(*) FROM sponsored_research_agent_assignments ax WHERE ax.campaign_id=c.id AND ax.status IN ('active','paused','completed'))<c.max_participants)";
     if($query!==''){$where.=" AND (c.title LIKE ? OR c.brief LIKE ? OR c.objective LIKE ? OR sp.organization_name LIKE ?)";$like='%'.$query.'%';$params=[$like,$like,$like,$like];}
     $q=$pdo->prepare("SELECT c.public_id,c.title,c.brief,c.objective,c.budget_currency,c.researcher_compensation_cents,c.compensation_model,c.max_participants,c.starts_at,c.submission_deadline,c.review_deadline,c.eligibility_json,c.created_at,sp.organization_name,
       (SELECT COUNT(*) FROM sponsored_research_agent_assignments a WHERE a.campaign_id=c.id AND a.status IN ('active','paused','completed')) assigned_count
@@ -93,7 +99,7 @@ function sponsored_project_public_list(PDO $pdo,string $query='',int $limit=100)
 }
 function sponsored_project_public_get(PDO $pdo,string $publicId): ?array {
     $q=$pdo->prepare("SELECT c.public_id,c.id,c.title,c.brief,c.objective,c.budget_currency,c.researcher_compensation_cents,c.compensation_model,c.max_participants,c.starts_at,c.submission_deadline,c.review_deadline,c.eligibility_json,c.created_at,sp.organization_name
-      FROM sponsored_research_campaigns c JOIN sponsor_account_profiles sp ON sp.id=c.sponsor_profile_id WHERE c.public_id=? AND c.status='open' AND c.access_mode='public' AND c.researcher_compensation_cents>0 AND (c.submission_deadline IS NULL OR c.submission_deadline>NOW()) AND (c.max_participants IS NULL OR (SELECT COUNT(*) FROM sponsored_research_agent_assignments ax WHERE ax.campaign_id=c.id AND ax.status IN ('active','paused','completed'))<c.max_participants) LIMIT 1");
+      FROM sponsored_research_campaigns c JOIN sponsor_account_profiles sp ON sp.id=c.sponsor_profile_id WHERE c.public_id=? AND c.status='open' AND c.access_mode='public' AND c.researcher_compensation_cents>0 AND (c.starts_at IS NULL OR c.starts_at<=NOW()) AND (c.submission_deadline IS NULL OR c.submission_deadline>NOW()) AND (c.max_participants IS NULL OR (SELECT COUNT(*) FROM sponsored_research_agent_assignments ax WHERE ax.campaign_id=c.id AND ax.status IN ('active','paused','completed'))<c.max_participants) LIMIT 1");
     $q->execute([trim($publicId)]);$row=$q->fetch();if(!$row)return null;$row['eligibility']=sponsored_research_campaign_json($row['eligibility_json']??null);unset($row['eligibility_json']);
     $row['questions']=sponsored_research_campaign_questions($pdo,(int)$row['id']);unset($row['id']);return $row;
 }

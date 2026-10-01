@@ -186,7 +186,7 @@ function sponsored_research_campaign_update(PDO $pdo,array $viewer,string $publi
             ->execute([$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$compensation,$max,json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$starts,$deadline,$reviewDeadline,$next,(int)$campaign['id']]);
           $pdo->prepare('DELETE FROM sponsored_research_campaign_questions WHERE campaign_id=?')->execute([(int)$campaign['id']]);foreach($questions as $i=>$question)$pdo->prepare('INSERT INTO sponsored_research_campaign_questions(public_id,campaign_id,question,position) VALUES(?,?,?,?)')->execute([ulid_like(),(int)$campaign['id'],$question,$i]);
           $fresh=sponsored_research_campaign_by_public($pdo,$publicId);if(!$fresh)throw new RuntimeException('Campaign update could not be reloaded.');$fresh=sponsored_research_campaign_snapshot($pdo,$fresh,$viewer,(string)($input['reason']??'Campaign brief updated.'));
-          sponsored_research_campaign_event($pdo,(int)$campaign['id'],(int)$viewer['id'],'campaign_updated',['revision'=>$next,'config_hash'=>$fresh['config_hash']]);if(function_exists('sponsored_project_compensation_backfill_campaign'))sponsored_project_compensation_backfill_campaign($pdo,$fresh,(int)$viewer['id']);
+          sponsored_research_campaign_event($pdo,(int)$campaign['id'],(int)$viewer['id'],'campaign_updated',['revision'=>$next,'config_hash'=>$fresh['config_hash']]);
           $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         return sponsored_research_campaign_by_public($pdo,$publicId)??[];

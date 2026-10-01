@@ -30,6 +30,21 @@ $pdo->prepare("INSERT INTO conversations(public_id,conversation_type,created_by_
 $pdo->prepare("INSERT INTO research_agents(public_id,owner_user_id,project_id,conversation_id,name,visibility,status,monitoring_cadence) VALUES(?,?,?,?,?,'private','active','manual')")->execute([$agentPublic,(int)$researcher['id'],$projectId,$convId,'Comp Research Agent']);
 $assignment=sponsored_project_assign_agent($pdo,$researcher,(string)$campaign['public_id'],$agentPublic,['accept_terms'=>true]);
 $comp=sponsored_project_compensation_for_assignment($pdo,(int)$assignment['id']);ok11($comp!==null&&(int)$comp['amount_cents']===25000&&$comp['status']==='pending','Assignment freezes the advertised flat fee as pending compensation.');
+$alternativeProject=$pub('alt-project');$alternativeConv=$pub('alt-conv');$alternativeAgent=$pub('alt-agent');
+$pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,title,description,status) VALUES(?,?,?,?,'active')")
+    ->execute([$alternativeProject,(int)$researcher['id'],'Alternative sponsored Agent','Must not replace the agreed Agent']);
+$alternativeProjectId=(int)$pdo->lastInsertId();
+$pdo->prepare("INSERT INTO conversations(public_id,conversation_type,created_by_user_id,title) VALUES(?,'agent',?,?)")
+    ->execute([$alternativeConv,(int)$researcher['id'],'Alternative sponsored Agent']);
+$alternativeConversationId=(int)$pdo->lastInsertId();
+$pdo->prepare("INSERT INTO conversation_members(conversation_id,user_id,member_role) VALUES(?,?,'owner')")
+    ->execute([$alternativeConversationId,(int)$researcher['id']]);
+$pdo->prepare("INSERT INTO research_agents(public_id,owner_user_id,project_id,conversation_id,name,visibility,status,monitoring_cadence) VALUES(?,?,?,?,?,'private','active','manual')")
+    ->execute([$alternativeAgent,(int)$researcher['id'],$alternativeProjectId,$alternativeConversationId,'Alternative Agent']);
+$reassignmentDenied=false;try{sponsored_project_assign_agent($pdo,$researcher,(string)$campaign['public_id'],$alternativeAgent,['accept_terms'=>true]);}catch(RuntimeException $e){$reassignmentDenied=true;}
+ok11($reassignmentDenied,'Frozen assignment cannot silently switch to another personally owned Agent.');
+$stillFrozen=sponsored_project_compensation_for_assignment($pdo,(int)$assignment['id']);
+ok11((int)$stillFrozen['research_agent_id']===(int)$assignment['research_agent_id'],'Rejected reassignment preserves original financial and Agent linkage.');
 
 $campaign=sponsored_research_campaign_update($pdo,$sponsor,(string)$campaign['public_id'],['researcher_compensation'=>'350.00','reason'=>'Increase fee for future researchers.']);
 sponsored_research_campaign_terms_publish($pdo,$sponsor,(string)$campaign['public_id'],'Updated project terms after compensation revision.','Republish current terms.');
@@ -47,6 +62,10 @@ ok11($approved['status']==='approved_for_payment'&&!empty($approved['approved_at
 $missingRef=false;try{sponsored_project_compensation_admin_transition($pdo,$admin,(string)$earned['public_id'],'paid','','');}catch(InvalidArgumentException $e){$missingRef=true;}ok11($missingRef,'Paid transition requires a payment reference.');
 $paid=sponsored_project_compensation_admin_transition($pdo,$admin,(string)$earned['public_id'],'paid','manual-pay-'.$run,'Paid outside Annotated.');
 ok11($paid['status']==='paid'&&!empty($paid['paid_at'])&&$paid['payment_reference']==='manual-pay-'.$run,'Admin records paid compensation independently from research acceptance.');
+$reopenDenied=false;try{sponsored_project_assign_agent($pdo,$researcher,(string)$campaign['public_id'],$agentPublic,['accept_terms'=>true]);}catch(RuntimeException $e){$reopenDenied=true;}
+ok11($reopenDenied,'Paid and completed assignment cannot be reopened by assigning the original Agent again.');
+$doublePaymentDenied=false;try{sponsored_project_compensation_admin_transition($pdo,$admin,(string)$paid['public_id'],'paid','manual-pay-again','');}catch(RuntimeException $e){$doublePaymentDenied=true;}
+ok11($doublePaymentDenied,'Compensation cannot be marked paid twice.');
 
 $userComp=sponsored_project_compensations_for_researcher($pdo,(int)$researcher['id'],20);ok11(count($userComp)>=1&&$userComp[0]['status']==='paid','Researcher compensation view returns paid state.');
 $q=$pdo->prepare("SELECT notification_type FROM notifications WHERE user_id=? AND notification_type LIKE 'research_sponsored_compensation_%' ORDER BY id");$q->execute([(int)$researcher['id']]);$types=$q->fetchAll(PDO::FETCH_COLUMN);ok11(in_array('research_sponsored_compensation_earned',$types,true)&&in_array('research_sponsored_compensation_approved_for_payment',$types,true)&&in_array('research_sponsored_compensation_paid',$types,true),'Researcher receives earned, approved, and paid notifications.');

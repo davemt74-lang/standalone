@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');$dbUser=(string)getenv('DB_USER');$dbPass=(string)getenv('DB_PASS');if($dsn==='')throw new RuntimeException('DB_DSN is required.');
 $pdo=new PDO($dsn,$dbUser,$dbPass,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-foreach(['installer','storage','jobs','concurrency','functions','subscriptions','account-admin','account-membership','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','research-tasks','research-programs','research-missions','research-accounts','sponsored-research-campaigns','sponsored-research-participation','data-attribution','data-datasets','sponsored-research-projects'] as $lib)require_once $root.'/app/'.$lib.'.php';
+foreach(['installer','storage','jobs','concurrency','functions','subscriptions','account-admin','account-membership','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','research-tasks','research-programs','research-missions','research-accounts','sponsored-research-campaigns','sponsored-research-participation','data-attribution','data-datasets','sponsored-research-finance','sponsored-research-projects','sponsored-research-project-compensation'] as $lib)require_once $root.'/app/'.$lib.'.php';
 function ok10(bool $ok,string $m):void{if(!$ok)throw new RuntimeException('FAIL: '.$m);echo "PASS: $m\n";}
 $run='p80s10'.substr(bin2hex(random_bytes(5)),0,10);$pub=fn(string $p)=>$p.'-'.$run.'-'.substr(bin2hex(random_bytes(3)),0,6);
 $make=function(string $name,string $role='user')use($pdo,$run,$pub):array{$u=substr(strtolower($name).'_'.$run,0,48);$pdo->prepare("INSERT INTO users(public_id,username,display_name,email,email_verified_at,status,role,plan_tier,live_presence_mode) VALUES(?,?,?,?,NOW(),'active',?,'pro','cloaked')")->execute([$pub('u'),$u,$name,$u.'@example.test',$role]);$id=(int)$pdo->lastInsertId();$pdo->prepare('INSERT IGNORE INTO user_preferences(user_id) VALUES(?)')->execute([$id]);$q=$pdo->prepare('SELECT * FROM users WHERE id=?');$q->execute([$id]);return $q->fetch();};
@@ -24,12 +24,16 @@ $project=project_access($pdo,(int)$researcher['id'],$projectPublic);
 $doc1=research_agent_workspace_create_document($pdo,$researcher,$project,['title'=>'Initial Deliverable','body'=>'Initial sponsored research evidence.','summary'=>'Initial submission.'],true);
 $first=sponsored_project_submit($pdo,$researcher,(string)$campaign['public_id'],[['type'=>'document','public_id'=>(string)$doc1['public_id']]],'Initial Sponsored Submission','Initial bundle.',true);
 ok10((int)$first['revision_number']===1&&empty($first['supersedes_submission_id']),'Initial submission starts revision chain at 1.');
+$duplicateInitial=false;try{sponsored_project_submit($pdo,$researcher,(string)$campaign['public_id'],[['type'=>'document','public_id'=>(string)$doc1['public_id']]],'Parallel initial submission','',true);}catch(RuntimeException $e){$duplicateInitial=true;}
+ok10($duplicateInitial,'Only one initial submission may exist per assignment.');
 
 $under=sponsored_project_admin_status($pdo,$admin,(string)$first['public_id'],'under_review','Review started.');
 ok10($under['status']==='under_review'&&!empty($under['reviewed_by_user_id']),'Admin review records reviewer identity.');
 $missing=false;try{sponsored_project_admin_status($pdo,$admin,(string)$first['public_id'],'revision_requested','');}catch(InvalidArgumentException $e){$missing=true;}ok10($missing,'Revision request requires reviewer instructions.');
 $requested=sponsored_project_admin_status($pdo,$admin,(string)$first['public_id'],'revision_requested','Add corroborating evidence and address the source conflict.');
 ok10($requested['status']==='revision_requested'&&str_contains((string)$requested['review_note'],'corroborating'),'Revision request persists structured instructions.');
+$unlinked=false;try{sponsored_project_submit($pdo,$researcher,(string)$campaign['public_id'],[['type'=>'document','public_id'=>(string)$doc1['public_id']]],'Unlinked replacement','',true);}catch(RuntimeException $e){$unlinked=true;}
+ok10($unlinked,'Requested revisions cannot bypass immutable lineage with a fresh initial submission.');
 
 $agentContext=sponsored_project_agent_context($pdo,$agentId);
 ok10(!empty($agentContext['requires_revision'])&&str_contains((string)$agentContext['review_note'],'source conflict'),'Research Agent context exposes pending revision and feedback.');
@@ -37,12 +41,16 @@ ok10(!empty($agentContext['requires_revision'])&&str_contains((string)$agentCont
 $doc2=research_agent_workspace_create_document($pdo,$researcher,$project,['title'=>'Revised Deliverable','body'=>'Revised sponsored evidence with corroboration.','summary'=>'Revision response.'],true);
 $second=sponsored_project_submit($pdo,$researcher,(string)$campaign['public_id'],[['type'=>'document','public_id'=>(string)$doc2['public_id']]],'Revised Sponsored Submission','Revision bundle.',true,(string)$first['public_id']);
 ok10((int)$second['revision_number']===2&&(string)$second['supersedes_public_id']===(string)$first['public_id'],'Resubmission creates immutable revision 2 linked to revision 1.');
+$staleReview=false;try{sponsored_project_admin_status($pdo,$admin,(string)$first['public_id'],'accepted');}catch(RuntimeException $e){$staleReview=true;}
+ok10($staleReview,'An older revision cannot be accepted after resubmission.');
 $firstAgain=sponsored_project_submission_get($pdo,(string)$first['public_id']);ok10((string)$firstAgain['status']==='revision_requested'&&(string)$firstAgain['submission_hash']===(string)$first['submission_hash'],'Original reviewed submission remains immutable after resubmission.');
 $dupe=false;try{sponsored_project_submit($pdo,$researcher,(string)$campaign['public_id'],[['type'=>'document','public_id'=>(string)$doc2['public_id']]],'Duplicate Revision','',true,(string)$first['public_id']);}catch(RuntimeException $e){$dupe=true;}ok10($dupe,'A revision request can only be answered once.');
 
 $chain=sponsored_project_revision_chain($pdo,(string)$second['public_id']);ok10(count($chain)===2&&(int)$chain[0]['revision_number']===1&&(int)$chain[1]['revision_number']===2,'Revision chain returns complete immutable history.');
 $accepted=sponsored_project_admin_status($pdo,$admin,(string)$second['public_id'],'accepted','Revision satisfies the project requirements.');
 ok10($accepted['status']==='accepted','Admin accepts the revised submission.');
+$secondDecision=false;try{sponsored_project_admin_status($pdo,$admin,(string)$second['public_id'],'rejected');}catch(RuntimeException $e){$secondDecision=true;}
+ok10($secondDecision,'Completed assignments reject a conflicting later review decision.');
 $q=$pdo->prepare('SELECT status,completed_submission_id,completed_at FROM sponsored_research_agent_assignments WHERE id=?');$q->execute([(int)$assignment['id']]);$done=$q->fetch();
 ok10($done['status']==='completed'&&(int)$done['completed_submission_id']===(int)$second['id']&&!empty($done['completed_at']),'Acceptance completes the assignment against the exact accepted submission.');
 $ctx=sponsored_project_agent_context($pdo,$agentId);ok10(!empty($ctx['completed'])&&!empty($ctx['completed_submission_id']),'Research Agent context exposes Sponsored Project completion.');
