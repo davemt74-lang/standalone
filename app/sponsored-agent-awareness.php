@@ -28,6 +28,19 @@ function sponsored_agent_awareness_access(PDO $pdo,array $viewer,string $campaig
       ||(int)($agent['id']??0)!==(int)($a['research_agent_id']??-1))return null;
     return ['campaign'=>$c,'participation'=>$p,'assignment'=>$a,'agent'=>$agent,'workspace'=>$access];
 }
+/**
+ * Paid-project context is never emitted into a shared Agent conversation.
+ * Checking current membership on each send prevents a later invite from
+ * silently exposing earlier or subsequent private sponsored research.
+ */
+function sponsored_agent_awareness_private_conversation(PDO $pdo,array $viewer,array $conversation): bool {
+    if((int)($viewer['id']??0)<=0||(int)($conversation['id']??0)<=0
+       ||(int)($conversation['created_by_user_id']??0)!==(int)$viewer['id']
+       ||!empty($conversation['team_id'])||($conversation['conversation_type']??'')!=='agent')return false;
+    $q=$pdo->prepare('SELECT COUNT(*) FROM conversation_members WHERE conversation_id=? AND user_id<>?');
+    $q->execute([(int)$conversation['id'],(int)$viewer['id']]);
+    return (int)$q->fetchColumn()===0;
+}
 function sponsored_agent_awareness_project_options(PDO $pdo,array $viewer,int $limit=12): array {
     if((int)($viewer['id']??0)<=0||!function_exists('sponsored_workspace_ready')||!sponsored_workspace_ready($pdo))return [];
     try{research_account_require_approved($pdo,$viewer);}catch(Throwable $ignored){return [];}
