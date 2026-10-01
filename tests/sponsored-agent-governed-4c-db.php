@@ -36,7 +36,7 @@ $context=sponsored_agent_awareness_project_context($pdo,$researcher,(string)$cam
 sponsored4cCheck($context!==null&&$context['meta']['read_only']===true,'Approved exact Agent receives consent-bound read-only Sponsored Project context.');
 $conversation=agent_chat_access($pdo,$researcher,$convPublic);
 sponsored4cCheck($conversation!==null,'Existing private Agent conversation is available.');
-$makeProposal=function(string $cap,array $args,array $refs)use($pdo,$researcher,$conversation,$context,$projectPublic):array{
+$makeProposal=function(string $cap,array $args,array $refs)use($pdo,$researcher,$conversation,&$context,$projectPublic):array{
     $msg=conversation_message_create($pdo,$researcher,(string)$conversation['public_id'],'Prepare governed Sponsor action.',null,null);
     $assistant=agent_chat_insert_agent_message($pdo,$conversation,'Prepared a proposal requiring your explicit confirmation.',(int)$msg['id']);
     return agent_action_create_proposals($pdo,$researcher,$conversation,(int)$assistant['id'],[$context],
