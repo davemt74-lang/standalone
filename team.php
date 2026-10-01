@@ -48,14 +48,64 @@ $resources=team_research_resources($pdo,(int)$team['id']);$assignable=$isOwner?t
 $q=$pdo->prepare('SELECT public_id,title,description,status,updated_at FROM research_projects WHERE team_id=? ORDER BY updated_at DESC LIMIT 20');$q->execute([$team['id']]);$projects=$q->fetchAll();
 $q=$pdo->prepare("SELECT a.public_id FROM annotations a WHERE a.team_id=? AND a.visibility='team' AND a.status='published' ORDER BY a.published_at DESC LIMIT 25");
 $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUMN) as $annotationPublic){$row=public_discovery_annotation($pdo,(string)$annotationPublic,$u);if($row)$annotations[]=$row;}
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($team['name'])?> · Teams · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head><body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="team" data-workspace-team="<?=h((string)$team['public_id'])?>">
-<main class="layout"><section>
-<div class="pageTitle"><span class="eyebrow">TEAM · <?=h(strtoupper((string)$team['access_role']))?></span><h1><?=h($team['name'])?></h1><p>Shared people, annotations, Research projects, and private Team collaboration.</p></div>
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=h($team['name'])?> · Teams · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css?v=team-agent-2">
+<style>
+.teamWorkspaceFullWidth{width:min(100%,1500px);margin:0 auto;padding:22px clamp(16px,3vw,46px) 72px;box-sizing:border-box;min-width:0}
+.teamWorkspaceFullWidth .sourceGrid{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
+.teamWorkspaceFullWidth .card{max-width:none}
+.teamAttachAgent{margin:22px 0 28px;padding:24px}
+.teamAttachAgent .sectionHeadWeb{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.teamAttachAgentForm{display:grid;grid-template-columns:minmax(230px,1fr) auto;align-items:end;gap:14px;margin-top:18px}
+.teamAttachAgentForm>label:first-of-type{min-width:0;display:grid;gap:8px}
+.teamAttachAgentForm select{width:100%;max-width:100%;min-height:44px}
+.teamAttachAgentConfirmation{grid-column:1/-1;display:flex;align-items:flex-start;gap:9px;font-size:.91rem;line-height:1.5}
+.teamAttachAgentConfirmation input{flex:none;margin-top:5px}
+.teamMemberAdd{margin:18px 0 0;padding:14px 18px}
+.teamMemberAdd summary{cursor:pointer;font-weight:650}
+.teamMemberAddForm{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding-top:12px}
+.teamMemberAddForm label{flex:1;min-width:200px}
+@media(max-width:700px){.teamAttachAgentForm{grid-template-columns:1fr}.teamWorkspaceFullWidth{padding:16px 14px 56px}}
+</style></head><body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="team" data-workspace-team="<?=h((string)$team['public_id'])?>">
+<main class="teamWorkspaceFullWidth">
+<div class="pageTitle"><span class="eyebrow">TEAM · <?=h(strtoupper((string)$team['access_role']))?></span><h1><?=h($team['name'])?></h1><p>Shared people, Research Agents, Desktops, Libraries and private Team collaboration.</p><a class="button secondary" href="/home.php?team=<?=rawurlencode((string)$team['public_id'])?>#team-chat">Open Team Chat</a></div>
 <?php if($error):?><div class="error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="success"><?=h($success)?></div><?php endif?>
 <div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">MEMBERS</span><h2><?=count($members)?> people</h2></div></div>
 <?php foreach($members as $m):?><div class="sessionRow"><a class="profileMini" href="<?=h(profile_path((string)$m['username']))?>"><?=app_shell_avatar($m,'teamMiniAvatar')?><span><strong><?=h($m['display_name'])?></strong><small>@<?=h($m['username'])?> · <?=h(ucfirst($m['role']))?></small></span></a>
 <?php if($isOwner&&(int)$m['id']!==(int)$team['owner_user_id']):?><div class="inlineActions"><form method="post" class="inlineForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="role"><input type="hidden" name="member_id" value="<?=h((string)$m['id'])?>"><select name="role"><option value="admin" <?=$m['role']==='admin'?'selected':''?>>Admin</option><option value="researcher" <?=$m['role']==='researcher'?'selected':''?>>Researcher</option><option value="viewer" <?=$m['role']==='viewer'?'selected':''?>>Viewer</option></select><button class="button secondary">Save</button></form><form method="post" onsubmit="return confirm('Remove this member from the team?')"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="remove"><input type="hidden" name="member_id" value="<?=h((string)$m['id'])?>"><button class="button secondary">Remove</button></form></div><?php endif?></div><?php endforeach?>
+<?php if($canManage):?><details class="card teamMemberAdd"><summary>Add a member</summary><form method="post" class="teamMemberAddForm"><?=csrf_field()?><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="Existing Annotated username"></label><button class="button">Add member</button></form></details><?php endif?>
 </div>
+
+<section class="card teamAttachAgent" id="team-agent-attachment" aria-labelledby="attachResearchAgentHeading">
+  <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM RESOURCES</span><h2 id="attachResearchAgentHeading">Attach Research Agent</h2>
+  <p>Assign a Research Agent and its existing research, Desktop and Library to this Team. Only the Team owner may assign Agents they own.</p></div>
+  <a class="button secondary" href="/research.php">My Research Agents</a></div>
+  <?php if($isOwner):?>
+    <?php if($assignable):?>
+    <form method="post" class="teamAttachAgentForm">
+      <?=csrf_field()?>
+      <input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>">
+      <input type="hidden" name="op" value="assign_agent">
+      <label>Choose one of your available Research Agents
+        <select name="agent_id" required>
+          <option value="">Select a Research Agent</option>
+          <?php foreach($assignable as $candidate):?>
+          <option value="<?=h((string)$candidate['public_id'])?>"><?=h((string)$candidate['name'])?> · <?=h((string)$candidate['project_title'])?></option>
+          <?php endforeach?>
+        </select>
+      </label>
+      <label class="teamAttachAgentConfirmation"><input type="checkbox" name="confirm_workspace_share" value="1" required>
+        Share this Agent's existing Project, Desktop, Library, research and conversation with Team members.
+      </label>
+      <button class="button" type="submit">Attach Research Agent</button>
+    </form>
+    <?php else:?>
+    <p class="meta">No available private Research Agents that you own. An Agent must belong to your personal Project and cannot already be assigned to another Team or active sponsored project.</p>
+    <a class="button secondary" href="/research.php">Manage my Research Agents</a>
+    <?php endif?>
+  <?php else:?>
+    <p class="meta">Only the Team owner can attach Research Agents. Shared Agents appear below for Team members.</p>
+  <?php endif?>
+</section>
 
 <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM RESOURCES</span><h2>Assigned Research Agents, Desktops &amp; Libraries</h2><p class="meta">Team research uses the existing Agent's Project, Desktop and Library. Access follows current Team membership.</p></div></div>
 <div class="sourceGrid"><?php foreach($resources as $resource):?><article class="card sourceCard"><span class="eyebrow">SHARED RESEARCH AGENT</span><h3><?=h((string)$resource['name'])?></h3><p class="meta">Owned by <?=h((string)$resource['owner_name'])?> · Project <?=h((string)$resource['project_title'])?></p>
@@ -72,10 +122,4 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 
 <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM FEED</span><h2>Recent annotations</h2></div></div>
 <?php foreach($annotations as $a):?><?=annotation_ui_card($a,$u)?><?php endforeach?><?php if(!$annotations):?><div class="card empty">No team-only annotations yet. Team captures from the Chrome sidebar will appear here.</div><?php endif?>
-</section>
-<aside>
-<?php if($isOwner):?><div class="card"><h3>Assign a Research Agent</h3><p class="meta">Only the Team owner can assign a Private Research Agent and Project they personally own. Set Agent visibility to Private first. Its existing Desktop, Library and conversation become Team-accessible.</p>
-<?php if($assignable):?><form method="post" class="stack"><?=csrf_field()?><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="assign_agent"><label>My Research Agent<select name="agent_id" required><?php foreach($assignable as $candidate):?><option value="<?=h((string)$candidate['public_id'])?>"><?=h((string)$candidate['name'])?></option><?php endforeach?></select></label><label><input type="checkbox" name="confirm_workspace_share" value="1" required> Share this Agent's existing research, Desktop, Library and conversation with Team members.</label><button>Assign to Team</button></form><?php else:?><p class="meta">No unassigned Research Agents you own. Create a personal Agent first.</p><a class="button secondary" href="/research.php">My Research</a><?php endif?></div><?php endif?>
-<?php if($canManage):?><div class="card"><h3>Add a member</h3><p class="meta">Add an existing Annotated user by username.</p><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="username"></label><button>Add member</button></form></div><?php endif?>
-<div class="card"><h3>Team collaboration</h3><p class="meta">Team membership controls private team annotations, Team Live access, team chat, and team-scoped Research projects.</p><a class="button secondary" href="/home.php?team=<?=h($team['public_id'])?>#team-chat">Open Team Chat</a></div>
-</aside></main><?=annotation_ui_scripts($u)?><script src="/assets/js/workspace-state.js?v=34.0"></script></body></html>
+</section></main><?=annotation_ui_scripts($u)?><script src="/assets/js/workspace-state.js?v=34.0"></script></body></html>
