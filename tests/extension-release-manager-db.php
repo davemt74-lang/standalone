@@ -43,6 +43,10 @@ try{
         $zip->addFromString('manifest.json',json_encode($m,JSON_THROW_ON_ERROR));
         $zip->addFromString('service-worker.js','// valid extension');
         $zip->addFromString('sidepanel.html','<!doctype html><html></html>');
+        $zip->addFromString('content.js','// content script');
+        $zip->addFromString('sidepanel-state.js','// state');
+        $zip->addFromString('sidepanel.js','// main');
+        $zip->addFromString('options.html','<!doctype html><html></html>');
         $zip->close();
         $validated=extension_release_zip_inspect($path);
         extensionDbCheck($validated['version']===$candidate['version'],'Accepted '.$candidate['version'].' fixture archive.');
