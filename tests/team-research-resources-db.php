@@ -103,4 +103,13 @@ $pdo->prepare("UPDATE research_agents SET visibility='public' WHERE public_id=?"
 checkTeam(!in_array($agentPublic,array_column(team_research_assignable($pdo,(int)$owner['id']),'public_id'),true),'Public Agents cannot be selected for Team sharing.');
 $publicDenied=false;try{team_research_assign($pdo,$team,$owner,$agentPublic);}catch(RuntimeException $e){$publicDenied=true;}
 checkTeam($publicDenied,'Runtime rejects sharing a public Agent into a private Team.');
+$memberAdded=team_research_add_member($pdo,$team,$admin,(int)$outsider['id']);
+checkTeam($memberAdded,'Team admin can invite an existing user through the Add Member operation.');
+$q=$pdo->prepare('SELECT role FROM team_members WHERE team_id=? AND user_id=?');
+$q->execute([$teamId,(int)$outsider['id']]);
+checkTeam($q->fetchColumn()==='researcher','Invite stores new Team member with researcher role.');
+checkTeam(!team_research_add_member($pdo,$team,$admin,(int)$outsider['id']),'Duplicate invite is a safe no-op.');
+$viewerDenied=false;try{team_research_add_member($pdo,$team,$viewer,(int)$outsider['id']);}catch(RuntimeException $e){$viewerDenied=true;}
+checkTeam($viewerDenied,'Team viewer cannot use Add Member even if they forge the request.');
+
 echo "Team Research resources database journey passed.\n";
