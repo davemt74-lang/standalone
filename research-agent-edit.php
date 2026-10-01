@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__.'/app/bootstrap.php';
+require __DIR__.'/app/bootstrap.php';require_once __DIR__.'/app/team-research-resources.php';
 $u=require_user($pdo);header('Cache-Control: private, no-store');header('Vary: Cookie');
 
 $agentId=trim((string)($_GET['agent']??$_POST['agent_id']??''));
@@ -11,7 +11,20 @@ try{$ctx=research_agent_edit_context($pdo,$u,$agentId);}catch(Throwable $e){http
 if($_SERVER['REQUEST_METHOD']==='POST'){
     require_csrf();$op=(string)($_POST['op']??'');
     try{
-        if($op==='save_agent'){
+        if($op==='assign_team'){
+            if(empty($_POST['confirm_workspace_share']))throw new RuntimeException('Confirm that the Agent, Desktop, Library and research will become Team-accessible.');
+            $team=team_research_owned_team($pdo,(int)$u['id'],trim((string)($_POST['team_id']??'')));
+            if(!$team)throw new RuntimeException('Choose a Team that you own.');
+            team_research_assign($pdo,$team,$u,$agentId);
+            $success='Research Agent, Desktop and Library attached to '.$team['name'].'.';
+        }elseif($op==='unassign_team'){
+            $team=team_research_agent_team($pdo,(int)$u['id'],$agentId);
+            if(!$team||empty($team['owner_member'])||(int)$team['owner_user_id']!==(int)$u['id'])
+                throw new RuntimeException('Only the owner of this Team and Research Agent can remove this assignment.');
+            $team['access_role']='owner';
+            team_research_unassign($pdo,$team,$u,$agentId);
+            $success='Research Agent removed from the Team and returned to your personal workspace.';
+        }elseif($op==='save_agent'){
             $image=isset($_POST['remove_profile_photo'])?'':(string)($_POST['profile_image_url']??($ctx['agent']['profile_image_url']??''));
             if(isset($_FILES['agent_profile_photo'])&&(int)($_FILES['agent_profile_photo']['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_NO_FILE)$image=profile_image_upload($_FILES['agent_profile_photo'],(int)$u['id']);
             $ctx=research_agent_update_settings($pdo,$u,$agentId,[
@@ -71,13 +84,26 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 $agent=$ctx['agent'];$project=$ctx['project'];$automation=$ctx['automation'];$missions=$ctx['missions'];$plans=$ctx['plans'];$programs=$ctx['programs'];$watches=$ctx['watches'];$portfolios=$ctx['portfolios'];
 $drafts=function_exists('research_agent_story_drafts')?research_agent_story_drafts($pdo,$u,$agentId,30):[];
 $storyPolicy=function_exists('research_agent_story_policy')?research_agent_story_policy($pdo,$agent):research_agent_story_policy_defaults();
+$ownedTeams=team_research_owned_teams($pdo,(int)$u['id']);
+$assignedTeam=team_research_agent_team($pdo,(int)$u['id'],$agentId);
+$canAttachTeam=in_array($agentId,array_column(team_research_assignable($pdo,(int)$u['id']),'public_id'),true);
 $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$runTime=substr((string)($automation['run_time_local']??'09:00'),0,5);
 ?><!doctype html>
 <html>
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Edit <?=h((string)$agent['name'])?> · Annotated</title>
-<link rel="stylesheet" href="/assets/css/app.css?v=78.1">
+<link rel="stylesheet" href="/assets/css/app.css?v=team-agent-2">
+<style>
+.researchAgentEditTeamPanel{margin:0 0 22px;padding:24px}
+.researchAgentEditTeamHeading p{max-width:830px;line-height:1.5}
+.researchAgentEditTeamForm{display:grid;gap:15px;max-width:680px}
+.researchAgentEditTeamForm>label:first-of-type{display:grid;gap:8px}
+.researchAgentEditTeamForm select{width:100%;min-height:44px}
+.researchAgentEditTeamConfirm{display:flex;align-items:flex-start;gap:10px}
+.researchAgentEditTeamConfirm input{flex:none;margin-top:5px}
+.researchAgentEditTeamAssigned{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:16px 0}
+</style>
 </head>
 <body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="research-agent-edit">
 <main class="researchAgentEditCanvas">
@@ -96,6 +122,46 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
 
   <?php if($error!==''):?><div class="researchAgentEditNotice error"><?=h($error)?></div><?php endif?>
   <?php if($success!==''):?><div class="researchAgentEditNotice success"><?=h($success)?></div><?php endif?>
+
+  <section class="card researchAgentEditTeamPanel" id="team-assignment" aria-labelledby="teamAssignmentHeading">
+    <header class="researchAgentEditTeamHeading">
+      <div><span class="eyebrow">TEAM ACCESS</span><h2 id="teamAssignmentHeading">Assign to a Team</h2>
+      <p>Only you can attach this Research Agent to a Team you own. Its existing Project, Desktop, Library, research and conversation will be shared with that Team.</p></div>
+    </header>
+    <?php if($assignedTeam):?>
+      <div class="researchAgentEditTeamAssigned"><strong>Currently attached to <?=h((string)$assignedTeam['name'])?></strong>
+        <a class="button secondary" href="/team.php?id=<?=rawurlencode((string)$assignedTeam['public_id'])?>">Open Team</a></div>
+      <?php if(!empty($assignedTeam['owner_member'])&&(int)$assignedTeam['owner_user_id']===(int)$u['id']):?>
+        <form method="post" onsubmit="return confirm('Remove this Agent, its Desktop, Library, research and conversation from the Team?')">
+          <?=csrf_field()?><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
+          <input type="hidden" name="op" value="unassign_team">
+          <button class="button secondary" type="submit">Remove from Team</button>
+        </form>
+        <p class="meta">To move this Agent to another Team, remove it here and then attach it to the new Team.</p>
+      <?php else:?><p class="meta">The current Team assignment needs its owner to resolve its access permissions.</p><?php endif?>
+    <?php elseif(!$ownedTeams):?>
+      <p>You don't own any Teams yet.</p><a class="button secondary" href="/teams.php">Create a Team</a>
+    <?php elseif(!$canAttachTeam):?>
+      <p>This Agent is not currently eligible for Team sharing. Make it Private and ensure you own its Project. It also cannot share a Project with another active Agent or have an active sponsored assignment.</p>
+      <a class="button secondary" href="/teams.php">View my Teams</a>
+    <?php else:?>
+      <form method="post" class="researchAgentEditTeamForm">
+        <?=csrf_field()?><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
+        <input type="hidden" name="op" value="assign_team">
+        <label>Choose one of your Teams
+          <select name="team_id" required><option value="">Select a Team</option>
+            <?php foreach($ownedTeams as $ownedTeam):?>
+            <option value="<?=h((string)$ownedTeam['public_id'])?>"><?=h((string)$ownedTeam['name'])?></option>
+            <?php endforeach?>
+          </select>
+        </label>
+        <label class="researchAgentEditTeamConfirm"><input type="checkbox" name="confirm_workspace_share" value="1" required>
+          I understand that this Agent's research, Desktop, Library and conversation will become accessible to this Team's members.
+        </label>
+        <button class="button" type="submit">Attach to Team</button>
+      </form>
+    <?php endif?>
+  </section>
 
   <section class="researchAgentEditGrid">
     <form method="post" enctype="multipart/form-data" class="card researchAgentEditIdentity">
