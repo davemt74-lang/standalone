@@ -103,7 +103,6 @@ function research_route_surface_map(): array {
         'research-earnings.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsored Research earnings are a contextual researcher finance surface, not a primary Research destination.'],
         'research-sponsored-knowledge.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Contributor Sponsored Knowledge rights are a contextual governance surface.'],
         'research-sponsored-knowledge-admin.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsor Knowledge promotion and immutable releases remain contextual to a Sponsored Research campaign.'],
-        'admin/sponsored-research-datasets.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsored Research dataset assembly is an Admin Dataset authority surface.'],
         'research-portfolio.php'=>['classification'=>'LEGACY_ROUTE','target'=>'research.home','reason'=>'Legacy Research Portfolio attention view folds into Research home; Intelligence Portfolios remain canonical.'],
         'research-programs.php'=>['classification'=>'MERGE_UI','target'=>'agent.research.recurring','reason'=>'Programs remain the recurring-research engine.'],
         'research-project.php'=>['classification'=>'LEGACY_ROUTE','target'=>'agent.chat','reason'=>'Project stays internal as the permission/data boundary; Agent becomes the primary workspace concept.'],
