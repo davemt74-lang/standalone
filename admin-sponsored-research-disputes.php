@@ -1,0 +1,13 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/app/bootstrap.php';
+$u=require_user($pdo);if(($u['role']??'')!=='admin'){http_response_code(403);exit('Administrator access required.');}
+header('Cache-Control: private, no-store');$error='';$success='';
+if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{sponsored_research_dispute_resolve($pdo,$u,(string)($_POST['dispute_id']??''),(string)($_POST['resolution']??''),(string)($_POST['resolution_note']??''));$success='Dispute resolved.';}catch(Throwable $e){$error=$e->getMessage();}}
+$disputes=sponsored_research_disputes_list($pdo,250);
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sponsored Research Disputes · Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body>
+<main class="panel" style="max-width:1200px;margin:32px auto"><div class="pageTitle"><span class="eyebrow">ADMIN · RESEARCH OPERATIONS</span><h1>Sponsored Research Disputes</h1><p>Resolve disputes against the immutable campaign brief, submission revision, review evidence, and recorded decision.</p></div>
+<?php if($error):?><div class="error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="success"><?=h($success)?></div><?php endif?>
+<?php if(!$disputes):?><section class="card"><p>No disputes.</p></section><?php else:?><?php foreach($disputes as $d):?><section class="card"><h2><?=h((string)$d['submission_title'])?></h2><div class="meta"><?=h((string)$d['campaign_title'])?> · <?=h((string)$d['status'])?> · opened by <?=h((string)$d['opened_by_name'])?></div><p><?=nl2br(h((string)$d['reason']))?></p>
+<?php if($d['status']!=='resolved'):?><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="dispute_id" value="<?=h((string)$d['public_id'])?>"><label>Resolution<select name="resolution"><option value="upheld">Uphold original decision</option><option value="modified">Modify through follow-up action</option><option value="dismissed">Dismiss dispute</option></select></label><label>Resolution note<textarea name="resolution_note" rows="5" required></textarea></label><button>Resolve dispute</button></form><?php else:?><p><strong><?=h((string)$d['resolution'])?></strong> — <?=nl2br(h((string)$d['resolution_note']))?></p><?php endif?></section><?php endforeach?><?php endif?>
+</main></body></html>
