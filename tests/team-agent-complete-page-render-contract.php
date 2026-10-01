@@ -12,7 +12,12 @@ require_once $root.'/app/research-agent-shell-ui.php';
 function app_shell_avatar(array $person,string $class=''): string {return '<span class="'.h($class).'">A</span>';}
 function annotation_ui_card(array $annotation,array $viewer): string {return '<article class="annotationFixture">Annotation preserved</article>';}
 function annotation_ui_scripts(array $viewer): string {return '<script data-annotation-scripts></script>';}
+require_once $root.'/app/shell.php';
 $_SESSION=['csrf'=>'render-fixture-token'];
+$shellSource=(string)file_get_contents($root.'/app/shell.php');
+assert(str_contains($shellSource,"app_shell_link('/research-projects.php','Sponsored Research'"),
+    'Main app navigation must expose Sponsored Research.');
+
 function render_real_page(string $path,array $vars): string {
     $source=file_get_contents(dirname(__DIR__).'/'.$path);
     if(!is_string($source))throw new RuntimeException('Unable to read '.$path);
@@ -103,4 +108,8 @@ $assignedHtml=render_real_page('research-agent-edit.php',$agentVars);
 assert_ui(str_contains($assignedHtml,'Currently attached to Workola')&&str_contains($assignedHtml,'Remove from Team')&&
           str_contains($assignedHtml,'Manage Portfolios'),
     'Already assigned Agent can unassign and still renders full management page.');
+$shellPath='/research-projects.php';
+assert_ui(str_contains($shellSource,"app_shell_link('/research-projects.php','Sponsored Research'") &&
+          str_contains((string)file_get_contents($root.'/research-projects.php'),'sponsored_project_public_list'),
+          'Shared desktop/mobile sidebar links Sponsored Research to canonical public marketplace.');
 echo "Actual Team and Agent page rendering regression passed.\n";
