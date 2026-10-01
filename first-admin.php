@@ -17,6 +17,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $username=trim((string)($_POST['username']??''));
     $name=trim((string)($_POST['display_name']??''));
     $password=(string)($_POST['password']??'');
+    $ownerToken=trim((string)($_POST['setup_token']??''));
+    if(!installer_setup_token_valid(__DIR__,$ownerToken))$errors[]='A valid server-owner setup token is required.';
     if(!filter_var($email,FILTER_VALIDATE_EMAIL))$errors[]='Enter a valid email.';
     if(!preg_match('/^[A-Za-z0-9_]{3,30}$/',$username))$errors[]='Username must be 3–30 letters, numbers, or underscores.';
     if(strlen($password)<12)$errors[]='Password must be at least 12 characters.';
@@ -25,7 +27,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $got=(int)$pdo->query("SELECT GET_LOCK('annotated_first_admin',5)")->fetchColumn();
         if($got!==1)throw new RuntimeException('First-admin setup is busy. Retry.');
         try{
-            if(users_exist($pdo)){http_response_code(409);exit('First admin was already created.');}
+            if(!installer_first_admin_claim_allowed($pdo,__DIR__,$ownerToken)){http_response_code(409);exit('First-admin setup authorization is invalid or already used.');}
             $q=$pdo->prepare('INSERT INTO users(public_id,username,display_name,email,password_hash,role) VALUES(?,?,?,?,?,"admin")');
             $q->execute([ulid_like(),$username,$name,$email,password_hash($password,PASSWORD_DEFAULT)]);
             $uid=(int)$pdo->lastInsertId();
@@ -37,6 +39,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $_SESSION['rotated_at']=time();
             $_SESSION['last_activity']=time();
             $_SESSION['auth_time']=time();
+            if(!@unlink(installer_setup_token_path(__DIR__)))error_log('Annotated first-admin: remove annotated-setup-owner.key from the server parent directory.');
             header('Location: /onboarding.php');
             exit;
         }finally{
@@ -45,4 +48,4 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 }
 header('Cache-Control: private, no-store');
-?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create First Admin · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><main class="panel narrow"><span class="eyebrow">FINAL SETUP</span><h1>Create First Admin</h1><p>Create the first administrator account. This page closes permanently as soon as the account is created.</p><?php foreach($errors as $e):?><div class="error"><?=h($e)?></div><?php endforeach?><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><label>Display name<input name="display_name" required autocomplete="name"></label><label>Username<input name="username" required autocomplete="username"></label><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Password<input type="password" name="password" minlength="12" required autocomplete="new-password"></label><button>Create administrator</button></form></main></body></html>
+?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create First Admin · Annotated</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><main class="panel narrow"><span class="eyebrow">FINAL SETUP</span><h1>Create First Admin</h1><p>Create the first administrator account using the same server-owner token created outside the web root for installation. This page closes when the account is created, and the token file is deleted automatically.</p><?php foreach($errors as $e):?><div class="error"><?=h($e)?></div><?php endforeach?><form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><label>Display name<input name="display_name" required autocomplete="name"></label><label>Username<input name="username" required autocomplete="username"></label><label>Email<input type="email" name="email" required autocomplete="email"></label><label>Password<input type="password" name="password" minlength="12" required autocomplete="new-password"></label><label>Server-owner setup token<input type="password" name="setup_token" minlength="64" maxlength="64" required autocomplete="off"></label><button>Create administrator</button></form></main></body></html>
