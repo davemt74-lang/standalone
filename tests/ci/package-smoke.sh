@@ -165,4 +165,11 @@ echo "Phase 74 End-to-End Simplification Release & Hardening package extensions 
 echo "Phase 75 Section 1 Research Home & Agent Launcher package extensions passed."
 echo "Team Chat member roster & offline presence package extensions passed."
 echo "Live, Explore & Agent Chat UI refresh package extensions passed."
+# V1 non-negotiable: no unauthenticated admin recovery and no direct internal HTTP exposure.
+test -f "$tmp/site/.htaccess"
+test -f "$tmp/site/docs/v1-webserver-and-recovery.md"
+test -f "$tmp/site/tests/phase81-v1-release-webroot-contract.php"
+test ! -e "$tmp/site/reset-admin.php"
+php "$tmp/site/tests/v1-webroot-exposure-contract.php"
+echo "V1 public webroot/recovery release security checks passed."
 echo "Global header Create launcher package extensions passed."
