@@ -43,6 +43,12 @@ function sponsored_research_campaign_datetime(mixed $value,string $label): ?stri
     if(!$dt)throw new InvalidArgumentException($label.' is invalid.');
     return $dt->format('Y-m-d H:i:s');
 }
+function sponsored_research_campaign_money_cents(mixed $value): int {
+    $value=trim((string)$value);if($value==='')return 0;
+    if(!preg_match('/^\d{1,12}(?:\.\d{1,2})?$/',$value))throw new InvalidArgumentException('Budget must be a non-negative amount with up to two decimal places.');
+    [$whole,$fraction]=array_pad(explode('.',$value,2),2,'');$fraction=str_pad($fraction,2,'0');
+    $cents=((int)$whole*100)+(int)substr($fraction,0,2);if($cents<0)throw new InvalidArgumentException('Budget cannot be negative.');return $cents;
+}
 function sponsored_research_campaign_questions_clean(mixed $input): array {
     if(is_string($input))$input=preg_split('/\r?\n+/',$input)?:[];
     if(!is_array($input))return [];
@@ -138,7 +144,7 @@ function sponsored_research_campaign_create(PDO $pdo,array $viewer,array $input)
     if($title===''||$brief===''||$objective==='')throw new InvalidArgumentException('Campaign title, brief, and objective are required.');
     $mode=(string)($input['access_mode']??'private');if(!isset(sponsored_research_campaign_access_modes()[$mode]))$mode='private';
     $currency=strtoupper(trim((string)($input['budget_currency']??'USD')));if(!preg_match('/^[A-Z]{3}$/',$currency))throw new InvalidArgumentException('Budget currency must be a three-letter ISO code.');
-    $budget=max(0,(int)($input['budget_cents']??0));$max=(int)($input['max_participants']??0);$max=$max>0?$max:null;
+    $budget=array_key_exists('budget_cents',$input)?max(0,(int)$input['budget_cents']):sponsored_research_campaign_money_cents($input['budget']??'0');$max=(int)($input['max_participants']??0);$max=$max>0?$max:null;
     $starts=sponsored_research_campaign_datetime($input['starts_at']??'','Campaign start');$deadline=sponsored_research_campaign_datetime($input['submission_deadline']??'','Submission deadline');$reviewDeadline=sponsored_research_campaign_datetime($input['review_deadline']??'','Review deadline');
     if($starts&&$deadline&&strtotime($deadline)<=strtotime($starts))throw new InvalidArgumentException('Submission deadline must be after the campaign start.');
     if($deadline&&$reviewDeadline&&strtotime($reviewDeadline)<strtotime($deadline))throw new InvalidArgumentException('Review deadline cannot be before the submission deadline.');
@@ -165,7 +171,7 @@ function sponsored_research_campaign_update(PDO $pdo,array $viewer,string $publi
         if($title===''||$brief===''||$objective==='')throw new InvalidArgumentException('Campaign title, brief, and objective are required.');
         $mode=(string)($input['access_mode']??$campaign['access_mode']);if(!isset(sponsored_research_campaign_access_modes()[$mode]))$mode=(string)$campaign['access_mode'];
         $currency=strtoupper(trim((string)($input['budget_currency']??$campaign['budget_currency'])));if(!preg_match('/^[A-Z]{3}$/',$currency))throw new InvalidArgumentException('Budget currency must be a three-letter ISO code.');
-        $budget=max(0,(int)($input['budget_cents']??$campaign['budget_cents']));$max=(int)($input['max_participants']??($campaign['max_participants']??0));$max=$max>0?$max:null;
+        $budget=array_key_exists('budget_cents',$input)?max(0,(int)$input['budget_cents']):(array_key_exists('budget',$input)?sponsored_research_campaign_money_cents($input['budget']):(int)$campaign['budget_cents']);$max=(int)($input['max_participants']??($campaign['max_participants']??0));$max=$max>0?$max:null;
         $starts=sponsored_research_campaign_datetime($input['starts_at']??($campaign['starts_at']??''),'Campaign start');$deadline=sponsored_research_campaign_datetime($input['submission_deadline']??($campaign['submission_deadline']??''),'Submission deadline');$reviewDeadline=sponsored_research_campaign_datetime($input['review_deadline']??($campaign['review_deadline']??''),'Review deadline');
         if($starts&&$deadline&&strtotime($deadline)<=strtotime($starts))throw new InvalidArgumentException('Submission deadline must be after the campaign start.');
         if($deadline&&$reviewDeadline&&strtotime($reviewDeadline)<strtotime($deadline))throw new InvalidArgumentException('Review deadline cannot be before the submission deadline.');
@@ -206,4 +212,10 @@ function sponsored_research_campaign_list(PDO $pdo,array $viewer,int $limit=100)
 }
 function sponsored_research_campaign_versions(PDO $pdo,array $viewer,string $publicId,int $limit=50): array {
     $campaign=sponsored_research_campaign_require_manage($pdo,$viewer,$publicId);$q=$pdo->prepare('SELECT v.*,u.username editor_username,u.display_name editor_display_name FROM sponsored_research_campaign_versions v JOIN users u ON u.id=v.edited_by_user_id WHERE v.campaign_id=? ORDER BY v.revision_number DESC LIMIT '.max(1,min(100,$limit)));$q->execute([(int)$campaign['id']]);return $q->fetchAll()?:[];
+}
+
+function sponsored_research_campaign_events(PDO $pdo,array $viewer,string $publicId,int $limit=100): array {
+    $campaign=sponsored_research_campaign_require_manage($pdo,$viewer,$publicId);$limit=max(1,min(250,$limit));
+    $q=$pdo->prepare("SELECT e.*,u.username actor_username,u.display_name actor_display_name FROM sponsored_research_campaign_events e LEFT JOIN users u ON u.id=e.actor_user_id WHERE e.campaign_id=? ORDER BY e.created_at DESC,e.id DESC LIMIT ".$limit);
+    $q->execute([(int)$campaign['id']]);return $q->fetchAll()?:[];
 }
