@@ -102,7 +102,7 @@ function research_route_surface_map(): array {
         'research-opportunities.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsored Research opportunities are a contextual paid-research participation surface, not a competing primary Research destination.'],
         'research-earnings.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsored Research earnings are a contextual researcher finance surface, not a primary Research destination.'],
         'research-sponsored-knowledge.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Contributor Sponsored Knowledge rights are a contextual governance surface.'],
-        'research-sponsored-project.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsored Project tasks and contributor relationships are contextual to paid research work.'],
+        'research-sponsored-projects.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsored Projects are the paid-research marketplace where qualified researchers assign their own Research Agents.'],
         'research-sponsored-knowledge-admin.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Sponsor Knowledge promotion and immutable releases remain contextual to a Sponsored Research campaign.'],
         'research-portfolio.php'=>['classification'=>'LEGACY_ROUTE','target'=>'research.home','reason'=>'Legacy Research Portfolio attention view folds into Research home; Intelligence Portfolios remain canonical.'],
         'research-programs.php'=>['classification'=>'MERGE_UI','target'=>'agent.research.recurring','reason'=>'Programs remain the recurring-research engine.'],
