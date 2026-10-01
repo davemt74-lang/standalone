@@ -134,6 +134,7 @@ db_tests=(
   tests/phase80-section4-sponsored-research-submissions-db.php
   tests/phase80-section5-sponsored-research-review-db.php
   tests/phase80-section6-sponsored-research-finance-db.php
+  tests/phase80-section7-sponsored-knowledge-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
