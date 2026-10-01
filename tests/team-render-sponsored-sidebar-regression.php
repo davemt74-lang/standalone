@@ -22,6 +22,7 @@ function pageMarkup(string $filename):string {
     return substr($source,$point);
 }
 function renderTemplate(string $template):string {
+    extract($GLOBALS,EXTR_SKIP);
     ob_start();
     try{eval($template);}catch(Throwable $e){ob_end_clean();throw $e;}
     return (string)ob_get_clean();
