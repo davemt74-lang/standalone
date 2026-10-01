@@ -14,7 +14,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&$sponsor){
     'account_id'=>(string)($_POST['account_id']??''),'research_agent_id'=>(string)($_POST['research_agent_id']??''),
     'title'=>(string)($_POST['title']??''),'brief'=>(string)($_POST['brief']??''),'objective'=>(string)($_POST['objective']??''),
     'questions'=>(string)($_POST['questions']??''),'access_mode'=>(string)($_POST['access_mode']??'private'),
-    'budget_currency'=>(string)($_POST['budget_currency']??'USD'),'budget'=>(string)($_POST['budget_amount']??'0'),
+    'budget_currency'=>(string)($_POST['budget_currency']??'USD'),'budget'=>(string)($_POST['budget_amount']??'0'),'researcher_compensation'=>(string)($_POST['researcher_compensation']??'0'),
     'max_participants'=>(int)($_POST['max_participants']??0),'starts_at'=>(string)($_POST['starts_at']??''),'submission_deadline'=>(string)($_POST['submission_deadline']??''),'review_deadline'=>(string)($_POST['review_deadline']??''),
     'eligibility'=>['min_verification'=>(string)($_POST['minimum_verification']??'basic'),'specialties'=>(string)($_POST['required_specialties']??''),'languages'=>(string)($_POST['required_languages']??''),'min_completed_campaigns'=>(int)($_POST['min_completed_campaigns']??0)],
     'disclosures'=>['sponsorship_disclosure_required'=>isset($_POST['sponsorship_disclosure_required']),'conflict_disclosure_required'=>isset($_POST['conflict_disclosure_required']),'nda_required'=>isset($_POST['nda_required']),'ai_assistance_policy'=>(string)($_POST['ai_assistance_policy']??'allowed_with_disclosure'),'training_use_request'=>(string)($_POST['training_use_request']??'none')]
@@ -22,7 +22,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&$sponsor){
   }elseif($op==='update'){
    sponsored_research_campaign_update($pdo,$u,(string)$_POST['campaign_id'],[
     'research_agent_id'=>(string)($_POST['research_agent_id']??''),'title'=>(string)($_POST['title']??''),'brief'=>(string)($_POST['brief']??''),'objective'=>(string)($_POST['objective']??''),'questions'=>(string)($_POST['questions']??''),
-    'access_mode'=>(string)($_POST['access_mode']??'private'),'budget_currency'=>(string)($_POST['budget_currency']??'USD'),'budget'=>(string)($_POST['budget_amount']??'0'),'max_participants'=>(int)($_POST['max_participants']??0),
+    'access_mode'=>(string)($_POST['access_mode']??'private'),'budget_currency'=>(string)($_POST['budget_currency']??'USD'),'budget'=>(string)($_POST['budget_amount']??'0'),'researcher_compensation'=>(string)($_POST['researcher_compensation']??'0'),'max_participants'=>(int)($_POST['max_participants']??0),
     'starts_at'=>(string)($_POST['starts_at']??''),'submission_deadline'=>(string)($_POST['submission_deadline']??''),'review_deadline'=>(string)($_POST['review_deadline']??''),
     'eligibility'=>['min_verification'=>(string)($_POST['minimum_verification']??'basic'),'specialties'=>(string)($_POST['required_specialties']??''),'languages'=>(string)($_POST['required_languages']??''),'min_completed_campaigns'=>(int)($_POST['min_completed_campaigns']??0)],
     'disclosures'=>['sponsorship_disclosure_required'=>isset($_POST['sponsorship_disclosure_required']),'conflict_disclosure_required'=>isset($_POST['conflict_disclosure_required']),'nda_required'=>isset($_POST['nda_required']),'ai_assistance_policy'=>(string)($_POST['ai_assistance_policy']??'allowed_with_disclosure'),'training_use_request'=>(string)($_POST['training_use_request']??'none')],
