@@ -31,6 +31,9 @@ function sponsored_research_review_case_get(PDO $pdo,string $publicId): ?array {
       WHERE rc.public_id=? LIMIT 1");
     $q->execute([trim($publicId)]);$r=$q->fetch();if(!$r)return null;$r['criteria']=json_decode((string)$r['criteria_json'],true)?:[];return $r;
 }
+function sponsored_research_review_case_for_submission(PDO $pdo,int $submissionId): ?array {
+    $q=$pdo->prepare('SELECT public_id FROM sponsored_research_review_cases WHERE submission_id=? ORDER BY id DESC LIMIT 1');$q->execute([$submissionId]);$p=$q->fetchColumn();return $p?sponsored_research_review_case_get($pdo,(string)$p):null;
+}
 function sponsored_research_review_case_for_version(PDO $pdo,int $versionId): ?array {
     $q=$pdo->prepare('SELECT public_id FROM sponsored_research_review_cases WHERE submission_version_id=? LIMIT 1');$q->execute([$versionId]);$p=$q->fetchColumn();return $p?sponsored_research_review_case_get($pdo,(string)$p):null;
 }
