@@ -76,6 +76,8 @@ function sponsored_research_campaign_config(array $campaign,array $questions): a
       'access_mode'=>(string)$campaign['access_mode'],
       'budget_currency'=>(string)$campaign['budget_currency'],
       'budget_cents'=>(int)$campaign['budget_cents'],
+      'compensation_model'=>(string)($campaign['compensation_model']??'flat_fee'),
+      'researcher_compensation_cents'=>(int)($campaign['researcher_compensation_cents']??0),
       'max_participants'=>$campaign['max_participants']===null?null:(int)$campaign['max_participants'],
       'eligibility'=>sponsored_research_campaign_json($campaign['eligibility_json']??null),
       'disclosures'=>sponsored_research_campaign_json($campaign['disclosure_json']??null),
@@ -144,7 +146,7 @@ function sponsored_research_campaign_create(PDO $pdo,array $viewer,array $input)
     if($title===''||$brief===''||$objective==='')throw new InvalidArgumentException('Campaign title, brief, and objective are required.');
     $mode=(string)($input['access_mode']??'private');if(!isset(sponsored_research_campaign_access_modes()[$mode]))$mode='private';
     $currency=strtoupper(trim((string)($input['budget_currency']??'USD')));if(!preg_match('/^[A-Z]{3}$/',$currency))throw new InvalidArgumentException('Budget currency must be a three-letter ISO code.');
-    $budget=array_key_exists('budget_cents',$input)?max(0,(int)$input['budget_cents']):sponsored_research_campaign_money_cents($input['budget']??'0');$max=(int)($input['max_participants']??0);$max=$max>0?$max:null;
+    $budget=array_key_exists('budget_cents',$input)?max(0,(int)$input['budget_cents']):sponsored_research_campaign_money_cents($input['budget']??'0');$compensation=array_key_exists('researcher_compensation_cents',$input)?max(0,(int)$input['researcher_compensation_cents']):sponsored_research_campaign_money_cents($input['researcher_compensation']??'0');$max=(int)($input['max_participants']??0);$max=$max>0?$max:null;
     $starts=sponsored_research_campaign_datetime($input['starts_at']??'','Campaign start');$deadline=sponsored_research_campaign_datetime($input['submission_deadline']??'','Submission deadline');$reviewDeadline=sponsored_research_campaign_datetime($input['review_deadline']??'','Review deadline');
     if($starts&&$deadline&&strtotime($deadline)<=strtotime($starts))throw new InvalidArgumentException('Submission deadline must be after the campaign start.');
     if($deadline&&$reviewDeadline&&strtotime($reviewDeadline)<strtotime($deadline))throw new InvalidArgumentException('Review deadline cannot be before the submission deadline.');
@@ -152,9 +154,9 @@ function sponsored_research_campaign_create(PDO $pdo,array $viewer,array $input)
     $questions=sponsored_research_campaign_questions_clean($input['questions']??[]);if(!$questions)throw new InvalidArgumentException('Add at least one campaign research question.');
     $public=ulid_like();$pdo->beginTransaction();
     try{
-      $pdo->prepare("INSERT INTO sponsored_research_campaigns(public_id,sponsor_user_id,sponsor_profile_id,account_id,research_agent_id,title,brief,objective,status,access_mode,budget_currency,budget_cents,max_participants,eligibility_json,disclosure_json,starts_at,submission_deadline,review_deadline,current_revision,config_hash)
-        VALUES(?,?,?,?,?,?,?,?,'draft',?,?,?,?,?,?,?,?,?,1,REPEAT('0',64))")
-        ->execute([$public,(int)$viewer['id'],(int)$profile['id'],(int)$account['id'],$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$max,json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$starts,$deadline,$reviewDeadline]);
+      $pdo->prepare("INSERT INTO sponsored_research_campaigns(public_id,sponsor_user_id,sponsor_profile_id,account_id,research_agent_id,title,brief,objective,status,access_mode,budget_currency,budget_cents,compensation_model,researcher_compensation_cents,max_participants,eligibility_json,disclosure_json,starts_at,submission_deadline,review_deadline,current_revision,config_hash)
+        VALUES(?,?,?,?,?,?,?,?,'draft',?,? ,?,'flat_fee',?,?,?,?,?,?,?,?,1,REPEAT('0',64))")
+        ->execute([$public,(int)$viewer['id'],(int)$profile['id'],(int)$account['id'],$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$compensation,$max,json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$starts,$deadline,$reviewDeadline]);
       $id=(int)$pdo->lastInsertId();foreach($questions as $i=>$question)$pdo->prepare('INSERT INTO sponsored_research_campaign_questions(public_id,campaign_id,question,position) VALUES(?,?,?,?)')->execute([ulid_like(),$id,$question,$i]);
       $campaign=sponsored_research_campaign_by_public($pdo,$public);if(!$campaign)throw new RuntimeException('Campaign create failed.');
       $campaign=sponsored_research_campaign_snapshot($pdo,$campaign,$viewer,'Initial sponsored research campaign brief.');
@@ -171,7 +173,7 @@ function sponsored_research_campaign_update(PDO $pdo,array $viewer,string $publi
         if($title===''||$brief===''||$objective==='')throw new InvalidArgumentException('Campaign title, brief, and objective are required.');
         $mode=(string)($input['access_mode']??$campaign['access_mode']);if(!isset(sponsored_research_campaign_access_modes()[$mode]))$mode=(string)$campaign['access_mode'];
         $currency=strtoupper(trim((string)($input['budget_currency']??$campaign['budget_currency'])));if(!preg_match('/^[A-Z]{3}$/',$currency))throw new InvalidArgumentException('Budget currency must be a three-letter ISO code.');
-        $budget=array_key_exists('budget_cents',$input)?max(0,(int)$input['budget_cents']):(array_key_exists('budget',$input)?sponsored_research_campaign_money_cents($input['budget']):(int)$campaign['budget_cents']);$max=(int)($input['max_participants']??($campaign['max_participants']??0));$max=$max>0?$max:null;
+        $budget=array_key_exists('budget_cents',$input)?max(0,(int)$input['budget_cents']):(array_key_exists('budget',$input)?sponsored_research_campaign_money_cents($input['budget']):(int)$campaign['budget_cents']);$compensation=array_key_exists('researcher_compensation_cents',$input)?max(0,(int)$input['researcher_compensation_cents']):(array_key_exists('researcher_compensation',$input)?sponsored_research_campaign_money_cents($input['researcher_compensation']):(int)($campaign['researcher_compensation_cents']??0));$max=(int)($input['max_participants']??($campaign['max_participants']??0));$max=$max>0?$max:null;
         $starts=sponsored_research_campaign_datetime($input['starts_at']??($campaign['starts_at']??''),'Campaign start');$deadline=sponsored_research_campaign_datetime($input['submission_deadline']??($campaign['submission_deadline']??''),'Submission deadline');$reviewDeadline=sponsored_research_campaign_datetime($input['review_deadline']??($campaign['review_deadline']??''),'Review deadline');
         if($starts&&$deadline&&strtotime($deadline)<=strtotime($starts))throw new InvalidArgumentException('Submission deadline must be after the campaign start.');
         if($deadline&&$reviewDeadline&&strtotime($reviewDeadline)<strtotime($deadline))throw new InvalidArgumentException('Review deadline cannot be before the submission deadline.');
@@ -180,11 +182,11 @@ function sponsored_research_campaign_update(PDO $pdo,array $viewer,string $publi
         $questions=array_key_exists('questions',$input)?sponsored_research_campaign_questions_clean($input['questions']):array_map(fn($q)=>(string)$q['question'],$campaign['questions']);if(!$questions)throw new InvalidArgumentException('Add at least one campaign research question.');
         $pdo->beginTransaction();try{
           $next=(int)$campaign['current_revision']+1;
-          $pdo->prepare('UPDATE sponsored_research_campaigns SET research_agent_id=?,title=?,brief=?,objective=?,access_mode=?,budget_currency=?,budget_cents=?,max_participants=?,eligibility_json=?,disclosure_json=?,starts_at=?,submission_deadline=?,review_deadline=?,current_revision=?,updated_at=NOW() WHERE id=?')
-            ->execute([$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$max,json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$starts,$deadline,$reviewDeadline,$next,(int)$campaign['id']]);
+          $pdo->prepare('UPDATE sponsored_research_campaigns SET research_agent_id=?,title=?,brief=?,objective=?,access_mode=?,budget_currency=?,budget_cents=?,compensation_model='flat_fee',researcher_compensation_cents=?,max_participants=?,eligibility_json=?,disclosure_json=?,starts_at=?,submission_deadline=?,review_deadline=?,current_revision=?,updated_at=NOW() WHERE id=?')
+            ->execute([$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$compensation,$max,json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$starts,$deadline,$reviewDeadline,$next,(int)$campaign['id']]);
           $pdo->prepare('DELETE FROM sponsored_research_campaign_questions WHERE campaign_id=?')->execute([(int)$campaign['id']]);foreach($questions as $i=>$question)$pdo->prepare('INSERT INTO sponsored_research_campaign_questions(public_id,campaign_id,question,position) VALUES(?,?,?,?)')->execute([ulid_like(),(int)$campaign['id'],$question,$i]);
           $fresh=sponsored_research_campaign_by_public($pdo,$publicId);if(!$fresh)throw new RuntimeException('Campaign update could not be reloaded.');$fresh=sponsored_research_campaign_snapshot($pdo,$fresh,$viewer,(string)($input['reason']??'Campaign brief updated.'));
-          sponsored_research_campaign_event($pdo,(int)$campaign['id'],(int)$viewer['id'],'campaign_updated',['revision'=>$next,'config_hash'=>$fresh['config_hash']]);
+          sponsored_research_campaign_event($pdo,(int)$campaign['id'],(int)$viewer['id'],'campaign_updated',['revision'=>$next,'config_hash'=>$fresh['config_hash']]);if(function_exists('sponsored_project_compensation_backfill_campaign'))sponsored_project_compensation_backfill_campaign($pdo,$fresh,(int)$viewer['id']);
           $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         return sponsored_research_campaign_by_public($pdo,$publicId)??[];
