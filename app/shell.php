@@ -232,6 +232,10 @@ function app_shell_admin_nav(string $path): string {
 function app_shell_search(): string {
     return '<form class="appHeaderSearch" action="/search.php" method="get" data-command-palette-open><span aria-hidden="true">⌕</span><input name="q" aria-label="Search Annotated" autocomplete="off" readonly placeholder="Search Annotated or run a command"><kbd>⌘K</kbd></form>';
 }
+/** Admin search is a real GET form, not an inert public command palette. */
+function app_shell_admin_search(string $query=''): string {
+    return '<form class="appHeaderSearch adminHeaderSearch" action="/admin/search.php" method="get" role="search"><span aria-hidden="true">⌕</span><input type="search" name="q" aria-label="Search Admin" autocomplete="off" value="'.app_shell_h($query).'" placeholder="Search accounts, users, cases and operations"><button type="submit" aria-label="Search Admin">Search</button></form>';
+}
 function app_shell_command_palette(): string {
     return '<dialog class="commandPalette" data-command-palette aria-label="Search Annotated and run commands">'
       .'<div class="commandPaletteHead"><span aria-hidden="true">⌕</span><input type="search" data-command-input autocomplete="off" placeholder="Search agents, missions, tasks, teams, sources…"><button type="button" class="commandPaletteClose" data-command-close aria-label="Close">×</button></div>'
@@ -344,7 +348,7 @@ function app_shell_markup(PDO $pdo,array $user): array {
         $aside.=app_shell_research_agents($pdo,$user,$path).app_shell_research_projects($pdo,$user,$path);
     }
     $aside.='</aside>';
-    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$palette=$adminMode?'':app_shell_command_palette();$objectDrawer=$adminMode?'':app_shell_object_detail_drawer();$isAdminDashboard=$adminMode&&($path==='/admin/'||$path==='/admin/index.php');$headerSearch=$isAdminDashboard?'':app_shell_search();$headerOnly=(string)($GLOBALS['annotated_shell']['mode']??'full')==='header_only';$headerBrandClass=$headerOnly?'appHeaderBrandHeaderOnly':'appHeaderBrandMobile';$header='<header class="appShellHeader'.($adminMode?' appShellHeaderAdmin':'').($headerOnly?' appShellHeaderOnlyBar':'').'">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="'.$headerBrandClass.'">'.$brand.'</div>'.$headerSearch.'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'.$palette.$objectDrawer; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
+    $create=$adminMode?'':app_shell_create_launcher($pdo,$user);$palette=$adminMode?'':app_shell_command_palette();$objectDrawer=$adminMode?'':app_shell_object_detail_drawer();$isAdminDashboard=$adminMode&&($path==='/admin/'||$path==='/admin/index.php');$headerSearch=$adminMode?app_shell_admin_search(trim((string)($_GET['q']??''))):app_shell_search();$headerOnly=(string)($GLOBALS['annotated_shell']['mode']??'full')==='header_only';$headerBrandClass=$headerOnly?'appHeaderBrandHeaderOnly':'appHeaderBrandMobile';$header='<header class="appShellHeader'.($adminMode?' appShellHeaderAdmin':'').($headerOnly?' appShellHeaderOnlyBar':'').'">'.app_shell_mobile_nav($pdo,$user,$path,$adminMode,$unread).'<div class="'.$headerBrandClass.'">'.$brand.'</div>'.$headerSearch.'<div class="appHeaderActions">'.$create.app_shell_header_notification($pdo,$user,$unread).app_shell_user_menu($user,$isAdmin).'</div></header>'.$palette.$objectDrawer; $objectBar=$adminMode?'':app_shell_object_context_bar($pdo,$user);
     $footer='';
     return [$aside,$header,$footer];
 }
@@ -361,7 +365,9 @@ function app_shell_transform(string $html): string {
 
     [$aside,$header,$footer]=app_shell_markup($pdo,$user);
     $mode=(string)($state['mode']??'full');$headerOnly=$mode==='header_only';
-    $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').'" data-annotated-shell="1" data-chat-presence-csrf="'.app_shell_h(csrf_token()).'">'.($headerOnly?'':$aside).'<div class="appShellStage">'.$header.($headerOnly?'':$objectBar).'<div class="appShellContent">';
+    // Admin templates already own a fixed Admin sidebar. Do not render the product sidebar too.
+    $adminOwnsSidebar=str_starts_with(app_shell_request_path(),'/admin/')&&str_contains($html,'class="adminSidebar"');
+    $open='<div class="appShell'.($headerOnly?' appShellHeaderOnly':'').($adminOwnsSidebar?' appShellAdminLegacy':'').'" data-annotated-shell="1" data-chat-presence-csrf="'.app_shell_h(csrf_token()).'">'.(($headerOnly||$adminOwnsSidebar)?'':$aside).'<div class="appShellStage">'.$header.($headerOnly?'':$objectBar).'<div class="appShellContent">';
     $presenceScript=(function_exists('conversation_presence_ready')&&conversation_presence_ready($pdo))?'<script src="/assets/js/chat-presence.js?v=12.0"></script>':'';
     $researchAgentScript=($headerOnly?'':'<script src="/assets/js/research-agent-shell.js?v=47.0"></script>').'<script src="/assets/js/create-launcher.js?v=1.0"></script>'.($headerOnly?'':'<script src="/assets/js/command-palette.js?v=74.5"></script><script src="/assets/js/shell-drawers.js?v=74.5"></script>');
     $close='</div>'.$footer.'</div></div>'.$presenceScript.$researchAgentScript;

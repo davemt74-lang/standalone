@@ -2980,23 +2980,7 @@
 @media(max-width:720px){.billingKpiGrid,.billingMovementGrid,.billingFeedbackForm{grid-template-columns:1fr}}
 
 
-/* Admin V2.30 — full-width Admin workspace shell
-   Admin pages should not inherit the generic public .panel card container. */
-.adminSidebar~main.panel{
-  width:auto;
-  max-width:none;
-  min-height:100vh;
-  margin:0 0 0 268px;
-  padding:38px clamp(24px,3.2vw,56px) 64px;
-  background:#f7f7f5;
-  border:0;
-  border-radius:0;
-}
-.adminSidebar~main.panel>.pageTitle{padding-top:8px}
-.adminSidebar~main.panel>.card,
-.adminSidebar~main.panel>section.card{max-width:none}
-.adminSidebar~main.panel .tableWrap{max-width:100%}
-.adminSidebar~main.panel .adminAccountFilters{width:100%}
+/* Admin V2.30 — the Admin sidebar is owned by its template, not by two shells. */
 .adminFinancePage{width:auto;max-width:none}
 .financeKpiGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 24px}
 .financeKpiGrid>.card{margin:0}
@@ -4018,16 +4002,7 @@
 }
 .adminSidebarFoot a{color:#444!important}
 
-.adminSidebar~main.panel{
-  margin:0 0 0 268px!important;
-  max-width:none!important;
-  min-height:100vh!important;
-  border:0!important;
-  border-radius:0!important;
-  background:#f7f7f5!important;
-  padding:26px clamp(24px,3vw,48px) 72px!important;
-}
-.adminDashboardPage{width:auto!important}
+.adminDashboardPage{min-width:0}
 .adminDashboardHeader{
   min-height:58px;
   display:flex;
@@ -4094,8 +4069,7 @@
 .adminDashboardMetrics .adminMetric span{font-size:.72rem!important}
 .adminDashboardPage>.card,
 .adminDashboardPage>section.card{
-  width:100%!important;
-  max-width:none!important;
+  min-width:0;
 }
 .adminDashboardGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 .adminWorkspaceGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
@@ -4121,61 +4095,41 @@
 }
 
 
-/* Admin shell geometry hardening — center every admin workspace in the canvas. */
-.appShellHeaderAdmin{
-  grid-template-columns:minmax(0,1fr) auto!important;
-  padding-left:clamp(20px,2.4vw,36px)!important;
-}
-.appShellHeaderAdmin .appHeaderSearch{
-  width:min(720px,100%)!important;
-  max-width:100%!important;
-  min-width:0!important;
-  justify-self:start!important;
-}
-.appShellHeaderAdmin .appHeaderActions{
-  justify-self:end!important;
-}
-.adminSidebar~main.panel{
-  box-sizing:border-box!important;
-  width:calc(100% - 268px)!important;
-  margin:0 0 0 268px!important;
-  padding:26px clamp(24px,3vw,48px) 72px!important;
-}
-.adminSidebar~main.panel>*{
-  width:min(100%,1480px)!important;
-  margin-left:auto!important;
-  margin-right:auto!important;
-}
-.adminSidebar~main.panel>.adminDashboardHeader,
-.adminSidebar~main.panel>.adminDashboardMetrics,
-.adminSidebar~main.panel>.adminDashboardGrid,
-.adminSidebar~main.panel>.adminWorkspaceGrid,
-.adminSidebar~main.panel>.card,
-.adminSidebar~main.panel>section{
-  box-sizing:border-box!important;
-}
-.adminDashboardPage{
-  width:calc(100% - 268px)!important;
-  max-width:none!important;
-}
-.adminDashboardHeader{
-  max-width:1480px!important;
-}
-.adminDashboardHeader>.adminDashboardSearch{display:none!important}
+/* Admin sample controls share the same form primitives as other admin settings. */
+.adminSamplePanelRow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px}
+.adminSamplePanelRow>div{min-width:240px;flex:1}.adminSamplePanelRow p{max-width:730px;line-height:1.5}
+.adminSampleControl{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin:0}
+.adminSampleSwitch{display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:720;white-space:nowrap}
+.adminSampleSwitch input{appearance:none;position:relative;display:inline-block;width:48px;height:27px;flex:none;margin:0;border:1px solid #afb5b9;border-radius:99px;background:#e1e4e7;cursor:pointer}
+.adminSampleSwitch input:before{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .12s}
+.adminSampleSwitch input:checked{background:#273443;border-color:#273443}.adminSampleSwitch input:checked:before{transform:translateX(21px)}
+.adminSampleSwitch input:focus-visible{outline:3px solid #8baccb;outline-offset:2px}
+/* Canonical Admin geometry: the legacy Admin sidebar is the ONE Admin nav. */
+.appShell.appShellAdminLegacy{--admin-nav-width:268px;--admin-canvas-max:1480px;display:grid;grid-template-columns:minmax(0,1fr);min-width:0}
+.appShellAdminLegacy .appShellStage,.appShellAdminLegacy .appShellContent{min-width:0;width:100%}
+.appShellAdminLegacy .appShellHeaderAdmin{box-sizing:border-box;width:calc(100% - var(--admin-nav-width));margin-left:var(--admin-nav-width);padding:0 clamp(20px,2.5vw,42px);grid-template-columns:minmax(0,1fr) minmax(240px,720px) minmax(125px,1fr);gap:12px}
+.appShellAdminLegacy .appShellHeaderAdmin .appHeaderSearch{grid-column:2;justify-self:center;min-width:0;width:100%;max-width:720px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
+.appShellAdminLegacy .appShellHeaderAdmin .appHeaderSearch input{width:100%;min-width:0;max-width:none;box-shadow:none;border:0;outline:0;background:transparent;padding:0}
+.appShellAdminLegacy .appShellHeaderAdmin .appHeaderSearch button{font:inherit;font-size:.72rem;min-height:27px;padding:4px 10px;border:1px solid #d9dde2;border-radius:7px;background:#fff;color:#41474f}
+.appShellAdminLegacy .appShellHeaderAdmin .appHeaderActions{grid-column:3;justify-self:end}
+.appShellAdminLegacy .adminSidebar~main.panel{box-sizing:border-box;width:calc(100% - var(--admin-nav-width));max-width:none;min-width:0;min-height:100vh;margin:0 0 0 var(--admin-nav-width);padding:28px clamp(20px,3vw,48px) 80px;background:#f7f7f5;border:0;border-radius:0}
+.appShellAdminLegacy .adminSidebar~main.panel>*{box-sizing:border-box;width:min(100%,var(--admin-canvas-max));max-width:var(--admin-canvas-max);min-width:0;margin-left:auto;margin-right:auto}
+.appShellAdminLegacy .adminSidebar~main.panel>.pageTitle{max-width:var(--admin-canvas-max);margin:0 auto 26px;padding:8px 0 0}
+.appShellAdminLegacy .adminSidebar~main.panel>.card,.appShellAdminLegacy .adminSidebar~main.panel>section.card{max-width:var(--admin-canvas-max)}
+.appShellAdminLegacy .adminSidebar~main.panel :is(.tableWrap,table){max-width:100%;min-width:0}
+@media(max-width:1100px){.appShellAdminLegacy .appShellHeaderAdmin{grid-template-columns:minmax(0,1fr) minmax(210px,600px) auto}}
 @media(max-width:860px){
-  .adminSidebar~main.panel,
-  .adminDashboardPage{
-    width:100%!important;
-    margin:0!important;
-  }
-  .adminSidebar~main.panel>*{
-    width:100%!important;
-    max-width:none!important;
-  }
-  .appShellHeaderAdmin{
-    grid-template-columns:auto 1fr auto!important;
-  }
+ .appShellAdminLegacy .adminSidebar{position:static;width:100%;max-height:none}
+ .appShellAdminLegacy .appShellHeaderAdmin{margin-left:0;width:100%;grid-template-columns:auto minmax(0,1fr) auto;padding:0 16px}
+ .appShellAdminLegacy .appShellHeaderAdmin .appMobileMenu{display:block;grid-column:1}
+ .appShellAdminLegacy .appShellHeaderAdmin .appHeaderBrandMobile{display:none}
+ .appShellAdminLegacy .appShellHeaderAdmin .appHeaderSearch{grid-column:2}
+ .appShellAdminLegacy .appShellHeaderAdmin .appHeaderActions{grid-column:3}
+ .appShellAdminLegacy .adminSidebar~main.panel{width:100%;min-height:0;margin:0;padding:24px 16px 58px}
+ .appShellAdminLegacy .adminSidebar~main.panel>*{width:100%;max-width:var(--admin-canvas-max)}
 }
+@media(max-width:600px){.appShellAdminLegacy .appShellHeaderAdmin .appHeaderSearch{display:grid}.appShellAdminLegacy .appShellHeaderAdmin .appHeaderSearch button{display:none}.appShellAdminLegacy .appShellHeaderAdmin{gap:8px}}
+
 
 
 /* Admin dashboard command-center composition. */

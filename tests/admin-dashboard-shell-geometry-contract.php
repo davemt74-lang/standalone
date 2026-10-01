@@ -6,14 +6,14 @@ $need=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p
 $avoid=function(string $p,string $n,string $m)use($read,&$fail): void{$c=$read($p);if($c!==''&&str_contains($c,$n))$fail[]=$m;};
 
 $need('app/shell.php','$isAdminDashboard','Admin shell must identify the Dashboard separately.');
-$need('app/shell.php',"\$headerSearch=\$isAdminDashboard?'':app_shell_search();",'Dashboard must suppress the universal header search.');
+$need('app/shell.php','app_shell_admin_search(','Admin header must use a functioning Admin-specific search.');
 $need('app/shell.php','appShellHeaderAdmin','Admin pages must expose a dedicated header geometry hook.');
-$need('assets/css/app.css','/* Admin shell geometry hardening — center every admin workspace in the canvas. */','Admin shell geometry hardening must exist.');
-$need('assets/css/app.css','width:calc(100% - 268px)!important','Admin content width must exclude the fixed sidebar.');
-$need('assets/css/app.css','margin:0 0 0 268px!important','Admin content must begin after the fixed sidebar.');
+$need('assets/css/app.css','/* Canonical Admin geometry: the legacy Admin sidebar is the ONE Admin nav. */','Admin shell geometry must be defined canonically.');
+$need('assets/css/app.css','--admin-nav-width:268px','Admin content must share the single Admin sidebar dimension.');
+$need('assets/css/app.css','margin:0 0 0 var(--admin-nav-width)','Admin content must begin after the fixed sidebar.');
 $need('assets/css/app.css','.adminSidebar~main.panel>*','All Admin page content must share the centered canvas rule.');
-$need('assets/css/app.css','width:min(100%,1480px)!important','Admin page content must be centered within a bounded working canvas.');
-$need('assets/css/app.css','.appShellHeaderAdmin .appHeaderSearch','Admin header search must be constrained to the available canvas.');
+$need('assets/css/app.css','width:min(100%,var(--admin-canvas-max))','Admin page content must be centered within a bounded working canvas.');
+$need('assets/css/app.css','.appShellAdminLegacy .appShellHeaderAdmin .appHeaderSearch','Admin header search must be constrained to the available canvas.');
 $need('admin/index.php','ADMIN COMMAND CENTER','Dashboard must present a command-center overview.');
 $need('admin/index.php','adminExecutiveGrid','Dashboard must include executive status.');
 $need('admin/index.php','adminOperationsOverview','Dashboard must include cross-functional operations summaries.');

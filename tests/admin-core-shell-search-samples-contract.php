@@ -1,0 +1,26 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$read=static fn(string $path): string=>(string)file_get_contents($root.'/'.$path);
+$check=static function(bool $pass,string $description)use(&$fail):void{if(!$pass)$fail[]=$description;};
+$shell=$read('app/shell.php');$css=$read('assets/css/app.css');$functions=$read('app/functions.php');
+$admin=$read('admin/sponsored-projects.php');$search=$read('admin/search.php');$access=$read('app/admin-access.php');
+$check(str_contains($shell,'$adminOwnsSidebar=')&&str_contains($shell,'$headerSearch=$adminMode?app_shell_admin_search'), 'Shared Admin shell must detect and avoid duplicate legacy sidebars.');
+$check(str_contains($shell,'appShellAdminLegacy'), 'Shared shell must expose Admin-specific root class.');
+$check(str_contains($css,'.appShell.appShellAdminLegacy')&&str_contains($css,'grid-template-columns:minmax(0,1fr)'), 'Admin must reserve sidebar exactly once.');
+$check(str_contains($css,'margin:0 0 0 var(--admin-nav-width)'), 'Admin content and header must share one sidebar width.');
+$check(str_contains($css,'width:min(100%,var(--admin-canvas-max))'), 'Admin page inner canvas must be uniformly centered.');
+$check(str_contains($shell,'action="/admin/search.php"')&&str_contains($shell,'type="search"'), 'Header must have actionable, editable Admin search.');
+$check(!str_contains($search,'readonly')&&str_contains($search,'admin_ops_global_search(')&&str_contains($search,'$canView($cap)'), 'Admin search must use existing search and filter results by operator permissions.');
+$check(str_contains($access,"\$path==='/admin/search.php'"), 'Admin search must be reachable without requiring unrelated permission.');
+$check(str_contains($functions,'function csrf_field()'), 'Common Admin form helper must be defined centrally.');
+$check(str_contains($admin,'name="sample_data_enabled"')&&str_contains($admin,'role="switch"')&&str_contains($admin,'Save setting'), 'Sample data must have a visible switch and explicit Save.');
+$check(str_contains($admin,'sponsored_project_sample_toggle(')&&str_contains($admin,'admin.research_data.manage'), 'Sample data switch must persist via current permission-controlled backend.');
+$check(str_contains($admin,'$sampleProjects')&&str_contains($admin,'Sample Projects'), 'Sample data must display when enabled.');
+$check(hash_equals(hash('sha256',$css),hash('sha256',$read('extension/landing-app.css'))), 'Shared extension CSS must match deployed website CSS.');
+foreach(glob($root.'/admin/*.php')?:[] as $page){
+    if(str_ends_with($page,'-export.php'))continue;
+    $markup=(string)file_get_contents($page);
+    $check(str_contains($markup,'admin_ui_sidebar('),'Admin page '.basename($page).' must use canonical Admin navigation and its centered canvas.');
+}
+if($fail){foreach($fail as $msg)fwrite(STDERR,"FAIL: $msg\n");exit(1);}echo "Canonical Admin layout, search and sample-data contract passed.\n";
