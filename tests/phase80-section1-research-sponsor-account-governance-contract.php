@@ -5,6 +5,7 @@ $need=function(string $file,string $needle,string $message)use(&$fail,$root){$p=
 $m='database/migrations/20260930_115_phase80_research_sponsor_account_governance.sql';
 foreach(['research_account_profiles','sponsor_account_profiles','research_account_governance_events',"ENUM('pending','approved','suspended','revoked')",'marketplace_visible','payout_readiness'] as $n)$need($m,$n,'Migration 115 missing '.$n);
 foreach(['function research_account_apply','function sponsor_account_apply','function research_account_admin_decide','function research_account_is_approved','function sponsor_account_is_approved','function research_account_require_approved','function research_account_eligibility_snapshot','function research_account_governance_history'] as $n)$need('app/research-accounts.php',$n,'Phase 80 Section 1 runtime missing '.$n);
+$need('app/research-accounts.php',"admin_access_assert_capability($pdo,$admin,'admin.accounts.manage')",'Research Account decisions must enforce canonical delegated Admin account-management authority.');
 $need('app/bootstrap.php',"/research-accounts.php'",'Research Account governance runtime must load globally.');
 $need('admin/research-accounts.php','Research & Sponsor Accounts','Admin approval queue is missing.');
 $need('research-account.php','Submit Research Account application','User Research Account application surface is missing.');
