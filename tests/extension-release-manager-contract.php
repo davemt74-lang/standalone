@@ -52,7 +52,7 @@ else{
         try{extension_release_zip_inspect($path);$check(false,'Accepted ZIP missing background worker.');}catch(InvalidArgumentException $e){}
     }finally{@unlink($path);}
 }
-$read=static fn(string $path):(string)file_get_contents($root.'/'.$path);
+$read=static fn(string $path):string=>(string)file_get_contents($root.'/'.$path);
 foreach(['extension_releases','extension_release_channels','extension_release_events'] as $table)
     $check(str_contains($read('database/migrations/20261001_127_extension_release_manager.sql'),$table),'Migration 127 defines '.$table.'.');
 $check(str_contains($read('admin/extension-releases.php'),"require_csrf()")&&
