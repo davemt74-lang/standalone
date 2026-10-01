@@ -133,6 +133,7 @@ function sponsored_research_knowledge_release_create(PDO $pdo,array $viewer,stri
     $kb=sponsored_research_knowledge_base_require_manage($pdo,$viewer,$kbPublicId);
     return app_with_advisory_lock($pdo,'sponsored-knowledge-release',(int)$kb['id'],function() use($pdo,$viewer,$kbPublicId,$note){
       $kb=sponsored_research_knowledge_base_require_manage($pdo,$viewer,$kbPublicId);$manifest=sponsored_research_knowledge_manifest($pdo,$kb);if((int)$manifest['item_count']===0)throw new RuntimeException('Knowledge Base release requires at least one active, future-usable Knowledge item.');
+      foreach((array)$manifest['items'] as $item)foreach((array)($item['evidence_sources']??[]) as $source){$rights=$source['release_rights']??null;if(!is_array($rights)||empty($rights['retrieval_allowed']))throw new RuntimeException('Knowledge Base release is blocked until every evidence Source has current retrieval rights.');}
       $next=(int)$kb['current_release_number']+1;$manifest['release_number']=$next;$json=data_attribution_encode($manifest);$hash=hash('sha256',$json);
       $pdo->beginTransaction();try{
         $public=ulid_like();$pdo->prepare('INSERT INTO sponsored_research_knowledge_releases(public_id,knowledge_base_id,release_number,manifest_json,manifest_hash,item_count,release_note,released_by_user_id) VALUES(?,?,?,?,?,?,?,?)')
