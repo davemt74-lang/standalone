@@ -21,6 +21,28 @@ function sponsored_research_campaign_json(mixed $value): array {
     if(!is_string($value)||trim($value)==='')return [];
     try{$v=json_decode($value,true,32,JSON_THROW_ON_ERROR);return is_array($v)?$v:[];}catch(Throwable $e){return [];}
 }
+function sponsored_research_campaign_list_clean(mixed $input,int $limit=30): array {
+    if(is_string($input))$input=preg_split('/[,\n]+/',$input)?:[];
+    if(!is_array($input))return [];
+    $out=[];foreach($input as $item){$item=mb_substr(trim((string)$item),0,120);if($item===''||in_array($item,$out,true))continue;$out[]=$item;if(count($out)>=$limit)break;}return $out;
+}
+function sponsored_research_campaign_eligibility(mixed $input): array {
+    $value=sponsored_research_campaign_json($input);$levels=['basic','identity','qualification','organization','payout'];
+    $level=(string)($value['min_verification']??'basic');if(!in_array($level,$levels,true))$level='basic';
+    return ['min_verification'=>$level,'specialties'=>sponsored_research_campaign_list_clean($value['specialties']??[]),'languages'=>sponsored_research_campaign_list_clean($value['languages']??[]),'min_completed_campaigns'=>max(0,min(10000,(int)($value['min_completed_campaigns']??0)))];
+}
+function sponsored_research_campaign_disclosures(mixed $input): array {
+    $value=sponsored_research_campaign_json($input);$ai=(string)($value['ai_assistance_policy']??'allowed_with_disclosure');if(!in_array($ai,['unrestricted','allowed_with_disclosure','restricted','prohibited'],true))$ai='allowed_with_disclosure';
+    $training=(string)($value['training_use_request']??'none');if(!in_array($training,['none','optional_separate_consent'],true))$training='none';
+    return ['sponsorship_disclosure_required'=>array_key_exists('sponsorship_disclosure_required',$value)?!empty($value['sponsorship_disclosure_required']):true,'conflict_disclosure_required'=>array_key_exists('conflict_disclosure_required',$value)?!empty($value['conflict_disclosure_required']):true,'nda_required'=>!empty($value['nda_required']),'ai_assistance_policy'=>$ai,'training_use_request'=>$training];
+}
+function sponsored_research_campaign_datetime(mixed $value,string $label): ?string {
+    $value=trim((string)$value);if($value==='')return null;
+    $formats=['Y-m-d\\TH:i','Y-m-d H:i:s','Y-m-d H:i'];$dt=null;
+    foreach($formats as $format){$candidate=DateTimeImmutable::createFromFormat('!'.$format,$value,new DateTimeZone('UTC'));$errors=DateTimeImmutable::getLastErrors();if($candidate&&($errors===false||((int)$errors['warning_count']===0&&(int)$errors['error_count']===0))){$dt=$candidate;break;}}
+    if(!$dt)throw new InvalidArgumentException($label.' is invalid.');
+    return $dt->format('Y-m-d H:i:s');
+}
 function sponsored_research_campaign_questions_clean(mixed $input): array {
     if(is_string($input))$input=preg_split('/\r?\n+/',$input)?:[];
     if(!is_array($input))return [];
@@ -28,7 +50,9 @@ function sponsored_research_campaign_questions_clean(mixed $input): array {
 }
 function sponsored_research_campaign_account(PDO $pdo,array $viewer,string $accountPublicId): array {
     sponsor_account_require_approved($pdo,$viewer);
-    return account_membership_account_for_user($pdo,$viewer,$accountPublicId,true);
+    $account=account_membership_account_for_user($pdo,$viewer,$accountPublicId,true);
+    if((string)($account['status']??'')!=='active')throw new RuntimeException('Sponsored Research requires an active commercial account.');
+    return $account;
 }
 function sponsored_research_campaign_agent(PDO $pdo,array $viewer,?string $agentPublic): ?array {
     $agentPublic=trim((string)$agentPublic);if($agentPublic==='')return null;
@@ -51,6 +75,7 @@ function sponsored_research_campaign_config(array $campaign,array $questions): a
       'disclosures'=>sponsored_research_campaign_json($campaign['disclosure_json']??null),
       'starts_at'=>$campaign['starts_at']??null,
       'submission_deadline'=>$campaign['submission_deadline']??null,
+      'review_deadline'=>$campaign['review_deadline']??null,
       'research_agent_public_id'=>$campaign['research_agent_public_id']??null,
       'questions'=>array_values(array_map(fn($q)=>(string)$q['question'],$questions))
     ];
@@ -86,7 +111,15 @@ function sponsored_research_campaign_require_manage(PDO $pdo,array $viewer,strin
     sponsor_account_require_approved($pdo,$viewer);
     $account=account_membership_account_for_user($pdo,$viewer,(string)$campaign['account_public_id'],true);
     account_membership_require_manage($pdo,$viewer,$account);
+    if((string)($account['status']??'')!=='active')throw new RuntimeException('Sponsored Research requires an active commercial account.');
     return $campaign;
+}
+function sponsored_research_campaign_locked(PDO $pdo,array $viewer,string $publicId,callable $callback): mixed {
+    $seed=sponsored_research_campaign_require_manage($pdo,$viewer,$publicId);
+    return app_with_advisory_lock($pdo,'sponsored-research-campaign',(int)$seed['id'],function() use($pdo,$viewer,$publicId,$callback){
+        $fresh=sponsored_research_campaign_require_manage($pdo,$viewer,$publicId);
+        return $callback($fresh);
+    },5);
 }
 function sponsored_research_campaign_snapshot(PDO $pdo,array $campaign,array $viewer,string $reason): array {
     $questions=sponsored_research_campaign_questions($pdo,(int)$campaign['id']);$config=sponsored_research_campaign_config($campaign,$questions);$hash=sponsored_research_campaign_hash($config);
@@ -106,15 +139,16 @@ function sponsored_research_campaign_create(PDO $pdo,array $viewer,array $input)
     $mode=(string)($input['access_mode']??'private');if(!isset(sponsored_research_campaign_access_modes()[$mode]))$mode='private';
     $currency=strtoupper(trim((string)($input['budget_currency']??'USD')));if(!preg_match('/^[A-Z]{3}$/',$currency))throw new InvalidArgumentException('Budget currency must be a three-letter ISO code.');
     $budget=max(0,(int)($input['budget_cents']??0));$max=(int)($input['max_participants']??0);$max=$max>0?$max:null;
-    $starts=trim((string)($input['starts_at']??''));$deadline=trim((string)($input['submission_deadline']??''));$starts=$starts!==''?date('Y-m-d H:i:s',strtotime($starts)):null;$deadline=$deadline!==''?date('Y-m-d H:i:s',strtotime($deadline)):null;
+    $starts=sponsored_research_campaign_datetime($input['starts_at']??'','Campaign start');$deadline=sponsored_research_campaign_datetime($input['submission_deadline']??'','Submission deadline');$reviewDeadline=sponsored_research_campaign_datetime($input['review_deadline']??'','Review deadline');
     if($starts&&$deadline&&strtotime($deadline)<=strtotime($starts))throw new InvalidArgumentException('Submission deadline must be after the campaign start.');
-    $eligibility=sponsored_research_campaign_json($input['eligibility']??[]);$disclosures=sponsored_research_campaign_json($input['disclosures']??[]);
-    $questions=sponsored_research_campaign_questions_clean($input['questions']??[]);
+    if($deadline&&$reviewDeadline&&strtotime($reviewDeadline)<strtotime($deadline))throw new InvalidArgumentException('Review deadline cannot be before the submission deadline.');
+    $eligibility=sponsored_research_campaign_eligibility($input['eligibility']??[]);$disclosures=sponsored_research_campaign_disclosures($input['disclosures']??[]);
+    $questions=sponsored_research_campaign_questions_clean($input['questions']??[]);if(!$questions)throw new InvalidArgumentException('Add at least one campaign research question.');
     $public=ulid_like();$pdo->beginTransaction();
     try{
-      $pdo->prepare("INSERT INTO sponsored_research_campaigns(public_id,sponsor_user_id,sponsor_profile_id,account_id,research_agent_id,title,brief,objective,status,access_mode,budget_currency,budget_cents,max_participants,eligibility_json,disclosure_json,starts_at,submission_deadline,current_revision,config_hash)
-        VALUES(?,?,?,?,?,?,?,?,'draft',?,?,?,?,?,?,?,?,1,REPEAT('0',64))")
-        ->execute([$public,(int)$viewer['id'],(int)$profile['id'],(int)$account['id'],$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$max,$eligibility?json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null,$disclosures?json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null,$starts,$deadline]);
+      $pdo->prepare("INSERT INTO sponsored_research_campaigns(public_id,sponsor_user_id,sponsor_profile_id,account_id,research_agent_id,title,brief,objective,status,access_mode,budget_currency,budget_cents,max_participants,eligibility_json,disclosure_json,starts_at,submission_deadline,review_deadline,current_revision,config_hash)
+        VALUES(?,?,?,?,?,?,?,?,'draft',?,?,?,?,?,?,?,?,?,1,REPEAT('0',64))")
+        ->execute([$public,(int)$viewer['id'],(int)$profile['id'],(int)$account['id'],$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$max,json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$starts,$deadline,$reviewDeadline]);
       $id=(int)$pdo->lastInsertId();foreach($questions as $i=>$question)$pdo->prepare('INSERT INTO sponsored_research_campaign_questions(public_id,campaign_id,question,position) VALUES(?,?,?,?)')->execute([ulid_like(),$id,$question,$i]);
       $campaign=sponsored_research_campaign_by_public($pdo,$public);if(!$campaign)throw new RuntimeException('Campaign create failed.');
       $campaign=sponsored_research_campaign_snapshot($pdo,$campaign,$viewer,'Initial sponsored research campaign brief.');
@@ -124,37 +158,45 @@ function sponsored_research_campaign_create(PDO $pdo,array $viewer,array $input)
     return sponsored_research_campaign_by_public($pdo,$public)??[];
 }
 function sponsored_research_campaign_update(PDO $pdo,array $viewer,string $publicId,array $input): array {
-    $campaign=sponsored_research_campaign_require_manage($pdo,$viewer,$publicId);
-    if(in_array((string)$campaign['status'],['completed','cancelled','archived'],true))throw new RuntimeException('Closed campaign configuration is immutable.');
-    $agent=sponsored_research_campaign_agent($pdo,$viewer,$input['research_agent_id']??($campaign['research_agent_public_id']??null));
-    $title=mb_substr(trim((string)($input['title']??$campaign['title'])),0,255);$brief=trim((string)($input['brief']??$campaign['brief']));$objective=trim((string)($input['objective']??$campaign['objective']));
-    if($title===''||$brief===''||$objective==='')throw new InvalidArgumentException('Campaign title, brief, and objective are required.');
-    $mode=(string)($input['access_mode']??$campaign['access_mode']);if(!isset(sponsored_research_campaign_access_modes()[$mode]))$mode=(string)$campaign['access_mode'];
-    $currency=strtoupper(trim((string)($input['budget_currency']??$campaign['budget_currency'])));if(!preg_match('/^[A-Z]{3}$/',$currency))throw new InvalidArgumentException('Budget currency must be a three-letter ISO code.');
-    $budget=max(0,(int)($input['budget_cents']??$campaign['budget_cents']));$max=(int)($input['max_participants']??($campaign['max_participants']??0));$max=$max>0?$max:null;
-    $starts=trim((string)($input['starts_at']??($campaign['starts_at']??'')));$deadline=trim((string)($input['submission_deadline']??($campaign['submission_deadline']??'')));$starts=$starts!==''?date('Y-m-d H:i:s',strtotime($starts)):null;$deadline=$deadline!==''?date('Y-m-d H:i:s',strtotime($deadline)):null;
-    if($starts&&$deadline&&strtotime($deadline)<=strtotime($starts))throw new InvalidArgumentException('Submission deadline must be after the campaign start.');
-    $eligibility=array_key_exists('eligibility',$input)?sponsored_research_campaign_json($input['eligibility']):$campaign['eligibility'];$disclosures=array_key_exists('disclosures',$input)?sponsored_research_campaign_json($input['disclosures']):$campaign['disclosures'];
-    $questions=array_key_exists('questions',$input)?sponsored_research_campaign_questions_clean($input['questions']):array_map(fn($q)=>(string)$q['question'],$campaign['questions']);
-    $pdo->beginTransaction();try{
-      $next=(int)$campaign['current_revision']+1;
-      $pdo->prepare('UPDATE sponsored_research_campaigns SET research_agent_id=?,title=?,brief=?,objective=?,access_mode=?,budget_currency=?,budget_cents=?,max_participants=?,eligibility_json=?,disclosure_json=?,starts_at=?,submission_deadline=?,current_revision=?,updated_at=NOW() WHERE id=?')
-        ->execute([$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$max,$eligibility?json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null,$disclosures?json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE):null,$starts,$deadline,$next,(int)$campaign['id']]);
-      $pdo->prepare('DELETE FROM sponsored_research_campaign_questions WHERE campaign_id=?')->execute([(int)$campaign['id']]);foreach($questions as $i=>$question)$pdo->prepare('INSERT INTO sponsored_research_campaign_questions(public_id,campaign_id,question,position) VALUES(?,?,?,?)')->execute([ulid_like(),(int)$campaign['id'],$question,$i]);
-      $fresh=sponsored_research_campaign_by_public($pdo,$publicId);$fresh=sponsored_research_campaign_snapshot($pdo,$fresh,$viewer,(string)($input['reason']??'Campaign brief updated.'));
-      sponsored_research_campaign_event($pdo,(int)$campaign['id'],(int)$viewer['id'],'campaign_updated',['revision'=>$next,'config_hash'=>$fresh['config_hash']]);
-      $pdo->commit();
-    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
-    return sponsored_research_campaign_by_public($pdo,$publicId)??[];
+    return sponsored_research_campaign_locked($pdo,$viewer,$publicId,function(array $campaign) use($pdo,$viewer,$publicId,$input){
+        if(in_array((string)$campaign['status'],['completed','cancelled','archived'],true))throw new RuntimeException('Closed campaign configuration is immutable.');
+        $agent=sponsored_research_campaign_agent($pdo,$viewer,$input['research_agent_id']??($campaign['research_agent_public_id']??null));
+        $title=mb_substr(trim((string)($input['title']??$campaign['title'])),0,255);$brief=trim((string)($input['brief']??$campaign['brief']));$objective=trim((string)($input['objective']??$campaign['objective']));
+        if($title===''||$brief===''||$objective==='')throw new InvalidArgumentException('Campaign title, brief, and objective are required.');
+        $mode=(string)($input['access_mode']??$campaign['access_mode']);if(!isset(sponsored_research_campaign_access_modes()[$mode]))$mode=(string)$campaign['access_mode'];
+        $currency=strtoupper(trim((string)($input['budget_currency']??$campaign['budget_currency'])));if(!preg_match('/^[A-Z]{3}$/',$currency))throw new InvalidArgumentException('Budget currency must be a three-letter ISO code.');
+        $budget=max(0,(int)($input['budget_cents']??$campaign['budget_cents']));$max=(int)($input['max_participants']??($campaign['max_participants']??0));$max=$max>0?$max:null;
+        $starts=sponsored_research_campaign_datetime($input['starts_at']??($campaign['starts_at']??''),'Campaign start');$deadline=sponsored_research_campaign_datetime($input['submission_deadline']??($campaign['submission_deadline']??''),'Submission deadline');$reviewDeadline=sponsored_research_campaign_datetime($input['review_deadline']??($campaign['review_deadline']??''),'Review deadline');
+        if($starts&&$deadline&&strtotime($deadline)<=strtotime($starts))throw new InvalidArgumentException('Submission deadline must be after the campaign start.');
+        if($deadline&&$reviewDeadline&&strtotime($reviewDeadline)<strtotime($deadline))throw new InvalidArgumentException('Review deadline cannot be before the submission deadline.');
+        $eligibility=array_key_exists('eligibility',$input)?sponsored_research_campaign_eligibility($input['eligibility']):sponsored_research_campaign_eligibility($campaign['eligibility']);
+        $disclosures=array_key_exists('disclosures',$input)?sponsored_research_campaign_disclosures($input['disclosures']):sponsored_research_campaign_disclosures($campaign['disclosures']);
+        $questions=array_key_exists('questions',$input)?sponsored_research_campaign_questions_clean($input['questions']):array_map(fn($q)=>(string)$q['question'],$campaign['questions']);if(!$questions)throw new InvalidArgumentException('Add at least one campaign research question.');
+        $pdo->beginTransaction();try{
+          $next=(int)$campaign['current_revision']+1;
+          $pdo->prepare('UPDATE sponsored_research_campaigns SET research_agent_id=?,title=?,brief=?,objective=?,access_mode=?,budget_currency=?,budget_cents=?,max_participants=?,eligibility_json=?,disclosure_json=?,starts_at=?,submission_deadline=?,review_deadline=?,current_revision=?,updated_at=NOW() WHERE id=?')
+            ->execute([$agent['id']??null,$title,$brief,$objective,$mode,$currency,$budget,$max,json_encode($eligibility,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),json_encode($disclosures,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),$starts,$deadline,$reviewDeadline,$next,(int)$campaign['id']]);
+          $pdo->prepare('DELETE FROM sponsored_research_campaign_questions WHERE campaign_id=?')->execute([(int)$campaign['id']]);foreach($questions as $i=>$question)$pdo->prepare('INSERT INTO sponsored_research_campaign_questions(public_id,campaign_id,question,position) VALUES(?,?,?,?)')->execute([ulid_like(),(int)$campaign['id'],$question,$i]);
+          $fresh=sponsored_research_campaign_by_public($pdo,$publicId);if(!$fresh)throw new RuntimeException('Campaign update could not be reloaded.');$fresh=sponsored_research_campaign_snapshot($pdo,$fresh,$viewer,(string)($input['reason']??'Campaign brief updated.'));
+          sponsored_research_campaign_event($pdo,(int)$campaign['id'],(int)$viewer['id'],'campaign_updated',['revision'=>$next,'config_hash'=>$fresh['config_hash']]);
+          $pdo->commit();
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        return sponsored_research_campaign_by_public($pdo,$publicId)??[];
+    });
 }
 function sponsored_research_campaign_set_status(PDO $pdo,array $viewer,string $publicId,string $status): array {
-    $campaign=sponsored_research_campaign_require_manage($pdo,$viewer,$publicId);if(!isset(sponsored_research_campaign_statuses()[$status]))throw new InvalidArgumentException('Invalid campaign status.');
-    $current=(string)$campaign['status'];if($current===$status)return $campaign;
-    $allowed=['draft'=>['funding_required','scheduled','open','cancelled','archived'],'funding_required'=>['draft','scheduled','cancelled'],'scheduled'=>['open','paused','cancelled'],'open'=>['paused','closed','cancelled'],'paused'=>['open','closed','cancelled'],'closed'=>['under_review','completed','archived'],'under_review'=>['completed','closed'],'completed'=>['archived'],'cancelled'=>['archived'],'archived'=>[]];
-    if(!in_array($status,$allowed[$current]??[],true))throw new InvalidArgumentException('That campaign status transition is not allowed.');
-    $pdo->prepare('UPDATE sponsored_research_campaigns SET status=?,updated_at=NOW() WHERE id=?')->execute([$status,(int)$campaign['id']]);
-    sponsored_research_campaign_event($pdo,(int)$campaign['id'],(int)$viewer['id'],'campaign_status_changed',['from'=>$current,'to'=>$status]);
-    return sponsored_research_campaign_by_public($pdo,$publicId)??[];
+    return sponsored_research_campaign_locked($pdo,$viewer,$publicId,function(array $campaign) use($pdo,$viewer,$publicId,$status){
+        if(!isset(sponsored_research_campaign_statuses()[$status]))throw new InvalidArgumentException('Invalid campaign status.');
+        $current=(string)$campaign['status'];if($current===$status)return $campaign;
+        $allowed=['draft'=>['funding_required','scheduled','open','cancelled','archived'],'funding_required'=>['draft','scheduled','cancelled'],'scheduled'=>['open','paused','cancelled'],'open'=>['paused','closed','cancelled'],'paused'=>['open','closed','cancelled'],'closed'=>['under_review','completed','archived'],'under_review'=>['completed','closed'],'completed'=>['archived'],'cancelled'=>['archived'],'archived'=>[]];
+        if(!in_array($status,$allowed[$current]??[],true))throw new InvalidArgumentException('That campaign status transition is not allowed.');
+        $pdo->beginTransaction();try{
+            $next=(int)$campaign['current_revision']+1;$pdo->prepare('UPDATE sponsored_research_campaigns SET status=?,current_revision=?,updated_at=NOW() WHERE id=?')->execute([$status,$next,(int)$campaign['id']]);
+            $fresh=sponsored_research_campaign_by_public($pdo,$publicId);if(!$fresh)throw new RuntimeException('Campaign status could not be reloaded.');$fresh=sponsored_research_campaign_snapshot($pdo,$fresh,$viewer,'Campaign status changed from '.$current.' to '.$status.'.');
+            sponsored_research_campaign_event($pdo,(int)$campaign['id'],(int)$viewer['id'],'campaign_status_changed',['from'=>$current,'to'=>$status,'revision'=>$next,'config_hash'=>$fresh['config_hash']]);$pdo->commit();
+        }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+        return sponsored_research_campaign_by_public($pdo,$publicId)??[];
+    });
 }
 function sponsored_research_campaign_list(PDO $pdo,array $viewer,int $limit=100): array {
     if(!sponsored_research_campaigns_ready($pdo))return [];$limit=max(1,min(300,$limit));$accounts=account_membership_accounts_for_user($pdo,$viewer,true);if(!$accounts)return [];
