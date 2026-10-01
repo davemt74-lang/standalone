@@ -39,12 +39,12 @@ function team_research_sync_member(PDO $pdo,int $teamId,int $memberId,bool $enab
     }
 }
 function team_research_assign(PDO $pdo,array $team,array $viewer,string $agentPublicId): void {
-    if(!in_array((string)$team['access_role'],['owner','admin'],true))throw new RuntimeException('Team management permission required.');
+    if((string)$team['access_role']!=='owner'||(int)$team['owner_user_id']!==(int)$viewer['id'])throw new RuntimeException('Only the Team owner can manage Team Research Agents.');
     $q=$pdo->prepare('SELECT ra.id,ra.project_id,ra.conversation_id,ra.owner_user_id,ra.team_id,rp.team_id project_team_id
       FROM research_agents ra JOIN research_projects rp ON rp.id=ra.project_id
       WHERE ra.public_id=? AND ra.status<>\'archived\' AND rp.status<>\'archived\' LIMIT 1');
     $q->execute([$agentPublicId]);$agent=$q->fetch();
-    if(!$agent||(int)$agent['owner_user_id']!==(int)$viewer['id'])throw new RuntimeException('Only the Agent owner can share their Agent with this Team.');
+    if(!$agent||(int)$agent['owner_user_id']!==(int)$viewer['id'])throw new RuntimeException('The Team owner may assign only Research Agents they personally own.');
     if($agent['team_id']!==null||$agent['project_team_id']!==null)throw new RuntimeException('This Agent or its workspace is already Team-assigned.');
     $pdo->beginTransaction();
     try {
@@ -64,12 +64,12 @@ function team_research_assign(PDO $pdo,array $team,array $viewer,string $agentPu
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 function team_research_unassign(PDO $pdo,array $team,array $viewer,string $agentPublicId): void {
-    if(!in_array((string)$team['access_role'],['owner','admin'],true))throw new RuntimeException('Team management permission required.');
+    if((string)$team['access_role']!=='owner'||(int)$team['owner_user_id']!==(int)$viewer['id'])throw new RuntimeException('Only the Team owner can manage Team Research Agents.');
     $q=$pdo->prepare('SELECT ra.id,ra.project_id,ra.conversation_id,ra.owner_user_id
       FROM research_agents ra JOIN research_projects rp ON rp.id=ra.project_id AND rp.team_id=ra.team_id
       WHERE ra.public_id=? AND ra.team_id=? LIMIT 1');
     $q->execute([$agentPublicId,(int)$team['id']]);$agent=$q->fetch();
-    if(!$agent||(int)$agent['owner_user_id']!==(int)$viewer['id'])throw new RuntimeException('Only the Agent owner can remove their Agent from this Team.');
+    if(!$agent||(int)$agent['owner_user_id']!==(int)$viewer['id'])throw new RuntimeException('Only the Team owner may remove their own assigned Research Agent.');
     $pdo->beginTransaction();
     try{
         $pdo->prepare('UPDATE research_agents SET team_id=NULL WHERE id=? AND team_id=?')
