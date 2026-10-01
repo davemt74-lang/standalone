@@ -1,0 +1,10 @@
+name: Admin Core PR245 Verified Deploy
+on:
+  push:
+    branches:
+      - chatgpt/admin-core-245-verified-release
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
