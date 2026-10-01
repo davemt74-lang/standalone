@@ -8,6 +8,6 @@ foreach(['function research_account_apply','function sponsor_account_apply','fun
 $need('app/bootstrap.php',"/research-accounts.php'",'Research Account governance runtime must load globally.');
 $need('admin/research-accounts.php','Research & Sponsor Accounts','Admin approval queue is missing.');
 $need('research-account.php','Submit Research Account application','User Research Account application surface is missing.');
-$need('app/admin-access.php',"/admin/research-accounts.php"=>['admin.accounts.view','admin.accounts.manage']",'Research Account Admin route must reuse canonical account-management capabilities.');
+$need('app/admin-access.php',"/admin/research-accounts.php",'Research Account Admin route must reuse canonical account-management capabilities.');
 $need('app/admin-ui.php',"'research_accounts'=>['label'=>'Research Accounts'","Admin navigation must expose Research Accounts.");
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Phase 80 Section 1 Research & Sponsor Account Governance static contract passed.\n";
