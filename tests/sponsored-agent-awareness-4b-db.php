@@ -44,7 +44,7 @@ $assigned=sponsored_agent_awareness_access($pdo,$researcher,$campaignPublic,$age
 workspaceDbCheck($assigned!==null&&$assigned['assignment']['research_agent_public_id']===$agentPublic,
     'Only the exactly assigned personally owned Agent may receive this Sponsored Project context.');
 workspaceDbCheck(sponsored_agent_awareness_access($pdo,$sponsor,$campaignPublic)===null,
-    'Sponsor Account ownership cannot access a researcher's private Agent context.');
+    "Sponsor Account ownership cannot access a researcher's private Agent context.");
 workspaceDbCheck(sponsored_agent_awareness_access($pdo,$researcher,'sample-market-ai-001')===null,
     'Sample Sponsored Projects never create a real Agent context.');
 workspaceDbCheck(sponsored_agent_awareness_access($pdo,$researcher,$campaignPublic,'other-agent-id')===null,
