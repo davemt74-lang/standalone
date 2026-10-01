@@ -92,6 +92,16 @@ foreach(array_keys($catalog) as $operation){
     &&$handoff['context'][0]['public_id']===$campaignPublic,
     'Exact personally assigned Agent can request a scoped, permission-revalidated '.$operation.' handoff.');
 }
+// The deep-link gate must recheck current private membership, including a
+// later sponsor or collaborator invite added after the Agent was assigned.
+$pdo->prepare("INSERT IGNORE INTO conversation_members(conversation_id,user_id,member_role) VALUES(?,?,'member')")
+    ->execute([$convId,(int)$sponsor['id']]);
+workspaceDbCheck(sponsored_agent_operations_handoff($pdo,$researcher,$campaignPublic,$convPublic,'tasks')===null,
+    'Shared or newly invited Agent conversations cannot receive sponsored guided handoffs.');
+$pdo->prepare('DELETE FROM conversation_members WHERE conversation_id=? AND user_id=?')
+    ->execute([$convId,(int)$sponsor['id']]);
+workspaceDbCheck(sponsored_agent_operations_handoff($pdo,$researcher,$campaignPublic,$convPublic,'tasks')!==null,
+    'Removing the invite restores sole-owner guided access without granting sponsor private project knowledge.');
 workspaceDbCheck(sponsored_agent_operations_handoff($pdo,$sponsor,$campaignPublic,$convPublic,'tasks')===null,
   'Sponsor cannot use a researcher private Agent to create Sponsored Project work.');
 workspaceDbCheck(sponsored_agent_operations_handoff($pdo,$researcher,'sample-market-ai-001',$convPublic,'tasks')===null,
