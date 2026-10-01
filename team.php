@@ -80,6 +80,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 .teamMemberAddForm label{flex:1;min-width:200px}
 @media(max-width:700px){.teamAttachAgentForm{grid-template-columns:1fr}.teamWorkspaceFullWidth{padding:16px 14px 56px}}
 .teamSharedResearch{margin:20px 0 26px;padding:24px}.teamSharedResearch .sectionHeadWeb{margin:0 0 12px}.teamResearchComposer{margin:14px 0;border:1px solid var(--border,#d9dee4);border-radius:12px;padding:16px}.teamResearchComposer summary{width:max-content;max-width:100%;cursor:pointer}.teamResearchComposerForm{display:grid;gap:12px;margin-top:16px;max-width:760px}.teamResearchComposerForm>label{display:grid;gap:6px}.teamResearchComposerForm :is(select,input,textarea){max-width:100%;width:100%;box-sizing:border-box}.teamResearchRecent{margin-top:20px}.teamResearchRecent h3{margin:0 0 12px}.teamResearchRecentGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px}.teamResearchRecentItem{display:grid;align-content:start;gap:8px;min-width:0;padding:16px;border:1px solid #d9dee4;border-radius:12px}.teamResearchRecentItem h4,.teamResearchRecentItem p{margin:0}.teamResearchRecentItem small{overflow-wrap:anywhere}.teamResearchRecentItem a{width:max-content;max-width:100%}
+.teamSharedWorkspaceAccess{display:grid;gap:10px;margin:14px 0 20px}.teamSharedWorkspaceAccessItem{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:14px;border:1px solid #d9dee4;border-radius:12px;flex-wrap:wrap}.teamSharedWorkspaceAccessItem strong{display:block;margin:4px 0}.teamSharedWorkspaceAccessItem p{margin:0}.teamResearchContributionLabels{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.teamResearchBadge{display:inline-flex;max-width:100%;padding:3px 9px;border:1px solid #b5c6de;border-radius:999px;font-size:.76rem;font-weight:650}.teamResearchOrigin{border-style:dashed}@media(max-width:700px){.teamSharedWorkspaceAccessItem{align-items:flex-start}.teamSharedWorkspaceAccessItem .inlineActions{width:100%}}
 </style></head><body data-workspace-user="<?=h((string)$u['public_id'])?>" data-workspace-surface="team" data-workspace-team="<?=h((string)$team['public_id'])?>">
 <main class="teamWorkspaceFullWidth">
 <div class="pageTitle"><span class="eyebrow">TEAM · <?=h(strtoupper((string)$team['access_role']))?></span><h1><?=h($team['name'])?></h1><p>Shared people, Research Agents, Desktops, Libraries and private Team collaboration.</p><a class="button secondary" href="/home.php?team=<?=rawurlencode((string)$team['public_id'])?>#team-chat">Open Team Chat</a></div>
@@ -138,6 +139,16 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
   <?php if(!$resources):?>
     <p class="meta">There are no shared Research Agents yet. You can still collaborate through the Team feed and projects above. Attaching an Agent is optional.</p>
   <?php else:?>
+    <div class="teamSharedWorkspaceAccess" aria-label="Shared Agent Desktops and Libraries">
+      <?php foreach($resources as $sharedAgent):?>
+        <div class="teamSharedWorkspaceAccessItem">
+          <div><span class="eyebrow">TEAM RESEARCH AGENT</span><strong><?=h((string)$sharedAgent['name'])?></strong>
+            <p class="meta">All current Team members can open this Agent's Desktop and Library. Owner, admin and researcher roles can contribute; viewers can read.</p></div>
+          <div class="inlineActions"><a class="button secondary" href="<?=h(research_agent_shell_href($sharedAgent,'desktop'))?>">Open Desktop</a>
+            <a class="button secondary" href="<?=h(research_agent_shell_href($sharedAgent,'library'))?>">Open Library</a></div>
+        </div>
+      <?php endforeach?>
+    </div>
     <?php if($canContributeResearch):?>
       <details class="teamResearchComposer"<?php if(($error!==''&&($_POST['op']??'')==='team_create_research_document'))echo ' open';?>>
         <summary class="button">Add research to Team Library</summary>
@@ -160,11 +171,14 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
     <?php if($teamRecentResearch):?>
       <div class="teamResearchRecent"><h3>Recent contributions</h3>
         <div class="teamResearchRecentGrid"><?php foreach($teamRecentResearch as $item):?>
-          <article class="teamResearchRecentItem">
-            <span class="eyebrow"><?=h(ucfirst((string)$item['object_type']))?> · <?=h((string)$item['agent_name'])?></span>
+          <article class="teamResearchRecentItem" data-team-contribution="<?=h((string)$item['team_public_id'])?>">
+            <div class="teamResearchContributionLabels"><span class="eyebrow"><?=h(ucfirst((string)$item['object_type']))?> · <?=h((string)$item['agent_name'])?></span>
+              <span class="teamResearchBadge"><?=h((string)$item['tag_label'])?></span>
+              <?php if(!empty($item['origin_team_contribution'])):?><span class="teamResearchBadge teamResearchOrigin">Team-created</span><?php endif?>
+            </div>
             <h4><?=h((string)$item['title'])?></h4>
             <?php if(!empty($item['document_summary'])):?><p><?=h(mb_substr((string)$item['document_summary'],0,180))?></p><?php endif?>
-            <small>Added by <?=h((string)$item['contributor_name'])?><?php if((string)$item['last_editor_name']!==(string)$item['contributor_name']):?> · Edited by <?=h((string)$item['last_editor_name'])?><?php endif?> · <?=h((string)$item['updated_at'])?></small>
+            <small><strong>Contributed by <?=h((string)$item['contributor_name'])?></strong><?php if((string)$item['last_editor_name']!==(string)$item['contributor_name']):?> · Edited by <?=h((string)$item['last_editor_name'])?><?php endif?> · <?=h((string)$item['updated_at'])?></small>
             <a href="<?=h(research_agent_shell_href($item,'library'))?>">Open Agent Library →</a>
           </article>
         <?php endforeach?></div>
