@@ -83,6 +83,44 @@ try{research_agent_workspace_require_write(research_agent_workspace_project($pdo
 checkTeam($viewerWriteDenied,'Team viewer cannot modify the shared workspace.');
 research_agent_workspace_require_write(research_agent_workspace_project($pdo,$researcher,$agentPublic));
 echo "PASS: Team researcher can work in the shared workspace.\n";
+// Section 1: real shared research content, revision provenance, and isolation.
+$sharedProject=team_research_collaboration_project($pdo,$researcher,$teamId,$agentPublic,true);
+checkTeam((int)$sharedProject['id']===$projectId,'Team researcher resolves only the canonical shared Agent Project.');
+$sharedDoc=team_research_collaboration_create_document($pdo,$researcher,$teamId,$agentPublic,[
+    'title'=>'Team contributor notes','body'=>'Evidence gathered by an authorized Team researcher.'
+]);
+checkTeam(($sharedDoc['title']??'')==='Team contributor notes','Researcher can save a real canonical document through the Team collaboration entry.');
+$tagged=research_agent_workspace_object($pdo,$researcher,(string)$sharedDoc['public_id'],false);
+checkTeam(($tagged['metadata']['contribution_scope']??'')==='team'&&(int)($tagged['metadata']['origin_team_id']??0)===$teamId
+  &&(int)($tagged['metadata']['contributor_user_id']??0)===(int)$researcher['id'],'Team contribution origin tag and contributor remain on the canonical document.');
+
+$libraryRows=research_agent_workspace_list($pdo,$viewer,research_agent_workspace_project($pdo,$viewer,$agentPublic),false,100);
+$sharedLibraryRows=array_values(array_filter($libraryRows,fn($row)=>(string)$row['public_id']===(string)$sharedDoc['public_id']));
+checkTeam(count($sharedLibraryRows)===1&&($sharedLibraryRows[0]['contribution_tag']??'')==='Team · Team audit workspace'
+    &&!empty($sharedLibraryRows[0]['origin_team_contribution']),'Shared Team Desktop and Library API objects expose the contributor origin and current Team badge.');
+$memberAgent=research_agent_access($pdo,$viewer,$agentPublic);
+checkTeam($memberAgent!==null&&str_contains(research_agent_shell_href($memberAgent,'desktop'),'workspace=desktop')&&str_contains(research_agent_shell_href($memberAgent,'library'),'workspace=library'),'Team viewer has working entry routes to the assigned Agent Desktop and Library.');
+
+$recent=team_research_collaboration_recent($pdo,$viewer,$teamId);
+$docRows=array_values(array_filter($recent,fn($row)=>(string)$row['public_id']===(string)$sharedDoc['public_id']));
+checkTeam(count($docRows)===1&&(string)$docRows[0]['contributor_username']===(string)$researcher['username'],'Team viewer sees shared documents with their original contributor.');
+checkTeam(($docRows[0]['tag_label']??'')==='Team · Team audit workspace'&&!empty($docRows[0]['origin_team_contribution']),'Team contribution feed displays persisted origin badge and current Team scope.');
+
+checkTeam(team_research_collaboration_recent($pdo,$owner,$otherTeamId)===[],'A different Team cannot discover the shared research contributions.');
+$denied=false;try{team_research_collaboration_create_document($pdo,$viewer,$teamId,$agentPublic,['title'=>'Unauthorized','body'=>'No']);}catch(RuntimeException $e){$denied=true;}
+checkTeam($denied,'Team viewer cannot create research documents.');
+$denied=false;try{team_research_collaboration_create_document($pdo,$outsider,$teamId,$agentPublic,['title'=>'Unauthorized','body'=>'No']);}catch(RuntimeException $e){$denied=true;}
+checkTeam($denied,'Outsiders cannot contribute to another Team workspace.');
+$denied=false;try{team_research_collaboration_project($pdo,$owner,$otherTeamId,$agentPublic,true);}catch(RuntimeException $e){$denied=true;}
+checkTeam($denied,'A Team admin cannot forge cross-Team Agent workspace scope.');
+$edited=research_agent_workspace_save_document($pdo,$admin,(string)$sharedDoc['public_id'],[
+    'title'=>'Team contributor notes','content_html'=>'<p>Evidence verified by the Team admin.</p>','base_revision'=>1
+]);
+checkTeam((int)$edited['revision_number']===2,'Team admin revisions use existing immutable document versioning.');
+$recent=team_research_collaboration_recent($pdo,$viewer,$teamId);
+$docRows=array_values(array_filter($recent,fn($row)=>(string)$row['public_id']===(string)$sharedDoc['public_id']));
+checkTeam(count($docRows)===1&&(string)$docRows[0]['last_editor_name']===(string)$admin['display_name'],'Recent Team contributions attribute the latest authorized editor.');
+
 $pdo->prepare("UPDATE team_members SET role='viewer' WHERE team_id=? AND user_id=?")->execute([$teamId,(int)$researcher['id']]);
 team_research_sync_member($pdo,$teamId,(int)$researcher['id'],true);
 $role=$pdo->prepare('SELECT member_role FROM conversation_members WHERE conversation_id=? AND user_id=?');
@@ -90,12 +128,22 @@ $role->execute([$conversationId,(int)$researcher['id']]);checkTeam($role->fetchC
 $pdo->prepare('DELETE FROM team_members WHERE team_id=? AND user_id=?')->execute([$teamId,(int)$researcher['id']]);
 team_research_sync_member($pdo,$teamId,(int)$researcher['id'],false);
 checkTeam(research_agent_access($pdo,$researcher,$agentPublic)===null,'Removed team members immediately lose Agent access.');
+checkTeam(team_research_collaboration_recent($pdo,$researcher,$teamId)===[],'Removed members immediately lose Team research contribution visibility.');
+$denied=false;try{team_research_collaboration_create_document($pdo,$researcher,$teamId,$agentPublic,['title'=>'After removal','body'=>'No access']);}catch(RuntimeException $e){$denied=true;}
+checkTeam($denied,'Removed members cannot save documents through stale Agent pages.');
+
 $denied=false;
 try{team_research_unassign($pdo,$team,$admin,$agentPublic);}catch(RuntimeException $e){$denied=true;}
 checkTeam($denied,'Team admin cannot remove the owner’s assigned Agent.');
 team_research_unassign($pdo,$team,$owner,$agentPublic);
 checkTeam(team_research_agent_team($pdo,(int)$owner['id'],$agentPublic)===null,'Removing Team assignment updates the Agent edit page back to unassigned.');
 checkTeam(research_agent_access($pdo,$viewer,$agentPublic)===null,'Unassignment revokes Team access.');
+checkTeam(team_research_collaboration_recent($pdo,$viewer,$teamId)===[],'Removing Agent from Team removes its documents from Team contribution feed.');
+checkTeam(research_agent_workspace_object($pdo,$owner,(string)$sharedDoc['public_id'],false)!==null,'Unassignment preserves the original personal document and revisions.');
+$personalDocument=research_agent_workspace_object($pdo,$owner,(string)$sharedDoc['public_id'],false);
+checkTeam(($personalDocument['metadata']['contribution_scope']??'')==='team'&&(int)($personalDocument['metadata']['origin_team_id']??0)===$teamId,'Historic contribution origin remains tagged after Team unassignment without granting Team members continued access.');
+
+
 $q=$pdo->prepare('SELECT user_id FROM conversation_members WHERE conversation_id=?');$q->execute([$conversationId]);
 checkTeam(array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN))===[(int)$owner['id']],'Original owner is sole conversation member after unassignment.');
 checkTeam(in_array($agentPublic,array_column(team_research_assignable($pdo,(int)$owner['id']),'public_id'),true),'Agent can be re-shared only after returning to private ownership.');
