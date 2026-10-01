@@ -45,7 +45,7 @@ $adminSearch=(string)file_get_contents($root.'/admin/search.php');
 assertAdminUi(str_contains($shell,'appShellAdminLegacy')&&str_contains($shell,'$adminOwnsSidebar')&&
     str_contains($shell,'app_shell_admin_search('),
     'One Admin sidebar and the real Admin search are provided by the shared shell.');
-assertAdminUi(str_contains($shell,'action=\\"/admin/search.php\\"')&&
+assertAdminUi(str_contains($shell,'action="/admin/search.php"')&&
     str_contains($adminSearch,'admin_ops_global_search(')&&
     !str_contains($adminSearch,'data-command-palette-open'),
     'Header search submits to a real Admin search route, not an unavailable palette.');
