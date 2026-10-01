@@ -4,6 +4,39 @@ declare(strict_types=1);
 require_once __DIR__.'/runtime-compat.php';
 require_once __DIR__.'/migrations.php';
 
+/**
+ * First-install owner proof is a 32-byte random secret generated out of the
+ * public web root. Neither an empty marker nor an HTTP-only setup session is
+ * sufficient to claim the first administrator.
+ */
+function installer_setup_token_path(string $siteRoot): string {
+    return dirname(rtrim($siteRoot, '/\\')).'/annotated-setup-owner.key';
+}
+function installer_setup_token_read(string $siteRoot): ?string {
+    $file=installer_setup_token_path($siteRoot);
+    if(is_link($file)||!is_file($file))return null;
+    $text=@file_get_contents($file);
+    if(!is_string($text))return null;
+    $token=trim($text);
+    if(!preg_match('/^[a-f0-9]{64}$/D',$token))return null;
+    return $token;
+}
+function installer_setup_token_valid(string $siteRoot,string $provided): bool {
+    $expected=installer_setup_token_read($siteRoot);
+    $provided=trim($provided);
+    return $expected!==null&&preg_match('/^[a-f0-9]{64}$/D',$provided)===1&&hash_equals($expected,$provided);
+}
+function installer_setup_session_ready(string $siteRoot,array $session): bool {
+    $expected=installer_setup_token_read($siteRoot);
+    $saved=$session['setup_owner_sha256']??null;
+    return $expected!==null&&is_string($saved)&&hash_equals(hash('sha256',$expected),$saved);
+}
+function installer_setup_session_authorize(string $siteRoot,string $provided,array &$session): bool {
+    if(!installer_setup_token_valid($siteRoot,$provided))return false;
+    $session['setup_owner_sha256']=hash('sha256',trim($provided));
+    return true;
+}
+
 function installer_database_name(PDO $pdo): string {
     $name=(string)($pdo->query('SELECT DATABASE()')->fetchColumn()?:'');
     if($name==='')throw new RuntimeException('The configured DSN must select a database.');
