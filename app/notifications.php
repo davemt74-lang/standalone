@@ -87,8 +87,30 @@ function notification_object_access(PDO $pdo,array $viewer,array $n): bool {
         if(($viewer['role']??'')==='admin'||(int)$r['owner_user_id']===(int)$viewer['id'])return true;if(!$r['team_id'])return false;
         $sql=$r['visibility']==='team'?'SELECT 1 FROM team_members WHERE team_id=? AND user_id=? LIMIT 1':"SELECT 1 FROM team_members WHERE team_id=? AND user_id=? AND role IN ('owner','admin') LIMIT 1";$q=$pdo->prepare($sql);$q->execute([$r['team_id'],$viewer['id']]);return (bool)$q->fetchColumn();
     }
+    if($type==='sponsored_project'){
+        if(($n['notification_type']??'')==='research_sponsored_deadline')
+            return '/sponsored-project-workspace.php?project='.rawurlencode($public).'#milestones';
+        if(($n['notification_type']??'')==='research_sponsored_blocker')
+            return '/sponsored-project-workspace.php?project='.rawurlencode($public).'#activity';
+        return null;
+    }
     if($type==='research_review'){
         return function_exists('research_review_access')&&research_review_access($pdo,$viewer,$public)!==null;
+    }
+    if($type==='sponsored_project'){
+        if(!function_exists('sponsored_workspace_access'))return false;
+        try{$access=sponsored_workspace_access($pdo,$viewer,$public);}catch(Throwable $ignored){return false;}
+        if(!$access||($access['role']??'')==='sample')return false;
+        $context=json_decode((string)($n['context_json']??''),true)?:[];
+        if(($n['notification_type']??'')==='research_sponsored_deadline'){
+            return ($access['role']??'')==='researcher'
+                &&($access['assignment']['status']??'')==='active'
+                &&($access['participation']['status']??'')==='active'
+                &&hash_equals((string)($access['assignment']['public_id']??''),(string)($context['assignment_public_id']??''));
+        }
+        if(($n['notification_type']??'')==='research_sponsored_blocker')
+            return ($access['role']??'')==='sponsor'&&($context['recipient_role']??'')==='sponsor';
+        return false;
     }
     if($type==='sponsored_project_submission'){
         if(!function_exists('sponsored_project_submission_get'))return false;$s=sponsored_project_submission_get($pdo,$public);if(!$s)return false;
