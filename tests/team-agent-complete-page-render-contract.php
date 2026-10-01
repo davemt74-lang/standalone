@@ -9,7 +9,6 @@ declare(strict_types=1);
 $root=dirname(__DIR__);
 require_once $root.'/app/functions.php';
 require_once $root.'/app/research-agent-shell-ui.php';
-function app_shell_avatar(array $person,string $class=''): string {return '<span class="'.h($class).'">A</span>';}
 function annotation_ui_card(array $annotation,array $viewer): string {return '<article class="annotationFixture">Annotation preserved</article>';}
 function annotation_ui_scripts(array $viewer): string {return '<script data-annotation-scripts></script>';}
 require_once $root.'/app/shell.php';
