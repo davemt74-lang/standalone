@@ -96,13 +96,14 @@ function sponsored_research_review_decide(PDO $pdo,array $viewer,string $casePub
     if(in_array((string)$case['status'],['accepted','rejected','disputed','resolved'],true))throw new RuntimeException('This review case cannot be changed in its current state.');
     $q=$pdo->prepare("SELECT COUNT(*) FROM sponsored_research_review_assignments WHERE review_case_id=? AND status='assigned'");$q->execute([(int)$case['id']]);if((int)$q->fetchColumn()>0)throw new RuntimeException('All assigned reviewers must respond or be recused before a final decision.');
     $responses=sponsored_research_review_responses($pdo,(int)$case['id']);$note=trim($note);if($decision!=='accepted'&&$note==='')throw new InvalidArgumentException('A decision note is required for revision requests and rejections.');
+    if($decision==='accepted'&&function_exists('sponsored_research_finance_ready')&&sponsored_research_finance_ready($pdo))sponsored_research_compensation_require_reserved($pdo,(int)$case['submission_id']);
     $pdo->beginTransaction();try{
       $eligible=$decision==='accepted'?1:0;
       $pdo->prepare('UPDATE sponsored_research_review_cases SET status=?,final_decision=?,decision_note=?,decided_by_user_id=?,decided_at=NOW(),compensation_eligible=?,updated_at=NOW() WHERE id=?')
         ->execute([$decision,$decision,$note!==''?$note:null,(int)$viewer['id'],$eligible,(int)$case['id']]);
       $pdo->prepare('UPDATE sponsored_research_submissions SET status=?,updated_at=NOW() WHERE id=?')->execute([$decision,(int)$case['submission_id']]);
       sponsored_research_review_event($pdo,(int)$case['id'],(int)$viewer['id'],'final_decision',['decision'=>$decision,'review_response_count'=>count($responses),'compensation_eligible'=>(bool)$eligible,'submission_version_public_id'=>$case['submission_version_public_id'],'snapshot_hash'=>$case['snapshot_hash']]);
-      if($decision==='accepted')data_provenance_edge_record($pdo,'sponsored_submission_version',(string)$case['submission_version_public_id'],(string)$case['revision_number'],'accepted_in','sponsored_campaign',(string)$case['campaign_public_id'],null,(int)$viewer['id'],null,null,date('Y-m-d H:i:s'),['review_case_public_id'=>$case['public_id']]);
+      if($decision==='accepted'){data_provenance_edge_record($pdo,'sponsored_submission_version',(string)$case['submission_version_public_id'],(string)$case['revision_number'],'accepted_in','sponsored_campaign',(string)$case['campaign_public_id'],null,(int)$viewer['id'],null,null,date('Y-m-d H:i:s'),['review_case_public_id'=>$case['public_id']]);if(function_exists('sponsored_research_finance_ready')&&sponsored_research_finance_ready($pdo))sponsored_research_compensation_settle_review($pdo,$case,$viewer);}
       $pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     return sponsored_research_review_case_get($pdo,$casePublicId)??[];
@@ -116,6 +117,7 @@ function sponsored_research_dispute_open(PDO $pdo,array $viewer,string $casePubl
     $pdo->beginTransaction();try{
       $pdo->prepare("INSERT INTO sponsored_research_disputes(public_id,review_case_id,submission_id,opened_by_user_id,status,reason,evidence_json) VALUES(?,?,?,?,'open',?,?)")->execute([$public,(int)$case['id'],(int)$case['submission_id'],(int)$viewer['id'],$reason,$evidenceJson]);
       $pdo->prepare("UPDATE sponsored_research_review_cases SET status='disputed',compensation_eligible=0,updated_at=NOW() WHERE id=?")->execute([(int)$case['id']]);
+      if(function_exists('sponsored_research_finance_ready')&&sponsored_research_finance_ready($pdo))sponsored_research_compensation_hold_review($pdo,$case,$viewer);
       sponsored_research_review_event($pdo,(int)$case['id'],(int)$viewer['id'],'dispute_opened',['dispute_public_id'=>$public,'reason_hash'=>hash('sha256',$reason)]);
       $pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
@@ -130,6 +132,7 @@ function sponsored_research_dispute_resolve(PDO $pdo,array $viewer,string $dispu
       $pdo->prepare("UPDATE sponsored_research_disputes SET status='resolved',resolution=?,resolution_note=?,resolved_by_user_id=?,resolved_at=NOW() WHERE id=?")->execute([$resolution,$note,(int)$viewer['id'],(int)$d['id']]);
       $restore=(in_array($resolution,['upheld','dismissed'],true)&&(string)$d['final_decision']==='accepted')?1:0;
       $pdo->prepare("UPDATE sponsored_research_review_cases SET status='resolved',compensation_eligible=?,updated_at=NOW() WHERE id=?")->execute([$restore,(int)$d['review_case_id']]);
+      if($restore&&function_exists('sponsored_research_finance_ready')&&sponsored_research_finance_ready($pdo)){$case=sponsored_research_review_case_get($pdo,(string)$d['review_case_id']);if(!$case){$q2=$pdo->prepare('SELECT public_id FROM sponsored_research_review_cases WHERE id=?');$q2->execute([(int)$d['review_case_id']]);$case=sponsored_research_review_case_get($pdo,(string)$q2->fetchColumn());}if($case)sponsored_research_compensation_release_hold($pdo,$case,$viewer);}
       sponsored_research_review_event($pdo,(int)$d['review_case_id'],(int)$viewer['id'],'dispute_resolved',['dispute_public_id'=>$d['public_id'],'resolution'=>$resolution,'note_hash'=>hash('sha256',$note)]);
       $pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
