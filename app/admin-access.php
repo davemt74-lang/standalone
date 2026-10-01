@@ -118,7 +118,7 @@ function admin_access_nav_capability(string $key): string {
         'dashboard','assistant'=>'admin.operations.view','action_center'=>'admin.actions.view','roles_permissions'=>'admin.roles.view','support'=>'admin.support.view','support_case'=>'admin.support.view',
         'accounts','users','packages','research_accounts'=>'admin.accounts.view',
         'billing','billing_analytics','overage_billing','promotions','tax_invoices'=>'admin.billing.view',
-        'financial_reporting'=>'admin.finance.view',
+        'financial_reporting','sponsored_research_finance'=>'admin.finance.view',
         'customer_success','customer_success_account'=>'admin.customer_success.view','security_compliance'=>'admin.security.view','platform_governance'=>'admin.platform.view',
         'usage'=>'admin.ai_usage.view',
         'ai','evaluations','model_registry','training','post_training','model_release','model_deployment','model_observability','model_improvements','model_campaigns'=>'admin.models.view',
