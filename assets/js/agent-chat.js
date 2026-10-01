@@ -200,7 +200,7 @@
     contextOptions.innerHTML='<div class="meta">Loading context…</div>';
     try{
       const data=await request('context_options');contextOptions.replaceChildren();
-      const groups=[['annotations','Recent annotations'],['research','Research projects'],['teams','Teams']];
+      const groups=[['annotations','Recent annotations'],['research','Research projects'],['sponsored_projects','Assigned Sponsored Projects'],['teams','Teams']];
       groups.forEach(([key,label])=>{const rows=data[key]||[];if(!rows.length)return;const section=document.createElement('section');const h=document.createElement('h4');h.textContent=label;section.appendChild(h);rows.forEach(item=>{const b=document.createElement('button');b.type='button';b.className='agentContextOption';b.textContent=item.label;b.addEventListener('click',()=>{if(!selectedContext.some(x=>x.type===item.type&&x.public_id===item.public_id)&&selectedContext.length<6)selectedContext.push(item);renderContextTray();contextPicker.hidden=true;});section.appendChild(b);});contextOptions.appendChild(section);});
       if(!contextOptions.children.length)contextOptions.innerHTML='<div class="meta">No recent Annotated context is available yet.</div>';
     }catch(err){renderInlineError(contextOptions,err.message||'Unable to load Annotated context.');}
