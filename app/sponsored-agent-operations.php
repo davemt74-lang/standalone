@@ -28,6 +28,12 @@ function sponsored_agent_operations_handoff(PDO $pdo,array $viewer,string $campa
        !function_exists('sponsored_agent_awareness_access'))return null;
     $agent=research_agent_by_conversation($pdo,$viewer,$agentConversation);
     if(!$agent||!hash_equals((string)$agent['conversation_public_id'],$agentConversation))return null;
+    // Never hand off paid-project context into a shared or subsequently invited
+    // conversation. Validate the current conversation at every deep link.
+    if(!function_exists('sponsored_agent_awareness_private_conversation'))return null;
+    $q=$pdo->prepare('SELECT * FROM conversations WHERE public_id=? LIMIT 1');
+    $q->execute([$agentConversation]);$conversation=$q->fetch();
+    if(!$conversation||!sponsored_agent_awareness_private_conversation($pdo,$viewer,$conversation))return null;
     $access=sponsored_agent_awareness_access($pdo,$viewer,$campaignPublic,(string)$agent['public_id']);
     if(!$access)return null;
     // Manual project operations are available only while both the sponsor
