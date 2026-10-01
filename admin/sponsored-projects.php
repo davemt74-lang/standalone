@@ -5,7 +5,9 @@ $admin=require_admin($pdo);header('Cache-Control: private, no-store');$error='';
 if(function_exists('admin_access_assert_capability'))admin_access_assert_capability($pdo,$admin,$_SERVER['REQUEST_METHOD']==='POST'?'admin.research_data.manage':'admin.research_data.view');
 if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
     $op=(string)($_POST['op']??'review');
-    if($op==='compensation'){
+    if($op==='sample_toggle'){
+        sponsored_project_sample_toggle($pdo,$admin,isset($_POST['sample_data_enabled']));$success='Sample project data setting updated.';
+    }elseif($op==='compensation'){
         sponsored_project_compensation_admin_transition($pdo,$admin,(string)($_POST['compensation_id']??''),(string)($_POST['compensation_status']??''),(string)($_POST['payment_reference']??''),(string)($_POST['admin_note']??''));
         $success='Compensation status updated.';
     }else{
@@ -13,7 +15,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){require_csrf();try{
         $success='Submission review updated.';
     }
 }catch(Throwable $e){$error=$e->getMessage();}}
-$projects=sponsored_project_admin_projects($pdo);
+$projects=sponsored_project_admin_projects($pdo);$sampleSettings=sponsored_project_sample_settings($pdo);$sampleProjects=sponsored_project_sample_projects($pdo);
 $campaignPublic=(string)($_GET['campaign']??$_POST['campaign_id']??'');
 $campaign=$campaignPublic!==''?sponsored_research_campaign_by_public($pdo,$campaignPublic):null;
 $assignments=$campaign?sponsored_project_admin_assignments($pdo,(int)$campaign['id']):[];
@@ -21,6 +23,8 @@ $submissions=$campaign?sponsored_project_admin_submissions($pdo,(int)$campaign['
 ?><!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sponsored Projects · Annotated Admin</title><link rel="stylesheet" href="/assets/css/app.css"></head><body><?=admin_ui_sidebar('sponsored_projects')?><main class="panel">
 <div class="pageTitle"><span class="eyebrow">RESEARCH OPERATIONS</span><h1>Sponsored Projects</h1><p>Track projects, assigned Research Agents, immutable submissions, review decisions, and researcher compensation.</p></div>
 <?php if($error):?><div class="error"><?=h($error)?></div><?php endif?><?php if($success):?><div class="success"><?=h($success)?></div><?php endif?>
+<section class="card"><div class="inlineActions"><div><span class="eyebrow">DEMO CONTENT</span><h2>Sample project data</h2><p class="meta">Display non-operational sample Sponsored Projects in Admin for product review and demos. Samples never affect marketplace listings, researchers, submissions, or finance totals.</p></div><form method="post"><?=csrf_field()?><input type="hidden" name="op" value="sample_toggle"><label><input type="checkbox" name="sample_data_enabled" value="1" <?=!empty($sampleSettings['sample_data_enabled'])?'checked':''?> onchange="this.form.submit()"> Sample data <?=!empty($sampleSettings['sample_data_enabled'])?'ON':'OFF'?></label></form></div></section>
+<?php if($sampleProjects):?><section class="card"><div class="inlineActions"><h2>Sample Projects</h2><span class="badge">SAMPLE DATA</span></div><div class="stack"><?php foreach($sampleProjects as $sample):?><article class="card"><div class="inlineActions"><div><strong><?=h((string)$sample['title'])?></strong><div class="meta"><?=h((string)$sample['organization_name'])?> · <?=h(ucwords((string)$sample['status']))?> · <?=h((string)$sample['access_mode'])?></div></div><span class="badge">SAMPLE</span></div><p><?=h((string)$sample['brief'])?></p><div class="meta">Researcher flat fee <?=h((string)$sample['budget_currency'])?> <?=number_format(((int)$sample['researcher_compensation_cents'])/100,2)?> · Assigned Agents <?=h((string)$sample['assigned_agents'])?> · Submissions <?=h((string)$sample['submissions'])?> · Deadline <?=h((string)$sample['submission_deadline'])?></div><div class="meta">Requirements: <?=h(implode(' · ',(array)$sample['requirements']))?></div></article><?php endforeach?></div></section><?php endif?>
 <section class="card"><h2>Projects</h2><table><thead><tr><th>Project</th><th>Status</th><th>Agents</th><th>Submissions</th><th>Flat fee</th><th>Earned</th><th>Approved</th><th>Paid</th></tr></thead><tbody>
 <?php foreach($projects as $p):?><tr>
 <td><a href="/admin/sponsored-projects.php?campaign=<?=rawurlencode((string)$p['public_id'])?>"><strong><?=h((string)$p['title'])?></strong></a></td>
