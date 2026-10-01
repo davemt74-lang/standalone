@@ -65,6 +65,7 @@ function admin_ui_nav_sections(): array {
                 'system_health'=>['label'=>'System Health','url'=>'/admin/system-health.php'],
                 'release_audit'=>['label'=>'Release Audit','url'=>'/admin/intelligence-release-audit.php'],
                 'platform_governance'=>['label'=>'Platform Governance','url'=>'/admin/platform-governance.php'],
+                'extension_releases'=>['label'=>'Chrome Extension Releases','url'=>'/admin/extension-releases.php'],
             ],
         ],
     ];
