@@ -130,6 +130,7 @@ db_tests=(
   tests/phase80-section1-research-sponsor-account-governance-db.php
   tests/phase80-detour-research-agent-stories-toggle-db.php
   tests/phase80-section2-sponsored-research-campaigns-db.php
+  tests/phase80-section3-sponsored-research-participation-db.php
   tests/profile-phase2-showcase-db.php
   tests/profile-phase3-research-network-db.php
   tests/admin-subscriptions-packages-v1-db.php
