@@ -65,3 +65,11 @@
 .sponsoredDetailMilestones li .meta{display:block;margin-top:4px}
 .sponsoredDetailMilestones li p{margin:8px 0 0}
 @media(max-width:690px){.sponsoredDetailDeliverableGrid{grid-template-columns:minmax(0,1fr)}}
+
+/* Explicitly gated link to the existing role-scoped collaboration workspace. */
+.sponsoredWorkspaceDetailLink{margin-top:19px;padding:19px 23px;display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid #dce5eb;border-radius:15px;background:#fff}
+.sponsoredWorkspaceDetailLink>div{display:grid;gap:5px;min-width:0}
+.sponsoredWorkspaceDetailLink strong{color:#1d3444;font-size:15px}
+.sponsoredWorkspaceDetailLink span{color:#657986;line-height:1.5;font-size:13px}
+.sponsoredWorkspaceDetailLink .button{white-space:nowrap;flex-shrink:0}
+@media(max-width:620px){.sponsoredWorkspaceDetailLink{align-items:stretch;flex-direction:column}.sponsoredWorkspaceDetailLink .button{text-align:center}}
