@@ -225,6 +225,15 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
             }
         }catch(Throwable $e){}
     }
+    // Do not allow a selected Sponsored Project from a different Agent to
+    // silently contaminate this assigned Agent's conversation context.
+    if($researchAgent){
+        foreach($context as $item){
+            if(($item['type']??'')==='sponsored_project'
+              &&!hash_equals((string)$researchAgent['public_id'],(string)($item['meta']['agent_public_id']??'')))
+                throw new InvalidArgumentException('This Sponsored Project belongs to a different assigned Research Agent.');
+        }
+    }
     $userMessage=conversation_message_create($pdo,$viewer,$conversation['public_id'],$prompt,null,$clientMessageId);
     $userMessageId=(int)$userMessage['id'];
     if(!$userMessage['created']){
