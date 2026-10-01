@@ -85,6 +85,22 @@ $reject(static fn()=>sponsored_workspace_validate_update($closed,['id'=>11],[
 ]),'Completed campaigns are read-only in the collaboration layer.');
 $assert(!str_contains($backend,'research_agent_workspace_create_')&&!str_contains($backend,'team_research_assign('),
     'Project updates never bypass canonical Team/Agent ACL or duplicate desktop writes.');
+
+$shared=sponsored_workspace_milestone_states(
+    [['title'=>'Planning','success_criteria'=>'Document sources']],
+    [
+        ['scope'=>'participant','actor_role'=>'researcher','milestone_position'=>1,'progress_status'=>'completed'],
+        ['scope'=>'project','actor_role'=>'sponsor','milestone_position'=>1,'progress_status'=>'ready_for_review']
+    ]
+);
+$assert($shared===['ready_for_review'],'Private researcher status cannot be mistaken for shared sponsor milestone completion.');
+$planned=sponsored_workspace_milestone_states([['title'=>'Planning']],[
+    ['scope'=>'participant','actor_role'=>'researcher','milestone_position'=>1,'progress_status'=>'blocked']
+]);
+$assert($planned===['planned'],'Unpublished private thread notes cannot change public milestone projection.');
+$assert(str_contains($workspacePage,'sponsored_workspace_milestone_states(')
+  &&str_contains($workspacePage,'sponsoredWorkspaceMilestoneState'),
+    'Milestone rail shows scoped journal progress without mutating canonical task states.');
 $assert(str_contains($migration,'CREATE TABLE IF NOT EXISTS sponsored_project_updates')
     &&!str_contains($backend,'UPDATE sponsored_project_updates')
     &&!str_contains($backend,'DELETE FROM sponsored_project_updates'),
