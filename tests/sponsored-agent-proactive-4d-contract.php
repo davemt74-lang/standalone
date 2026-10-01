@@ -25,7 +25,7 @@ $check(str_contains($runtime,"up.scope='participant'")
   &&str_contains($runtime,"up.actor_role='researcher'")
   &&str_contains($runtime,"newer.progress_status IN ('ready_for_review','completed')"),
   'Private blocker signal is researcher-authored and suppressed once later resolved.');
-$check(str_contains($runtime,"($authorized['role']??'')!=='sponsor'")
+$check(str_contains($runtime,"(\$authorized['role']??'')!=='sponsor'")
   &&str_contains($runtime,'sponsored_workspace_access(')
   &&!str_contains($runtime,"$"."row['body']"),
   'Only current authorized sponsor managers receive a generic blocker notice with no private message body.');
