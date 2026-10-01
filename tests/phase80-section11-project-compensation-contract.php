@@ -1,0 +1,18 @@
+<?php
+declare(strict_types=1);
+$root=dirname(__DIR__);$fail=[];
+$need=function(string $file,string $needle,string $msg)use(&$fail,$root){$p=$root.'/'.$file;if(!is_file($p)){$fail[]='Missing '.$file;return;}if(!str_contains((string)file_get_contents($p),$needle))$fail[]=$msg;};
+$m='database/migrations/20261001_126_phase80_project_compensation.sql';
+foreach(['researcher_compensation_cents','sponsored_research_project_compensations','approved_for_payment','accepted_submission_id','payment_reference'] as $n)$need($m,$n,'Migration 126 missing '.$n);
+foreach(['function sponsored_project_compensation_ensure','function sponsored_project_compensation_mark_earned','function sponsored_project_compensation_admin_transition','function sponsored_project_public_list','function sponsored_project_public_get'] as $n)$need('app/sponsored-research-project-compensation.php',$n,'Section 11 runtime missing '.$n);
+$need('app/sponsored-research-campaigns.php',"'researcher_compensation_cents'","Campaign configuration does not version researcher compensation.");
+$need('app/sponsored-research-projects.php','sponsored_project_compensation_ensure','Assignment does not freeze project compensation.');
+$need('app/sponsored-research-projects.php','sponsored_project_compensation_mark_earned','Acceptance does not earn compensation.');
+$need('research-sponsored-projects.php','My compensation','Researcher compensation status UI is missing.');
+$need('admin/sponsored-projects.php','Approve for payment','Admin compensation approval UI is missing.');
+$need('admin/sponsored-projects.php','Mark paid','Admin paid transition UI is missing.');
+$need('research-projects.php','Research Projects','Public project marketplace page is missing.');
+$need('research-projects.php','Sponsored by','Public project sponsor context is missing.');
+$need('research-projects.php','Researcher compensation','Public project compensation is missing.');
+$need('app/research-surface-map.php',"'research-projects.php'",'Public Research Projects route is missing from the surface map.');
+if($fail){foreach(array_unique($fail) as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Phase 80 Section 11 compensation/public marketplace contract passed.\n";
