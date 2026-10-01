@@ -31,6 +31,7 @@ if(str_contains($finance,'function sponsored_project_compensation_backfill_campa
 foreach([
   'function team_research_require_owner'=>'Current Team ownership is verified in the database.',
   'project_owner_id'=>'Sharing requires matching Project ownership.',
+  'Set the Research Agent visibility to Private'=>'Only Private Agents can become Team workspace resources.',
   "other.project_id=rp.id"=>'Sharing rejects projects with other active Agents.',
   'Sponsored Research Agents cannot be shared with a Team'=>'Sponsored Agents require explicit collaboration authority.'
 ] as $fragment=>$label)if(!str_contains($teams,$fragment))$fail[]=$label;
