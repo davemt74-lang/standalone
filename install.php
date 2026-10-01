@@ -20,7 +20,8 @@ $error='';
 $pdo=null;
 $config=null;
 $databaseStatus='Not connected.';
-$step=is_file($configFile)?'database':'configuration';
+$ownerAuthorized=installer_setup_session_ready($root,$_SESSION);
+$step=$ownerAuthorized?(is_file($configFile)?'database':'configuration'):'owner';
 $defaults=[
     'base_url'=>installer_default_base_url(),
     'db_host'=>'127.0.0.1',
@@ -35,7 +36,14 @@ try{
         if(!hash_equals((string)($_SESSION['install_csrf']??''),$sent))throw new RuntimeException('The installer form expired. Reload the page and try again.');
 
         $action=(string)($_POST['action']??'');
-        if($action==='configure'){
+        if($action==='authorize'){
+            if(!installer_setup_session_authorize($root,(string)($_POST['setup_token']??''),$_SESSION))throw new RuntimeException('Invalid or unavailable server-owner setup token.');
+            session_regenerate_id(true);
+            $ownerAuthorized=true;
+            $step=is_file($configFile)?'database':'configuration';
+        }elseif(!$ownerAuthorized){
+            throw new RuntimeException('Server-owner authorization is required before installation.');
+        }elseif($action==='configure'){
             if(is_file($configFile))throw new RuntimeException('config.php already exists. Reload the installer.');
             $config=installer_build_config($_POST,$root);
             $pdo=installer_connect($config);
@@ -66,7 +74,7 @@ try{
         }
     }
 
-    if(is_file($configFile)){
+    if($ownerAuthorized&&is_file($configFile)){
         $config=require $configFile;
         $pdo=installer_connect($config);
         $schemaFile=$root.'/database/schema.sql';
@@ -81,7 +89,7 @@ try{
     }
 }catch(Throwable $e){
     $error=$e->getMessage();
-    if(!is_file($configFile))$step='configuration';
+    $step=$ownerAuthorized?(is_file($configFile)?'database':'configuration'):'owner';
 }
 
 header('Cache-Control: private, no-store');
@@ -103,11 +111,19 @@ header('X-Frame-Options: DENY');
 <span class="eyebrow">ANNOTATED SETUP</span>
 <h1>Install Annotated</h1>
 <p>Set the database connection once. Annotated will create <code>config.php</code>, import the base schema, apply every bundled migration, and then create your first administrator.</p>
-<p class="meta">No SQL import and no setup key are required.</p>
+<p class="meta">A one-time server-owner token stored outside the public web root is required before the database can be configured or the first administrator created.</p>
 
 <?php if($error):?><div class="error"><?=htmlspecialchars($error,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8')?></div><?php endif?>
 
-<?php if($step==='configuration'):?>
+<?php if($step==='owner'):?>
+<p>Using SSH or your hosting file manager, create <code>annotated-setup-owner.key</code> in the parent directory of the website, containing 64 lowercase hexadecimal characters from a secure random generator. CLI: <code>php bin/create-setup-token.php</code>. Do not place this secret in the website or in a URL.</p>
+<form method="post" class="stack" autocomplete="off">
+<input type="hidden" name="csrf" value="<?=htmlspecialchars((string)$_SESSION['install_csrf'],ENT_QUOTES,'UTF-8')?>">
+<input type="hidden" name="action" value="authorize">
+<label>Server-owner setup token<input type="password" name="setup_token" required minlength="64" maxlength="64" autocomplete="off"></label>
+<button>Authorize setup</button>
+</form>
+<?php elseif($step==='configuration'):?>
 <form method="post" class="stack">
 <input type="hidden" name="csrf" value="<?=htmlspecialchars((string)$_SESSION['install_csrf'],ENT_QUOTES,'UTF-8')?>">
 <input type="hidden" name="action" value="configure">
