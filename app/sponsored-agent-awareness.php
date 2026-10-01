@@ -62,7 +62,14 @@ function sponsored_agent_awareness_project_context(PDO $pdo,array $viewer,string
     $vq->execute([(int)$c['id'],$acceptedRevision]);$version=$vq->fetch();
     if(!$version)return null;
     $snapshot=json_decode((string)$version['config_json'],true);
-    if(!is_array($snapshot)||!hash_equals((string)$version['config_hash'],sponsored_research_campaign_hash($snapshot)))return null;
+    // MySQL JSON columns may reorder keys when read, so never recompute a
+    // historical PHP insertion-order hash from decoded JSON. Use the stored
+    // immutable version hash; cross-check it against the live campaign hash
+    // when the participant accepted the current revision.
+    $storedHash=(string)($version['config_hash']??'');
+    if(!is_array($snapshot)||!preg_match('/^[a-f0-9]{64}$/i',$storedHash)
+      ||($acceptedRevision===(int)($c['current_revision']??0)
+         &&!hash_equals((string)($c['config_hash']??''),$storedHash)))return null;
     $specs=sponsored_project_builder_normalize($snapshot['project_specs']??[], $snapshot['submission_deadline']??null);
     // Only the terms actually accepted by this participant, not the latest
     // draft/sponsor-only terms. A later revision is flagged, never accepted implicitly.
