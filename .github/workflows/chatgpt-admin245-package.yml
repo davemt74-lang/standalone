@@ -1,0 +1,10 @@
+name: Admin Core UI Release Package
+on:
+  push:
+    branches:
+      - chatgpt/admin245-package-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
