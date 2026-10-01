@@ -528,6 +528,10 @@ jobs:
           test -f package-website/app/extension-releases.php
           test -f package-website/extension-download.php
           test -f package-website/database/migrations/20261001_127_extension_release_manager.sql
+          test -f package-website/database/migrations/20261001_128_sponsored_project_builder.sql
+          test -f package-website/app/sponsored-project-builder.php
+          test -f package-website/app/sponsored-project-builder-ui.php
+          test -f package-website/assets/css/sponsored-project-builder.css
           test -f package-website/downloads/Annotated-Chrome-Extension.zip
 
       - name: Smoke test release packages
