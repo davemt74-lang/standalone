@@ -70,10 +70,8 @@ function sponsored_research_compensation_require_reserved(PDO $pdo,int $submissi
 }
 function sponsored_research_compensation_settle_review(PDO $pdo,array $case,array $actor): array {
     $res=sponsored_research_compensation_require_reserved($pdo,(int)$case['submission_id']);$gross=(int)$res['gross_amount_cents'];$fee=intdiv($gross*(int)$res['platform_fee_bps'],10000);$net=$gross-$fee;
-    $key='sponsored-settlement-'.$case['public_id'].'-'.$res['public_id'];$tx=sponsored_research_finance_transaction($pdo,'acceptance_settlement',(int)$case['campaign_id'],(int)$res['researcher_user_id'],(int)$case['id'],(int)$case['submission_id'],(string)$res['currency'],$key,[['account_code'=>'campaign_reserved','amount_cents'=>-$gross],['account_code'=>'researcher_pending','amount_cents'=>$net],['account_code'=>'platform_fee','amount_cents'=>$fee?:1]],(int)$actor['id'],'sponsored_review',(string)$case['public_id'],'Accepted Sponsored Research compensation settled.',['gross_amount_cents'=>$gross,'platform_fee_cents'=>$fee,'researcher_net_cents'=>$net]);
-    if($fee===0){
-        $pdo->prepare("DELETE FROM sponsored_research_financial_entries WHERE transaction_id=? AND account_code='platform_fee' AND amount_cents=1")->execute([(int)$tx['id']]);
-    }
+    $entries=[['account_code'=>'campaign_reserved','amount_cents'=>-$gross]];if($net>0)$entries[]=['account_code'=>'researcher_pending','amount_cents'=>$net];if($fee>0)$entries[]=['account_code'=>'platform_fee','amount_cents'=>$fee];
+    $key='sponsored-settlement-'.$case['public_id'].'-'.$res['public_id'];$tx=sponsored_research_finance_transaction($pdo,'acceptance_settlement',(int)$case['campaign_id'],(int)$res['researcher_user_id'],(int)$case['id'],(int)$case['submission_id'],(string)$res['currency'],$key,$entries,(int)$actor['id'],'sponsored_review',(string)$case['public_id'],'Accepted Sponsored Research compensation settled.',['gross_amount_cents'=>$gross,'platform_fee_cents'=>$fee,'researcher_net_cents'=>$net]);
     $pdo->prepare("UPDATE sponsored_research_compensation_reservations SET status='settled',settlement_transaction_id=?,settled_at=NOW() WHERE id=?")->execute([(int)$tx['id'],(int)$res['id']]);return ['transaction'=>$tx,'reservation'=>$res,'gross_cents'=>$gross,'fee_cents'=>$fee,'net_cents'=>$net];
 }
 function sponsored_research_compensation_hold_review(PDO $pdo,array $case,array $actor): ?array {
