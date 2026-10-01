@@ -22,4 +22,5 @@ $need('app/sponsored-research-project-compensation.php','function sponsored_proj
 $need('app/sponsored-research-project-compensation.php','function sponsored_project_sample_projects','Admin sample Sponsored Projects are missing.');
 $need('admin/sponsored-projects.php','Sample project data','Admin sample-data controls are missing.');
 $need('admin/sponsored-projects.php','SAMPLE DATA','Admin sample-project labeling is missing.');
+if(str_contains((string)file_get_contents($root.'/research-projects.php'),'sponsored_project_sample_projects'))$fail[]='Admin sample projects must not leak into the public operational marketplace.';
 if($fail){foreach(array_unique($fail) as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Phase 80 Section 11 compensation/public marketplace contract passed.\n";
