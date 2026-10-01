@@ -134,7 +134,7 @@ function sponsored_research_knowledge_release_create(PDO $pdo,array $viewer,stri
     return app_with_advisory_lock($pdo,'sponsored-knowledge-release',(int)$kb['id'],function() use($pdo,$viewer,$kbPublicId,$note){
       $kb=sponsored_research_knowledge_base_require_manage($pdo,$viewer,$kbPublicId);$manifest=sponsored_research_knowledge_manifest($pdo,$kb);if((int)$manifest['item_count']===0)throw new RuntimeException('Knowledge Base release requires at least one active, future-usable Knowledge item.');
       foreach((array)$manifest['items'] as $item)foreach((array)($item['evidence_sources']??[]) as $source){$rights=$source['release_rights']??null;if(!is_array($rights)||empty($rights['retrieval_allowed']))throw new RuntimeException('Knowledge Base release is blocked until every evidence Source has current retrieval rights.');}
-      $next=(int)$kb['current_release_number']+1;$manifest['release_number']=$next;$json=data_attribution_encode($manifest);$hash=hash('sha256',$json);
+      $next=(int)$kb['current_release_number']+1;$manifest['release_number']=$next;$json=data_attribution_encode($manifest);$hash=data_attribution_hash($manifest);
       $pdo->beginTransaction();try{
         $public=ulid_like();$pdo->prepare('INSERT INTO sponsored_research_knowledge_releases(public_id,knowledge_base_id,release_number,manifest_json,manifest_hash,item_count,release_note,released_by_user_id) VALUES(?,?,?,?,?,?,?,?)')
           ->execute([$public,(int)$kb['id'],$next,$json,$hash,(int)$manifest['item_count'],trim($note)!==''?mb_substr(trim($note),0,1000):null,(int)$viewer['id']]);$releaseId=(int)$pdo->lastInsertId();
@@ -170,7 +170,7 @@ function sponsored_research_knowledge_release_current_use_status(PDO $pdo,string
         if($storedHash===''||!hash_equals($storedHash,$currentHash)){$invalid++;$reasons[]='source_rights_changed_since_release';break;}
       }
     }
-    $calc=hash('sha256',(string)$release['manifest_json']);$manifestOk=hash_equals((string)$release['manifest_hash'],$calc);if(!$manifestOk){$invalid++;$reasons[]='manifest_integrity_failure';}
+    $calc=data_attribution_hash($manifest);$manifestOk=hash_equals((string)$release['manifest_hash'],$calc);if(!$manifestOk){$invalid++;$reasons[]='manifest_integrity_failure';}
     return ['usable'=>$invalid===0,'reason'=>$invalid===0?'current':($reasons[0]??'invalid'),'invalid_items'=>$invalid,'manifest_ok'=>$manifestOk,'reasons'=>array_values(array_unique($reasons))];
 }
 function sponsored_research_knowledge_events(PDO $pdo,string $kbPublicId,int $limit=100): array {
