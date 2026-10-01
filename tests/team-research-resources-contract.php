@@ -7,7 +7,7 @@ foreach([
   "team['access_role']??''"=>'Team owner role must be checked.',
   "team_research_require_owner"=>'Runtime must verify persisted Team ownership.',
   "tm.role='owner'" => 'Owner must have current Team membership.',
-  "team['owner_user_id']!==(int)\$viewer['id']"=>'Team owner identity must match the caller.',
+  "team['owner_user_id']??0"=>'Team owner identity must match the caller.',
   "agent['owner_user_id']!==(int)\$viewer['id']"=>'The Agent must be personally owned by the Team owner.',
   "agent['project_owner_id']!==(int)\$viewer['id']"=>'Project ownership must match the Team owner.',
   "other.project_id=rp.id" => 'Shared projects with other active Agents must not be offered.',
