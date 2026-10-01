@@ -57,7 +57,11 @@ $teamVars=['u'=>$viewer,'team'=>$team,'isOwner'=>true,'canManage'=>true,'error'=
                 ['id'=>12,'username'=>'researcher','display_name'=>'Researcher','role'=>'researcher','profile_image_url'=>null]],
     'resources'=>[$resource],'assignable'=>[['public_id'=>'another-agent','name'=>'Another Agent','project_title'=>'Another Project']],
     'projects'=>[['public_id'=>'project-fixture','title'=>'Shared Research Project','status'=>'active','updated_at'=>'2026-10-01','description'=>'Shared evidence']],
-    'annotations'=>[['public_id'=>'annotation-fixture']]];
+    'annotations'=>[['public_id'=>'annotation-fixture']],
+    'canContributeResearch'=>true,
+    'teamDraftTitle'=>'','teamDraftBody'=>'',
+    'teamRecentResearch'=>[['public_id'=>'doc-fixture','object_type'=>'document','title'=>'Researcher source notes','updated_at'=>'2026-10-01','contributor_name'=>'Researcher','last_editor_name'=>'Owner',
+       'agent_name'=>'Festo','agent_public_id'=>'agent-fixture','conversation_public_id'=>'conversation-fixture','team_public_id'=>'team-fixture','tag_label'=>'Team · Workola','origin_team_contribution'=>true,'document_summary'=>'Evidence reviewed']]];
 $teamHtml=render_real_page('team.php',$teamVars);
 $x=xpath_page($teamHtml);
 assert_ui(str_contains($teamHtml,'</html>')&&str_contains($teamHtml,'Recent annotations'),'Team page renders through the entire feed/footer.');
@@ -69,7 +73,20 @@ assert_ui($x->query('//form[input[@name="op" and @value="assign_agent"] and .//s
     'Owned Agent picker and submit form actually render.');
 assert_ui(str_contains($teamHtml,'Shared Research Project')&&str_contains($teamHtml,'Annotation preserved'),
     'Team research projects and annotations remain visible after the member controls.');
-$teamVars['resources']=[];$teamVars['assignable']=[];$teamVars['projects']=[];$teamVars['annotations']=[];
+assert_ui($x->query('//section[@id="team-shared-research"]//a[contains(@href,"workspace=desktop")]')->length>0
+    &&$x->query('//section[@id="team-shared-research"]//a[contains(@href,"workspace=library")]')->length>0,
+    'Current Team members have direct launchers for the attached Agent Desktop and Library.');
+assert_ui($x->query('//section[@id="team-shared-research"]//form[input[@name="op" and @value="team_create_research_document"] and .//select[@name="agent_id"] and .//textarea[@name="body"]]')->length===1,
+    'Authorized Team members can contribute through the canonical shared Agent workspace.');
+assert_ui(str_contains($teamHtml,'Team · Workola')&&str_contains($teamHtml,'Team-created')&&str_contains($teamHtml,'Contributed by Researcher'),
+    'Team research contribution cards surface Team origin and creator attribution.');
+$teamVars['canContributeResearch']=false;
+$readOnly=render_real_page('team.php',$teamVars);
+assert_ui(str_contains($readOnly,'view-only')&&!str_contains($readOnly,'name="body"'),
+    'Team viewers can access shared research without a document creation form.');
+$teamVars['canContributeResearch']=true;
+
+$teamVars['resources']=[];$teamVars['assignable']=[];$teamVars['projects']=[];$teamVars['annotations']=[];$teamVars['teamRecentResearch']=[];
 $teamEmpty=render_real_page('team.php',$teamVars);
 assert_ui(str_contains($teamEmpty,'</html>')&&str_contains($teamEmpty,'Your Team can still collaborate without an Agent'),
     'A Team without an Agent renders fully and remains usable.');
