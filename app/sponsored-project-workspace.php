@@ -98,6 +98,8 @@ function sponsored_workspace_recent(PDO $pdo,array $access,array $viewer,int $li
 }
 function sponsored_workspace_validate_update(array $access,array $viewer,array $input,array $participants=[]): array {
     if($access['role']==='sample')throw new RuntimeException('Demonstration projects cannot create updates.');
+    if(in_array((string)($access['campaign']['status']??''),['completed','cancelled','archived'],true))
+        throw new RuntimeException('A closed Sponsored Project workspace is read-only.');
     $role=(string)$access['role'];$scope=trim((string)($input['scope']??'participant'));
     if(!in_array($scope,['project','participant'],true))
         throw new InvalidArgumentException('Choose project-wide or private participant communication.');
