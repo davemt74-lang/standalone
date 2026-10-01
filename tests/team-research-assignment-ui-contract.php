@@ -10,8 +10,8 @@ foreach([
   'foreach($assignable as $candidate)'=>'Team dropdown must enumerate eligible owned Agents.',
   "if($isOwner):"=>'Team assignment must be owner-only.',
   'confirm_workspace_share'=>'Sharing must require informed confirmation.',
-  "team_research_assign($pdo,$team,$u"=>'Attach actions must use canonical ownership-checked runtime.',
-  "team_research_unassign($pdo,$team,$u"=>'Team owner must be able to remove shared Agents.',
+  "team_research_assign(\$pdo,\$team,\$u"=>'Attach actions must use canonical ownership-checked runtime.',
+  "team_research_unassign(\$pdo,\$team,\$u"=>'Team owner must be able to remove shared Agents.',
   'Open Team Chat'=>'Team chat must remain accessible after removing sidebar.'
 ] as $phrase=>$message)if(!str_contains($team,$phrase))$issues[]=$message;
 if(str_contains($team,'<aside>'))$issues[]='Legacy Team right sidebar must be removed.';
@@ -20,10 +20,10 @@ $attachPos=strpos($team,'id="team-agent-attachment"');$resourcesPos=strpos($team
 if($attachPos===false||$resourcesPos===false||$attachPos>$resourcesPos)$issues[]='Attachment panel must precede assigned resource cards.';
 foreach([
   'id="team-assignment"'=>'Research Agent edit must display Team assignment near top.',
-  "team_research_owned_teams($pdo,(int)$u['id'])"=>'Agent edit picker must show only owned Teams.',
-  "team_research_owned_team($pdo,(int)$u['id']"=>'Posted Team selection must resolve verified owner-only Team.',
-  "team_research_assign($pdo,$team,$u,$agentId)"=>'Agent edit must reuse canonical secure attach runtime.',
-  "team_research_unassign($pdo,$team,$u,$agentId)"=>'Agent edit must reuse canonical secure remove runtime.',
+  "team_research_owned_teams(\$pdo,(int)\$u['id'])"=>'Agent edit picker must show only owned Teams.',
+  "team_research_owned_team(\$pdo,(int)\$u['id']"=>'Posted Team selection must resolve verified owner-only Team.',
+  "team_research_assign(\$pdo,\$team,\$u,\$agentId)"=>'Agent edit must reuse canonical secure attach runtime.',
+  "team_research_unassign(\$pdo,\$team,\$u,\$agentId)"=>'Agent edit must reuse canonical secure remove runtime.',
   "name=\"team_id\" required"=>'Agent edit must offer Team dropdown.',
   "name=\"confirm_workspace_share\""=>'Agent edit must require explicit share acknowledgement.',
   "Current"=>'Agent edit should expose current assignment.',
