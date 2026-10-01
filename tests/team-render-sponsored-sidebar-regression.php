@@ -36,10 +36,12 @@ $assignable=[['public_id'=>'agent-22','name'=>'Unassigned personal Agent','proje
 $projects=[['public_id'=>'project-5','title'=>'Team Research Project','description'=>'Description','status'=>'active','updated_at'=>'2026-10-01']];
 $annotations=[['public_id'=>'annotation-5']];
 $canContributeResearch=true;
-$teamRecentResearch=[['public_id'=>'document-8','object_type'=>'document','title'=>'Evidence review','updated_at'=>'2026-10-01','contributor_name'=>'Researcher','last_editor_name'=>'Owner','agent_name'=>'Sample Agent','agent_public_id'=>'agent-21','conversation_public_id'=>'chat-21','document_summary'=>'Key research findings']];
+$teamRecentResearch=[['public_id'=>'document-8','object_type'=>'document','title'=>'Evidence review','updated_at'=>'2026-10-01','contributor_name'=>'Researcher','last_editor_name'=>'Owner','agent_name'=>'Sample Agent','agent_public_id'=>'agent-21','conversation_public_id'=>'chat-21','document_summary'=>'Key research findings','team_public_id'=>'team-5','team_name'=>'Workola','tag_label'=>'Team · Workola','origin_team_contribution'=>true]];
 $teamHtml=renderTemplate(pageMarkup('team.php'));
-foreach(['Add a member','name="csrf"','name="username"','Attach Research Agent','name="agent_id"','Assigned Research Agents, Desktops','Team Research Contributions','Add research to Team Library','Evidence review','Added by Researcher','Projects','Recent annotations','Remove from Team','</main>'] as $needle)
+foreach(['Add a member','name="csrf"','name="username"','Attach Research Agent','name="agent_id"','Assigned Research Agents, Desktops','Team Research Contributions','Open Desktop','Open Library','Add research to Team Library','Team · Workola','Team-created','Evidence review','Contributed by Researcher','Projects','Recent annotations','Remove from Team','</main>'] as $needle)
     checkRender(str_contains($teamHtml,$needle),'team.php missing '.$needle);
+checkRender(str_contains($teamHtml,'data-team-contribution="team-5"'),'Contribution badges must identify current Team context without granting access.');
+
 checkRender(strpos($teamHtml,'Attach Research Agent')<strpos($teamHtml,'Recent annotations'),'Team page cuts off content below member card.');
 checkRender(!str_contains($teamHtml,'<aside>'),'Team page must not restore old right sidebar.');
 $canContributeResearch=false;
