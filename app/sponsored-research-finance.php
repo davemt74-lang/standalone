@@ -39,8 +39,8 @@ function sponsored_research_finance_researcher_balances(PDO $pdo,int $userId,?st
 }
 function sponsored_research_finance_record_funding(PDO $pdo,array $admin,string $campaignPublicId,int $amountCents,string $source='manual_admin',string $reference=''): array {
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required to record campaign funding.');
-    $campaign=sponsored_research_campaign_by_public($pdo,$campaignPublicId);if(!$campaign)throw new RuntimeException('Campaign not found.');if($amountCents<=0)throw new InvalidArgumentException('Funding amount must be positive.');
-    $currency=(string)$campaign['budget_currency'];$key='sponsored-funding-'.$campaign['public_id'].'-'.hash('sha256',$source.'|'.$reference.'|'.$amountCents.'|'.$currency);
+    $campaign=sponsored_research_campaign_by_public($pdo,$campaignPublicId);if(!$campaign)throw new RuntimeException('Campaign not found.');if($amountCents<=0)throw new InvalidArgumentException('Funding amount must be positive.');$reference=trim($reference);if($reference==='')throw new InvalidArgumentException('A stable payment or invoice reference is required to record funding.');
+    $currency=(string)$campaign['budget_currency'];$key='sponsored-funding-'.$campaign['public_id'].'-'.hash('sha256',$source.'|'.$reference.'|'.$currency);
     return sponsored_research_finance_transaction($pdo,'funding',(int)$campaign['id'],null,null,null,$currency,$key,[['account_code'=>'campaign_available','amount_cents'=>$amountCents]],(int)$admin['id'],$source,$reference!==''?$reference:null,'Sponsored Research campaign funding recorded.',['source'=>$source]);
 }
 function sponsored_research_compensation_reservation_for_submission(PDO $pdo,int $submissionId): ?array {
