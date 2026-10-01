@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/sponsored-project-builder.php';
 
 function sponsored_research_campaigns_ready(PDO $pdo): bool {
     try{
