@@ -42,7 +42,7 @@ function sponsored_project_compensation_backfill_campaign(PDO $pdo,array $campai
 }
 function sponsored_project_compensation_mark_earned(PDO $pdo,array $submission,array $actor): array {
     $campaign=sponsored_research_campaign_by_public($pdo,(string)$submission['campaign_public_id']);if(!$campaign)throw new RuntimeException('Sponsored Project not found.');
-    $q=$pdo->prepare('SELECT * FROM sponsored_research_agent_assignments WHERE id=? LIMIT 1');$q->execute([(int)$submission['assignment_id']);$assignment=$q->fetch();if(!$assignment)throw new RuntimeException('Sponsored Project assignment not found.');
+    $q=$pdo->prepare('SELECT * FROM sponsored_research_agent_assignments WHERE id=? LIMIT 1');$q->execute([(int)$submission['assignment_id']]);$assignment=$q->fetch();if(!$assignment)throw new RuntimeException('Sponsored Project assignment not found.');
     $comp=sponsored_project_compensation_ensure($pdo,$assignment,$campaign,(int)$actor['id']);
     if(in_array((string)$comp['status'],['earned','approved_for_payment','paid'],true))return $comp;
     if((string)$comp['status']==='voided')throw new RuntimeException('Voided project compensation cannot be earned.');
