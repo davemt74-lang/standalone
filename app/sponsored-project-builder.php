@@ -89,8 +89,6 @@ function sponsored_project_builder_normalize(mixed $input,?string $submissionDea
     $deliverables=sponsored_project_builder_records($input['deliverables']??[],'deliverable',$submissionDeadline);
     $milestones=sponsored_project_builder_records($input['milestones']??[],'milestone',$submissionDeadline);
     $dates=array_values(array_filter(array_column($milestones,'due_date')));
-    if($dates!==array_values(array_unique($dates))||$dates!==array_values(array_filter($dates,static fn($x)=>$x!==''))||$dates!==array_values($dates))
-        throw new InvalidArgumentException('Milestone dates must be unique.');
     for($i=1;$i<count($dates);$i++)if($dates[$i]<$dates[$i-1])
         throw new InvalidArgumentException('Milestones must be in chronological order.');
     return [
