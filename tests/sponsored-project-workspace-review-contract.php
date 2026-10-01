@@ -70,9 +70,9 @@ $assert(str_contains($detail,'sponsored_workspace_access($pdo,$viewer')&&
 $assert(str_contains($workspacePage,'current_user($pdo)??[]')&&
         str_contains($workspacePage,'Sample-data preview: these posts are illustrative.'),
     'Public read-only demo can be previewed without creating real project data.');
-$assert(str_contains($workspacePage,"research_agent_access($pdo,$viewer")&&
-        str_contains($workspacePage,"research_agent_shell_href($agent,'desktop')")&&
-        str_contains($workspacePage,"research_agent_shell_href($agent,'library')"),
+$assert(str_contains($workspacePage,'research_agent_access($pdo,$viewer')&&
+        str_contains($workspacePage,"research_agent_shell_href(\$agent,'desktop')")&&
+        str_contains($workspacePage,"research_agent_shell_href(\$agent,'library')"),
     'Researcher uses their existing authorized Agent Desktop/Library without sharing private files with sponsor.');
 $assert(str_contains($backend,"$"."assignment['participation_id']")&&
         str_contains($backend,"$"."participation['id']"),
