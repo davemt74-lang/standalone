@@ -64,6 +64,29 @@ function team_research_sync_member(PDO $pdo,int $teamId,int $memberId,bool $enab
             ->execute([(int)$conversationId,$memberId,$memberRole]);
     }
 }
+/**
+ * Add an existing user without changing their role if already a member.
+ * Both owner and admin may invite; only the Team owner may attach Agents.
+ */
+function team_research_add_member(PDO $pdo,array $team,array $viewer,int $memberId): bool {
+    if($memberId<=0)throw new InvalidArgumentException('Select a valid user.');
+    $q=$pdo->prepare("SELECT tm.role FROM teams t JOIN team_members tm
+      ON tm.team_id=t.id AND tm.user_id=? WHERE t.id=? LIMIT 1");
+    $q->execute([(int)$viewer['id'],(int)$team['id']]);
+    $role=(string)($q->fetchColumn()?:'');
+    if(!in_array($role,['owner','admin'],true))throw new RuntimeException('Team management permission required.');
+    $q=$pdo->prepare("SELECT 1 FROM users WHERE id=? AND status='active' LIMIT 1");
+    $q->execute([$memberId]);if(!$q->fetchColumn())throw new RuntimeException('Active user not found.');
+    $pdo->beginTransaction();
+    try{
+        $q=$pdo->prepare("INSERT IGNORE INTO team_members(team_id,user_id,role) VALUES(?,?,'researcher')");
+        $q->execute([(int)$team['id'],$memberId]);
+        $added=$q->rowCount()===1;
+        team_research_sync_member($pdo,(int)$team['id'],$memberId,true);
+        $pdo->commit();
+        return $added;
+    }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
+}
 function team_research_require_owner(PDO $pdo,array $team,array $viewer): void {
     if((string)($team['access_role']??'')!=='owner'||(int)($team['owner_user_id']??0)!==(int)$viewer['id'])
         throw new RuntimeException('Only the Team owner can manage Team Research Agents.');
