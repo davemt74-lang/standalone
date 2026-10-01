@@ -22,6 +22,8 @@ $package=$read('.github/workflows/package-two-zips.yml');
 $static=$read('tests/ci/run-static-contracts.sh');
 $governance=$read('tests/ci/run-model-governance.sh');
 $prepare=$read('tests/ci/prepare-current-schema.php');
+$section=$read('.github/workflows/section-gate.yml');
+$sectionRunner=$read('tests/ci/run-section-gate.sh');
 $regression=$read('tests/ci/run-full-regression.sh');
 $docs=$read('docs/phase-44-5-ci-workflow-hardening.md');
 
@@ -45,7 +47,12 @@ $need($static,'tests/app-shell-contracts.php','Static runner must retain app-she
 $need($static,"-name 'phase*-contract.php'",'Static runner must automatically discover phase architecture contracts.');
 $need($static,'tests/phase32-unified-continuity-actions.php','Static runner must preserve the historical Phase 32 static contract.');
 
-$need($full,"contains(github.event.pull_request.title, '[phase-gate]')",'Full regression must require the explicit [phase-gate] PR marker.');
+$need($section,"contains(github.event.pull_request.title, '[section-gate]')",'Section gate must require the explicit [section-gate] PR marker.');
+$need($section,'targeted-mariadb:','Section gate must retain targeted MariaDB coverage.');
+$need($section,'targeted-mysql8:','Section gate must retain targeted MySQL 8 coverage.');
+$need($sectionRunner,'git diff --name-only "$BASE_SHA"...HEAD','Section gate must discover changed tests from the PR base.');
+
+$need($full,"contains(github.event.pull_request.title, '[release-gate]')",'Full regression must require the explicit [release-gate] PR marker.');
 $need($full,'bash tests/ci/run-full-regression.sh','Full regression must execute the versioned historical runner.');
 $need($full,"php-version: ['8.1', '8.3']",'Full regression must run PHP 8.1 and PHP 8.3.');
 $need($full,'mysql8-fresh-install:','Full regression must retain MySQL 8 fresh-install compatibility.');
