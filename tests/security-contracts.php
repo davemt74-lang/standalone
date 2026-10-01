@@ -233,9 +233,13 @@ $need('app/bootstrap.php',"header('Location: /install.php')",'Uninitialized web 
 $need('first-admin.php','users_exist($pdo)','First-admin setup must close after the first account exists.');
 $need('admin-password-reset.php',"admin-password-reset.enable",'Admin password recovery must require a server-side enable marker.');
 $need('admin-password-reset.php',"role='admin'",'Admin password recovery must only target active administrator accounts.');
-$need('admin-password-reset.php','password_hash($password,PASSWORD_DEFAULT)','Admin recovery must hash replacement passwords using PHP password hashing.');
-$need('admin-password-reset.php','sessions_revoked_before=NOW()','Admin recovery must invalidate older browser sessions.');
-$need('admin-password-reset.php',"UPDATE extension_sessions SET revoked_at=NOW()",'Admin recovery must revoke extension sessions.');
+$need('admin-password-reset.php','admin_recovery_apply(','Recovery page must call the canonical atomic recovery service.');
+$need('app/admin-recovery.php','password_hash($newPassword,PASSWORD_DEFAULT)','Admin recovery must hash replacement passwords using PHP password hashing.');
+$need('app/admin-recovery.php','sessions_revoked_before=DATE_ADD(NOW(), INTERVAL 1 SECOND)','Admin recovery must invalidate same-second older browser sessions.');
+$need('app/admin-recovery.php',"UPDATE extension_sessions SET revoked_at=NOW()",'Admin recovery must revoke extension sessions in the same transaction.');
+$need('app/admin-recovery.php','$pdo->beginTransaction()','Recovery must update both credential and sessions atomically.');
+$need('app/admin-recovery.php','$pdo->rollBack()','Recovery must roll back on revocation failure.');
+$need('admin-password-reset.php','admin_recovery_owner_valid(','Recovery requires external owner proof as well as the marker.');
 $need('admin-password-reset.php','@unlink($marker)','Admin recovery must disable its one-time marker after success.');
 $need('admin-password-reset.php','require_csrf()','Admin password recovery POST must require CSRF protection.');
 $need('admin-password-reset.php','rate_limit_page_message','Admin password recovery must be rate limited.');
