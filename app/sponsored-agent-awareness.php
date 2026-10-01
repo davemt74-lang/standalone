@@ -56,30 +56,39 @@ function sponsored_agent_awareness_project_context(PDO $pdo,array $viewer,string
     $access=sponsored_agent_awareness_access($pdo,$viewer,$publicId,$agentPublic);
     if(!$access)return null;
     $c=$access['campaign'];$p=$access['participation'];$a=$access['assignment'];
-    $specs=sponsored_project_builder_normalize($c['project_specs']??($c['project_specs_json']??null),$c['submission_deadline']??null);
+    $acceptedRevision=(int)($p['campaign_revision_accepted']??0);
+    // Read the signed-off revision, not the latest sponsor-edited brief.
+    $vq=$pdo->prepare('SELECT config_json,config_hash FROM sponsored_research_campaign_versions WHERE campaign_id=? AND revision_number=? LIMIT 1');
+    $vq->execute([(int)$c['id'],$acceptedRevision]);$version=$vq->fetch();
+    if(!$version)return null;
+    $snapshot=json_decode((string)$version['config_json'],true);
+    if(!is_array($snapshot)||!hash_equals((string)$version['config_hash'],sponsored_research_campaign_hash($snapshot)))return null;
+    $specs=sponsored_project_builder_normalize($snapshot['project_specs']??[], $snapshot['submission_deadline']??null);
     // Only the terms actually accepted by this participant, not the latest
     // draft/sponsor-only terms. A later revision is flagged, never accepted implicitly.
     $acceptedTerms=trim((string)($p['terms_text']??''));
     $acceptedHash=(string)($p['terms_hash']??'');
-    $acceptedRevision=(int)($p['campaign_revision_accepted']??0);
     $currentRevision=(int)($c['current_revision']??0);
-    $stale=$acceptedRevision!==$currentRevision;
+    $latestTerms=sponsored_research_campaign_terms_latest($pdo,(int)$c['id']);
+    $termsChanged=$latestTerms!==null&&!hash_equals((string)($latestTerms['terms_hash']??''),$acceptedHash);
+    $stale=$acceptedRevision!==$currentRevision||$termsChanged;
     $notes=sponsored_workspace_recent($pdo,$access['workspace'],$viewer,max(1,min(8,$updateLimit)));
     $lines=[
       '[SPONSORED PROJECT '.(string)$c['public_id'].']',
       'Title: '.mb_substr((string)($c['title']??''),0,200),
-      'Brief: '.mb_substr((string)($c['brief']??''),0,2700),
-      'Objective: '.mb_substr((string)($c['objective']??''),0,1600),
+      'Accepted brief: '.mb_substr((string)($snapshot['brief']??''),0,2700),
+      'Accepted objective: '.mb_substr((string)($snapshot['objective']??''),0,1600),
       'Campaign status: '.(string)$c['status'],
       'Campaign revision: '.$currentRevision,
       'Accepted revision: '.$acceptedRevision.($stale?' (STALE: do not assume updated scope or terms are accepted)':''),
       'Accepted terms version: '.(string)($p['terms_version']??'unavailable'),
+      'Accepted campaign config hash: '.(string)$version['config_hash'],
       'Accepted terms hash: '.$acceptedHash,
       'Your assignment status: '.(string)$a['status'],
       'Agent: '.(string)$a['research_agent_public_id'],
       'Agent submission permitted: '.(!empty($a['agent_submit_enabled'])?'yes':'no'),
-      'Submission deadline: '.(string)($c['submission_deadline']??'not specified'),
-      'Review deadline: '.(string)($c['review_deadline']??'not specified'),
+      'Accepted submission deadline: '.(string)($snapshot['submission_deadline']??'not specified'),
+      'Accepted review deadline: '.(string)($snapshot['review_deadline']??'not specified'),
       'Audience: '.$specs['target_audience'],
       'Geography: '.$specs['geography'],
       'In-scope: '.mb_substr((string)$specs['scope_in'],0,2200),
@@ -87,7 +96,7 @@ function sponsored_agent_awareness_project_context(PDO $pdo,array $viewer,string
       'Methods: '.implode(', ',$specs['methods']),
     ];
     if($acceptedTerms!=='')$lines[]='Your explicitly accepted terms: '.mb_substr($acceptedTerms,0,3600);
-    foreach(array_slice((array)($c['questions']??[]),0,12) as $q){
+    foreach(array_slice((array)($snapshot['questions']??[]),0,12) as $q){
         $question=is_array($q)?(string)($q['question']??''):(string)$q;
         if($question!=='')$lines[]='Research question: '.mb_substr($question,0,500);
     }
@@ -117,5 +126,5 @@ function sponsored_agent_awareness_project_context(PDO $pdo,array $viewer,string
       'meta'=>['agent_public_id'=>(string)$a['research_agent_public_id'],
          'campaign_revision'=>$currentRevision,'accepted_revision'=>$acceptedRevision,
          'accepted_terms_hash'=>$acceptedHash,'accepted_terms_version'=>(int)($p['terms_version']??0),
-         'requires_reacceptance'=>$stale,'read_only'=>true]];
+         'requires_reacceptance'=>$stale,'accepted_config_hash'=>(string)$version['config_hash'],'read_only'=>true]];
 }
