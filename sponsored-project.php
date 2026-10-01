@@ -8,6 +8,7 @@ $id=(string)($_GET['project']??'');
 $detail=sponsored_project_detail_resolve($pdo,$viewer,$id);
 if(!$detail){http_response_code(404);exit('Sponsored Project unavailable.');}
 $p=$detail['project'];$role=$detail['role'];$sample=$p['sample'];$elig=$detail['eligibility']??null;
+$specs=$p['project_specs'];
 $title=(string)$p['title'];$currency=(string)$p['currency'];
 $fee=sponsored_project_detail_money($p,(int)$p['fee_cents']);
 $limited=!empty($p['max_participants']);
@@ -62,6 +63,16 @@ $limited=!empty($p['max_participants']);
       <div><span>Review deadline</span><strong><?=h((string)($p['review_deadline']?:'Not specified'))?></strong></div>
       <?php if($role==='sponsor'||$sample):?><div><span><?= $sample?'Example total budget':'Configured budget' ?></span><strong><?=h(sponsored_project_detail_money($p,(int)$p['budget_cents']))?></strong></div><?php endif?>
     </div>
+    <?php if($specs['target_audience']!==''||$specs['geography']!==''||$specs['scope_in']!==''||$specs['scope_out']!==''||$specs['methods']):?>
+    <h3>Research scope and methods</h3>
+    <div class="sponsoredDetailFacts">
+      <?php if($specs['target_audience']!==''):?><div><span>Target audience</span><strong><?=h((string)$specs['target_audience'])?></strong></div><?php endif?>
+      <?php if($specs['geography']!==''):?><div><span>Target geography</span><strong><?=h((string)$specs['geography'])?></strong></div><?php endif?>
+    </div>
+    <?php if($specs['scope_in']!==''):?><h3>In scope</h3><p><?=nl2br(h((string)$specs['scope_in']))?></p><?php endif?>
+    <?php if($specs['scope_out']!==''):?><h3>Out of scope</h3><p><?=nl2br(h((string)$specs['scope_out']))?></p><?php endif?>
+    <?php if($specs['methods']):?><h3>Research methods</h3><div class="sponsoredDetailChips sponsoredDetailChipsLight"><?php foreach($specs['methods'] as $method):?><span><?=h((string)$method)?></span><?php endforeach?></div><?php endif?>
+    <?php endif?>
     <?php if($role==='sponsor'):?><p class="sponsoredDetailHint">Need to change these specifications? <a href="/sponsored-research.php?campaign=<?=rawurlencode((string)$p['id'])?>">Edit the governed campaign revision</a>.</p><?php endif?>
   </section>
   <section class="sponsoredDetailSection" id="requirements"><div class="sponsoredDetailSectionHead"><span>03 / PARTICIPATION</span><h2>Researcher requirements</h2></div>
@@ -79,13 +90,20 @@ $limited=!empty($p['max_participants']);
     <?php endif?>
   </section>
   <section class="sponsoredDetailSection" id="deliverables"><div class="sponsoredDetailSectionHead"><span>04 / OUTPUTS</span><h2>Research and deliverables</h2></div>
-    <?php if($sample):?>
-      <p>Example outputs for this illustrative project:</p>
-      <ul class="sponsoredDetailList"><?php foreach($p['sample_deliverables'] as $deliverable):?><li><?=h((string)$deliverable)?></li><?php endforeach?></ul>
+    <?php if($specs['deliverables']):?>
+      <p><?= $sample?'Demonstration deliverable specifications:':'Sponsor-configured project deliverables and acceptance criteria:' ?></p>
+      <div class="sponsoredDetailDeliverableGrid"><?php foreach($specs['deliverables'] as $d):?>
+        <article class="sponsoredDetailDeliverable"><div><span class="sponsoredDetailEyebrow"><?=h(ucwords(str_replace('_',' ',(string)$d['format'])))?></span><h3><?=h((string)$d['title'])?></h3></div>
+          <p><?=h((string)$d['acceptance_criteria'])?></p>
+          <?php if($d['due_date']):?><div class="sponsoredDetailSmall">Target due date: <?=h((string)$d['due_date'])?></div><?php endif?>
+        </article><?php endforeach?></div>
+      <p class="sponsoredDetailHint">Deliverable specifications are descriptive. Actual participation and acceptance remain governed by the published terms and existing review workflow.</p>
+    <?php elseif($sample):?>
+      <p>These sample projects demonstrate deliverables but cannot accept real submissions.</p>
     <?php else:?>
-      <p>Research Agents work in their existing Annotated project workspace. The platform supports submitting ready Agent Reports with attached Research Documents or a published Research Report version.</p>
-      <p class="sponsoredDetailHint">The sponsor's brief and participation terms define the actual project deliverables; these platform submission formats do not add new contractual requirements.</p>
+      <p>The sponsor has not yet configured structured deliverables. The published brief and participation terms describe the work expected.</p>
     <?php endif?>
+    <p>Annotator's existing Research Agent workspace supports ready Agent Reports, attached Research Documents, and published Research Report versions.</p>
     <div class="sponsoredDetailWorkflow">
       <div><span>1</span><strong>Review the brief</strong><p>Understand the objective, questions, eligibility and disclosures.</p></div>
       <div><span>2</span><strong>Assign a Research Agent</strong><p>Approved researchers accept the current terms and assign their own active Agent.</p></div>
@@ -93,7 +111,14 @@ $limited=!empty($p['max_participants']);
       <div><span>4</span><strong>Review and conclude</strong><p>The sponsor reviews submissions, can request revisions and records final decisions.</p></div>
     </div>
   </section>
-  <section class="sponsoredDetailSection" id="governance"><div class="sponsoredDetailSectionHead"><span>05 / GOVERNANCE</span><h2>Participation and data use</h2></div>
+  <?php if($specs['milestones']):?>
+  <section class="sponsoredDetailSection" id="milestones"><div class="sponsoredDetailSectionHead"><span>05 / TIMELINE</span><h2>Planned research milestones</h2></div>
+    <p class="sponsoredDetailHint"><?= $sample?'Illustrative checkpoints only.':'Sponsor-configured checkpoints. Progress tracking and tasks remain in the existing Research project workflow.' ?></p>
+    <ol class="sponsoredDetailMilestones"><?php foreach($specs['milestones'] as $m):?><li><strong><?=h((string)$m['title'])?></strong>
+      <?php if($m['due_date']):?><span class="meta">Target date: <?=h((string)$m['due_date'])?></span><?php endif?>
+      <p><?=h((string)$m['success_criteria'])?></p></li><?php endforeach?></ol>
+  </section><?php endif?>
+  <section class="sponsoredDetailSection" id="governance"><div class="sponsoredDetailSectionHead"><span><?= $specs['milestones']?'06':'05' ?> / GOVERNANCE</span><h2>Participation and data use</h2></div>
     <?php if($sample):?><p>For demonstration only. A real project requires a published agreement, an approved Research Account and explicit participation actions.</p>
     <?php else:$d=$p['disclosures'];?>
       <ul class="sponsoredDetailList">
@@ -109,7 +134,7 @@ $limited=!empty($p['max_participants']);
   </section>
 </div>
 <aside class="sponsoredDetailRail">
-  <nav class="sponsoredDetailCard" aria-label="Project sections"><strong>On this page</strong><a href="#overview">Overview</a><a href="#specifications">Specifications</a><a href="#requirements">Requirements</a><a href="#deliverables">Workflow and outputs</a><a href="#governance">Governance</a></nav>
+  <nav class="sponsoredDetailCard" aria-label="Project sections"><strong>On this page</strong><a href="#overview">Overview</a><a href="#specifications">Specifications</a><a href="#requirements">Requirements</a><a href="#deliverables">Workflow and outputs</a><?php if($specs['milestones']):?><a href="#milestones">Milestones</a><?php endif?><a href="#governance">Governance</a></nav>
   <div class="sponsoredDetailCard"><strong>Project tools</strong>
   <?php if($sample):?><p>Explore this sample project without creating data.</p><a href="/research-projects.php">Browse project listings</a>
   <?php elseif($role==='sponsor'):?>
