@@ -2,10 +2,11 @@
 declare(strict_types=1);
 /* Reuse the canonical Research Agent ↔ Research Project ↔ Desktop/Library boundary. */
 function team_research_resources(PDO $pdo,int $teamId): array {
-    $q=$pdo->prepare("SELECT ra.id,ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.owner_user_id,ra.conversation_id,
+    $q=$pdo->prepare("SELECT ra.id,ra.public_id,ra.name,ra.description,ra.profile_image_url,ra.owner_user_id,ra.conversation_id,c.public_id conversation_public_id,
       rp.public_id project_public_id,rp.title project_title,
       u.display_name owner_name
       FROM research_agents ra JOIN research_projects rp ON rp.id=ra.project_id
+      JOIN conversations c ON c.id=ra.conversation_id
       JOIN users u ON u.id=ra.owner_user_id
       WHERE ra.team_id=? AND rp.team_id=? AND ra.status<>'archived'
       ORDER BY ra.updated_at DESC,ra.id DESC");
