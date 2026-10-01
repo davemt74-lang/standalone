@@ -32,7 +32,7 @@ $annotationPublic=$pub('ann');$originalComment='Original sponsored analysis '.$r
 
 $pdo->prepare("INSERT INTO captures(public_id,source_id,source_version_id,user_id,capture_type,selected_text) VALUES(?,?,?,?, 'text',?)")->execute([$pub('cap2'),$sourceId,$sourceVersionId,(int)$other['id'],'Other evidence']);$otherCapture=(int)$pdo->lastInsertId();
 $otherAnnotation=$pub('ann-other');$pdo->prepare("INSERT INTO annotations(public_id,user_id,source_id,source_version_id,capture_id,text_commentary,visibility,status) VALUES(?,?,?,?,?,?,'private','draft')")->execute([$otherAnnotation,(int)$other['id'],$sourceId,$sourceVersionId,$otherCapture,'Other researcher work']);
-$foreignBlocked=false;try{sponsored_research_submission_asset_snapshot($pdo,$researcher,['type'=>'annotation','public_id'=>$otherAnnotation]);}catch(RuntimeException $e){$foreignBlocked=str_contains($e->getMessage(),'own contributed');}p80s4($foreignBlocked,'Researcher cannot submit another contributor’s Annotation.');
+$foreignBlocked=false;try{sponsored_research_submission_asset_snapshot($pdo,$researcher,['type'=>'annotation','public_id'=>$otherAnnotation]);}catch(RuntimeException $e){$foreignBlocked=true;}p80s4($foreignBlocked,'Researcher cannot submit another contributor’s Annotation.');
 
 $draft=sponsored_research_submission_draft($pdo,$researcher,(string)$campaign['public_id'],['title'=>'Supply evidence package','summary'=>'Source-backed sponsored research summary.','methodology'=>'Reviewed the captured source and documented the finding.','limitations'=>'Single-source evidence.']);
 p80s4($draft['status']==='draft'&&(int)$draft['current_revision']===0,'Submission begins as an editable draft without an immutable revision.');
