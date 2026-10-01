@@ -98,3 +98,4 @@ php tests/auth-shell-team-chat-tabs-contract.php
 php tests/team-research-resources-contract.php
 
 php tests/phase80-team-integrity-audit-contract.php
+php tests/team-research-assignment-ui-contract.php

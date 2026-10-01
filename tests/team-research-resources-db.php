@@ -18,6 +18,19 @@ $teamId=(int)$pdo->lastInsertId();
 foreach([[$owner,'owner'],[$admin,'admin'],[$researcher,'researcher'],[$viewer,'viewer']] as [$member,$role])
     $pdo->prepare('INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,?)')->execute([$teamId,(int)$member['id'],$role]);
 $team=['id'=>$teamId,'public_id'=>$teamPublic,'owner_user_id'=>(int)$owner['id'],'access_role'=>'owner'];
+$otherTeamPublic=$public('other-team');
+$pdo->prepare('INSERT INTO teams(public_id,owner_user_id,name) VALUES(?,?,?)')
+    ->execute([$otherTeamPublic,(int)$admin['id'],'Admin owned only']);
+$otherTeamId=(int)$pdo->lastInsertId();
+$pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'owner')")
+    ->execute([$otherTeamId,(int)$admin['id']]);
+$pdo->prepare("INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,'admin')")
+    ->execute([$otherTeamId,(int)$owner['id']]);
+$ownerTeams=team_research_owned_teams($pdo,(int)$owner['id']);
+checkTeam(count($ownerTeams)===1&&(string)$ownerTeams[0]['public_id']===$teamPublic,'Agent Team picker lists only Teams the user owns, never merely administers.');
+checkTeam(team_research_owned_team($pdo,(int)$owner['id'],$otherTeamPublic)===null,'Forged selection of a Team the Agent owner only administers is rejected.');
+checkTeam(team_research_owned_team($pdo,(int)$owner['id'],$teamPublic)!==null,'Owner can resolve their eligible Team for Agent edit assignment.');
+
 checkTeam(research_agent_team($pdo,$owner,$teamPublic)!==null,'Only the current Team owner may create an Agent directly in the Team.');
 checkTeam(research_agent_team($pdo,$admin,$teamPublic)===null,'Team admins cannot bypass owner-only assignment through direct Agent creation.');
 checkTeam(research_agent_team($pdo,$researcher,$teamPublic)===null,'Team researchers cannot bypass owner-only assignment through direct Agent creation.');
@@ -41,6 +54,8 @@ $forged=['id'=>$teamId,'owner_user_id'=>(int)$outsider['id'],'access_role'=>'own
 try{team_research_assign($pdo,$forged,$outsider,$agentPublic);}catch(RuntimeException $e){$denied=true;}
 checkTeam($denied,'Forged owner context cannot assign a different user’s Agent.');
 team_research_assign($pdo,$team,$owner,$agentPublic);
+$attached=team_research_agent_team($pdo,(int)$owner['id'],$agentPublic);
+checkTeam($attached!==null&&(string)$attached['public_id']===$teamPublic&&!empty($attached['owner_member']),'Agent edit page resolves the current Team and verifies owner membership.');
 $shared=team_research_resources($pdo,$teamId);
 checkTeam(count($shared)===1&&(string)$shared[0]['conversation_public_id']===$convPublic,'Shared Team resource includes canonical Agent conversation.');
 checkTeam(str_contains(research_agent_shell_href($shared[0],'chat'),'/home.php?agent='),
@@ -79,6 +94,7 @@ $denied=false;
 try{team_research_unassign($pdo,$team,$admin,$agentPublic);}catch(RuntimeException $e){$denied=true;}
 checkTeam($denied,'Team admin cannot remove the owner’s assigned Agent.');
 team_research_unassign($pdo,$team,$owner,$agentPublic);
+checkTeam(team_research_agent_team($pdo,(int)$owner['id'],$agentPublic)===null,'Removing Team assignment updates the Agent edit page back to unassigned.');
 checkTeam(research_agent_access($pdo,$viewer,$agentPublic)===null,'Unassignment revokes Team access.');
 $q=$pdo->prepare('SELECT user_id FROM conversation_members WHERE conversation_id=?');$q->execute([$conversationId]);
 checkTeam(array_map('intval',$q->fetchAll(PDO::FETCH_COLUMN))===[(int)$owner['id']],'Original owner is sole conversation member after unassignment.');

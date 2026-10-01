@@ -22,6 +22,29 @@ function team_research_assignable(PDO $pdo,int $ownerId): array {
       ORDER BY ra.name LIMIT 100");
     $q->execute([$ownerId]);return $q->fetchAll()?:[];
 }
+/**
+ * The picker shows only Teams both owned by this user and carrying an owner
+ * membership. UI eligibility never replaces the transactional runtime checks.
+ */
+function team_research_owned_teams(PDO $pdo,int $ownerId): array {
+    $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,t.owner_user_id,tm.role access_role
+      FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=? AND tm.role='owner'
+      WHERE t.owner_user_id=? ORDER BY t.name,t.id");
+    $q->execute([$ownerId,$ownerId]);return $q->fetchAll()?:[];
+}
+function team_research_owned_team(PDO $pdo,int $ownerId,string $teamPublicId): ?array {
+    $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,t.owner_user_id,tm.role access_role
+      FROM teams t JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=? AND tm.role='owner'
+      WHERE t.owner_user_id=? AND t.public_id=? LIMIT 1");
+    $q->execute([$ownerId,$ownerId,trim($teamPublicId)]);return $q->fetch()?:null;
+}
+function team_research_agent_team(PDO $pdo,int $ownerId,string $agentPublicId): ?array {
+    $q=$pdo->prepare("SELECT t.id,t.public_id,t.name,t.owner_user_id,
+      EXISTS(SELECT 1 FROM team_members tm WHERE tm.team_id=t.id AND tm.user_id=? AND tm.role='owner') owner_member
+      FROM research_agents ra JOIN teams t ON t.id=ra.team_id
+      WHERE ra.public_id=? AND ra.owner_user_id=? LIMIT 1");
+    $q->execute([$ownerId,trim($agentPublicId),$ownerId]);return $q->fetch()?:null;
+}
 function team_research_sync_member(PDO $pdo,int $teamId,int $memberId,bool $enabled): void {
     $q=$pdo->prepare("SELECT ra.conversation_id FROM research_agents ra
       JOIN research_projects rp ON rp.id=ra.project_id AND rp.team_id=ra.team_id
