@@ -18,7 +18,7 @@ function sponsored_research_review_criteria_normalize(mixed $input): array {
     if(is_string($input)){
         $lines=preg_split('/\r?\n+/',$input)?:[];$input=[];foreach($lines as $line){$line=trim($line);if($line!=='')$input[]=['key'=>strtolower((string)preg_replace('/[^a-z0-9]+/i','_',mb_substr($line,0,40))),'label'=>$line];}
     }
-    $out=[];foreach(array_slice((array)$input,0,20) as $i=>$raw){if(is_string($raw))$raw=['label'=>$raw];if(!is_array($raw))continue;$label=mb_substr(trim((string)($raw['label']??'')),0,255);if($label==='')continue;$key=mb_substr(strtolower((string)preg_replace('/[^a-z0-9_]+/','_',trim((string)($raw['key']??'criterion_'.($i+1))))),0,64);$out[]=['key'=>$key?:'criterion_'.($i+1),'label'=>$label,'weight'=>max(1,min(100,(int)($raw['weight']??1)))];}
+    $out=[];foreach(array_slice((array)$input,0,20) as $i=>$raw){if(is_string($raw))$raw=['label'=>$raw];if(!is_array($raw))continue;$label=mb_substr(trim((string)($raw['label']??'')),0,255);if($label==='')continue;$keySource=trim((string)($raw['key']??''));if($keySource==='')$keySource=$label;$key=mb_substr(strtolower((string)preg_replace('/[^a-z0-9]+/i','_',$keySource)),0,64);$key=trim($key,'_');$out[]=['key'=>$key?:'criterion_'.($i+1),'label'=>$label,'weight'=>max(1,min(100,(int)($raw['weight']??1)))];}
     if(!$out)$out=[['key'=>'evidence_strength','label'=>'Evidence strength','weight'=>1],['key'=>'completeness','label'=>'Completeness','weight'=>1],['key'=>'methodology','label'=>'Methodology','weight'=>1],['key'=>'originality','label'=>'Originality','weight'=>1],['key'=>'brief_alignment','label'=>'Adherence to brief','weight'=>1]];
     return $out;
 }
