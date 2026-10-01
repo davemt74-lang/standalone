@@ -25,6 +25,7 @@ function admin_ui_nav_sections(): array {
                 'billing'=>['label'=>'Billing & Stripe','url'=>'/admin/billing.php'],
                 'billing_analytics'=>['label'=>'Billing Analytics','url'=>'/admin/billing-analytics.php'],
                 'financial_reporting'=>['label'=>'Financial Reporting','url'=>'/admin/financial-reporting.php'],
+                'sponsored_research_finance'=>['label'=>'Sponsored Research Finance','url'=>'/admin/sponsored-research-finance.php'],
                 'overage_billing'=>['label'=>'AI Overage Billing','url'=>'/admin/overage-billing.php'],
                 'promotions'=>['label'=>'Promotions & Credits','url'=>'/admin/promotions.php'],
                 'tax_invoices'=>['label'=>'Tax & Invoices','url'=>'/admin/tax-invoices.php'],
