@@ -561,6 +561,10 @@ jobs:
           test -f package-website/tests/phase81-v1-owner-install-contract.php
           test -f package-website/tests/v1-owner-install-db.php
           test ! -e package-website/annotated-setup-owner.key
+          test -f package-website/app/admin-recovery.php
+          test -f package-website/docs/v1-admin-recovery-certification.md
+          test -f package-website/tests/phase81-v1-admin-recovery-contract.php
+          test -f package-website/tests/v1-admin-recovery-db.php
 
       - name: Smoke test release packages
         shell: bash
