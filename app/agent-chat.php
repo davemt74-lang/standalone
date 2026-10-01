@@ -227,6 +227,10 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     }
     // Do not allow a selected Sponsored Project from a different Agent to
     // silently contaminate this assigned Agent's conversation context.
+    $hasSponsoredSelection=false;foreach($context as $item)if(($item['type']??'')==='sponsored_project'){$hasSponsoredSelection=true;break;}
+    if($hasSponsoredSelection&&(!function_exists('sponsored_agent_awareness_private_conversation')
+        ||!sponsored_agent_awareness_private_conversation($pdo,$viewer,$conversation)))
+        throw new InvalidArgumentException('Sponsored Project context is available only inside your private Agent conversation.');
     if($researchAgent){
         foreach($context as $item){
             if(($item['type']??'')==='sponsored_project'
@@ -256,7 +260,9 @@ function agent_chat_send(PDO $pdo,array $config,array $viewer,?string $conversat
     $accountContext=function_exists('account_membership_agent_context')?account_membership_agent_context($pdo,$viewer):'';if($accountContext!=='')$contextText.=($contextText!==''?"\n\n":'').$accountContext;$billingContext=function_exists('billing_operations_agent_context')?billing_operations_agent_context($pdo,$viewer):'';if($billingContext!=='')$contextText.=($contextText!==''?"\n\n":'').$billingContext;$overageContext=function_exists('ai_overage_agent_context')?ai_overage_agent_context($pdo,$viewer):'';if($overageContext!=='')$contextText.=($contextText!==''?"\n\n":'').$overageContext;$commercialContext=function_exists('commercial_promotions_agent_context')?commercial_promotions_agent_context($pdo,$viewer):'';if($commercialContext!=='')$contextText.=($contextText!==''?"\n\n":'').$commercialContext;$taxInvoiceContext=function_exists('commercial_billing_agent_context')?commercial_billing_agent_context($pdo,$viewer):'';if($taxInvoiceContext!=='')$contextText.=($contextText!==''?"\n\n":'').$taxInvoiceContext;$opsContext=function_exists('admin_ops_agent_context')?admin_ops_agent_context($pdo,$viewer):'';if($opsContext!=='')$contextText.=($contextText!==''?"\n\n":'').$opsContext;$supportContext=function_exists('admin_support_agent_context')?admin_support_agent_context($pdo,$viewer):'';if($supportContext!=='')$contextText.=($contextText!==''?"\n\n":'').$supportContext;$financeContext=function_exists('admin_finance_agent_context')?admin_finance_agent_context($pdo,$viewer):'';if($financeContext!=='')$contextText.=($contextText!==''?"\n\n":'').$financeContext;$customerSuccessContext=function_exists('admin_customer_success_agent_context')?admin_customer_success_agent_context($pdo,$viewer):'';if($customerSuccessContext!=='')$contextText.=($contextText!==''?"\n\n":'').$customerSuccessContext;$securityContext=function_exists('admin_security_agent_context')?admin_security_agent_context($pdo,$viewer):'';if($securityContext!=='')$contextText.=($contextText!==''?"\n\n":'').$securityContext;$platformContext=function_exists('admin_platform_agent_context')?admin_platform_agent_context($pdo,$config,$viewer):'';if($platformContext!=='')$contextText.=($contextText!==''?"\n\n":'').$platformContext;$refs=[];foreach($context as $item)foreach($item['refs'] as $ref)$refs[]=$ref;if($missionAgentContext)foreach((array)($missionAgentContext['refs']??[]) as $ref)$refs[]=$ref;if($decisionAgentContext)foreach((array)($decisionAgentContext['refs']??[]) as $ref)$refs[]=$ref;if($actionPlanAgentContext)foreach((array)($actionPlanAgentContext['refs']??[]) as $ref)$refs[]=$ref;if($organizationalAgentContext)foreach((array)($organizationalAgentContext['refs']??[]) as $ref)$refs[]=$ref;
     // Automatically equip only the personally owned, precisely assigned Agent.
     // No sponsor, Team, unassigned or sample account receives this private view.
-    if($researchAgent&&function_exists('sponsored_agent_awareness_agent_context')){
+    if($researchAgent&&function_exists('sponsored_agent_awareness_agent_context')
+      &&function_exists('sponsored_agent_awareness_private_conversation')
+      &&sponsored_agent_awareness_private_conversation($pdo,$viewer,$conversation)){
         $already=false;foreach($context as $item)if(($item['type']??'')==='sponsored_project'){$already=true;break;}
         if(!$already){
             try{
