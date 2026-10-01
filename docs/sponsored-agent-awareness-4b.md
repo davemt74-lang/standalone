@@ -6,7 +6,7 @@ Builds on merged 4A integration audit (PR #251) and Section 3 collaboration work
 `app/sponsored-agent-awareness.php` is the only new Sponsored Project Agent read adapter. Its guarded path requires: an active user, an approved Research Account, the exact accepted participation/assignment pairing, personally owned unshared nonarchived Research Agent, and authorized campaign access. Existing `sponsored_workspace_access`, `research_agent_access` and project journal SQL visibility remain the authority.
 
 ## Read model
-- Latest campaign status, but brief, objective, questions, specifications, methods, deliverables and milestones come from the *accepted revision's immutable, checksum-verified campaign configuration*, not an unaccepted sponsor edit.
+- Latest campaign status, but brief, objective, questions, specifications, methods, deliverables and milestones come from the *accepted revision's immutable campaign revision, checking the authoritative stored hash against the live campaign hash when current*, not an unaccepted sponsor edit.
 - Accepted personal participation terms (stored `terms_text`, terms version/hash), not latest unaccepted sponsor terms.
 - If campaign revision or latest terms hash differs, flag the context as requiring renewed explicit acceptance; never imply the latest terms were accepted.
 - Current exact assigned Agent, assignment status/submit flag and latest **own** submission status and own review note.
@@ -22,7 +22,7 @@ Native Agent Chat context picker gains **Assigned Sponsored Projects** and the n
 2. Permission-checked personal approved researcher/accepted participation/matching assignment.
 3. Personally owned Agent and Team sharing prohibited; selected cross-Agent contexts rejected.
 4. Authorized context picker excludes sponsors, samples and unassigned approved researchers.
-5. Read from immutable accepted campaign revision and verify its saved SHA-256 config hash.
+5. Read from immutable accepted campaign revision and validate its stored SHA-256 config hash and cross-check the current campaign hash without rehashing MySQL-reordered historical JSON.
 6. Return only the user's own stored accepted terms/version/hash; flag revision/terms changes for reacceptance.
 7. Existing per-user SQL journal filter excludes other researchers' private messages.
 8. Bound context to 24,000 characters and journal count; no write-capable functions or new actions.
