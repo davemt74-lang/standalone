@@ -135,6 +135,7 @@ function research_engine_surface_map(): array {
         'app/sponsored-research-submissions.php'=>'governance',
         'app/sponsored-research-reviews.php'=>'governance',
         'app/sponsored-research-finance.php'=>'governance',
+        'app/sponsored-research-knowledge.php'=>'knowledge',
         'app/research-action-plan-cognition.php'=>'research.follow_through','app/research-action-plan-outcomes.php'=>'research.follow_through',
         'app/research-action-plan-variance.php'=>'research.follow_through','app/research-action-plans.php'=>'research.follow_through',
         'app/research-agent-shell-ui.php'=>'agent','app/research-agent-stories.php'=>'attention','app/research-home-ui.php'=>'research.home','app/research-agent-knowledge-ui.php'=>'knowledge','app/research-agent-memory.php'=>'knowledge','app/research-agent-research-ui.php'=>'research','app/research-agent-reports-ui.php'=>'reports','app/research-portfolios-ui.php'=>'portfolios','app/research-legacy-compat.php'=>'compatibility','app/research-agent-workspace-ui.php'=>'workspace','app/research-agent-workspace.php'=>'workspace','app/research-agents.php'=>'agent',
