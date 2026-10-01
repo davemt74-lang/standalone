@@ -19,6 +19,7 @@ function admin_ui_nav_sections(): array {
             'label'=>'Accounts & Billing',
             'items'=>[
                 'accounts'=>['label'=>'Accounts','url'=>'/admin/accounts.php'],
+                'research_accounts'=>['label'=>'Research Accounts','url'=>'/admin/research-accounts.php'],
                 'users'=>['label'=>'Users','url'=>'/admin/users.php'],
                 'packages'=>['label'=>'Packages','url'=>'/admin/packages.php'],
                 'billing'=>['label'=>'Billing & Stripe','url'=>'/admin/billing.php'],
