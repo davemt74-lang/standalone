@@ -14,7 +14,7 @@ function team_research_resources(PDO $pdo,int $teamId): array {
 function team_research_assignable(PDO $pdo,int $ownerId): array {
     $q=$pdo->prepare("SELECT ra.public_id,ra.name,rp.title project_title
       FROM research_agents ra JOIN research_projects rp ON rp.id=ra.project_id
-      WHERE ra.owner_user_id=? AND rp.owner_user_id=ra.owner_user_id AND ra.team_id IS NULL AND rp.team_id IS NULL
+      WHERE ra.owner_user_id=? AND rp.owner_user_id=ra.owner_user_id AND ra.team_id IS NULL AND rp.team_id IS NULL AND ra.visibility='private'
         AND ra.status<>'archived' AND rp.status<>'archived'
         AND NOT EXISTS (SELECT 1 FROM research_agents other WHERE other.project_id=rp.id AND other.id<>ra.id AND other.status<>'archived')
         AND NOT EXISTS (SELECT 1 FROM sponsored_research_agent_assignments sponsor WHERE sponsor.research_agent_id=ra.id AND sponsor.status IN ('active','paused','completed'))
@@ -52,13 +52,15 @@ function team_research_assign(PDO $pdo,array $team,array $viewer,string $agentPu
     team_research_require_owner($pdo,$team,$viewer);
     $pdo->beginTransaction();
     try{
-        $q=$pdo->prepare("SELECT ra.id,ra.project_id,ra.conversation_id,ra.owner_user_id,ra.team_id,
+        $q=$pdo->prepare("SELECT ra.id,ra.project_id,ra.conversation_id,ra.owner_user_id,ra.team_id,ra.visibility,
           rp.team_id project_team_id,rp.owner_user_id project_owner_id
           FROM research_agents ra JOIN research_projects rp ON rp.id=ra.project_id
           WHERE ra.public_id=? AND ra.status<>'archived' AND rp.status<>'archived' LIMIT 1 FOR UPDATE");
         $q->execute([$agentPublicId]);$agent=$q->fetch();
         if(!$agent||(int)$agent['owner_user_id']!==(int)$viewer['id']||(int)$agent['project_owner_id']!==(int)$viewer['id'])
             throw new RuntimeException('The Team owner may assign only Research Agents and projects they personally own.');
+        if((string)$agent['visibility']!=='private')
+            throw new RuntimeException('Set the Research Agent visibility to Private before sharing its workspace with a Team.');
         if($agent['team_id']!==null||$agent['project_team_id']!==null)
             throw new RuntimeException('This Agent or its workspace is already Team-assigned.');
         // Sponsored assignments have separate confidentiality and compensation obligations.
