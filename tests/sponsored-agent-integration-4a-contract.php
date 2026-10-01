@@ -10,7 +10,7 @@ $check=static function(bool $ok,string $description)use(&$fail):void{
 $map=sponsored_agent_integration_map();
 $check(($map['scope']??'')==='Sponsored Research / assigned researcher and Agent only','Sponsored context has a bounded per-assignment audience.');
 $check(sponsored_agent_integration_dependencies_present($root)===[],'Every mapped dependency resolves to an existing canonical function in the repository.');
-$check(count($map['dependencies'])===15&&count($map['gaps'])===4&&count($map['invariants'])>=7,'Audit records 15 existing integrations, four follow-up sections and explicit safety rules.');
+$check(count($map['dependencies'])===16&&count($map['gaps'])===4&&count($map['invariants'])>=7,'Audit records 16 existing integrations, four follow-up sections and explicit safety rules.');
 foreach(['4b_context','4c_actions','4d_proactive','4e_acceptance'] as $key)
     $check(isset($map['gaps'][$key]),'Every planned section has one explicit gap.');
 foreach(['submission'=>'sponsored_project_submit','action_confirmation'=>'agent_action_confirm_execute','automation'=>'research_automation_execute','notification_acl'=>'notification_object_access','workspace_updates'=>'sponsored_workspace_post'] as $key=>$function)
@@ -59,4 +59,4 @@ $check(str_contains($docs,'**4B — Agent project awareness.**')
 $check(!is_file($root.'/database/migrations/20261001_130_sponsored_agent_integration.sql'),
     'Audit-only section has no speculative database migration.');
 if($fail){foreach($fail as $x)fwrite(STDERR,"FAIL: ".$x."\n");exit(1);}
-echo "PASS: Sponsored Research Agent Integration Section 4A audit contracts and 15 canonical dependencies.\n";
+echo "PASS: Sponsored Research Agent Integration Section 4A audit contracts and 16 canonical dependencies.\n";
