@@ -77,6 +77,11 @@ function sponsored_research_knowledge_evidence_sources(PDO $pdo,int $submissionV
     foreach($q->fetchAll()?:[] as $r)$out[]=['submission_asset_public_id'=>$r['public_id'],'source_public_id'=>$r['asset_public_id'],'source_version'=>$r['asset_version'],'snapshot_hash'=>$r['snapshot_hash'],'source_rights_snapshot_hash'=>$r['source_rights_snapshot_hash'],'source_rights'=>json_decode((string)($r['source_rights_snapshot_json']??''),true)?:null];
     return $out;
 }
+function sponsored_research_knowledge_item_authority(PDO $pdo,array $viewer,array $item,bool $allowContributor=false): array {
+    $kb=sponsored_research_knowledge_base_get($pdo,(string)$item['knowledge_base_public_id']);if(!$kb)throw new RuntimeException('Knowledge Base not found.');
+    if($allowContributor&&(int)($item['contributor_user_id']??0)===(int)$viewer['id']){research_account_require_approved($pdo,$viewer);return $kb;}
+    sponsored_research_campaign_require_manage($pdo,$viewer,(string)$kb['campaign_public_id']);return $kb;
+}
 function sponsored_research_knowledge_item_get(PDO $pdo,string $publicId): ?array {
     $q=$pdo->prepare("SELECT ki.*,kb.public_id knowledge_base_public_id FROM sponsored_research_knowledge_items ki JOIN sponsored_research_knowledge_bases kb ON kb.id=ki.knowledge_base_id WHERE ki.public_id=? LIMIT 1");$q->execute([trim($publicId)]);return $q->fetch()?:null;
 }
@@ -104,7 +109,7 @@ function sponsored_research_knowledge_promote(PDO $pdo,array $viewer,string $kbP
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
 }
 function sponsored_research_knowledge_item_revoke_rights(PDO $pdo,array $viewer,string $itemPublicId,string $reason): array {
-    $item=sponsored_research_knowledge_item_get($pdo,$itemPublicId);if(!$item)throw new RuntimeException('Knowledge item not found.');$kb=sponsored_research_knowledge_base_require_manage($pdo,$viewer,(string)$item['knowledge_base_public_id']);$reason=trim($reason);if($reason==='')throw new InvalidArgumentException('Rights revocation reason is required.');
+    $item=sponsored_research_knowledge_item_get($pdo,$itemPublicId);if(!$item)throw new RuntimeException('Knowledge item not found.');$kb=sponsored_research_knowledge_item_authority($pdo,$viewer,$item,true);$reason=trim($reason);if($reason==='')throw new InvalidArgumentException('Rights revocation reason is required.');
     if((string)$item['state']==='rights_revoked')return $item;
     $pdo->prepare("UPDATE sponsored_research_knowledge_items SET state='rights_revoked',future_use_allowed=0,rights_revoked_at=NOW() WHERE id=?")->execute([(int)$item['id']]);
     sponsored_research_knowledge_event($pdo,(int)$kb['id'],(int)$item['id'],null,(int)$viewer['id'],'knowledge_item_rights_revoked',['reason'=>$reason,'historical_releases_preserved'=>true]);
@@ -120,7 +125,7 @@ function sponsored_research_knowledge_item_withdraw(PDO $pdo,array $viewer,strin
 function sponsored_research_knowledge_manifest(PDO $pdo,array $kb): array {
     $items=sponsored_research_knowledge_items($pdo,(string)$kb['public_id'],false);$manifestItems=[];
     foreach($items as $position=>$item){
-      $snap=json_decode((string)$item['snapshot_json'],true)?:[];$manifestItems[]=['position'=>$position,'item_public_id'=>$item['public_id'],'source_object_type'=>$item['source_object_type'],'source_object_public_id'=>$item['source_object_public_id'],'source_object_version'=>$item['source_object_version'],'contributor_user_id'=>$item['contributor_user_id']!==null?(int)$item['contributor_user_id']:null,'snapshot_hash'=>$item['snapshot_hash'],'source_rights_snapshot_hash'=>$item['source_rights_snapshot_hash'],'item_state'=>$item['state'],'future_use_allowed'=>(bool)$item['future_use_allowed'],'evidence_sources'=>$snap['evidence_sources']??[]];
+      $snap=json_decode((string)$item['snapshot_json'],true)?:[];$sources=[];foreach((array)($snap['evidence_sources']??[]) as $source){$current=data_source_rights($pdo,(string)($source['source_public_id']??''));$source['release_rights']=$current;$source['release_rights_hash']=$current?data_attribution_hash($current):null;$sources[]=$source;}$manifestItems[]=['position'=>$position,'item_public_id'=>$item['public_id'],'source_object_type'=>$item['source_object_type'],'source_object_public_id'=>$item['source_object_public_id'],'source_object_version'=>$item['source_object_version'],'contributor_user_id'=>$item['contributor_user_id']!==null?(int)$item['contributor_user_id']:null,'snapshot_hash'=>$item['snapshot_hash'],'source_rights_snapshot_hash'=>$item['source_rights_snapshot_hash'],'item_state'=>$item['state'],'future_use_allowed'=>(bool)$item['future_use_allowed'],'evidence_sources'=>$sources];
     }
     return ['schema'=>'annotated-sponsored-knowledge-release-v1','knowledge_base'=>['public_id'=>$kb['public_id'],'campaign_public_id'=>$kb['campaign_public_id'],'account_public_id'=>$kb['account_public_id'],'research_agent_public_id'=>$kb['research_agent_public_id']??null,'name'=>$kb['name']],'item_count'=>count($manifestItems),'items'=>$manifestItems];
 }
@@ -154,13 +159,14 @@ function sponsored_research_knowledge_release_items(PDO $pdo,int $releaseId): ar
 }
 function sponsored_research_knowledge_release_current_use_status(PDO $pdo,string $releasePublicId): array {
     $release=sponsored_research_knowledge_release_get($pdo,$releasePublicId);if(!$release)return ['usable'=>false,'reason'=>'release_not_found','invalid_items'=>0];
-    $items=sponsored_research_knowledge_release_items($pdo,(int)$release['id']);$invalid=0;$reasons=[];
+    $items=sponsored_research_knowledge_release_items($pdo,(int)$release['id']);$manifest=json_decode((string)$release['manifest_json'],true)?:[];$manifestItems=[];foreach((array)($manifest['items']??[]) as $m)$manifestItems[(string)($m['item_public_id']??'')]=$m;$invalid=0;$reasons=[];
     foreach($items as $ri){
       $item=sponsored_research_knowledge_item_get($pdo,(string)$ri['item_public_id']);if(!$item||!in_array((string)$item['state'],['active'],true)||(int)$item['future_use_allowed']!==1){$invalid++;$reasons[]='knowledge_item_no_longer_eligible';continue;}
       if(!hash_equals((string)$ri['snapshot_hash'],(string)$item['snapshot_hash'])){$invalid++;$reasons[]='knowledge_item_snapshot_changed';}
-      $snap=json_decode((string)$item['snapshot_json'],true)?:[];foreach((array)($snap['evidence_sources']??[]) as $source){
-        $sourcePublic=(string)($source['source_public_id']??'');if($sourcePublic==='')continue;$rights=data_source_rights($pdo,$sourcePublic);
+      $m=$manifestItems[(string)$ri['item_public_id']]??[];foreach((array)($m['evidence_sources']??[]) as $source){
+        $sourcePublic=(string)($source['source_public_id']??'');if($sourcePublic==='')continue;$rights=data_source_rights($pdo,$sourcePublic);$storedHash=(string)($source['release_rights_hash']??'');$currentHash=$rights?data_attribution_hash($rights):'';
         if(!$rights||empty($rights['retrieval_allowed'])){$invalid++;$reasons[]='source_rights_block_future_use';break;}
+        if($storedHash===''||!hash_equals($storedHash,$currentHash)){$invalid++;$reasons[]='source_rights_changed_since_release';break;}
       }
     }
     $calc=hash('sha256',(string)$release['manifest_json']);$manifestOk=hash_equals((string)$release['manifest_hash'],$calc);if(!$manifestOk){$invalid++;$reasons[]='manifest_integrity_failure';}
@@ -168,4 +174,20 @@ function sponsored_research_knowledge_release_current_use_status(PDO $pdo,string
 }
 function sponsored_research_knowledge_events(PDO $pdo,string $kbPublicId,int $limit=100): array {
     $kb=sponsored_research_knowledge_base_get($pdo,$kbPublicId);if(!$kb)return [];$q=$pdo->prepare('SELECT e.*,u.display_name actor_name FROM sponsored_research_knowledge_events e LEFT JOIN users u ON u.id=e.actor_user_id WHERE e.knowledge_base_id=? ORDER BY e.id DESC LIMIT '.max(1,min(500,$limit)));$q->execute([(int)$kb['id']]);return $q->fetchAll()?:[];
+}
+
+function sponsored_research_knowledge_promotable_assets(PDO $pdo,array $viewer,string $campaignPublicId): array {
+    $campaign=sponsored_research_campaign_require_manage($pdo,$viewer,$campaignPublicId);
+    $q=$pdo->prepare("SELECT a.*,sv.public_id submission_version_public_id,sv.revision_number,s.public_id submission_public_id,s.title submission_title,u.display_name contributor_name,u.username contributor_username
+      FROM sponsored_research_submission_assets a
+      JOIN sponsored_research_submission_versions sv ON sv.id=a.submission_version_id
+      JOIN sponsored_research_submissions s ON s.id=sv.submission_id
+      JOIN sponsored_research_review_cases rc ON rc.submission_version_id=sv.id
+      JOIN users u ON u.id=s.researcher_user_id
+      WHERE s.campaign_id=? AND rc.final_decision='accepted' AND rc.status IN ('accepted','resolved') AND a.asset_type<>'source'
+      ORDER BY sv.id,a.position,a.id");
+    $q->execute([(int)$campaign['id']]);return $q->fetchAll()?:[];
+}
+function sponsored_research_knowledge_items_for_contributor(PDO $pdo,array $viewer,int $limit=200): array {
+    research_account_require_approved($pdo,$viewer);$q=$pdo->prepare("SELECT ki.*,kb.public_id knowledge_base_public_id,kb.name knowledge_base_name,c.public_id campaign_public_id,c.title campaign_title FROM sponsored_research_knowledge_items ki JOIN sponsored_research_knowledge_bases kb ON kb.id=ki.knowledge_base_id JOIN sponsored_research_campaigns c ON c.id=kb.campaign_id WHERE ki.contributor_user_id=? ORDER BY ki.id DESC LIMIT ".max(1,min(500,$limit)));$q->execute([(int)$viewer['id']]);return $q->fetchAll()?:[];
 }
