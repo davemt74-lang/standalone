@@ -1,0 +1,10 @@
+name: Annotated Repair 240 Deploy Package
+on:
+  push:
+    branches:
+      - chatgpt/repair-240-deploy-package
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
