@@ -105,6 +105,7 @@ require_once __DIR__ . '/research-tasks.php';
 require_once __DIR__ . '/research-programs.php';
 require_once __DIR__ . '/research-missions.php';
 require_once __DIR__ . '/sponsored-research-projects.php';
+require_once __DIR__ . '/sponsored-research-project-compensation.php';
 require_once __DIR__ . '/cross-research.php';
 require_once __DIR__ . '/research-outcomes.php';
 require_once __DIR__ . '/research-decisions.php';
