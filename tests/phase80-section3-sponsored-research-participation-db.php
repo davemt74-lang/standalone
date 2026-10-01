@@ -39,7 +39,7 @@ p80s3((int)$joined['campaign_revision_accepted']===(int)$campaign['current_revis
 $acceptances=sponsored_research_participation_acceptances($pdo,(int)$joined['id']);p80s3(count($acceptances)===1&&(int)$acceptances[0]['terms_id']===(int)$joined['terms_id'],'Terms acceptance is append-only and preserves the exact accepted terms record.');
 p80s3((string)$acceptances[0]['conflict_disclosure']==='No relevant financial conflict.'&&(int)$acceptances[0]['nda_accepted']===1,'Immutable acceptance history preserves conflict disclosure and NDA acknowledgment.');
 $pref=data_contributor_preferences($pdo,(int)$researcher['id']);p80s3((int)$pref['allow_training']===0&&(int)$pref['allow_evaluation']===0,'Campaign participation does not silently grant training or evaluation consent.');
-$q=$pdo->prepare("SELECT status FROM sponsored_research_campaign_invites WHERE id=?");$q->execute([(int)$invite['id']);p80s3($q->fetchColumn()==='accepted','Joining records invite acceptance.');
+$q=$pdo->prepare("SELECT status FROM sponsored_research_campaign_invites WHERE id=?");$q->execute([(int)$invite['id']]);p80s3($q->fetchColumn()==='accepted','Joining records invite acceptance.');
 
 $limitBlocked=false;try{sponsored_research_campaign_join($pdo,$unqualified,(string)$campaign['public_id'],['accept_terms'=>true,'conflict_disclosure'=>'None','accept_nda'=>true,'acknowledge_sponsorship'=>true]);}catch(RuntimeException $e){$limitBlocked=true;}p80s3($limitBlocked,'Ineligible or full campaigns fail closed.');
 
