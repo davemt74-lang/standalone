@@ -103,3 +103,4 @@ php tests/team-render-sponsored-sidebar-regression.php
 php tests/team-collaboration-section1-contract.php
 php tests/admin-core-shell-search-samples-contract.php
 php tests/admin-core-shell-sample-render-contract.php
+php tests/sponsored-sample-visibility-contract.php
