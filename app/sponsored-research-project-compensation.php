@@ -122,3 +122,21 @@ function sponsored_project_sample_projects(PDO $pdo): array {
       ['public_id'=>'sample-food-003','title'=>'Premium Frozen Pizza Customer Research','status'=>'draft','access_mode'=>'private','organization_name'=>'Mesa Consumer Lab','budget_currency'=>'USD','researcher_compensation_cents'=>30000,'budget_cents'=>300000,'assigned_agents'=>0,'submissions'=>0,'compensation_earned_cents'=>0,'compensation_approved_cents'=>0,'compensation_paid_cents'=>0,'sample_data'=>1,'brief'=>'Explore customer expectations for premium frozen pizza including crust, toppings, price sensitivity, and convenience.','submission_deadline'=>'2026-12-10 23:59:00','requirements'=>['Approved Research Account','Consumer research experience']]
     ];
 }
+
+/**
+ * Public previews are never operational campaign records. Reuse the Admin's
+ * canonical samples without exposing draft/private examples or appending them
+ * to real listing, assignment, submission, or compensation queries.
+ */
+function sponsored_project_public_sample_rows(array $samples,string $query=''): array {
+    $needle=mb_strtolower(mb_substr(trim($query),0,120));
+    return array_values(array_filter($samples,static function(array $sample)use($needle):bool{
+        if(empty($sample['sample_data'])||(string)($sample['status']??'')!=='open'||(string)($sample['access_mode']??'')!=='public')return false;
+        if($needle==='')return true;
+        $haystack=mb_strtolower(implode(' ',[(string)($sample['title']??''),(string)($sample['brief']??''),(string)($sample['organization_name']??''),implode(' ',(array)($sample['requirements']??[]))]));
+        return mb_strpos($haystack,$needle)!==false;
+    }));
+}
+function sponsored_project_public_samples(PDO $pdo,string $query=''): array {
+    return sponsored_project_public_sample_rows(sponsored_project_sample_projects($pdo),$query);
+}
