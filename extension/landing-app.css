@@ -4002,7 +4002,7 @@
 }
 .adminSidebarFoot a{color:#444!important}
 
-.adminDashboardPage{width:auto!important}
+.adminDashboardPage{min-width:0}
 .adminDashboardHeader{
   min-height:58px;
   display:flex;
@@ -4069,8 +4069,7 @@
 .adminDashboardMetrics .adminMetric span{font-size:.72rem!important}
 .adminDashboardPage>.card,
 .adminDashboardPage>section.card{
-  width:100%!important;
-  max-width:none!important;
+  min-width:0;
 }
 .adminDashboardGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 .adminWorkspaceGrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
