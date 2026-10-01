@@ -32,7 +32,7 @@ mkdir($private,0700,true);
 $GLOBALS['config']=['storage'=>['private_root'=>$private]];
 $config=$GLOBALS['config'];
 $fixtures=[];
-$manifest=['manifest_version'=>3,'name'=>'Annotated','minimum_chrome_version'=>'116','permissions'=>['sidePanel'],'host_permissions'=>[]];
+$manifest=['manifest_version'=>3,'name'=>'Annotated','minimum_chrome_version'=>'116','permissions'=>['sidePanel'],'host_permissions'=>[],'background'=>['service_worker'=>'service-worker.js'],'side_panel'=>['default_path'=>'sidepanel.html']];
 try{
     foreach([['version'=>'0.36.1','channel'=>'stable'],['version'=>'0.36.2','channel'=>'stable'],['version'=>'0.37.0','channel'=>'beta']] as $candidate){
         $path=$private.'/artifact-'.str_replace('.','-',$candidate['version']).'.zip';
