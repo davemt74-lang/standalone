@@ -11,6 +11,7 @@ foreach([
   "agent['owner_user_id']!==(int)\$viewer['id']"=>'The Agent must be personally owned by the Team owner.',
   "agent['project_owner_id']!==(int)\$viewer['id']"=>'Project ownership must match the Team owner.',
   "other.project_id=rp.id" => 'Shared projects with other active Agents must not be offered.',
+  "Set the Research Agent visibility to Private" => 'Team sharing must not leak publicly visible Agents.',
   "Project changed during Team assignment." => 'Project ownership must be guarded atomically.',
   "ra.team_id IS NULL AND rp.team_id IS NULL"=>'Only unassigned personal Agents may be selected.',
   "UPDATE research_projects SET team_id=?"=>'Agent project must use canonical Team permissions.',
