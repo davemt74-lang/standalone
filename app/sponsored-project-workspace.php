@@ -86,7 +86,7 @@ function sponsored_workspace_recent(PDO $pdo,array $access,array $viewer,int $li
     }
     $q=$pdo->prepare("SELECT up.public_id,up.scope,up.participant_user_id,up.milestone_position,
         up.progress_status,up.title,up.body,up.created_at,u.display_name actor_name,
-        CASE WHEN up.actor_user_id=c.sponsor_user_id THEN 'Sponsor' ELSE 'Researcher' END actor_role,
+        up.actor_role,
         target.display_name participant_name
       FROM sponsored_project_updates up
       JOIN sponsored_research_campaigns c ON c.id=up.campaign_id
@@ -153,9 +153,9 @@ function sponsored_workspace_post(PDO $pdo,array $access,array $viewer,array $in
     $valid=sponsored_workspace_validate_update($fresh,$viewer,$input,$participants);
     $public=ulid_like();$pdo->beginTransaction();
     try{
-        $pdo->prepare("INSERT INTO sponsored_project_updates(public_id,campaign_id,actor_user_id,scope,participant_user_id,milestone_position,progress_status,title,body)
-            VALUES(?,?,?,?,?,?,?,?,?)")
-           ->execute([$public,(int)$campaign['id'],(int)$viewer['id'],$valid['scope'],
+        $pdo->prepare("INSERT INTO sponsored_project_updates(public_id,campaign_id,actor_user_id,actor_role,scope,participant_user_id,milestone_position,progress_status,title,body)
+            VALUES(?,?,?,?,?,?,?,?,?,?)")
+           ->execute([$public,(int)$campaign['id'],(int)$viewer['id'],$fresh['role'],$valid['scope'],
                $valid['participant_user_id'],$valid['milestone_position'],$valid['progress_status'],$valid['title'],$valid['body']]);
         // Existing Agent/project audit event contains metadata only, never
         // participant-thread text. Team/Agent documents are not copied.
