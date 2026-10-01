@@ -10,7 +10,17 @@ function team_research_resources(PDO $pdo,int $teamId): array {
       JOIN users u ON u.id=ra.owner_user_id
       WHERE ra.team_id=? AND rp.team_id=? AND ra.status<>'archived'
       ORDER BY ra.updated_at DESC,ra.id DESC");
-    $q->execute([$teamId,$teamId]);return $q->fetchAll()?:[];
+    $q->execute([$teamId,$teamId]);$items=$q->fetchAll()?:[];
+    foreach($items as &$item){
+        $metadata=json_decode((string)($item['metadata_json']??''),true);
+        $item['contribution_scope']='team';
+        $item['tag_label']='Team · '.(string)$item['team_name'];
+        $item['origin_team_contribution']=is_array($metadata)&&($metadata['contribution_scope']??'')==='team'
+            &&(int)($metadata['origin_team_id']??0)===$teamId;
+        unset($item['metadata_json']);
+    }
+    unset($item);
+    return $items;
 }
 function team_research_assignable(PDO $pdo,int $ownerId): array {
     $q=$pdo->prepare("SELECT ra.public_id,ra.name,rp.title project_title
@@ -161,9 +171,27 @@ function team_research_collaboration_create_document(PDO $pdo,array $viewer,int 
     $body=trim((string)($input['body']??''));
     if($body==='')throw new InvalidArgumentException('Add your research notes before saving.');
     if(mb_strlen($body)>50000)throw new InvalidArgumentException('Research notes must be 50,000 characters or fewer.');
-    return research_agent_workspace_create_document($pdo,$viewer,$project,[
-        'title'=>$title,'body'=>$body,'document_type'=>'document'
-    ]);
+    // Preserve an origin tag even if the Agent returns to the owner's personal workspace.
+    // Current visibility always follows canonical Project/Team ACL, never this tag.
+    $ownsTransaction=!$pdo->inTransaction();
+    if($ownsTransaction)$pdo->beginTransaction();
+    try{
+        $item=research_agent_workspace_create_document($pdo,$viewer,$project,[
+            'title'=>$title,'body'=>$body,'document_type'=>'document'
+        ]);
+        $meta=[
+            'contribution_scope'=>'team',
+            'origin_team_id'=>$teamId,
+            'origin_agent_public_id'=>trim($agentPublicId),
+            'contributor_user_id'=>(int)$viewer['id']
+        ];
+        $q=$pdo->prepare('UPDATE research_workspace_objects SET metadata_json=? WHERE public_id=? AND project_id=? AND created_by_user_id=?');
+        $q->execute([json_encode($meta,JSON_UNESCAPED_SLASHES),(string)$item['public_id'],(int)$project['id'],(int)$viewer['id']]);
+        if($q->rowCount()!==1)throw new RuntimeException('The contribution could not be tagged.');
+        if($ownsTransaction)$pdo->commit();
+    }catch(Throwable $e){if($ownsTransaction&&$pdo->inTransaction())$pdo->rollBack();throw $e;}
+    $item['metadata']=$meta;
+    return $item;
 }
 function team_research_collaboration_recent(PDO $pdo,array $viewer,int $teamId,int $limit=18): array {
     // A removed member must not see contributions through a stale browser session.
@@ -174,10 +202,12 @@ function team_research_collaboration_recent(PDO $pdo,array $viewer,int $teamId,i
     $q=$pdo->prepare("SELECT rwo.public_id,rwo.object_type,rwo.title,rwo.updated_at,
       u.display_name contributor_name,u.username contributor_username,
       COALESCE(editor.display_name,u.display_name) last_editor_name,
+      t.name team_name,t.public_id team_public_id,rwo.metadata_json,
       ra.public_id agent_public_id,ra.name agent_name,c.public_id conversation_public_id,
       rwd.summary document_summary,rwd.revision_number
       FROM research_workspace_objects rwo
       JOIN research_projects rp ON rp.id=rwo.project_id AND rp.team_id=?
+      JOIN teams t ON t.id=rp.team_id
       JOIN research_agents ra ON ra.project_id=rp.id AND ra.team_id=? AND ra.status<>'archived'
       JOIN conversations c ON c.id=ra.conversation_id
       JOIN users u ON u.id=rwo.created_by_user_id
