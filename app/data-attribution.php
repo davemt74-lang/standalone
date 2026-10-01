@@ -164,6 +164,11 @@ function data_object_descriptor(PDO $pdo,string $objectType,string $publicId): ?
         if($p['proposal_type']==='training_example')$meta['training_example']=['input'=>(string)$p['sanitized_input'],'output'=>(string)$p['sanitized_expected_output'],'system'=>(string)($p['sanitized_context']??'')];
         return ['object_type'=>'model_improvement_example','public_id'=>$publicId,'version'=>(string)$p['content_hash'],'contributor_user_id'=>(int)($p['approved_by_user_id']?:$p['created_by_user_id']),'visibility'=>'internal_governed','published'=>true,'text'=>$text,'corpus_type'=>$p['proposal_type']==='evaluation_case'?'model_regression_case':'model_training_example','state'=>['proposal_type'=>$p['proposal_type'],'redaction_attested'=>(int)$p['redaction_attested'],'rights_attested'=>(int)$p['rights_attested'],'status'=>$p['status'],'approval_hash'=>$p['approval_hash']],'meta'=>$meta];
     }
+    if($objectType==='sponsored_knowledge_item'){
+        if(!function_exists('sponsored_research_knowledge_item_get'))return null;$r=sponsored_research_knowledge_item_get($pdo,$publicId);if(!$r)return null;
+        $snap=json_decode((string)$r['snapshot_json'],true)?:[];$evidence=(array)($snap['evidence_sources']??[]);
+        return ['object_type'=>'sponsored_knowledge_item','public_id'=>$publicId,'version'=>(string)$r['snapshot_hash'],'contributor_user_id'=>$r['contributor_user_id']!==null?(int)$r['contributor_user_id']:null,'visibility'=>'sponsored_governed','published'=>((string)$r['state']==='active'&&(int)$r['future_use_allowed']===1),'text'=>trim((string)$r['title'])."\n\n".trim((string)$r['body']),'corpus_type'=>'sponsored_knowledge','state'=>['state'=>$r['state'],'future_use_allowed'=>(int)$r['future_use_allowed'],'snapshot_hash'=>$r['snapshot_hash'],'knowledge_base_public_id'=>$r['knowledge_base_public_id']],'meta'=>['knowledge_base_public_id'=>$r['knowledge_base_public_id'],'source_object_type'=>$r['source_object_type'],'source_object_public_id'=>$r['source_object_public_id'],'source_object_version'=>$r['source_object_version'],'evidence_sources'=>$evidence]];
+    }
     if($objectType==='source'){
         $q=$pdo->prepare('SELECT s.public_id,s.title,s.canonical_url,s.domain,s.status,sv.version_number,sv.extracted_text,sv.content_hash FROM sources s LEFT JOIN source_versions sv ON sv.id=s.current_version_id WHERE s.public_id=? LIMIT 1');$q->execute([$publicId]);$r=$q->fetch();if(!$r)return null;
         return ['object_type'=>'source','public_id'=>$publicId,'version'=>(string)($r['version_number']??''),'contributor_user_id'=>null,'visibility'=>'source_rights','published'=>($r['status']??'current')!=='restricted','text'=>mb_substr(trim((string)($r['extracted_text']??'')),0,50000),'corpus_type'=>'licensed_source_text','state'=>['status'=>$r['status'],'content_hash'=>$r['content_hash'],'version_number'=>$r['version_number']!==null?(int)$r['version_number']:null],'meta'=>['title'=>$r['title'],'url'=>$r['canonical_url'],'domain'=>$r['domain']]];
@@ -192,6 +197,21 @@ function data_training_eligibility(PDO $pdo,string $objectType,string $publicId)
         if(!$reviewed)return array_merge($base,['reason'=>'source_rights_not_approved']);
         $shared=$reviewed&&(bool)$rights['retrieval_allowed']&&(bool)$rights['excerpt_storage_allowed']&&(bool)$rights['model_context_allowed'];$training=$shared&&(bool)$rights['training_allowed'];$commercial=$training&&(bool)$rights['commercial_training_allowed'];
         return ['shared_retrieval'=>$shared,'evaluation'=>$training,'training'=>$training,'commercial_training'=>$commercial,'attribution_required'=>true,'reason'=>'source_rights_approved'];
+    }
+    if($d['object_type']==='sponsored_knowledge_item'){
+        if(empty($d['published']))return array_merge($base,['reason'=>'sponsored_knowledge_not_current']);
+        $uid=(int)($d['contributor_user_id']??0);if(!$uid)return array_merge($base,['reason'=>'contributor_unavailable']);
+        $grant=data_usage_grant($pdo,'sponsored_knowledge_item',$publicId,$uid);if(!$grant)return array_merge($base,['reason'=>'separate_sponsored_knowledge_consent_required']);
+        $shared=(bool)$grant['shared_retrieval_allowed'];$evaluation=(bool)$grant['evaluation_allowed'];$training=(bool)$grant['training_allowed'];$commercial=$training&&(bool)$grant['commercial_training_allowed'];$attribution=(bool)$grant['attribution_required'];
+        foreach((array)($d['meta']['evidence_sources']??[]) as $source){
+            $sp=(string)($source['source_public_id']??'');if($sp==='')continue;$rights=data_source_rights($pdo,$sp);if(!$rights)return array_merge($base,['reason'=>'source_rights_unknown']);
+            $retrievalOk=!empty($rights['retrieval_allowed'])&&!empty($rights['excerpt_storage_allowed'])&&!empty($rights['model_context_allowed']);
+            if($shared&&!$retrievalOk)$shared=false;
+            if($evaluation&&empty($rights['training_allowed']))$evaluation=false;
+            if($training&&empty($rights['training_allowed']))$training=false;
+            if($commercial&&empty($rights['commercial_training_allowed']))$commercial=false;
+        }
+        return ['shared_retrieval'=>$shared,'evaluation'=>$evaluation,'training'=>$training,'commercial_training'=>$commercial,'attribution_required'=>$attribution,'reason'=>'sponsored_knowledge_explicit_consent'];
     }
     if(($d['visibility']??'')!=='public'||empty($d['published']))return array_merge($base,['reason'=>'object_not_public']);
     $uid=(int)($d['contributor_user_id']??0);if(!$uid)return array_merge($base,['reason'=>'contributor_unavailable']);
@@ -292,6 +312,7 @@ function data_ref_contributor(PDO $pdo,string $type,string $id): ?int {
             'research_review'=>'SELECT requested_by_user_id FROM research_reviews WHERE public_id=?',
             'verification'=>'SELECT reviewer_user_id FROM research_verification_events WHERE public_id=?',
             'model_improvement_example'=>'SELECT COALESCE(approved_by_user_id,created_by_user_id) FROM data_model_improvement_proposals WHERE public_id=?',
+            'sponsored_knowledge_item'=>'SELECT contributor_user_id FROM sponsored_research_knowledge_items WHERE public_id=?',
             default=>null
         };if(!$sql)return null;$q=$pdo->prepare($sql);$q->execute([$id]);$uid=(int)($q->fetchColumn()?:0);return $uid?:null;
     }catch(Throwable $e){return null;}
