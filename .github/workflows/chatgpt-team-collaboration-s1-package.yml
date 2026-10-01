@@ -1,0 +1,10 @@
+name: Team Collaboration Section 1 Deployment
+on:
+  push:
+    branches:
+      - chatgpt/team-collaboration-s1-package
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
