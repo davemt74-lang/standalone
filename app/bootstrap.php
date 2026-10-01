@@ -108,6 +108,7 @@ require_once __DIR__ . '/research-missions.php';
 require_once __DIR__ . '/sponsored-research-projects.php';
 require_once __DIR__ . '/sponsored-project-workspace.php';
 require_once __DIR__ . '/sponsored-agent-awareness.php';
+require_once __DIR__ . '/sponsored-agent-operations.php';
 require_once __DIR__ . '/sponsored-research-project-compensation.php';
 require_once __DIR__ . '/cross-research.php';
 require_once __DIR__ . '/research-outcomes.php';
