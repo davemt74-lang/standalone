@@ -6,9 +6,9 @@ $page=(string)file_get_contents($base.'/team.php');
 $existing=(string)file_get_contents($base.'/app/research-agent-workspace.php');
 $issues=[];
 foreach([
-    "JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=?"=>'Persistence-backed current Team membership required.',
-    "ra.team_id=t.id AND ra.public_id=?"=>'Selected Agent must belong to Team.',
-    "rp.id=ra.project_id AND rp.team_id=t.id"=>'Selected canonical Project must share Team.',
+    'JOIN team_members tm ON tm.team_id=t.id AND tm.user_id=?'=>'Persistence-backed current Team membership required.',
+    'ra.team_id=t.id AND ra.public_id=?'=>'Selected Agent must belong to Team.',
+    'rp.id=ra.project_id AND rp.team_id=t.id'=>'Selected canonical Project must share Team.',
     'research_agent_workspace_project($pdo,$viewer'=>'Reuse canonical Project permissions.',
     'research_agent_workspace_require_write($project)'=>'Viewer write denial required.',
     'research_agent_workspace_create_document($pdo,$viewer,$project'=>'Team contributions must reuse canonical document storage.',
