@@ -14,17 +14,30 @@ $agent=research_agent_create($pdo,$sponsor,['name'=>'Sponsor Research Agent','de
 $blocked=false;try{sponsored_research_campaign_create($pdo,$plain,['account_id'=>$accountPublic,'title'=>'Blocked','brief'=>'No sponsor authority','objective'=>'Should fail']);}catch(Throwable $e){$blocked=true;}p80s2($blocked,'Unapproved Sponsor Account cannot create campaigns.');
 $campaign=sponsored_research_campaign_create($pdo,$sponsor,[
  'account_id'=>$accountPublic,'research_agent_id'=>$agent['public_id'],'title'=>'Battery Market Research','brief'=>'Investigate battery supply-chain changes.','objective'=>'Produce source-backed findings for planning.',
- 'questions'=>["Which suppliers changed capacity?","What risks materially changed?"],'access_mode'=>'invite_only','budget_currency'=>'USD','budget_cents'=>250000,'max_participants'=>5,
- 'eligibility'=>['minimum_verification'=>'identity','required_specialties'=>['energy','market research']],'disclosures'=>['sponsor_disclosure'=>'Sponsored by Sponsor Lab','conflict_disclosure_required'=>true],
- 'starts_at'=>'2026-10-05 09:00:00','submission_deadline'=>'2026-10-20 17:00:00'
+ 'questions'=>["Which suppliers changed capacity?","What risks materially changed?"],'access_mode'=>'invite_only','budget_currency'=>'USD','budget'=>'2500.00','max_participants'=>5,
+ 'eligibility'=>['min_verification'=>'identity','specialties'=>['energy','market research'],'languages'=>['English'],'min_completed_campaigns'=>2],
+ 'disclosures'=>['sponsorship_disclosure_required'=>true,'conflict_disclosure_required'=>true,'nda_required'=>true,'ai_assistance_policy'=>'allowed_with_disclosure','training_use_request'=>'optional_separate_consent'],
+ 'starts_at'=>'2026-10-05 09:00:00','submission_deadline'=>'2026-10-20 17:00:00','review_deadline'=>'2026-10-25 17:00:00'
 ]);
 p80s2($campaign['status']==='draft'&&$campaign['access_mode']==='invite_only','Campaign starts governed as a draft with configured access.');
-p80s2((int)$campaign['budget_cents']===250000&&count($campaign['questions'])===2,'Campaign persists budget and structured research questions.');
+p80s2((int)$campaign['budget_cents']===250000&&count($campaign['questions'])===2,'Campaign persists exact currency budget and structured research questions.');
+p80s2(($campaign['eligibility']['min_verification']??'')==='identity'&&($campaign['eligibility']['specialties']??[])===['energy','market research'],'Campaign normalizes researcher eligibility without creating a second researcher system.');
+p80s2(($campaign['disclosures']['training_use_request']??'')==='optional_separate_consent'&&!empty($campaign['disclosures']['sponsorship_disclosure_required']),'Campaign preserves sponsorship disclosure and keeps training use as a separate-consent request.');
+p80s2((string)$campaign['review_deadline']==='2026-10-25 17:00:00','Campaign persists a governed sponsor review deadline.');
 p80s2((string)$campaign['research_agent_public_id']===(string)$agent['public_id'],'Campaign reuses an existing Research Agent.');
 p80s2(strlen((string)$campaign['config_hash'])===64,'Initial campaign configuration is hashed.');
 $versions=sponsored_research_campaign_versions($pdo,$sponsor,(string)$campaign['public_id']);p80s2(count($versions)===1&&(int)$versions[0]['revision_number']===1,'Initial campaign brief is immutably versioned.');
 $updated=sponsored_research_campaign_update($pdo,$sponsor,(string)$campaign['public_id'],['brief'=>'Updated supply-chain research brief.','questions'=>["Which suppliers changed capacity?","What risks changed?","What evidence contradicts the trend?"],'reason'=>'Expanded contradiction coverage.']);
 p80s2((int)$updated['current_revision']===2&&count($updated['questions'])===3,'Campaign amendment creates revision 2 without a parallel Mission system.');
 $versions=sponsored_research_campaign_versions($pdo,$sponsor,(string)$campaign['public_id']);p80s2(count($versions)===2&&!hash_equals((string)$versions[0]['config_hash'],(string)$versions[1]['config_hash']),'Campaign versions preserve distinct immutable config hashes.');
-$open=sponsored_research_campaign_set_status($pdo,$sponsor,(string)$campaign['public_id'],'open');p80s2($open['status']==='open','Governed campaign lifecycle supports opening a draft.');
+$open=sponsored_research_campaign_set_status($pdo,$sponsor,(string)$campaign['public_id'],'open');p80s2($open['status']==='open'&&(int)$open['current_revision']===3,'Governed campaign lifecycle versions status transitions.');
+$versions=sponsored_research_campaign_versions($pdo,$sponsor,(string)$campaign['public_id']);p80s2(count($versions)===3,'Status transition appends an immutable campaign version.');
+$events=sponsored_research_campaign_events($pdo,$sponsor,(string)$campaign['public_id']);p80s2(count($events)>=3,'Campaign creation, amendment and lifecycle transitions produce durable events.');
+$badDate=false;try{sponsored_research_campaign_update($pdo,$sponsor,(string)$campaign['public_id'],['submission_deadline'=>'not-a-date']);}catch(InvalidArgumentException $e){$badDate=str_contains($e->getMessage(),'invalid');}p80s2($badDate,'Malformed campaign deadlines fail closed instead of silently coercing to epoch dates.');
+research_account_admin_decide($pdo,$admin,(int)$sponsor['id'],'sponsor_account','suspended','Governance hold.','organization');
+$authorityBlocked=false;try{sponsored_research_campaign_set_status($pdo,$sponsor,(string)$campaign['public_id'],'paused');}catch(RuntimeException $e){$authorityBlocked=true;}p80s2($authorityBlocked,'Suspended Sponsor Account immediately loses campaign mutation authority.');
+research_account_admin_decide($pdo,$admin,(int)$sponsor['id'],'sponsor_account','approved','Governance restored.','organization');
+$pdo->prepare("UPDATE accounts SET status='suspended' WHERE id=?")->execute([$accountId]);
+$accountBlocked=false;try{sponsored_research_campaign_set_status($pdo,$sponsor,(string)$campaign['public_id'],'paused');}catch(RuntimeException $e){$accountBlocked=str_contains($e->getMessage(),'active commercial account');}p80s2($accountBlocked,'Suspended commercial Account blocks Sponsored Research campaign mutation.');
+$noQuestions=false;$pdo->prepare("UPDATE accounts SET status='active' WHERE id=?")->execute([$accountId]);try{sponsored_research_campaign_create($pdo,$sponsor,['account_id'=>$accountPublic,'title'=>'No Questions','brief'=>'Missing questions','objective'=>'Must fail','questions'=>[]]);}catch(InvalidArgumentException $e){$noQuestions=str_contains($e->getMessage(),'at least one');}p80s2($noQuestions,'Campaign creation requires at least one research question.');
 echo "Phase 80 Section 2 Sponsored Research Campaign Foundation database journey passed.\n";
