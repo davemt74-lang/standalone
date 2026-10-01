@@ -171,6 +171,9 @@ function sponsored_research_campaign_create(PDO $pdo,array $viewer,array $input)
 }
 function sponsored_research_campaign_update(PDO $pdo,array $viewer,string $publicId,array $input): array {
     return sponsored_research_campaign_locked($pdo,$viewer,$publicId,function(array $campaign) use($pdo,$viewer,$publicId,$input){
+        // Serialize specification revision with acceptance so a researcher cannot
+        // accept an old scope while the sponsor replaces it.
+        return app_with_advisory_lock($pdo,'sponsored-research-participation',(int)$campaign['id'],function()use($pdo,$viewer,$publicId,$input,$campaign){
         if(in_array((string)$campaign['status'],['completed','cancelled','archived'],true))throw new RuntimeException('Closed campaign configuration is immutable.');
         $agent=sponsored_research_campaign_agent($pdo,$viewer,$input['research_agent_id']??($campaign['research_agent_public_id']??null));
         $title=mb_substr(trim((string)($input['title']??$campaign['title'])),0,255);$brief=trim((string)($input['brief']??$campaign['brief']));$objective=trim((string)($input['objective']??$campaign['objective']));
@@ -196,6 +199,7 @@ function sponsored_research_campaign_update(PDO $pdo,array $viewer,string $publi
           $pdo->commit();
         }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
         return sponsored_research_campaign_by_public($pdo,$publicId)??[];
+        },5);
     });
 }
 function sponsored_research_campaign_set_status(PDO $pdo,array $viewer,string $publicId,string $status): array {
