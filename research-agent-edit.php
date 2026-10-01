@@ -126,14 +126,14 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
   <section class="card researchAgentEditTeamPanel" id="team-assignment" aria-labelledby="teamAssignmentHeading">
     <header class="researchAgentEditTeamHeading">
       <div><span class="eyebrow">TEAM ACCESS</span><h2 id="teamAssignmentHeading">Assign to a Team</h2>
-      <p>Only you can attach this Research Agent to a Team you own. Its existing Project, Desktop, Library, research and conversation will be shared with that Team.</p></div>
+      <p>Optional: you can keep this Agent personal or attach it to a Team you own. Attaching shares its existing Project, Desktop, Library, research and conversation with that Team.</p></div>
     </header>
     <?php if($assignedTeam):?>
       <div class="researchAgentEditTeamAssigned"><strong>Currently attached to <?=h((string)$assignedTeam['name'])?></strong>
         <a class="button secondary" href="/team.php?id=<?=rawurlencode((string)$assignedTeam['public_id'])?>">Open Team</a></div>
       <?php if(!empty($assignedTeam['owner_member'])&&(int)$assignedTeam['owner_user_id']===(int)$u['id']):?>
         <form method="post" onsubmit="return confirm('Remove this Agent, its Desktop, Library, research and conversation from the Team?')">
-          <?=csrf_field()?><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
+          <input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
           <input type="hidden" name="op" value="unassign_team">
           <button class="button secondary" type="submit">Remove from Team</button>
         </form>
@@ -146,7 +146,7 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
       <a class="button secondary" href="/teams.php">View my Teams</a>
     <?php else:?>
       <form method="post" class="researchAgentEditTeamForm">
-        <?=csrf_field()?><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
+        <input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent_id" value="<?=h($agentId)?>">
         <input type="hidden" name="op" value="assign_team">
         <label>Choose one of your Teams
           <select name="team_id" required><option value="">Select a Team</option>
