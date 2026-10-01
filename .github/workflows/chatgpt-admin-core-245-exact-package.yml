@@ -1,0 +1,10 @@
+name: Admin Core 245 Exact Release
+on:
+  push:
+    branches:
+      - chatgpt/admin-core-245-exact-package-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
