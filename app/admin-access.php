@@ -106,7 +106,7 @@ function admin_access_route_requirement(string $path,string $method='GET'): ?str
         '/admin/platform-governance.php'=>['admin.platform.view','admin.platform.view'],
         '/admin/usage.php'=>['admin.ai_usage.view','admin.ai_usage.manage'],
         '/admin/ai.php'=>['admin.models.view','admin.models.manage'],'/admin/evaluations.php'=>['admin.models.view','admin.models.manage'],'/admin/model-registry.php'=>['admin.models.view','admin.models.manage'],'/admin/training.php'=>['admin.models.view','admin.models.manage'],'/admin/post-training.php'=>['admin.models.view','admin.models.manage'],'/admin/model-release.php'=>['admin.models.view','admin.models.manage'],'/admin/model-deployment.php'=>['admin.models.view','admin.models.manage'],'/admin/model-observability.php'=>['admin.models.view','admin.models.manage'],'/admin/model-improvements.php'=>['admin.models.view','admin.models.manage'],'/admin/model-campaigns.php'=>['admin.models.view','admin.models.manage'],
-        '/admin/source-monitor.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/data-attribution.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/datasets.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/sponsored-research-datasets.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/discovery-entities.php'=>['admin.research_data.view','admin.research_data.manage'],
+        '/admin/source-monitor.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/data-attribution.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/sponsored-projects.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/datasets.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/sponsored-research-datasets.php'=>['admin.research_data.view','admin.research_data.manage'],'/admin/discovery-entities.php'=>['admin.research_data.view','admin.research_data.manage'],
         '/admin/moderation.php'=>['admin.trust.view','admin.trust.manage'],'/admin/system-health.php'=>['admin.trust.view','admin.trust.manage'],'/admin/intelligence-release-audit.php'=>['admin.trust.view','admin.trust.manage'],
     ];if(isset($map[$path]))return $map[$path][$write?1:0];if(str_starts_with($path,'/admin/'))return 'admin.*';return null;
 }
@@ -122,7 +122,7 @@ function admin_access_nav_capability(string $key): string {
         'customer_success','customer_success_account'=>'admin.customer_success.view','security_compliance'=>'admin.security.view','platform_governance'=>'admin.platform.view',
         'usage'=>'admin.ai_usage.view',
         'ai','evaluations','model_registry','training','post_training','model_release','model_deployment','model_observability','model_improvements','model_campaigns'=>'admin.models.view',
-        'source_monitor','data_attribution','datasets','sponsored_research_datasets','discovery_entities'=>'admin.research_data.view',
+        'source_monitor','data_attribution','sponsored_projects','datasets','sponsored_research_datasets','discovery_entities'=>'admin.research_data.view',
         'moderation','system_health','release_audit'=>'admin.trust.view',
         default=>'admin.operations.view',
     };

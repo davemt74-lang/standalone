@@ -88,6 +88,7 @@ if($sponsor&&!empty($_GET['campaign'])){try{$selected=sponsored_research_campaig
 <label>Change reason<input name="reason" maxlength="1000" placeholder="Why are the participation terms changing?"></label>
 <p class="meta">Terms are versioned against the current campaign revision. Training/evaluation permission is not granted here.</p><button>Publish participation terms</button></form>
 <?php if($currentTerms):?><p class="meta">Current terms v<?=h((string)$currentTerms['version_number'])?> · campaign revision <?=h((string)$currentTerms['campaign_revision'])?> · <?=h(substr((string)$currentTerms['terms_hash'],0,12))?>…</p><?php endif?>
+<h3>Sponsored Project marketplace</h3><p class="meta">Qualified Research Accounts assign their own Research Agents from the Sponsored Projects page. Agent Report Runs and Research Documents are tracked separately in Admin.</p><a class="button secondary" href="/research-sponsored-projects.php">Open Sponsored Projects</a>
 <h3>Invite researcher</h3>
 <form method="post" class="stack"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="op" value="invite"><input type="hidden" name="campaign_id" value="<?=h((string)$selected['public_id'])?>">
 <label>Username or email<input name="researcher" required></label><label>Invite expires<input type="datetime-local" name="expires_at"></label><button>Send invite</button></form>
