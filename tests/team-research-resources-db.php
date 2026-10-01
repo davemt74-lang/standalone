@@ -2,7 +2,7 @@
 declare(strict_types=1);
 $root=dirname(__DIR__);$dsn=(string)getenv('DB_DSN');if($dsn==='')throw new RuntimeException('DB_DSN required.');
 $pdo=new PDO($dsn,(string)getenv('DB_USER'),(string)getenv('DB_PASS'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
-foreach(['installer','storage','jobs','concurrency','functions','subscriptions','account-admin','account-membership','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','team-research-resources'] as $lib)require_once $root.'/app/'.$lib.'.php';
+foreach(['installer','storage','jobs','concurrency','functions','subscriptions','account-admin','account-membership','shell','access','notifications','rate-limit','ai','ai-access','source-integrity','annotation-intelligence','research-workspace','research-knowledge','research-intelligence','research-reports','conversations','agent-actions','agent-chat','cognitive-feed','research-entities','proactive-intelligence','research-automation','research-agent-workspace','research-agents','research-agent-shell-ui','team-research-resources'] as $lib)require_once $root.'/app/'.$lib.'.php';
 function checkTeam(bool $ok,string $label):void{if(!$ok)throw new RuntimeException('FAIL: '.$label);echo "PASS: $label\n";}
 $suffix=substr(bin2hex(random_bytes(8)),0,12);$public=fn($p)=>$p.'-'.$suffix.'-'.substr(bin2hex(random_bytes(3)),0,6);
 $user=function(string $name)use($pdo,$public,$suffix):array{
@@ -46,6 +46,13 @@ checkTeam((int)$pdo->query('SELECT team_id FROM research_projects WHERE public_i
 $q=$pdo->prepare('SELECT user_id,member_role FROM conversation_members WHERE conversation_id=?');$q->execute([$conversationId]);$members=[];foreach($q->fetchAll() as $m)$members[(int)$m['user_id']]=$m['member_role'];
 checkTeam(!isset($members[(int)$outsider['id']])&&$members[(int)$admin['id']]==='admin'&&$members[(int)$researcher['id']]==='member'&&$members[(int)$viewer['id']]==='member','Assignment revokes outsider invites and syncs team conversation members.');
 checkTeam(research_agent_access($pdo,$researcher,$agentPublic)!==null,'Researcher can open the Team Agent.');
+$adminEditDenied=false;try{research_agent_update_profile($pdo,$admin,$agentPublic,['name'=>'Unauthorized Agent Rename']);}catch(RuntimeException $e){$adminEditDenied=true;}
+checkTeam($adminEditDenied,'Team admins cannot modify Agent profile or settings owned by the Team owner.');
+$publicAfterShareDenied=false;try{research_agent_update_profile($pdo,$owner,$agentPublic,['visibility'=>'public']);}catch(RuntimeException $e){$publicAfterShareDenied=true;}
+checkTeam($publicAfterShareDenied,'Team-shared Agent cannot be made public after assignment.');
+$adminContext=research_agent_shell_resolve($pdo,$admin,$agentPublic,[research_agent_access($pdo,$admin,$agentPublic)]);
+$ownerContext=research_agent_shell_resolve($pdo,$owner,$agentPublic,[research_agent_access($pdo,$owner,$agentPublic)]);
+checkTeam(empty($adminContext['agent']['can_edit'])&&!empty($ownerContext['agent']['can_edit']),'Agent shell exposes owner-only editing capability.');
 checkTeam(research_agent_workspace_project($pdo,$viewer,$agentPublic)!==null,'Viewer can access the Team Desktop and Library.');
 $viewerWriteDenied=false;
 try{research_agent_workspace_require_write(research_agent_workspace_project($pdo,$viewer,$agentPublic));}catch(RuntimeException $e){$viewerWriteDenied=true;}
