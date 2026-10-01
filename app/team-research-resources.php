@@ -228,5 +228,15 @@ function team_research_collaboration_recent(PDO $pdo,array $viewer,int $teamId,i
       LEFT JOIN users editor ON editor.id=rwd.last_edited_by_user_id
       WHERE rwo.status='active' AND rwo.object_type IN ('document','bookmark','upload','recording')
       ORDER BY rwo.updated_at DESC,rwo.id DESC LIMIT ".$limit);
-    $q->execute([$teamId,$teamId]);return $q->fetchAll()?:[];
+    $q->execute([$teamId,$teamId]);$items=$q->fetchAll()?:[];
+    foreach($items as &$item){
+        $metadata=json_decode((string)($item['metadata_json']??''),true);
+        $item['contribution_scope']='team';
+        $item['tag_label']='Team · '.(string)$item['team_name'];
+        $item['origin_team_contribution']=is_array($metadata)&&($metadata['contribution_scope']??'')==='team'
+            &&(int)($metadata['origin_team_id']??0)===$teamId;
+        unset($item['metadata_json']);
+    }
+    unset($item);
+    return $items;
 }
