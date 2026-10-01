@@ -112,6 +112,19 @@ function sponsored_project_builder_from_post(array $input): array {
       'milestones'=>(string)($input['spec_milestones']??''),
     ];
 }
+/**
+ * A sponsor may refine the project before researcher acceptance. After anyone
+ * has accepted participation terms, material scope/deliverable amendments need
+ * an explicit re-consent workflow (future section), never a silent overwrite.
+ */
+function sponsored_project_builder_assert_mutable(PDO $pdo,int $campaignId,array $current,array $next): void {
+    if($current===$next)return;
+    if(!installer_table_exists($pdo,'sponsored_research_participations'))return;
+    $q=$pdo->prepare("SELECT COUNT(*) FROM sponsored_research_participations WHERE campaign_id=? AND status IN ('active','completed')");
+    $q->execute([$campaignId]);
+    if((int)$q->fetchColumn()>0)
+        throw new RuntimeException('Project specifications are locked after researcher participation. Establish a new agreed scope through an explicit re-consent process.');
+}
 function sponsored_project_builder_lines_export(array $records,string $kind): string {
     $rows=[];
     foreach($records as $r){
