@@ -18,6 +18,9 @@ $teamId=(int)$pdo->lastInsertId();
 foreach([[$owner,'owner'],[$admin,'admin'],[$researcher,'researcher'],[$viewer,'viewer']] as [$member,$role])
     $pdo->prepare('INSERT INTO team_members(team_id,user_id,role) VALUES(?,?,?)')->execute([$teamId,(int)$member['id'],$role]);
 $team=['id'=>$teamId,'public_id'=>$teamPublic,'owner_user_id'=>(int)$owner['id'],'access_role'=>'owner'];
+checkTeam(research_agent_team($pdo,$owner,$teamPublic)!==null,'Only the current Team owner may create an Agent directly in the Team.');
+checkTeam(research_agent_team($pdo,$admin,$teamPublic)===null,'Team admins cannot bypass owner-only assignment through direct Agent creation.');
+checkTeam(research_agent_team($pdo,$researcher,$teamPublic)===null,'Team researchers cannot bypass owner-only assignment through direct Agent creation.');
 $projectPublic=$public('project');$agentPublic=$public('agent');$convPublic=$public('conv');
 $pdo->prepare("INSERT INTO research_projects(public_id,owner_user_id,title,description,status) VALUES(?,?,?,?,'active')")
     ->execute([$projectPublic,(int)$owner['id'],'Team review workspace','Owner controlled workspace']);
@@ -32,7 +35,7 @@ $pdo->prepare("INSERT INTO research_agents(public_id,owner_user_id,project_id,co
 $assignable=team_research_assignable($pdo,(int)$owner['id']);
 checkTeam(in_array($agentPublic,array_column($assignable,'public_id'),true),'Only unassigned personally owned Agents are offered.');
 $denied=false;
-try{team_research_assign($pdo,$team+['access_role'=>'admin'],$admin,$agentPublic);}catch(RuntimeException $e){$denied=true;}
+try{team_research_assign($pdo,array_merge($team,['access_role'=>'admin']),$admin,$agentPublic);}catch(RuntimeException $e){$denied=true;}
 checkTeam($denied,'Team admin cannot assign the Team owner’s Research Agent.');
 $forged=['id'=>$teamId,'owner_user_id'=>(int)$outsider['id'],'access_role'=>'owner'];$denied=false;
 try{team_research_assign($pdo,$forged,$outsider,$agentPublic);}catch(RuntimeException $e){$denied=true;}
