@@ -61,7 +61,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 .teamAttachAgentConfirmation{grid-column:1/-1;display:flex;align-items:flex-start;gap:9px;font-size:.91rem;line-height:1.5}
 .teamAttachAgentConfirmation input{flex:none;margin-top:5px}
 .teamMemberAdd{margin:18px 0 0;padding:14px 18px}
-.teamMemberAdd summary{cursor:pointer;font-weight:650}
+.teamMemberAdd h3{margin:0 0 4px;font-size:1rem}
 .teamMemberAddForm{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding-top:12px}
 .teamMemberAddForm label{flex:1;min-width:200px}
 @media(max-width:700px){.teamAttachAgentForm{grid-template-columns:1fr}.teamWorkspaceFullWidth{padding:16px 14px 56px}}
@@ -72,17 +72,17 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 <div class="card"><div class="sectionHeadWeb"><div><span class="eyebrow">MEMBERS</span><h2><?=count($members)?> people</h2></div></div>
 <?php foreach($members as $m):?><div class="sessionRow"><a class="profileMini" href="<?=h(profile_path((string)$m['username']))?>"><?=app_shell_avatar($m,'teamMiniAvatar')?><span><strong><?=h($m['display_name'])?></strong><small>@<?=h($m['username'])?> · <?=h(ucfirst($m['role']))?></small></span></a>
 <?php if($isOwner&&(int)$m['id']!==(int)$team['owner_user_id']):?><div class="inlineActions"><form method="post" class="inlineForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="role"><input type="hidden" name="member_id" value="<?=h((string)$m['id'])?>"><select name="role"><option value="admin" <?=$m['role']==='admin'?'selected':''?>>Admin</option><option value="researcher" <?=$m['role']==='researcher'?'selected':''?>>Researcher</option><option value="viewer" <?=$m['role']==='viewer'?'selected':''?>>Viewer</option></select><button class="button secondary">Save</button></form><form method="post" onsubmit="return confirm('Remove this member from the team?')"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h($team['public_id'])?>"><input type="hidden" name="op" value="remove"><input type="hidden" name="member_id" value="<?=h((string)$m['id'])?>"><button class="button secondary">Remove</button></form></div><?php endif?></div><?php endforeach?>
-<?php if($canManage):?><details class="card teamMemberAdd"><summary>Add a member</summary><form method="post" class="teamMemberAddForm"><?=csrf_field()?><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="Existing Annotated username"></label><button class="button">Add member</button></form></details><?php endif?>
+<?php if($canManage):?><div class="teamMemberAdd"><h3>Add a member</h3><p class="meta">Invite an existing Annotated user by username.</p><form method="post" class="teamMemberAddForm"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="invite"><label>Username<input name="username" required placeholder="Existing Annotated username" autocomplete="off"></label><button class="button" type="submit">Add member</button></form></div><?php endif?>
 </div>
 
 <section class="card teamAttachAgent" id="team-agent-attachment" aria-labelledby="attachResearchAgentHeading">
   <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM RESOURCES</span><h2 id="attachResearchAgentHeading">Attach Research Agent</h2>
-  <p>Assign a Research Agent and its existing research, Desktop and Library to this Team. Only the Team owner may assign Agents they own.</p></div>
+  <p>Optional: attach one of your personally owned Research Agents and share its existing research, Desktop and Library with the Team. You can also leave the Team without an Agent.</p></div>
   <a class="button secondary" href="/research.php">My Research Agents</a></div>
   <?php if($isOwner):?>
     <?php if($assignable):?>
     <form method="post" class="teamAttachAgentForm">
-      <?=csrf_field()?>
+      <input type="hidden" name="csrf" value="<?=h(csrf_token())?>">
       <input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>">
       <input type="hidden" name="op" value="assign_agent">
       <label>Choose one of your available Research Agents
@@ -99,7 +99,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
       <button class="button" type="submit">Attach Research Agent</button>
     </form>
     <?php else:?>
-    <p class="meta">No available private Research Agents that you own. An Agent must belong to your personal Project and cannot already be assigned to another Team or active sponsored project.</p>
+    <p class="meta">There are no eligible personal Research Agents to attach right now. Attaching an Agent is optional. Only private, personally owned Agents with their own Project and no conflicting assignment appear in the dropdown.</p>
     <a class="button secondary" href="/research.php">Manage my Research Agents</a>
     <?php endif?>
   <?php else:?>
@@ -115,7 +115,7 @@ $q->execute([$team['id']]);$annotations=[];foreach($q->fetchAll(PDO::FETCH_COLUM
 <a class="button secondary" href="<?=h(research_agent_shell_href($resource,'library'))?>">Library</a>
 <a class="button secondary" href="<?=h(research_agent_shell_href($resource,'reports'))?>">Reports</a>
 </div>
-<?php if($isOwner&&(int)$resource['owner_user_id']===(int)$u['id']):?><form method="post" onsubmit="return confirm('Remove Team access to this Agent, Desktop, Library and its conversation?')"><?=csrf_field()?><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="unassign_agent"><input type="hidden" name="agent_id" value="<?=h((string)$resource['public_id'])?>"><button class="button secondary">Remove from Team</button></form><?php endif?></article><?php endforeach?>
+<?php if($isOwner&&(int)$resource['owner_user_id']===(int)$u['id']):?><form method="post" onsubmit="return confirm('Remove Team access to this Agent, Desktop, Library and its conversation?')"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="team" value="<?=h((string)$team['public_id'])?>"><input type="hidden" name="op" value="unassign_agent"><input type="hidden" name="agent_id" value="<?=h((string)$resource['public_id'])?>"><button class="button secondary">Remove from Team</button></form><?php endif?></article><?php endforeach?>
 <?php if(!$resources):?><div class="card empty">No shared Research Agents yet. The Team owner can assign Agents they own.</div><?php endif?></div>
 <div class="sectionHeadWeb"><div><span class="eyebrow">TEAM RESEARCH</span><h2>Projects</h2></div><a href="/research.php">All Research</a></div>
 <div class="sourceGrid"><?php foreach($projects as $p):?><a class="card sourceCard" href="/research-project.php?id=<?=h($p['public_id'])?>"><span class="meta"><?=h(ucfirst((string)$p['status']))?> · updated <?=h((string)$p['updated_at'])?></span><h3><?=h($p['title'])?></h3><?php if($p['description']):?><p><?=h(mb_substr((string)$p['description'],0,220))?></p><?php endif?></a><?php endforeach?><?php if(!$projects):?><div class="card empty">No team Research projects yet.</div><?php endif?></div>
