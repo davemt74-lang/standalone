@@ -13,6 +13,11 @@ function sponsored_project_event(PDO $pdo,int $campaignId,?int $assignmentId,?in
     $pdo->prepare('INSERT INTO sponsored_research_agent_events(public_id,campaign_id,assignment_id,project_submission_id,actor_user_id,event_type,payload_json) VALUES(?,?,?,?,?,?,?)')
       ->execute([ulid_like(),$campaignId,$assignmentId,$submissionId,$actorId,mb_substr($type,0,80),$payload?data_attribution_encode($payload):null]);
 }
+function sponsored_project_notify_admins(PDO $pdo,?int $actorUserId,string $type,string $submissionPublicId,string $body,array $context=[]): void {
+    if(!function_exists('notification_create'))return;
+    try{$ids=$pdo->query("SELECT id FROM users WHERE role='admin' AND status='active'")->fetchAll(PDO::FETCH_COLUMN)?:[];}catch(Throwable $e){return;}
+    foreach($ids as $id)notification_create($pdo,(int)$id,$actorUserId,$type,'sponsored_project_submission',$submissionPublicId,$body,['category'=>'research','dedupe_key'=>$type.':'.$submissionPublicId,'context'=>$context]);
+}
 function sponsored_project_assignment(PDO $pdo,int $campaignId,int $userId): ?array {
     $q=$pdo->prepare("SELECT a.*,ra.public_id research_agent_public_id,ra.name research_agent_name,ra.profile_image_url,ra.project_id,rp.public_id project_public_id,rp.title project_title
       FROM sponsored_research_agent_assignments a JOIN research_agents ra ON ra.id=a.research_agent_id JOIN research_projects rp ON rp.id=ra.project_id
@@ -75,6 +80,7 @@ function sponsored_project_submit(PDO $pdo,array $viewer,string $campaignPublicI
       $pdo->commit();
     }catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();throw $e;}
     if(function_exists('notification_create'))notification_create($pdo,(int)$viewer['id'],(int)$viewer['id'],$supersedesId?'research_sponsored_resubmitted':'research_sponsored_submitted','sponsored_project_submission',$public,$supersedesId?'Sponsored Project revision submitted.':'Sponsored Project submission received.',['allow_self'=>true,'category'=>'research','dedupe_key'=>'sponsored-submit:'.$public]);
+    sponsored_project_notify_admins($pdo,(int)$viewer['id'],$supersedesId?'research_sponsored_resubmitted':'research_sponsored_submitted',$public,$supersedesId?'A Sponsored Project revision was submitted.':'A Sponsored Project submission was received.',['campaign_public_id'=>$campaign['public_id'],'research_agent_public_id'=>$a['research_agent_public_id']]);
     return sponsored_project_submission_get($pdo,$public)??[];
 }
 function sponsored_project_submission_get(PDO $pdo,string $publicId): ?array {$q=$pdo->prepare("SELECT s.*,c.public_id campaign_public_id,c.title campaign_title,u.display_name researcher_name,u.username researcher_username,ra.public_id agent_public_id,ra.name agent_name,prev.public_id supersedes_public_id,rv.display_name reviewer_name FROM sponsored_research_project_submissions s JOIN sponsored_research_campaigns c ON c.id=s.campaign_id JOIN users u ON u.id=s.researcher_user_id JOIN research_agents ra ON ra.id=s.research_agent_id LEFT JOIN sponsored_research_project_submissions prev ON prev.id=s.supersedes_submission_id LEFT JOIN users rv ON rv.id=s.reviewed_by_user_id WHERE s.public_id=? LIMIT 1");$q->execute([$publicId]);$s=$q->fetch();if(!$s)return null;$q=$pdo->prepare('SELECT * FROM sponsored_research_project_submission_assets WHERE project_submission_id=? ORDER BY position,id');$q->execute([(int)$s['id']]);$s['assets']=$q->fetchAll()?:[];return $s;}
@@ -87,7 +93,7 @@ function sponsored_project_admin_status(PDO $pdo,array $admin,string $submission
     if(($admin['role']??'')!=='admin')throw new RuntimeException('Administrator access required.');
     if(!in_array($status,['under_review','accepted','revision_requested','rejected'],true))throw new InvalidArgumentException('Invalid submission status.');
     $s=sponsored_project_submission_get($pdo,$submissionPublicId);if(!$s)throw new RuntimeException('Submission not found.');
-    $from=(string)$s['status'];$allowed=['submitted'=>['under_review','accepted','revision_requested','rejected'],'under_review'=>['accepted','revision_requested','rejected']];
+    $from=(string)$s['status'];$allowed=['submitted'=>['under_review','accepted','revision_requested','rejected'],'under_review'=>['under_review','accepted','revision_requested','rejected']];
     if(!in_array($status,$allowed[$from]??[],true))throw new RuntimeException('This submission decision is already final or superseded.');
     $note=mb_substr(trim($note),0,12000);if($status==='revision_requested'&&$note==='')throw new InvalidArgumentException('Revision instructions are required.');
     $decision=in_array($status,['accepted','revision_requested','rejected'],true);
