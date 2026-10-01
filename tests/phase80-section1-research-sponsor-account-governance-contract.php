@@ -9,6 +9,7 @@ $need('app/research-accounts.php',"admin_access_assert_capability(\$pdo,\$admin,
 $need('app/bootstrap.php',"/research-accounts.php'",'Research Account governance runtime must load globally.');
 $need('admin/research-accounts.php','Research & Sponsor Accounts','Admin approval queue is missing.');
 $need('research-account.php','Submit Research Account application','User Research Account application surface is missing.');
+$need('settings.php','Manage Research &amp; Sponsor Account','Settings must expose the sponsored-research account governance entry point.');
 $need('app/admin-access.php',"/admin/research-accounts.php",'Research Account Admin route must reuse canonical account-management capabilities.');
 $need('app/admin-ui.php',"'research_accounts'=>['label'=>'Research Accounts'","Admin navigation must expose Research Accounts.");
 if($fail){foreach($fail as $f)fwrite(STDERR,"FAIL: $f\n");exit(1);}echo "Phase 80 Section 1 Research & Sponsor Account Governance static contract passed.\n";
