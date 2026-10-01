@@ -36,6 +36,11 @@ foreach([
   'Sponsored Research Agents cannot be shared with a Team'=>'Sponsored Agents require explicit collaboration authority.'
 ] as $fragment=>$label)if(!str_contains($teams,$fragment))$fail[]=$label;
 if(!str_contains($agents,"t.owner_user_id=? AND tm.role='owner'"))$fail[]='Direct Team Agent creation must be owner-only.';
+if(!str_contains($agents,"Team Research Agents must remain Private."))$fail[]='Direct Team Agent creation must enforce Private visibility.';
+if(!str_contains($agents,"Unassign this Research Agent from its Team before making it public"))$fail[]='Existing Team Agents may not be switched to public visibility.';
+if(str_contains($agents,"||in_array((string)(\$agent['team_role']"))$fail[]='Team admins must not inherit Agent editing rights.';
+$ui=$source('app/research-agent-shell-ui.php');
+if(!str_contains($ui,"!empty(\$agent['can_edit'])"))$fail[]='Agent Edit control must follow owner authority.';
 if(!str_contains($public,'sponsored_project_public_list'))$fail[]='Public marketplace must reuse canonical discovery.';
 if($fail){foreach($fail as $item)fwrite(STDERR,"FAIL: $item\n");exit(1);}
 echo "Phase 80/Team integrated integrity audit contract passed.\n";
