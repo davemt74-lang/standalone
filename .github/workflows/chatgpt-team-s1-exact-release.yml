@@ -1,0 +1,10 @@
+name: Exact Team S1 Deployment
+on:
+  push:
+    branches:
+      - chatgpt/team-s1-exact-release-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
