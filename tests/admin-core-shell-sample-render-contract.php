@@ -54,6 +54,9 @@ assertAdminUi(str_contains($css,'/* Canonical Admin geometry:')&&
     str_contains($css,'.appShellAdminLegacy .adminSidebar~main.panel>*')&&
     str_contains($css,'.appShellAdminLegacy .appShellHeaderAdmin .appHeaderSearch'),
     'Every Admin page inherits centered content and header search geometry from core CSS.');
+assertAdminUi(!str_contains($css,'.adminDashboardPage{width:auto!important}')&&
+    !str_contains($css,'max-width:none!important;}'),
+    'Legacy dashboard width overrides must not defeat the canonical centered canvas.');
 assertAdminUi(hash_equals(hash('sha256',$css),hash('sha256',$ext)),
     'Website and extension stylesheets are identical.');
 echo "Admin core shell, search and sample-data rendering regression passed.\n";
