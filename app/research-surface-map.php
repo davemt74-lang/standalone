@@ -68,6 +68,7 @@ function research_route_surface_map(): array {
     return [
         'cross-research.php'=>['classification'=>'MERGE_UI','target'=>'agent.knowledge.insights','reason'=>'Cross-project intelligence becomes an Insights view/filter, not a standalone destination.'],
         'evidence.php'=>['classification'=>'HIDE','target'=>'agent.knowledge.insights','reason'=>'Evidence detail remains an inspector/deep link.'],
+        'research-account.php'=>['classification'=>'HIDE','target'=>'research.home','reason'=>'Research/Sponsor Account approval is an account-governance control surfaced contextually from paid research entry points, not a competing primary Research destination.'],
         'research-action-plans.php'=>['classification'=>'MERGE_UI','target'=>'agent.research.follow_through','reason'=>'Keep Phase 72 logic; present Action Plans as Decision follow-through.'],
         'research-agent-knowledge.php'=>['classification'=>'MERGE_UI','target'=>'agent.knowledge','reason'=>'Primary foundation for the unified Agent Knowledge tab.'],
         'research-agent-public.php'=>['classification'=>'HIDE','target'=>'agent.chat','reason'=>'Public/social Research Agent identity remains a deep-link profile surface; private workspace controls stay in the canonical Agent shell.'],
@@ -126,6 +127,7 @@ function research_engine_surface_map(): array {
     $domains=[
         'app/cognitive-feed-ui.php'=>'attention','app/cognitive-feed.php'=>'attention','app/cross-research.php'=>'knowledge.insights',
         'app/living-research.php'=>'knowledge.changes','app/proactive-intelligence.php'=>'knowledge.changes',
+        'app/research-accounts.php'=>'governance',
         'app/research-action-plan-cognition.php'=>'research.follow_through','app/research-action-plan-outcomes.php'=>'research.follow_through',
         'app/research-action-plan-variance.php'=>'research.follow_through','app/research-action-plans.php'=>'research.follow_through',
         'app/research-agent-shell-ui.php'=>'agent','app/research-agent-stories.php'=>'attention','app/research-home-ui.php'=>'research.home','app/research-agent-knowledge-ui.php'=>'knowledge','app/research-agent-memory.php'=>'knowledge','app/research-agent-research-ui.php'=>'research','app/research-agent-reports-ui.php'=>'reports','app/research-portfolios-ui.php'=>'portfolios','app/research-legacy-compat.php'=>'compatibility','app/research-agent-workspace-ui.php'=>'workspace','app/research-agent-workspace.php'=>'workspace','app/research-agents.php'=>'agent',
