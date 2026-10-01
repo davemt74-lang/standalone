@@ -1,0 +1,10 @@
+name: Admin Core PR245 Deploy
+on:
+  push:
+    branches:
+      - chatgpt/admin-shell-pr245-release-20261001
+permissions:
+  contents: read
+jobs:
+  package:
+    uses: ./.github/workflows/package-two-zips.yml
