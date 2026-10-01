@@ -17,14 +17,14 @@ $check(str_contains($chat,"'sponsored_projects'=>[]")&&str_contains($chat,"if(\$
     'Native Chat context list, selected project resolver and exact assigned Agent auto-context reuse existing Chat.');
 $check(str_contains($js,"['sponsored_projects','Assigned Sponsored Projects']"),
     'Visible Agent Chat picker displays assigned projects, not sponsor-only opportunities.');
-$check(str_contains($adapter,"sponsored_workspace_access(")&&str_contains($adapter,"($access['role']??'')!=='researcher'"),
+$check(str_contains($adapter,"sponsored_workspace_access(")&&str_contains($adapter,"(\$access['role']??'')!=='researcher'"),
     'Only approved accepted assigned researchers pass native project policy.');
 $check(str_contains($adapter,"$"."a['participation_id']")&&str_contains($adapter,"$"."p['id']")&&str_contains($adapter,'research_agent_access('),
     'Exact participation and current personal Agent ACL are independently revalidated.');
-$check(str_contains($adapter,"!empty($agent['team_id'])")&&str_contains($adapter,"!empty($agent['project_team_id'])"),
+$check(str_contains($adapter,"!empty(\$agent['team_id'])")&&str_contains($adapter,"!empty(\$agent['project_team_id'])"),
     'Sponsored knowledge cannot enter a Team-shared Agent through this adapter.');
 $check(str_contains($adapter,'sponsored_workspace_recent($pdo,$access')&&
-    str_contains($read('app/sponsored-project-workspace.php'),"up.participant_user_id=?"),
+    str_contains($read('app/sponsored-project-workspace.php'),'up.participant_user_id=?'),
     'Project updates use existing SQL-level own-thread filter.');
 $check(str_contains($adapter,"$"."p['terms_text']")&&str_contains($adapter,"$"."p['terms_hash']")&&
     str_contains($adapter,"$"."p['campaign_revision_accepted']"),
