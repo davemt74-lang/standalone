@@ -1,0 +1,39 @@
+/* Section 3 Sponsored Project Workspace, isolated from global shell geometry. */
+.sponsoredWorkspace{padding-bottom:30px}
+.sponsoredWorkspaceHero{grid-template-columns:minmax(0,1fr) 245px}
+.sponsoredWorkspaceHeroActions{display:grid;gap:9px;align-self:center}
+.sponsoredWorkspaceHero .button{display:block;text-align:center;padding:11px 12px;border-radius:9px;text-decoration:none;background:#fff;color:#203647;font-weight:690}
+.sponsoredWorkspaceHero .button+.button{background:transparent;color:#fff;border:1px solid #a9bbc9}
+.sponsoredWorkspaceBanner,.sponsoredWorkspaceError,.sponsoredWorkspaceSuccess{padding:15px 18px;border-radius:11px;margin:20px 0 0;border:1px solid #cbdbe3;background:#e7f0f4;color:#34576a;line-height:1.6}
+.sponsoredWorkspaceError{border-color:#dfb6ae;background:#fff2ef;color:#87483e}
+.sponsoredWorkspaceSuccess{border-color:#b9d8bb;background:#eff9ef;color:#3a643f}
+.sponsoredWorkspaceGrid{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:23px;align-items:start;margin-top:25px}
+.sponsoredWorkspacePrimary{display:grid;gap:23px;min-width:0}
+.sponsoredWorkspaceIntro{color:#59717d;margin-bottom:23px!important}
+.sponsoredWorkspaceTimeline{display:grid;gap:12px}
+.sponsoredWorkspaceUpdate{background:#f7fafb;border:1px solid #e3eaed;border-radius:13px;padding:18px 20px}
+.sponsoredWorkspaceUpdateTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.sponsoredWorkspaceAuthor{font-size:14px;font-weight:750;color:#2b4251}
+.sponsoredWorkspaceActor{font-size:12px;color:#6c8290;margin-left:7px}
+.sponsoredWorkspaceShared,.sponsoredWorkspacePrivacy{display:inline-flex;padding:4px 8px;border-radius:99px;font-size:11px;font-weight:675;margin-left:7px;background:#e6f0f5;color:#3d657d}
+.sponsoredWorkspacePrivacy{background:#f2edf8;color:#69537d}
+.sponsoredWorkspaceUpdate h3{font-size:17px;margin:13px 0 6px;color:#253d4b;overflow-wrap:anywhere}
+.sponsoredWorkspaceUpdate p{margin:7px 0 13px!important;font-size:14px;overflow-wrap:anywhere}
+.sponsoredWorkspaceUpdateFoot{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}
+.sponsoredWorkspaceUpdateFoot>span{display:inline-block;background:#eaf0f3;color:#486574;border-radius:6px;font-size:12px;padding:5px 8px}
+.sponsoredWorkspaceForm{display:grid;gap:16px}
+.sponsoredWorkspaceForm label{display:grid;gap:7px;color:#354d5c;font-size:13px;font-weight:680;min-width:0}
+.sponsoredWorkspaceForm input:not([type=hidden]),.sponsoredWorkspaceForm textarea,.sponsoredWorkspaceForm select{width:100%;box-sizing:border-box;min-width:0;max-width:100%;font-family:inherit;font-size:14px;color:#1f3846;background:#fff;border-radius:9px;border:1px solid #d1dce1;padding:11px 12px}
+.sponsoredWorkspaceForm textarea{resize:vertical;line-height:1.55}
+.sponsoredWorkspaceForm input:focus-visible,.sponsoredWorkspaceForm textarea:focus-visible,.sponsoredWorkspaceForm select:focus-visible{outline:2px solid #568ca8;outline-offset:2px}
+.sponsoredWorkspaceForm .button{justify-self:start;padding:12px 19px;border-radius:9px;background:#244e67;color:white;font-weight:700;border:0;cursor:pointer}
+.sponsoredWorkspaceFields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sponsoredWorkspaceRail{display:grid;gap:17px;position:sticky;top:22px}
+.sponsoredWorkspaceCheckpoint,.sponsoredWorkspaceMember,.sponsoredWorkspaceSubmission{display:grid;gap:7px;padding:11px 0;border-top:1px solid #ecf0f2;min-width:0}
+.sponsoredWorkspaceCheckpoint strong,.sponsoredWorkspaceMember strong,.sponsoredWorkspaceSubmission strong{font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+.sponsoredWorkspaceCheckpoint p{font-size:12px;color:#667d8c;line-height:1.5;margin:0}
+.sponsoredWorkspaceMember .meta,.sponsoredWorkspaceSubmission .meta{font-size:11px;line-height:1.45}
+@media(max-width:970px){.sponsoredWorkspaceGrid{grid-template-columns:minmax(0,1fr)}.sponsoredWorkspaceRail{position:static;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.sponsoredWorkspaceHero{grid-template-columns:minmax(0,1fr)}.sponsoredWorkspaceHeroActions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.sponsoredWorkspaceRail,.sponsoredWorkspaceFields,.sponsoredWorkspaceHeroActions{grid-template-columns:minmax(0,1fr)}.sponsoredWorkspaceUpdate{padding:14px}.sponsoredWorkspacePrivacy,.sponsoredWorkspaceShared{margin:5px 0 0}.sponsoredWorkspaceHero{padding:25px 18px}}
+
+.sponsoredWorkspaceMilestoneState{display:inline-flex;align-items:center;width:max-content;max-width:100%;border:1px solid #ccdde5;background:#eef5f7;padding:4px 9px;border-radius:100px;font-size:11px;font-weight:700;color:#496675;margin-top:8px}
