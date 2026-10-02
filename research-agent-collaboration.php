@@ -32,7 +32,7 @@ $plan=$ready?v2_collaboration_for_lead($pdo,$user,$agentPublic):null;
 $possible=$ready&&$isOwner?v2_collaboration_assignable_agents($pdo,$user,$agentPublic):[];
 $assigned=array_column($plan['members']??[],'agent_public_id');
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent collaboration · Annotated</title><meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/css/app.css"></head>
-<body><?=function_exists('app_shell_header')?app_shell_header($user):''?>
+<body>
 <main class="panel" style="max-width:1040px;margin:32px auto;padding:24px">
 <p><a href="/research-agent-edit.php?agent=<?=rawurlencode($agentPublic)?>">← Back to Agent</a></p>
 <h1>Agent collaboration</h1><p>Lead: <?=h((string)$agent['name'])?>. Assign existing Agents to distinct roles without merging their projects or sharing private research automatically.</p>
