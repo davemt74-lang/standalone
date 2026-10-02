@@ -565,6 +565,11 @@ jobs:
           test -f package-website/docs/v1-admin-recovery-certification.md
           test -f package-website/tests/phase81-v1-admin-recovery-contract.php
           test -f package-website/tests/v1-admin-recovery-db.php
+          test -f package-website/app/v1-worker-certification.php
+          test -f package-website/bin/v1-worker-certify.php
+          test -f package-website/docs/v1-live-worker-certification.md
+          test -f package-website/tests/phase81-v1-worker-certification-contract.php
+          test -f package-website/tests/v1-worker-certification-db.php
 
       - name: Smoke test release packages
         shell: bash
