@@ -42,7 +42,7 @@ try{
         'Certified storage archive restores byte-for-byte into an isolated staging directory.');
     $sqlRead=gzopen($sqlFile,'rb');$replay='';while(!gzeof($sqlRead)){$block=gzread($sqlRead,4096);if($block===false)throw new RuntimeException('Invalid SQL stream.');$replay.=$block;}gzclose($sqlRead);
     $check(hash_equals($sql,$replay),'Database SQL backup restores its exact compressed statement stream.');
-    $pdo->exec($replay);
+    foreach(explode(';',$replay) as $statement)if(trim($statement)!=='')$pdo->exec($statement);
     $check((string)$pdo->query('SELECT value FROM '.$table.' WHERE id=1')->fetchColumn()==='isolated restore replay',
       'Restored SQL executes on the isolated section database without touching production.');
     $pdo->exec('DROP TABLE '.$table);
