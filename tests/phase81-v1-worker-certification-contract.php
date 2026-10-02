@@ -33,6 +33,16 @@ $missing=$queues;$missing['research_tasks']=['error'=>'unavailable'];
 $x=v1_worker_certification_analyze($specs,$workers,$missing,$root);
 $check(!$x['code_and_heartbeat_ready']&&in_array('queue_unavailable',$x['blocking']['research_tasks']??[],true),
  'Failed queue query never becomes an empty healthy queue.');
+$postSpec=['post_training'=>['command'=>'php bin/post-training-worker.php','stale_after'=>900]];
+$postHealth=['post_training'=>['status'=>'never','age_seconds'=>null,'last_success_at'=>null]];
+$postQueues=['post_training'=>['queued'=>1,'processing'=>0,'review'=>0,'failed'=>0,'blocked'=>0]];
+$x=v1_worker_certification_analyze($postSpec,$postHealth,$postQueues,$root);
+$check($x['code_and_heartbeat_ready']&&$x['workers']['post_training']['state']==='inactive_on_demand',
+ 'Human-held draft post-training plans do not require a worker heartbeat.');
+$postQueues['post_training']['review']=1;
+$x=v1_worker_certification_analyze($postSpec,$postHealth,$postQueues,$root);
+$check(!$x['code_and_heartbeat_ready']&&$x['workers']['post_training']['required_now'],
+ 'Post-training reviewing plans require a verified worker invocation.');
 $backlog=$queues;$backlog['training']['queued']=1;
 $x=v1_worker_certification_analyze($specs,$workers,$backlog,$root);
 $check(!$x['code_and_heartbeat_ready']&&$x['workers']['training']['required_now'],
