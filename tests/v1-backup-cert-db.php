@@ -30,6 +30,14 @@ try{
     $run=release_process_run([$tar,'-C',$tmp,'-czf',$archive,'private']);
     $check($run['code']===0,'Private storage fixture is a valid tar.gz archive.');
     $manifest=release_backup_manifest_write($dir,$cfg,$root,['build_sha'=>'v1-backup-cert-test']);
+    file_put_contents($dir.'/.INCOMPLETE','writer in progress');
+    $check(!release_backup_manifest_verify($dir)['ok'],'Independent verification rejects unfinished backup.');
+    $check(!v1_backup_archive_certify($dir,'private',$tar,$gzip)['ready'],
+       'Public archive certification rejects backups still marked incomplete.');
+    $check(release_backup_manifest_verify($dir,true)['ok'],'Only writer-owned self-check can inspect in-flight manifest.');
+    $check(v1_backup_archive_certify($dir,'private',$tar,$gzip,true)['ready'],
+       'Writer validates complete archive content before clearing incomplete marker.');
+    unlink($dir.'/.INCOMPLETE');
     $cert=v1_backup_archive_certify($dir,'private',$tar,$gzip);
     $check($cert['ready']&&hash_equals($manifest['backup_id'],$cert['backup_id']),'Original paired archives and manifest pass deep verification.');
     $plan=release_restore_plan($dir,$cfg);
