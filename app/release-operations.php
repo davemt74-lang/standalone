@@ -120,8 +120,8 @@ function release_backup_manifest_write(string $backupDir,array $config,string $r
     $manifestPath=$backupDir.'/manifest.json';file_put_contents($manifestPath,json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR).PHP_EOL,LOCK_EX);@chmod($manifestPath,0600);
     return $manifest;
 }
-function release_backup_manifest_verify(string $backupDir): array {
-    $backupDir=rtrim($backupDir,'/');if(is_file($backupDir.'/.INCOMPLETE'))return ['ok'=>false,'errors'=>['Backup is marked incomplete.'],'manifest'=>null];
+function release_backup_manifest_verify(string $backupDir,bool $writerInProgress=false): array {
+    $backupDir=rtrim($backupDir,'/');if(!$writerInProgress&&is_file($backupDir.'/.INCOMPLETE'))return ['ok'=>false,'errors'=>['Backup is marked incomplete.'],'manifest'=>null];
     $path=$backupDir.'/manifest.json';if(!is_file($path))return ['ok'=>false,'errors'=>['manifest.json is missing.'],'manifest'=>null];
     try{$manifest=json_decode((string)file_get_contents($path),true,512,JSON_THROW_ON_ERROR);}catch(Throwable $e){return ['ok'=>false,'errors'=>['manifest.json is invalid JSON.'],'manifest'=>null];}
     $errors=[];if(($manifest['schema']??'')!=='annotated.release-backup.v1')$errors[]='Backup manifest schema is unsupported.';
