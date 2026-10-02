@@ -1,0 +1,104 @@
+name: V2 section 1 packaging only
+on:
+  push:
+    branches:
+      - release/v2-section1-packaging-20261002
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verified merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: e9d74d0e3203caca82748aecb1ef841c1d54ea8c
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - name: Build, smoke-test and hash exact merged V2 Section 1 source
+        shell: bash
+        env:
+          SOURCE_SHA: e9d74d0e3203caca82748aecb1ef841c1d54ea8c
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          mkdir -p package-website package-extension
+          cp -a extension/. package-extension/
+          (cd package-extension && zip -qr ../Annotated-Chrome-Extension.zip .)
+          unzip -tqq Annotated-Chrome-Extension.zip
+          php -r '$m=json_decode(file_get_contents("package-extension/manifest.json"),true,512,JSON_THROW_ON_ERROR);$v=(string)($m["version"]??"");if(($m["manifest_version"]??0)!==3||!preg_match("/^[0-9]+(?:\\.[0-9]+){1,3}$/",$v))exit(1);'
+          rsync -a ./ package-website/ \
+            --exclude '.git/' --exclude '.github/' \
+            --exclude 'extension/' --exclude 'package-website/' \
+            --exclude 'package-extension/' \
+            --exclude 'Annotated-Website.zip' \
+            --exclude 'Annotated-Chrome-Extension.zip'
+          mkdir -p package-website/downloads package-website/extension
+          cp Annotated-Chrome-Extension.zip package-website/downloads/Annotated-Chrome-Extension.zip
+          cp extension/manifest.json package-website/extension/manifest.json
+          env GITHUB_SHA="$SOURCE_SHA" php package-website/bin/release-manifest.php > package-website/RELEASE-MANIFEST.json
+          (cd package-website && zip -qr ../Annotated-Website.zip .)
+          unzip -tqq Annotated-Website.zip
+          test -f package-website/app/sponsored-agent-proactive.php
+          test -f package-website/bin/research-automations.php
+          test -f package-website/docs/sponsored-agent-proactive-4d.md
+          test -f package-website/tests/sponsored-agent-proactive-4d-contract.php
+          test -f package-website/tests/sponsored-agent-proactive-4d-db.php
+          test -f package-website/tests/sponsored-agent-e2e-4e-db.php
+          test -f package-website/tests/sponsored-agent-e2e-4e-contract.php
+          test -f package-website/docs/sponsored-agent-e2e-4e.md
+          test -f package-website/.htaccess
+          test -f package-website/docs/v1-webserver-and-recovery.md
+          test -f package-website/docs/v1-final-product-release-audit.md
+          test -f package-website/bin/create-setup-token.php
+          test -f package-website/docs/v1-owner-install-upgrade.md
+          test -f package-website/app/admin-recovery.php
+          test -f package-website/docs/v1-admin-recovery-certification.md
+          test -f package-website/tests/phase81-v1-admin-recovery-contract.php
+          test -f package-website/tests/v1-admin-recovery-db.php
+          test -f package-website/app/v1-worker-certification.php
+          test -f package-website/bin/v1-worker-certify.php
+          test -f package-website/docs/v1-live-worker-certification.md
+          test -f package-website/tests/phase81-v1-worker-certification-contract.php
+          test -f package-website/tests/v1-worker-certification-db.php
+          test -f package-website/app/v2-collaboration.php
+          test -f package-website/research-agent-collaboration.php
+          test -f package-website/database/migrations/20261002_130_v2_collaboration_roster.sql
+          test -f package-website/tests/v2-collaboration-section1-contract.php
+          test -f package-website/tests/v2-collaboration-section1-db.php
+          test -f package-website/docs/v2-section1-collaborative-agent-roster.md
+          test -f package-website/tests/phase81-v1-owner-install-contract.php
+          test -f package-website/tests/v1-owner-install-db.php
+          test ! -e package-website/annotated-setup-owner.key
+          test -f package-website/tests/v1-webroot-exposure-contract.php
+          test ! -e package-website/reset-admin.php
+          test -f package-website/downloads/Annotated-Chrome-Extension.zip
+          bash tests/ci/package-smoke.sh Annotated-Website.zip Annotated-Chrome-Extension.zip
+          {
+            echo "validated_commit=$SOURCE_SHA"
+            echo "workflow_run_id=$GITHUB_RUN_ID"
+            echo "workflow_run_attempt=$GITHUB_RUN_ATTEMPT"
+            php -r '$m=json_decode(file_get_contents("package-website/RELEASE-MANIFEST.json"),true,512,JSON_THROW_ON_ERROR); foreach(["release","version","phase","channel","latest_migration","package_fingerprint"] as $k) echo $k."=".($m[$k]??"").PHP_EOL;'
+          } > BUILD-METADATA.txt
+          sha256sum Annotated-Website.zip Annotated-Chrome-Extension.zip > SHA256SUMS.txt
+          ls -lh Annotated-Website.zip Annotated-Chrome-Extension.zip
+          cat BUILD-METADATA.txt SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: annotated-v2-section1-website
+          path: Annotated-Website.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: annotated-v2-section1-chrome-extension
+          path: Annotated-Chrome-Extension.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: annotated-v2-section1-checksums
+          path: |
+            SHA256SUMS.txt
+            BUILD-METADATA.txt
+          if-no-files-found: error
