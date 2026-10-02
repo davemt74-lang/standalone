@@ -196,6 +196,16 @@ test -f "$tmp/site/tests/v1-backup-cert-db.php"
 php -l "$tmp/site/app/v1-backup-certification.php" >/dev/null
 php -l "$tmp/site/bin/v1-restore-certify.php" >/dev/null
 php "$tmp/site/tests/phase81-v1-backup-cert-contract.php"
+test -f "$tmp/site/app/v2-collaboration.php"
+test -f "$tmp/site/research-agent-collaboration.php"
+test -f "$tmp/site/docs/v2-section1-collaborative-agent-roster.md"
+test -f "$tmp/site/database/migrations/20261002_130_v2_collaboration_roster.sql"
+test -f "$tmp/site/tests/v2-collaboration-section1-contract.php"
+test -f "$tmp/site/tests/v2-collaboration-section1-db.php"
+php -l "$tmp/site/app/v2-collaboration.php" >/dev/null
+php -l "$tmp/site/research-agent-collaboration.php" >/dev/null
+php "$tmp/site/tests/v2-collaboration-section1-contract.php"
+echo "V2 Section 1 Agent roster package checks passed."
 echo "V1 backup archive and restore certification package checks passed."
 echo "V1 live-worker certification package checks passed."
 echo "V1 admin recovery owner proof package checks passed."
