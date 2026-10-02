@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
-require dirname(__DIR__).'/app/bootstrap.php';
+require dirname(__DIR__).'/app/bootstrap.php';require_once dirname(__DIR__).'/app/v1-backup-certification.php';
 $root=dirname(__DIR__);
 $args=[];foreach(array_slice($argv,1) as $arg)if(str_starts_with($arg,'--')&&str_contains($arg,'=')){[$k,$v]=explode('=',substr($arg,2),2);$args[$k]=$v;}elseif($arg==='--dry-run')$args['dry-run']='1';elseif($arg==='--json')$args['json']='1';
 $base=release_backup_destination_assert((string)($args['output']??(dirname($root).'/annotated-backups')),$root);$dry=isset($args['dry-run']);$json=isset($args['json']);$req=release_backup_requirements($config);
@@ -17,6 +17,8 @@ try{
     $sql=$dest.'/database.sql';$cmd=[$req['commands']['dump'],'--defaults-extra-file='.$clientFile,'--single-transaction','--quick','--skip-lock-tables','--routines','--events','--triggers','--hex-blob','--no-tablespaces',$target['database']];$run=release_process_run($cmd,$sql);if($run['code']!==0)throw new RuntimeException('Database backup failed: '.mb_substr(trim($run['stderr']),0,500));release_gzip_file($sql,$dest.'/database.sql.gz');@chmod($dest.'/database.sql.gz',0600);@unlink($sql);
     $storage=rtrim((string)$config['storage']['private_root'],'/');$tar=release_process_run([$req['commands']['tar'],'-C',dirname($storage),'-czf',$dest.'/private-storage.tar.gz',basename($storage)]);if($tar['code']!==0)throw new RuntimeException('Private storage backup failed: '.mb_substr(trim($tar['stderr']),0,500));@chmod($dest.'/private-storage.tar.gz',0600);
     $manifest=release_backup_manifest_write($dest,$config,$root,['build_sha'=>(string)(getenv('ANNOTATED_BUILD_SHA')?:getenv('GITHUB_SHA')?:'')]);$verify=release_backup_manifest_verify($dest);if(!$verify['ok'])throw new RuntimeException('Backup verification failed immediately after creation: '.implode(' ',$verify['errors']));
+    $archiveCheck=v1_backup_archive_certify($dest,basename(rtrim((string)$config['storage']['private_root'],'/')));
+    if(!$archiveCheck['ready'])throw new RuntimeException('Backup archive certification failed: '.implode(' ',$archiveCheck['errors']));
     $restoreFile=$dest.'/RESTORE.txt';file_put_contents($restoreFile,"Annotated backup ".$manifest['backup_id']."\nVerify: php bin/release-backup-verify.php --backup=".escapeshellarg($dest)."\nRestore plan: php bin/release-restore-plan.php --backup=".escapeshellarg($dest)."\n",LOCK_EX);@chmod($restoreFile,0600);
     @unlink($incomplete);
     $result=['ok'=>true,'backup_id'=>$manifest['backup_id'],'directory'=>$dest,'files'=>$manifest['files']];echo $json?json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL:("Backup complete.\nID: ".$manifest['backup_id']."\nDirectory: $dest\n");
