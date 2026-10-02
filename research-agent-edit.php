@@ -116,6 +116,7 @@ $timezone=(string)($automation['timezone_name']??($u['timezone_name']??'UTC'));$
     </div>
     <div class="researchAgentEditHeroActions">
       <a class="button secondary" href="<?=h(research_agent_shell_href($agent,'chat'))?>">Open Agent</a>
+      <?php if((int)$agent['owner_user_id']===(int)$u['id']):?><a class="button secondary" href="/research-agent-collaboration.php?agent=<?=rawurlencode($agentId)?>">Collaborate (V2)</a><?php endif?>
       <?php if((string)$agent['visibility']==='public'):?><a class="button secondary" href="/research-agent-public.php?agent=<?=rawurlencode($agentId)?>">Public profile</a><?php endif?>
     </div>
   </header>
