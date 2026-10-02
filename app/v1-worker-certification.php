@@ -25,7 +25,11 @@ function v1_worker_certification_analyze(array $specs,array $workers,array $queu
         $active=(int)($queue['processing']??0);
         $failed=(int)($queue['failed']??0);
         $isOnDemand=$role==='on_demand';
-        $needed=!$isOnDemand||$queued>0||$active>0;
+        // Post-training drafts require human review, not a runnable worker.
+        // Its actual processor operates only on evaluating/awaiting_review.
+        $actionableQueued=$name==='post_training'?0:$queued;
+        $needed=!$isOnDemand||$actionableQueued>0||$active>0
+            ||($name==='post_training'&&(int)($queue['review']??0)>0);
         $command=(string)($spec['command']??'');
         $matches=[];
         preg_match('/^php\s+([a-z0-9_\/-]+\.php)(?:\s|$)/i',$command,$matches);
