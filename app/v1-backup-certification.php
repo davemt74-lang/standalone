@@ -15,7 +15,7 @@ function v1_backup_archive_entries_validate(array $names,array $verbose,string $
     if(count($names)!==count($verbose))$errors[]='Tar detailed and path listings disagree.';
     $foundRoot=false;
     foreach($names as $i=>$entry){
-        $entry=rtrim((string)$entry,"\\r");
+        $entry=rtrim((string)$entry,chr(13));
         if($entry===''||preg_match('/[\\x00-\\x1f\\x7f]/',$entry)){$errors[]='Unsafe or ambiguous tar entry name.';continue;}
         if(str_starts_with($entry,'/')||str_starts_with($entry,'./')
            ||preg_match('~(^|/)\\.\\.?(/|$)~',$entry)
