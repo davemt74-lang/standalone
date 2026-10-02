@@ -5,6 +5,9 @@ Reuse `bin/release-backup.php`, its paired database/private-storage archives, im
 
 Previously the manifest verifier compared hashes and file sizes, but a self-consistent backup with an invalid compressed stream or unsafe tar path/link could still reach the manual restore planner. Checksums detect corruption after creation; they **do not authenticate the backup author**. The canonical restore-plan helper remains non-destructive for compatibility with Phase 49 fixtures. Both shipped operator commands—`bin/release-restore-plan.php` and `bin/v1-restore-certify.php`—now enforce deep archive checks before displaying recovery steps. Backup creation and the independent backup verifier enforce the same checks.
 
+## Correct incomplete-backup sequencing
+The existing backup writer keeps `.INCOMPLETE` while creating the database/storage pair. Independent verification must reject this marker. To avoid the old self-verification deadlock, only the backup writer may call the manifest/archive validators with the explicit in-progress flag while it still owns the marker. It removes the marker **only after both checks succeed**. The independently callable verify and restore CLIs use the default strict behavior and reject any incomplete backup. This is tested against real compressed archives in both database jobs.
+
 ## V1 certification workflow
 1. Run `php bin/release-backup.php --dry-run --json`, confirm dedicated backup directories are **outside** the application and its public webroot, and stop relevant writers or use the documented transactional database dump semantics.
 2. Create a real backup using `php bin/release-backup.php --output=/secure/offsite-location --json`; copy it to an operator-controlled storage service that preserves exact bytes and restrictive access.
