@@ -38,8 +38,8 @@ function v1_backup_archive_entries_validate(array $names,array $verbose,string $
     if(!$foundRoot)$errors[]='Configured storage root entry is missing.';
     return array_values(array_unique($errors));
 }
-function v1_backup_archive_certify(string $backupDir,string $expectedStorageRoot,?string $tar=null,?string $gzip=null): array {
-    $verified=release_backup_manifest_verify($backupDir);
+function v1_backup_archive_certify(string $backupDir,string $expectedStorageRoot,?string $tar=null,?string $gzip=null,bool $writerInProgress=false): array {
+    $verified=release_backup_manifest_verify($backupDir,$writerInProgress);
     if(!$verified['ok'])return ['ready'=>false,'errors'=>$verified['errors'],'backup_id'=>null];
     $errors=[];$backupDir=rtrim($backupDir,'/');
     $manifest=$verified['manifest'];
