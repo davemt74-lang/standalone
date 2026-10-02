@@ -217,5 +217,6 @@ function admin_ops_agent_context(PDO $pdo,array $viewer): string {
         try{$base.="\n".v1_worker_certification_agent_context(v1_worker_certification_snapshot($pdo,dirname(__DIR__)));}
         catch(Throwable $e){$base.="\n[V1 WORKER CERTIFICATION] Diagnostics unavailable; inspect Admin System Health. No automatic repair.";}
     }
+    $base.="\n[V1 BACKUP/RESTORE — READ ONLY] Independent checksums are required, but alone do not prove gzip and tar safety. Run php bin/v1-restore-certify.php --backup=/trusted/path --json on a trusted backup before using the original human-controlled restore plan. Actual staging recovery has NOT been verified by repository CI. Do not extract archives, execute restore SQL, choose a target or restart workers without a separate administrator-approved procedure.";
     return $base;
 }
