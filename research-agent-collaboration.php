@@ -53,7 +53,7 @@ $assigned=array_column($plan['members']??[],'agent_public_id');
 <button type="submit" name="state" value="removed">Remove</button></form><?php endif?></article><?php endforeach?>
 <?php if($isOwner&&$plan['status']==='active'):?><h2>Assign an Agent</h2><form method="post"><input type="hidden" name="csrf" value="<?=h(csrf_token())?>"><input type="hidden" name="agent" value="<?=h($agentPublic)?>"><input type="hidden" name="op" value="assign">
 <label>Agent <select name="member" required><option value="">Select</option><?php foreach($possible as $candidate):?><option value="<?=h((string)$candidate['public_id'])?>"><?=h((string)$candidate['name'])?></option><?php endforeach?></select></label>
-<label>Work role <select name="role"><?php foreach(v2_collaboration_roles() as $key=>$label):if($key==='lead')continue;?><option value="<?=h($key)?>"><?=h($label)?></option><?php endif;endforeach?></select></label>
+<label>Work role <select name="role"><?php foreach(v2_collaboration_roles() as $key=>$label):?><?php if($key!=='lead'):?><option value="<?=h($key)?>"><?=h($label)?></option><?php endif?><?php endforeach?></select></label>
 <button type="submit">Save Agent assignment</button></form><?php endif?>
 <?php endif?>
 </main></body></html>
