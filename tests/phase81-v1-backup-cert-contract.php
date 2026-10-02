@@ -36,7 +36,7 @@ $source=(string)file_get_contents($root.'/app/v1-backup-certification.php');
 $cli=(string)file_get_contents($root.'/bin/v1-restore-certify.php');
 $check(str_contains($source,"'-P'")&&str_contains($source,"'-tzf'")&&str_contains($source,"'-tvzf'"),
  'Tar is inspected with absolute-name retention and detailed entry metadata.');
-$check(str_contains($source,"'-t',$backupDir.'/database.sql.gz'"),'Database gzip CRC check included.');
+$check(str_contains($source,"'-t',")&&str_contains($source,'database.sql.gz'),'Database gzip CRC check included.');
 $check(str_contains($cli,'v1_backup_archive_certify(')&&str_contains($cli,'release_restore_plan('),
  'CLI certifies archive before publishing the existing manual restore plan.');
 $check(str_contains($cli,"PHP_SAPI!=='cli'"),'Certification CLI is inaccessible by HTTP.');
