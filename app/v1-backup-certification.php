@@ -10,7 +10,8 @@ require_once __DIR__.'/release-operations.php';
 function v1_backup_archive_entries_validate(array $names,array $verbose,string $expectedRoot): array {
     $errors=[];
     if($expectedRoot===''||in_array($expectedRoot,['.','..'],true)
-       ||preg_match('~[/\\\\\\x00-\\x1f]~',$expectedRoot))return ['Unsafe configured private-storage basename.'];
+       ||str_contains($expectedRoot,'/')||str_contains($expectedRoot,chr(92))
+       ||preg_match('/[\\x00-\\x1f\\x7f]/',$expectedRoot))return ['Unsafe configured private-storage basename.'];
     if(!$names)$errors[]='Private storage archive is empty.';
     if(count($names)!==count($verbose))$errors[]='Tar detailed and path listings disagree.';
     $foundRoot=false;
@@ -57,8 +58,8 @@ function v1_backup_archive_certify(string $backupDir,string $expectedStorageRoot
             if($test['code']!==0)$errors[]='Database gzip CRC or stream integrity failed.';
             // -P prevents tar from silently stripping absolute path prefixes.
             $archive=$backupDir.'/private-storage.tar.gz';
-            $listed=release_process_run([$tar,'-P','-tzf',$archive]);
-            $detailed=release_process_run([$tar,'-P','-tvzf',$archive]);
+            $listed=release_process_run([$tar,'-P','--quoting-style=escape','-tzf',$archive]);
+            $detailed=release_process_run([$tar,'-P','--quoting-style=escape','-tvzf',$archive]);
             if($listed['code']!==0||$detailed['code']!==0)$errors[]='Private storage archive failed full tar listing/integrity validation.';
             else{
                 $names=explode("\n",rtrim($listed['stdout'],"\n"));
