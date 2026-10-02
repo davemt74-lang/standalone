@@ -575,6 +575,12 @@ jobs:
           test -f package-website/docs/v1-backup-restore-certification.md
           test -f package-website/tests/phase81-v1-backup-cert-contract.php
           test -f package-website/tests/v1-backup-cert-db.php
+          test -f package-website/app/v2-collaboration.php
+          test -f package-website/research-agent-collaboration.php
+          test -f package-website/docs/v2-section1-collaborative-agent-roster.md
+          test -f package-website/database/migrations/20261002_130_v2_collaboration_roster.sql
+          test -f package-website/tests/v2-collaboration-section1-contract.php
+          test -f package-website/tests/v2-collaboration-section1-db.php
 
       - name: Smoke test release packages
         shell: bash
